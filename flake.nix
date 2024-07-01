@@ -15,7 +15,10 @@
     {
       devShell.${system} = pkgs.mkShell {
         packages = with pkgs; [
-          rustup
+          rustc
+          cargo
+          clippy
+          rustfmt
           rust-analyzer
         ];
       };
