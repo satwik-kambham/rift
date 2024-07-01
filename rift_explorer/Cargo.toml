@@ -1,0 +1,10 @@
+[package]
+name = "rift_explorer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tree-sitter = "0.20.10"
+tree-sitter-python = "0.20.4"

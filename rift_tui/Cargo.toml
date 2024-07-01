@@ -1,0 +1,8 @@
+[package]
+name = "rift_tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rift_explorer = { path = "../rift_explorer" }
+rift_generator = { path = "../rift_generator" }
