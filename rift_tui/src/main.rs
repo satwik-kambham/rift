@@ -6,5 +6,8 @@ pub mod cli;
 fn main() -> std::io::Result<()> {
     let args = crate::cli::CLI::parse();
     println!("{}", args.path);
-    crate::app::app()
+    let editor = crate::app::Editor::new()?;
+    editor.render()?;
+    crate::app::restore()?;
+    Ok(())
 }
