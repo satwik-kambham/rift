@@ -1,2 +1,2 @@
-# rift
+# Rift Editor
 Rift text editor

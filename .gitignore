@@ -1,2 +1,5 @@
 .direnv
 target
+
+.vscode
+.idea
