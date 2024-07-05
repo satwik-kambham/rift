@@ -8,8 +8,8 @@ use ratatui::{
         ExecutableCommand,
     },
     style::Stylize,
-    widgets::Paragraph,
-    Terminal,
+    widgets::{Paragraph, Widget},
+    Frame, Terminal,
 };
 
 /// Type for ratatui terminal with crossterm backend
@@ -17,8 +17,6 @@ pub type Tui = Terminal<CrosstermBackend<std::io::Stdout>>;
 
 /// Text Editor with State using ratatui for TUI
 pub struct Editor {
-    /// Main TUI handler
-    pub tui: Tui,
     /// Exit flag
     pub exit: bool,
     /// Text buffers
@@ -46,17 +44,15 @@ impl Editor {
     pub fn new() -> std::io::Result<Self> {
         Ok(Self {
             buffers: vec![],
-            tui: init()?,
             exit: false,
         })
     }
 
     /// TUI main event loop
-    pub fn render(mut self) -> std::io::Result<()> {
+    pub fn run(&mut self, terminal: &mut Tui) -> std::io::Result<()> {
         while !self.exit {
-            self.tui.draw(|frame| {
-                let area = frame.size();
-                frame.render_widget(Paragraph::new("sdfsdf".green()), area);
+            terminal.draw(|frame| {
+                self.render_frame(frame);
             })?;
 
             if event::poll(std::time::Duration::from_millis(16))? {
@@ -68,5 +64,16 @@ impl Editor {
             }
         }
         Ok(())
+    }
+
+    /// Immediate rendering
+    fn render_frame(&self, frame: &mut Frame) {
+        frame.render_widget(self, frame.size());
+    }
+}
+
+impl Widget for &Editor {
+    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
+        Paragraph::new("sdfsdf".green()).render(area, buf);
     }
 }

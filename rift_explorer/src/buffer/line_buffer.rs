@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use super::highlight;
 use super::highlight::LanguageHighlightTypeMapping;
 
-#[derive(serde::Serialize, serde::Deserialize ,Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Cursor {
     pub row: usize,
     pub column: usize,
@@ -306,7 +306,7 @@ impl LineTextBuffer {
 
         // Highlight and cache
         self.highlighted_text = Some(self.highlight_complete_text());
-        
+
         updated_cursor
     }
 
@@ -336,7 +336,6 @@ impl LineTextBuffer {
 
             // Highlight and cache
             self.highlighted_text = Some(self.highlight_complete_text());
-        
 
             (middle.to_owned(), selection.start.clone())
         } else {
@@ -361,7 +360,6 @@ impl LineTextBuffer {
 
             // Highlight and cache
             self.highlighted_text = Some(self.highlight_complete_text());
-        
 
             (buf, selection.start.clone())
         }
@@ -448,7 +446,7 @@ impl LineTextBuffer {
 
         // Highlight and cache
         self.highlighted_text = Some(self.highlight_complete_text());
-        
+
         updated_selection
     }
 
@@ -473,7 +471,7 @@ impl LineTextBuffer {
 
         // Highlight and cache
         self.highlighted_text = Some(self.highlight_complete_text());
-        
+
         updated_selection
     }
 
@@ -516,12 +514,12 @@ impl LineTextBuffer {
     pub fn get_highlighted_line(&mut self, row: usize) -> highlight::HighlightedLine {
         if self.highlighted_text.is_some() {
             highlight::HighlightedLine {
-                text: self.highlighted_text.as_ref().unwrap().text[row].clone()
+                text: self.highlighted_text.as_ref().unwrap().text[row].clone(),
             }
         } else {
             self.highlighted_text = Some(self.highlight_complete_text());
             highlight::HighlightedLine {
-                text: self.highlighted_text.as_ref().unwrap().text[row].clone()
+                text: self.highlighted_text.as_ref().unwrap().text[row].clone(),
             }
         }
     }
