@@ -1,4 +1,4 @@
-use std::io::{self, stdout};
+use std::io::stdout;
 
 use ratatui::{
     backend::CrosstermBackend,
@@ -12,6 +12,10 @@ use ratatui::{
     widgets::{Paragraph, Widget},
     Frame, Terminal,
 };
+use rift_explorer::buffer::line_buffer::{LineTextBuffer, Selection};
+use rift_generator::io::file_handling;
+
+use crate::cli::CLI;
 
 /// Type for ratatui terminal with crossterm backend
 pub type Tui = Terminal<CrosstermBackend<std::io::Stdout>>;
@@ -30,6 +34,8 @@ pub struct Editor {
     pub exit: bool,
     /// Text buffers
     pub buffers: Vec<EditorState>,
+    pub prev_key_press: KeyCode,
+    cli_args: CLI,
 }
 
 /// Initialize the TUI
@@ -50,10 +56,12 @@ pub fn restore() -> std::io::Result<()> {
 
 impl Editor {
     /// Create a new instance of the editor
-    pub fn new() -> std::io::Result<Self> {
+    pub fn new(cli_args: CLI) -> std::io::Result<Self> {
         Ok(Self {
             buffers: vec![],
             exit: false,
+            prev_key_press: KeyCode::Null,
+            cli_args,
         })
     }
 
@@ -77,12 +85,33 @@ impl Editor {
     fn handle_events(&mut self) -> std::io::Result<()> {
         if event::poll(std::time::Duration::from_millis(16))? {
             if let event::Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press && key.code == KeyCode::Char('q') {
-                    self.exit = true;
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('q') => self.exit = true,
+                        KeyCode::Char('f') => {
+                            if self.prev_key_press == KeyCode::Char(' ') {
+                                self.open_file();
+                            }
+                        }
+                        _ => {}
+                    }
+                    self.prev_key_press = key.code;
                 }
             }
         }
         Ok(())
+    }
+
+    /// Open file as buffer
+    fn open_file(&mut self) {
+        let file_content = file_handling::read_file_content(&self.cli_args.path).unwrap();
+
+        self.buffers.push(EditorState {
+            buffer: LineTextBuffer::new(file_content),
+            selection: Selection::default(),
+            scroll_x: 0,
+            scroll_y: 0,
+        });
     }
 }
 

@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use super::highlight;
 use super::highlight::LanguageHighlightTypeMapping;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub struct Cursor {
     pub row: usize,
     pub column: usize,
@@ -15,7 +15,7 @@ pub enum Language {
     Python,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub struct Selection {
     pub start: Cursor,
     pub end: Cursor,
@@ -304,8 +304,7 @@ impl LineTextBuffer {
         current_line.push_str(s2);
         self.lines[updated_cursor.row] = current_line;
 
-        // Highlight and cache
-        self.highlighted_text = Some(self.highlight_complete_text());
+        self.highlight();
 
         updated_cursor
     }
@@ -334,8 +333,7 @@ impl LineTextBuffer {
             let (first, middle) = first.split_at(selection.start.column);
             self.lines[selection.start.row] = first.to_owned() + second;
 
-            // Highlight and cache
-            self.highlighted_text = Some(self.highlight_complete_text());
+            self.highlight();
 
             (middle.to_owned(), selection.start.clone())
         } else {
@@ -358,8 +356,7 @@ impl LineTextBuffer {
             buf.insert_str(0, middle);
             self.lines[selection.start.row] = first.to_owned() + second;
 
-            // Highlight and cache
-            self.highlighted_text = Some(self.highlight_complete_text());
+            self.highlight();
 
             (buf, selection.start.clone())
         }
@@ -444,8 +441,7 @@ impl LineTextBuffer {
             self.lines[i] = new_line;
         }
 
-        // Highlight and cache
-        self.highlighted_text = Some(self.highlight_complete_text());
+        self.highlight();
 
         updated_selection
     }
@@ -469,8 +465,7 @@ impl LineTextBuffer {
             }
         }
 
-        // Highlight and cache
-        self.highlighted_text = Some(self.highlight_complete_text());
+        self.highlight();
 
         updated_selection
     }
@@ -510,6 +505,11 @@ impl LineTextBuffer {
         }
     }
 
+    /// Highlight and cache
+    pub fn highlight(&mut self) {
+        self.highlighted_text = Some(self.highlight_complete_text());
+    }
+
     /// Get highlighted line at row
     pub fn get_highlighted_line(&mut self, row: usize) -> highlight::HighlightedLine {
         if self.highlighted_text.is_some() {
@@ -517,7 +517,7 @@ impl LineTextBuffer {
                 text: self.highlighted_text.as_ref().unwrap().text[row].clone(),
             }
         } else {
-            self.highlighted_text = Some(self.highlight_complete_text());
+            self.highlight();
             highlight::HighlightedLine {
                 text: self.highlighted_text.as_ref().unwrap().text[row].clone(),
             }
