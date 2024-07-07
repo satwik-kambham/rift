@@ -12,7 +12,7 @@ use ratatui::{
     widgets::{Paragraph, Widget},
     Frame, Terminal,
 };
-use rift_explorer::buffer::line_buffer::{LineTextBuffer, Selection};
+use rift_explorer::buffer::line_buffer::{Language, LineTextBuffer, Selection};
 use rift_generator::io::file_handling;
 
 use crate::cli::CLI;
@@ -32,9 +32,13 @@ pub struct EditorState {
 pub struct Editor {
     /// Exit flag
     pub exit: bool,
-    /// Text buffers
+    /// Text buffers with extra state
     pub buffers: Vec<EditorState>,
+    /// Current buffer index
+    pub buffer_idx: usize,
+    /// Previously pressed key
     pub prev_key_press: KeyCode,
+    /// CLI arguments
     cli_args: CLI,
 }
 
@@ -62,11 +66,13 @@ impl Editor {
             exit: false,
             prev_key_press: KeyCode::Null,
             cli_args,
+            buffer_idx: 0,
         })
     }
 
     /// TUI main event loop
     pub fn run(&mut self, terminal: &mut Tui) -> std::io::Result<()> {
+        self.create_scratchpad_buffer();
         while !self.exit {
             terminal.draw(|frame| {
                 self.render_frame(frame);
@@ -105,13 +111,30 @@ impl Editor {
     /// Open file as buffer
     fn open_file(&mut self) {
         let file_content = file_handling::read_file_content(&self.cli_args.path).unwrap();
-
-        self.buffers.push(EditorState {
+        let mut editor = EditorState {
             buffer: LineTextBuffer::new(file_content),
             selection: Selection::default(),
             scroll_x: 0,
             scroll_y: 0,
-        });
+        };
+        editor.buffer.language = Language::Python;
+        editor.buffer.highlight();
+        self.buffers.push(editor);
+        self.buffer_idx = self.buffers.len() - 1;
+    }
+
+    /// Open scratchpad buffer
+    fn create_scratchpad_buffer(&mut self) {
+        let mut editor = EditorState {
+            buffer: LineTextBuffer::new("".to_owned()),
+            selection: Selection::default(),
+            scroll_x: 0,
+            scroll_y: 0,
+        };
+        editor.buffer.language = Language::Python;
+        editor.buffer.highlight();
+        self.buffers.push(editor);
+        self.buffer_idx = self.buffers.len() - 1;
     }
 }
 
@@ -122,6 +145,6 @@ impl Widget for &Editor {
                 buf.get_mut(x, y).set_bg(Color::DarkGray);
             }
         }
-        Paragraph::new("sdfsdf".green()).render(area, buf);
+        Paragraph::new(format!("{}", self.buffer_idx).green()).render(area, buf);
     }
 }
