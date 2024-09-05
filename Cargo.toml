@@ -4,4 +4,5 @@ resolver = "2"
 members = [
   "rift_core",
   "rift_tui",
+  "rift_tauri/src-tauri",
 ]
