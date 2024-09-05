@@ -39,6 +39,10 @@
 
           rust-bin.stable.latest.default
           rust-analyzer
+          typescript-language-server
+          vue-language-server
+          vscode-langservers-extracted
+          tailwindcss-language-server
           nodejs_20
           cargo-tauri
         ];
