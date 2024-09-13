@@ -3,7 +3,7 @@
 - [x] Line buffer from text
 - [x] Line buffer to text for saving to file
 - [x] Read file contents from path
-- [ ] Add tailwind
+- [x] Add tailwind
 - [ ] Editor state with current file path
 - [ ] Status line showing editor state
 - [ ] Editor component

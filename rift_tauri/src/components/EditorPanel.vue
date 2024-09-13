@@ -1,5 +1,5 @@
 <script setup lang="ts"></script>
 
 <template>
-  <div>Editor</div>
+  <div class="underline">Editor</div>
 </template>

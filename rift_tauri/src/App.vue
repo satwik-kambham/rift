@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import EditorComponent from './components/EditorComponent.vue'
+import EditorPanel from './components/EditorPanel.vue'
 </script>
 
 <template>
   <header>Rift</header>
   <main>
-    <EditorComponent />
+    <EditorPanel />
   </main>
 </template>
