@@ -4,14 +4,23 @@
 - [x] Line buffer to text for saving to file
 - [x] Read file contents from path
 - [x] Add tailwind
-- [ ] Editor state with current file path
-- [ ] Status line showing editor state
-- [ ] Editor component
 - [x] Persistent editor settings (font family, font size, tab width, line endings)
-- [ ] Editor component calculates cursor width, cursor height / line height based on dummy hidden element
-- [ ] Editor component calculates number of lines that can fit
-- [ ] Hidden cursor takes in keyboard input
-- [ ] Open file dialog
-- [ ] Display file content
-- [ ] Cursor and selection
-- [ ] Scroll
+- [x] Add basic file handling methods
+- [ ] Create component which is always in focus and handles all keyboard inputs
+- [ ] Create completion component which shows all completions
+- [ ] Add state management to rust
+- [ ] Create commands for file handling methods
+- [ ] Add frontend state for current buffer id
+- [ ] Create editor panel component which is bound to the current buffer id
+- [ ] Add simple tree sitter based syntax highlighting
+- [ ] Add methods and commands to initialize the editor panel by calculating the number of visible lines based on a dummy element
+- [ ] Add cursor, selection and scroll position (line number and percentage distance from the top) structs
+- [ ] Display syntax highlighted text
+- [ ] Display cursor, selection
+- [ ] Add backend methods to insert and delete selections with tests
+- [ ] Add backend methods for undo and redo
+- [ ] Add edit grouping
+- [ ] Add methods and commands for changes to the number of visible lines
+- [ ] Add backend methods to calculate the lines that need to be replaced after an edit or change
+- [ ] Add scrolling functionality
+- [ ] Add editing functinality to the frontend
