@@ -1,9 +1,34 @@
 use std::{
+    cmp::Ordering,
     error::Error,
     fs::{self, File},
     io::{Read, Write},
     path,
 };
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct FolderEntry {
+    path: String,
+    is_dir: bool,
+    name: String,
+    extension: String,
+}
+
+impl PartialOrd for FolderEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FolderEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Prioritize is_dir, then name
+        other
+            .is_dir
+            .cmp(&self.is_dir)
+            .then_with(|| self.name.to_lowercase().cmp(&other.name.to_lowercase()))
+    }
+}
 
 /// Read file at path to string
 pub fn read_file_content(path: &str) -> Result<String, Box<dyn Error>> {
@@ -79,7 +104,30 @@ pub fn move_file_or_directory(path: &str, to: &str) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-/// TODO: Get all items in folder
+/// Get all items in folder
 pub fn get_directory_entries(path: &str) -> Result<(), Box<dyn Error>> {
+    let mut entries: Vec<FolderEntry> = vec![];
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        entries.push(FolderEntry {
+            path: entry.path().to_str().unwrap().to_string(),
+            is_dir: entry.metadata()?.is_dir(),
+            name: entry
+                .path()
+                .file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap()
+                .to_string(),
+            extension: entry
+                .path()
+                .extension()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap()
+                .to_string(),
+        });
+    }
+    entries.sort();
     Ok(())
 }
