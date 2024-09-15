@@ -6,7 +6,7 @@
 - [x] Add tailwind
 - [x] Persistent editor settings (font family, font size, tab width, line endings)
 - [x] Add basic file handling methods
-- [ ] Create component which is always in focus and handles all keyboard inputs
+- [x] Create component which is always in focus and handles all keyboard inputs
 - [ ] Create completion component which shows all completions
 - [ ] Add state management to rust
 - [ ] Create commands for file handling methods
