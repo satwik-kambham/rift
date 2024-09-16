@@ -5,6 +5,7 @@ pub struct Cursor {
 }
 
 /// Text buffer implementation as a list of lines
+#[derive(Debug)]
 pub struct LineBuffer {
     pub file_path: Option<String>,
     pub lines: Vec<String>,

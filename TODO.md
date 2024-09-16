@@ -8,7 +8,7 @@
 - [x] Add basic file handling methods
 - [x] Create component which is always in focus and handles all keyboard inputs
 - [ ] Create completion component which shows all completions
-- [ ] Add state management to rust
+- [x] Add state management to rust
 - [ ] Create commands for file handling methods
 - [ ] Add frontend state for current buffer id
 - [ ] Create editor panel component which is bound to the current buffer id
