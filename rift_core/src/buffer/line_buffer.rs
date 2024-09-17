@@ -38,6 +38,11 @@ impl LineBuffer {
     pub fn get_content(&self, eol_sequence: String) -> String {
         self.lines.join(&eol_sequence)
     }
+
+    /// Get visible lines based on scroll position, cursor position and number of visible lines
+    pub fn get_visible_lines(&self, visible_lines: usize) -> &[String] {
+        &self.lines[0..visible_lines]
+    }
 }
 
 #[cfg(test)]

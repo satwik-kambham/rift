@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useSettingsStore } from '../stores/settings.ts'
+import { useWorkspaceStore } from '../stores/workspace.ts'
+import { invoke } from '@tauri-apps/api'
+
+const settingsStore = useSettingsStore()
+const workspaceStore = useWorkspaceStore()
 
 const keyCode = ref('')
 const hiddenInput = ref<HTMLELement | null>(null)
@@ -7,6 +13,15 @@ const hiddenInput = ref<HTMLELement | null>(null)
 function key_down(e: KeyboardEvent) {
   e.preventDefault()
   keyCode.value = e.key
+  if (e.key == "f") {
+    invoke('open_file', { path: "/home/satwik/.zsh_history"}).then((bufferId) => {
+      workspaceStore.bufferId = bufferId
+      workspaceStore.debug = bufferId
+      invoke('get_visible_lines', { bufferId: bufferId }).then((visibleLines) => {
+        workspaceStore.visibleLines = visibleLines;
+      })
+    })
+  }
 }
 
 function focusInput() {

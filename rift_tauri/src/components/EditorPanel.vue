@@ -26,13 +26,16 @@ function calculateCapacity() {
 <template>
   <div
     ref="panel"
-    class="flex-grow bg-stone-800 m-2"
+    class="flex-grow bg-stone-800 m-2 antialiased"
     :style="{
       'font-size': settingsStore.fontSize + 'px',
       'font-family': settingsStore.fontFamily,
       'line-height': settingsStore.lineHeight + 'rem'
     }"
   >
-    <div ref="hiddenLine" class="absolute invisible whitespace-pre inline-block antialiased">X</div>
+    <span v-for="line in workspaceStore.visibleLines" class="whitespace-pre inline-block">
+      <span class="whitespace-pre">{{ line }}</span>
+    </span>
+    <div ref="hiddenLine" class="absolute invisible whitespace-pre inline-block">X</div>
   </div>
 </template>

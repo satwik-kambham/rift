@@ -10,10 +10,10 @@
 - [ ] Create completion component which shows all completions
 - [x] Add state management to rust
 - [ ] Create commands for file handling methods
-- [ ] Add frontend state for current buffer id
-- [ ] Create editor panel component which is bound to the current buffer id
+- [x] Add frontend state for current buffer id
+- [x] Create editor panel component which is bound to the current buffer id
 - [ ] Add simple tree sitter based syntax highlighting
-- [ ] Add methods and commands to initialize the editor panel by calculating the number of visible lines based on a dummy element
+- [x] Add methods and commands to initialize the editor panel by calculating the number of visible lines based on a dummy element
 - [ ] Add cursor, selection and scroll position (line number and percentage distance from the top) structs
 - [ ] Display syntax highlighted text
 - [ ] Display cursor, selection

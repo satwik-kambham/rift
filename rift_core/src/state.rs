@@ -6,7 +6,7 @@ use crate::buffer::line_buffer::LineBuffer;
 pub struct EditorState {
     pub buffers: HashMap<u32, LineBuffer>,
     next_id: u32,
-    pub visible_lines: u32,
+    pub visible_lines: usize,
 }
 
 impl EditorState {
@@ -28,7 +28,11 @@ impl EditorState {
         self.buffers.remove(&id);
     }
 
-    pub fn get_buffer_by_id(&mut self, id: u32) -> &mut LineBuffer {
+    pub fn get_buffer_by_id(&self, id: u32) -> &LineBuffer {
+        self.buffers.get(&id).unwrap()
+    }
+
+    pub fn get_buffer_by_id_mut(&mut self, id: u32) -> &mut LineBuffer {
         self.buffers.get_mut(&id).unwrap()
     }
 }
