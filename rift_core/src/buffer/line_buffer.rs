@@ -41,7 +41,7 @@ impl LineBuffer {
 
     /// Get visible lines based on scroll position, cursor position and number of visible lines
     pub fn get_visible_lines(&self, visible_lines: usize) -> &[String] {
-        &self.lines[0..visible_lines]
+        &self.lines.get(0..visible_lines).unwrap_or(&self.lines[0..])
     }
 }
 
