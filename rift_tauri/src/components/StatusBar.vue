@@ -2,8 +2,8 @@
 import { useSettingsStore } from '../stores/settings.ts'
 import { useWorkspaceStore } from '../stores/workspace.ts'
 
-const settingsStore = useSettingsStore();
-const workspaceStore = useWorkspaceStore();
+const settingsStore = useSettingsStore()
+const workspaceStore = useWorkspaceStore()
 </script>
 
 <template>

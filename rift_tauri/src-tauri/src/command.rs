@@ -11,3 +11,10 @@ pub fn open_file(state: State<AppState>, path: String) -> Result<u32, String> {
     let buffer = LineBuffer::new(initial_text, Some(path));
     Ok(state.add_buffer(buffer))
 }
+
+#[tauri::command]
+pub fn panel_resized(state: State<AppState>, visible_lines: u32) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+    state.visible_lines = visible_lines;
+    Ok(())
+}

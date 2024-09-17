@@ -6,6 +6,7 @@ use crate::buffer::line_buffer::LineBuffer;
 pub struct EditorState {
     pub buffers: HashMap<u32, LineBuffer>,
     next_id: u32,
+    pub visible_lines: u32,
 }
 
 impl EditorState {
@@ -13,6 +14,7 @@ impl EditorState {
         Self {
             buffers: HashMap::new(),
             next_id: 0,
+            visible_lines: 0,
         }
     }
 

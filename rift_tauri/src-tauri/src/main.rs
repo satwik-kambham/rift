@@ -16,7 +16,10 @@ fn main() {
             app.manage(AppState::default());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![command::open_file])
+        .invoke_handler(tauri::generate_handler![
+            command::open_file,
+            command::panel_resized
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
