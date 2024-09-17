@@ -1,8 +1,8 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export const useCounterStore = defineStore('workspace', () => {
-  const count = ref(0)
+export const useWorkspaceStore = defineStore('workspace', () => {
+  const debug = ref("Debug")
 
-  return { count }
+  return { debug }
 })

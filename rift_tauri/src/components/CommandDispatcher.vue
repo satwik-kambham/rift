@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-const keyCode = ref('sdfsdf')
+const keyCode = ref('')
 const hiddenInput = ref<HTMLELement | null>(null)
 
 function key_down(e: KeyboardEvent) {
@@ -19,6 +19,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="underline">Dispatcher: {{ keyCode }}</div>
-  <input ref="hiddenInput" class="bg-slate-100" tabindex="-1" type="text" @keydown="key_down" @blur="focusInput" />
+  <div class="flex">
+    <div class="">Dispatcher: {{ keyCode }}</div>
+    <input ref="hiddenInput" class="opacity-0 w-0 h-0" tabindex="-1" type="text" @keydown="key_down" @blur="focusInput" />
+  </div>
 </template>

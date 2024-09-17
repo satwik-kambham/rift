@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import EditorPanel from './components/EditorPanel.vue'
+import StatusBar from './components/StatusBar.vue'
 import CommandDispatcher from './components/CommandDispatcher.vue'
 </script>
 
 <template>
-  <header>Rift</header>
-  <main>
+  <div class="flex flex-col bg-stone-900 text-stone-100 min-h-full">
     <EditorPanel />
+    <StatusBar />
     <CommandDispatcher />
-  </main>
+  </div>
 </template>
