@@ -14,13 +14,14 @@
 - [x] Create editor panel component which is bound to the current buffer id
 - [ ] Add simple tree sitter based syntax highlighting
 - [x] Add methods and commands to initialize the editor panel by calculating the number of visible lines based on a dummy element
-- [ ] Add cursor, selection and scroll position (line number and percentage distance from the top) structs
+- [x] Add cursor, selection and scroll position (line number and percentage distance from the top) structs
 - [ ] Display syntax highlighted text
-- [ ] Display cursor, selection
+- [/] Word wrap (soft wrap and hard wrap)
+- [o] Display cursor, selection
 - [ ] Add backend methods to insert and delete selections with tests
 - [ ] Add backend methods for undo and redo
 - [ ] Add edit grouping
 - [ ] Add methods and commands for changes to the number of visible lines
-- [ ] Add backend methods to calculate the lines that need to be replaced after an edit or change
-- [ ] Add scrolling functionality
+- [-] Add backend methods to calculate the lines that need to be replaced after an edit or change
+- [o] Add scrolling functionality
 - [ ] Add editing functinality to the frontend

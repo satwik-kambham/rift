@@ -19,7 +19,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             command::open_file,
             command::panel_resized,
-            command::get_visible_lines
+            command::get_visible_lines,
+            command::get_visible_lines_wrap
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

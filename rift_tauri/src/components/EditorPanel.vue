@@ -9,17 +9,24 @@ const workspaceStore = useWorkspaceStore()
 
 const panel = ref<HTMLELement | null>(null)
 const hiddenLine = ref<HTMLELement | null>(null)
+const gutterWidth = ref(40)
 
 onMounted(() => {
-  const visibleLines = calculateCapacity()
-  invoke('panel_resized', { visibleLines: visibleLines })
+  const capacity = calculateCapacity()
+  invoke('panel_resized', capacity)
 })
 
 function calculateCapacity() {
   const height = panel.value?.offsetHeight
+  const width = panel.value?.offsetWidth
   const lineHeight = hiddenLine.value?.offsetHeight
+  const characterWidth = hiddenLine.value?.offsetWidth
   const visibleLines = parseInt(height / lineHeight)
-  return visibleLines
+  const charactersPerLine = parseInt((width - gutterWidth.value) / characterWidth)
+  return {
+    visibleLines: visibleLines,
+    charactersPerLine: charactersPerLine,
+  }
 }
 </script>
 

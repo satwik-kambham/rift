@@ -22,6 +22,15 @@ function key_down(e: KeyboardEvent) {
       })
     })
   }
+  if (e.key == 'g') {
+    invoke('open_file', { path: '/home/satwik/Documents/Test.py' }).then((bufferId) => {
+      workspaceStore.bufferId = bufferId
+      workspaceStore.debug = bufferId
+      invoke('get_visible_lines_wrap', { bufferId: bufferId }).then((visibleLines) => {
+        workspaceStore.visibleLines = visibleLines
+      })
+    })
+  }
 }
 
 function focusInput() {

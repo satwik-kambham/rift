@@ -5,6 +5,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const debug = ref('Debug')
   const bufferId = ref(-1)
   const visibleLines = ref([])
+  const startLine = ref(0)
 
-  return { debug, bufferId, visibleLines }
+  return { debug, bufferId, visibleLines, startLine }
 })

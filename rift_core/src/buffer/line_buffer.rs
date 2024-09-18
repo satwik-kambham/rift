@@ -1,9 +1,3 @@
-#[derive(Debug, Clone, Copy)]
-pub struct Cursor {
-    pub row: usize,
-    pub column: usize,
-}
-
 /// Text buffer implementation as a list of lines
 #[derive(Debug)]
 pub struct LineBuffer {
@@ -43,6 +37,28 @@ impl LineBuffer {
     pub fn get_visible_lines(&self, visible_lines: usize) -> &[String] {
         &self.lines.get(0..visible_lines).unwrap_or(&self.lines[0..])
     }
+
+    /// Get visible lines with line wrap
+    pub fn get_visible_lines_with_wrap(
+        &self,
+        visible_lines: usize,
+        max_characters: usize,
+        soft_wrap: bool,
+    ) -> Vec<String> {
+        let mut lines = vec![];
+        let mut start = 0;
+
+        for line in self.lines.get(0..visible_lines).unwrap_or(&self.lines[0..]) {
+            while start < line.len() {
+                let end = std::cmp::min(start + max_characters, line.len());
+                lines.push(line[start..end].to_string());
+                start = end;
+            }
+            start = 0;
+        }
+
+        lines
+    }
 }
 
 #[cfg(test)]
@@ -75,5 +91,17 @@ mod tests {
         let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
         assert_eq!(buf.file_path, None);
         assert_eq!(buf.lines, vec!["Hello", "World", "",])
+    }
+
+    #[test]
+    fn line_buffer_hard_wrap() {
+        let buf = LineBuffer::new(
+            "HelloWorld\nSu      ch a wo     nderful    world".into(),
+            None,
+        );
+        assert_eq!(
+            buf.get_visible_lines_with_wrap(10, 4, false),
+            vec!["Hello", "World", "",]
+        )
     }
 }

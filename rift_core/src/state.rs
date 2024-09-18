@@ -3,10 +3,19 @@ use std::collections::HashMap;
 use crate::buffer::line_buffer::LineBuffer;
 
 #[derive(Debug, Default)]
+pub enum Mode {
+    #[default]
+    Normal,
+    Insert,
+}
+
+#[derive(Debug, Default)]
 pub struct EditorState {
     pub buffers: HashMap<u32, LineBuffer>,
     next_id: u32,
     pub visible_lines: usize,
+    pub max_characters: usize,
+    pub mode: Mode,
 }
 
 impl EditorState {
@@ -15,6 +24,8 @@ impl EditorState {
             buffers: HashMap::new(),
             next_id: 0,
             visible_lines: 0,
+            max_characters: 0,
+            mode: Mode::Normal,
         }
     }
 
