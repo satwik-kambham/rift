@@ -62,3 +62,9 @@ pub fn insert_mode(state: State<AppState>) {
 // - Update selection cursor
 // - Update selection mark and cursor
 // - Select next word
+
+/// Insert mode - Move cursor right
+#[tauri::command]
+pub fn move_cursor_right(state: State<AppState>, buffer_id: u32) {
+    let mut state = state.lock().unwrap();
+}

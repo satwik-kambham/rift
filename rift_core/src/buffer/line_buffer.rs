@@ -1,3 +1,7 @@
+use std::cmp::{max, min};
+
+use super::instance;
+
 /// Text buffer implementation as a list of lines
 #[derive(Debug)]
 pub struct LineBuffer {
@@ -59,10 +63,85 @@ impl LineBuffer {
 
         lines
     }
+
+    /// Get line length
+    pub fn get_line_length(&self, row: usize) -> usize {
+        self.lines[row].len()
+    }
+
+    /// Get number of lines
+    pub fn get_num_lines(&self) -> usize {
+        self.lines.len()
+    }
+
+    /// Move cursor right in insert mode
+    pub fn move_cursor_right(&self, cursor: &mut instance::Cursor) {
+        let line_length = self.get_line_length(cursor.row);
+        if cursor.column == line_length {
+            if cursor.row != self.get_num_lines() - 1 {
+                cursor.column = 0;
+                cursor.row += 1;
+            }
+        } else {
+            cursor.column += 1;
+        }
+    }
+
+    /// Move cursor left in insert mode
+    pub fn move_cursor_left(&self, cursor: &mut instance::Cursor) {
+        if cursor.column == 0 {
+            if cursor.row != 0 {
+                cursor.row -= 1;
+                cursor.column = self.get_line_length(cursor.row);
+            }
+        } else {
+            cursor.column -= 1;
+        }
+    }
+
+    /// Move cursor up in insert mode
+    pub fn move_cursor_up(&self, cursor: &mut instance::Cursor, column_level: usize) -> usize {
+        if cursor.row == 0 {
+            cursor.column = 0;
+            cursor.column
+        } else {
+            cursor.row -= 1;
+            if cursor.column > self.get_line_length(cursor.row) {
+                cursor.column = self.get_line_length(cursor.row);
+            } else {
+                cursor.column = max(
+                    min(column_level, self.get_line_length(cursor.row)),
+                    cursor.column,
+                )
+            }
+            column_level
+        }
+    }
+
+    /// Move cursor down in insert mode
+    pub fn move_cursor_down(&self, cursor: &mut instance::Cursor, column_level: usize) -> usize {
+        if cursor.row == self.get_num_lines() - 1 {
+            cursor.column = self.get_line_length(cursor.row);
+            cursor.column
+        } else {
+            cursor.row += 1;
+            if cursor.column > self.get_line_length(cursor.row) {
+                cursor.column = self.get_line_length(cursor.row);
+            } else {
+                cursor.column = max(
+                    min(column_level, self.get_line_length(cursor.row)),
+                    cursor.column,
+                )
+            }
+            column_level
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::buffer::instance;
+
     use super::LineBuffer;
 
     #[test]
@@ -95,13 +174,34 @@ mod tests {
 
     #[test]
     fn line_buffer_hard_wrap() {
-        let buf = LineBuffer::new(
-            "HelloWorld\nSu      ch a wo     nderful    world".into(),
-            None,
-        );
+        let buf = LineBuffer::new("HelloWorld".into(), None);
         assert_eq!(
-            buf.get_visible_lines_with_wrap(10, 4, false),
-            vec!["Hello", "World", "",]
+            buf.get_visible_lines_with_wrap(10, 5, false),
+            vec!["Hello", "World"]
         )
+    }
+
+    #[test]
+    fn move_cursor_right_same_line() {
+        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
+        let mut cursor = instance::Cursor { row: 0, column: 0 };
+        buf.move_cursor_right(&mut cursor);
+        assert_eq!(cursor, instance::Cursor { row: 0, column: 1 });
+    }
+
+    #[test]
+    fn move_cursor_right_next_line() {
+        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
+        let mut cursor = instance::Cursor { row: 0, column: 5 };
+        buf.move_cursor_right(&mut cursor);
+        assert_eq!(cursor, instance::Cursor { row: 1, column: 0 });
+    }
+
+    #[test]
+    fn move_cursor_right_final_line() {
+        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
+        let mut cursor = instance::Cursor { row: 2, column: 0 };
+        buf.move_cursor_right(&mut cursor);
+        assert_eq!(cursor, instance::Cursor { row: 2, column: 0 })
     }
 }

@@ -1,5 +1,5 @@
 /// Struct representating a position in the buffer
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cursor {
     pub row: usize,
     pub column: usize,
@@ -24,6 +24,7 @@ pub struct BufferInstance {
     pub cursor: Cursor,
     pub selection: Selection,
     pub scroll: Cursor,
+    pub column_level: usize,
 }
 
 impl BufferInstance {
