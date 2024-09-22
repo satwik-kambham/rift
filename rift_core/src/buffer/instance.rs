@@ -37,6 +37,7 @@ impl BufferInstance {
                 mark: Cursor { row: 0, column: 0 },
             },
             scroll: Cursor { row: 0, column: 0 },
+            column_level: 0,
         }
     }
 

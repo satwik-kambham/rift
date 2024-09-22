@@ -33,11 +33,11 @@ function calculateCapacity() {
 <template>
   <div
     ref="panel"
-    class="flex-grow bg-stone-800 antialiased overflow-auto w-full"
+    class="flex-grow bg-bg antialiased w-full text-text cursor-text select-none"
     :style="{
       'font-size': settingsStore.fontSize + 'px',
       'font-family': settingsStore.fontFamily,
-      'line-height': settingsStore.lineHeight + 'rem'
+      'line-height': settingsStore.lineHeight
     }"
   >
     <div v-for="line in workspaceStore.visibleLines">

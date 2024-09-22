@@ -34,7 +34,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex">
+  <div class="flex bg-bg-dark px-1">
     <div class="">Dispatcher: {{ keyCode }}</div>
     <input
       ref="hiddenInput"

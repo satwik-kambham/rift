@@ -5,7 +5,7 @@ import CommandDispatcher from './components/CommandDispatcher.vue'
 </script>
 
 <template>
-  <div class="flex flex-col bg-stone-800 text-stone-100 min-h-full w-full overflow-hidden">
+  <div class="flex flex-col bg-stone-800 text-stone-100 min-h-full w-full text-xs text-text">
     <EditorPanel />
     <StatusBar />
     <CommandDispatcher />

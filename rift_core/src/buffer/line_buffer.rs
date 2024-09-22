@@ -58,6 +58,9 @@ impl LineBuffer {
                 lines.push(line[start..end].to_string());
                 start = end;
             }
+            if line.len() == 0 {
+                lines.push("".to_string());
+            }
             start = 0;
         }
 
@@ -177,7 +180,7 @@ mod tests {
         let buf = LineBuffer::new("HelloWorld".into(), None);
         assert_eq!(
             buf.get_visible_lines_with_wrap(10, 5, false),
-            vec!["Hello", "World"]
+            vec!["Hello", "World", ""]
         )
     }
 
