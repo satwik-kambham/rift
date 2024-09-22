@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::buffer::line_buffer::LineBuffer;
+use crate::buffer::{instance::BufferInstance, line_buffer::LineBuffer};
 
 #[derive(Debug, Default)]
 pub enum Mode {
@@ -9,9 +9,10 @@ pub enum Mode {
     Insert,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct EditorState {
     pub buffers: HashMap<u32, LineBuffer>,
+    pub instances: HashMap<u32, BufferInstance>,
     next_id: u32,
     pub visible_lines: usize,
     pub max_characters: usize,
@@ -26,11 +27,14 @@ impl EditorState {
             visible_lines: 0,
             max_characters: 0,
             mode: Mode::Normal,
+            instances: HashMap::new(),
         }
     }
 
     pub fn add_buffer(&mut self, buffer: LineBuffer) -> u32 {
         self.buffers.insert(self.next_id, buffer);
+        self.instances
+            .insert(self.next_id, BufferInstance::new(self.next_id));
         self.next_id += 1;
         self.next_id - 1
     }
@@ -39,11 +43,17 @@ impl EditorState {
         self.buffers.remove(&id);
     }
 
-    pub fn get_buffer_by_id(&self, id: u32) -> &LineBuffer {
-        self.buffers.get(&id).unwrap()
+    pub fn get_buffer_by_id(&self, id: u32) -> (&LineBuffer, &BufferInstance) {
+        (
+            self.buffers.get(&id).unwrap(),
+            self.instances.get(&id).unwrap(),
+        )
     }
 
-    pub fn get_buffer_by_id_mut(&mut self, id: u32) -> &mut LineBuffer {
-        self.buffers.get_mut(&id).unwrap()
+    pub fn get_buffer_by_id_mut(&mut self, id: u32) -> (&mut LineBuffer, &mut BufferInstance) {
+        (
+            self.buffers.get_mut(&id).unwrap(),
+            self.instances.get_mut(&id).unwrap(),
+        )
     }
 }

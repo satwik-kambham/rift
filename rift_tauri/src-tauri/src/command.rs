@@ -1,3 +1,4 @@
+use rift_core::buffer::instance;
 use rift_core::buffer::line_buffer::LineBuffer;
 use rift_core::io::file_io;
 use rift_core::state::Mode;
@@ -22,22 +23,24 @@ pub fn panel_resized(state: State<AppState>, visible_lines: usize, characters_pe
     state.max_characters = characters_per_line;
 }
 
-/// Get the lines to be displayed for a given buffer
-#[tauri::command]
-pub fn get_visible_lines(state: State<AppState>, buffer_id: u32) -> Vec<String> {
-    let state = state.lock().unwrap();
-    let buffer = state.get_buffer_by_id(buffer_id);
-    buffer.get_visible_lines(state.visible_lines).to_vec()
-}
-
 /// Get the lines to be displayed for a given buffer with wrapping
 #[tauri::command]
-pub fn get_visible_lines_wrap(state: State<AppState>, buffer_id: u32) -> Vec<String> {
-    let state = state.lock().unwrap();
-    let buffer = state.get_buffer_by_id(buffer_id);
-    buffer
-        .get_visible_lines_with_wrap(state.visible_lines, state.max_characters, false)
-        .to_vec()
+pub fn get_visible_lines_wrap(
+    state: State<AppState>,
+    buffer_id: u32,
+) -> (Vec<String>, instance::Cursor) {
+    let mut state = state.lock().unwrap();
+    let visible_lines = state.visible_lines.clone();
+    let max_characters = state.visible_lines.clone();
+    let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+    let (lines, cursor) = buffer.get_visible_lines_with_wrap(
+        &mut instance.scroll,
+        &instance.cursor,
+        visible_lines,
+        max_characters,
+        false,
+    );
+    (lines.to_vec(), cursor)
 }
 
 /// Switch to normal mode

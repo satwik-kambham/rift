@@ -13,13 +13,12 @@ type AppState = Mutex<EditorState>;
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            app.manage(AppState::default());
+            app.manage(Mutex::new(EditorState::new()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             command::open_file,
             command::panel_resized,
-            command::get_visible_lines,
             command::get_visible_lines_wrap
         ])
         .run(tauri::generate_context!())

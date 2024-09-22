@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 
-use super::instance;
+use super::instance::{self, Cursor};
 
 /// Text buffer implementation as a list of lines
 #[derive(Debug)]
@@ -37,34 +37,71 @@ impl LineBuffer {
         self.lines.join(&eol_sequence)
     }
 
-    /// Get visible lines based on scroll position, cursor position and number of visible lines
-    pub fn get_visible_lines(&self, visible_lines: usize) -> &[String] {
-        &self.lines.get(0..visible_lines).unwrap_or(&self.lines[0..])
-    }
-
     /// Get visible lines with line wrap
     pub fn get_visible_lines_with_wrap(
         &self,
+        mut scroll: &mut Cursor,
+        cursor: &Cursor,
         visible_lines: usize,
         max_characters: usize,
-        soft_wrap: bool,
-    ) -> Vec<String> {
+        _soft_wrap: bool,
+    ) -> (Vec<String>, Cursor) {
         let mut lines = vec![];
-        let mut start = 0;
+        let mut start = scroll.column;
+        let mut last_visible_row = scroll.row;
+        let mut last_visible_column = 0;
+        let mut visible_cursor = instance::Cursor {
+            row: 0,
+            column: cursor.column,
+        };
 
-        for line in self.lines.get(0..visible_lines).unwrap_or(&self.lines[0..]) {
-            while start < line.len() {
+        for (line_idx, line) in self
+            .lines
+            .get(scroll.row..scroll.row + visible_lines)
+            .unwrap_or(&self.lines[scroll.row..])
+            .iter()
+            .enumerate()
+        {
+            while start < line.len() && lines.len() < visible_lines {
                 let end = std::cmp::min(start + max_characters, line.len());
                 lines.push(line[start..end].to_string());
+
+                last_visible_row = scroll.row + line_idx;
+                last_visible_column = end;
+
+                if last_visible_row == cursor.row {
+                    visible_cursor.row += 1;
+                    if cursor.column < end {
+                        visible_cursor.column = cursor.column - start;
+                    }
+                }
+
                 start = end;
             }
-            if line.len() == 0 {
+            if line.len() == 0 && lines.len() < visible_lines {
                 lines.push("".to_string());
+
+                last_visible_row = scroll.row + line_idx;
+                last_visible_column = 0;
             }
             start = 0;
         }
 
-        lines
+        if cursor.row > last_visible_row
+            || (cursor.row == last_visible_row && cursor.column > last_visible_column)
+        {
+            scroll.row = last_visible_row;
+            scroll.column = last_visible_column;
+            return self.get_visible_lines_with_wrap(
+                &mut scroll,
+                &cursor,
+                visible_lines,
+                max_characters,
+                _soft_wrap,
+            );
+        }
+
+        (lines, visible_cursor)
     }
 
     /// Get line length
@@ -178,10 +215,12 @@ mod tests {
     #[test]
     fn line_buffer_hard_wrap() {
         let buf = LineBuffer::new("HelloWorld".into(), None);
-        assert_eq!(
-            buf.get_visible_lines_with_wrap(10, 5, false),
-            vec!["Hello", "World", ""]
-        )
+        let mut scroll = instance::Cursor { row: 0, column: 0 };
+        let cursor = instance::Cursor { row: 0, column: 0 };
+        let (lines, visible_cursor) =
+            buf.get_visible_lines_with_wrap(&mut scroll, &cursor, 10, 5, false);
+        assert_eq!(vec!["Hello", "World", ""], lines);
+        assert_eq!(visible_cursor, instance::Cursor { row: 0, column: 0 });
     }
 
     #[test]

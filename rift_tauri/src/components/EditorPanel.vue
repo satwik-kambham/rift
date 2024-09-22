@@ -25,7 +25,7 @@ function calculateCapacity() {
   const charactersPerLine = parseInt((width - gutterWidth.value) / characterWidth)
   return {
     visibleLines: visibleLines,
-    charactersPerLine: charactersPerLine,
+    charactersPerLine: charactersPerLine
   }
 }
 </script>
