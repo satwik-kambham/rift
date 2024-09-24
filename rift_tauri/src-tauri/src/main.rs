@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use rift_core::state::EditorState;
 use tauri::Manager;
 
-pub mod command;
+pub mod commands;
 
 type AppState = Mutex<EditorState>;
 
@@ -17,9 +17,15 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            command::open_file,
-            command::panel_resized,
-            command::get_visible_lines_wrap
+            commands::open_file,
+            commands::panel_resized,
+            commands::get_visible_lines_wrap,
+            commands::normal_mode,
+            commands::insert_mode,
+            commands::move_cursor_left,
+            commands::move_cursor_right,
+            commands::move_cursor_up,
+            commands::move_cursor_down,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

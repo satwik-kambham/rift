@@ -101,7 +101,7 @@ impl LineBuffer {
             );
         }
 
-        (lines, visible_cursor)
+        (lines, cursor.clone())
     }
 
     /// Get line length

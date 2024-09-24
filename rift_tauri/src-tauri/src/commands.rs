@@ -31,7 +31,7 @@ pub fn get_visible_lines_wrap(
 ) -> (Vec<String>, instance::Cursor) {
     let mut state = state.lock().unwrap();
     let visible_lines = state.visible_lines.clone();
-    let max_characters = state.visible_lines.clone();
+    let max_characters = state.max_characters.clone();
     let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
     let (lines, cursor) = buffer.get_visible_lines_with_wrap(
         &mut instance.scroll,
@@ -70,4 +70,30 @@ pub fn insert_mode(state: State<AppState>) {
 #[tauri::command]
 pub fn move_cursor_right(state: State<AppState>, buffer_id: u32) {
     let mut state = state.lock().unwrap();
+    let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+    buffer.move_cursor_right(&mut instance.cursor);
+}
+
+/// Insert mode - Move cursor left
+#[tauri::command]
+pub fn move_cursor_left(state: State<AppState>, buffer_id: u32) {
+    let mut state = state.lock().unwrap();
+    let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+    buffer.move_cursor_left(&mut instance.cursor);
+}
+
+/// Insert mode - Move cursor up
+#[tauri::command]
+pub fn move_cursor_up(state: State<AppState>, buffer_id: u32) {
+    let mut state = state.lock().unwrap();
+    let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+    buffer.move_cursor_up(&mut instance.cursor, instance.column_level);
+}
+
+/// Insert mode - Move cursor down
+#[tauri::command]
+pub fn move_cursor_down(state: State<AppState>, buffer_id: u32) {
+    let mut state = state.lock().unwrap();
+    let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+    buffer.move_cursor_down(&mut instance.cursor, instance.column_level);
 }
