@@ -13,10 +13,10 @@ const hiddenInput = ref<HTMLELement | null>(null)
 function getVisibleLines() {
   invoke('get_visible_lines_wrap', { bufferId: workspaceStore.bufferId }).then((result) => {
     workspaceStore.visibleLines = result[0]
-    workspaceStore.cursorRow = result[1].row
-    workspaceStore.cursorColumn = result[1].column
-    workspaceStore.relativeCursorRow = result[2].row
-    workspaceStore.relativeCursorColumn = result[2].column
+    workspaceStore.relativeCursorRow = result[1].row
+    workspaceStore.relativeCursorColumn = result[1].column
+    workspaceStore.cursorRow = result[2].row
+    workspaceStore.cursorColumn = result[2].column
     workspaceStore.gutterInfo = result[3]
   })
 }

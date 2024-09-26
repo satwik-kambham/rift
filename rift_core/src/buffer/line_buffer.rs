@@ -92,8 +92,8 @@ impl LineBuffer {
                 });
 
                 if line_info[line_info.len() - 1].start.row == cursor.row {
-                    visible_cursor.row = lines.len() - 1;
-                    if cursor.column < end && visible_cursor.column >= start {
+                    if cursor.column <= end && visible_cursor.column >= start {
+                        visible_cursor.row = lines.len() - 1;
                         visible_cursor.column -= start;
                     }
                 }
@@ -283,7 +283,7 @@ mod tests {
         let (lines, visible_cursor, _gutter_info) =
             buf.get_visible_lines_with_wrap(&mut scroll, &cursor, 10, 5, false, false);
         assert_eq!(vec!["Hello", "World", ""], lines);
-        assert_eq!(visible_cursor, instance::Cursor { row: 1, column: 0 });
+        assert_eq!(visible_cursor, instance::Cursor { row: 0, column: 0 });
     }
 
     #[test]

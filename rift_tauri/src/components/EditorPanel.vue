@@ -65,8 +65,8 @@ function calculateCapacity() {
         </span>
       </div>
       <div class="absolute pointer-events-none z-10 bg-primary opacity-30" :style="{
-        top: workspaceStore.cursorRow * lineHeight + 'px',
-        left: (workspaceStore.cursorColumn * characterWidth) + gutterWidth + 'px',
+        top: workspaceStore.relativeCursorRow * lineHeight + 'px',
+        left: (workspaceStore.relativeCursorColumn * characterWidth) + gutterWidth + 'px',
         width: characterWidth + 'px',
         height: lineHeight + 'px',
       }"></div>
