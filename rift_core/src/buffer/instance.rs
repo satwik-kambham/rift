@@ -14,6 +14,14 @@ pub struct Selection {
     pub mark: Cursor,
 }
 
+/// Gutter Information
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct GutterInfo {
+    pub start: Cursor,
+    pub end: usize,
+    pub wrapped: bool,
+}
+
 /// An instance of a buffer (a single buffer can have multiple instances)
 /// Contains a cursor for insert mode,
 /// a selection for normal / visual mode,

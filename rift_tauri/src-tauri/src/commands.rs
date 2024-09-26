@@ -28,19 +28,30 @@ pub fn panel_resized(state: State<AppState>, visible_lines: usize, characters_pe
 pub fn get_visible_lines_wrap(
     state: State<AppState>,
     buffer_id: u32,
-) -> (Vec<String>, instance::Cursor) {
+) -> (
+    Vec<String>,
+    instance::Cursor,
+    instance::Cursor,
+    Vec<instance::GutterInfo>,
+) {
     let mut state = state.lock().unwrap();
     let visible_lines = state.visible_lines.clone();
     let max_characters = state.max_characters.clone();
     let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
-    let (lines, cursor) = buffer.get_visible_lines_with_wrap(
+    let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines_with_wrap(
         &mut instance.scroll,
         &instance.cursor,
         visible_lines,
         max_characters,
         false,
+        false,
     );
-    (lines.to_vec(), cursor)
+    (
+        lines.to_vec(),
+        relative_cursor,
+        instance.cursor,
+        gutter_info,
+    )
 }
 
 /// Switch to normal mode

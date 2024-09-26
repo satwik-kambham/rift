@@ -10,50 +10,33 @@ const workspaceStore = useWorkspaceStore()
 const keyCode = ref('')
 const hiddenInput = ref<HTMLELement | null>(null)
 
+function getVisibleLines() {
+  invoke('get_visible_lines_wrap', { bufferId: workspaceStore.bufferId }).then((result) => {
+    workspaceStore.visibleLines = result[0]
+    workspaceStore.cursorRow = result[1].row
+    workspaceStore.cursorColumn = result[1].column
+    workspaceStore.relativeCursorRow = result[2].row
+    workspaceStore.relativeCursorColumn = result[2].column
+    workspaceStore.gutterInfo = result[3]
+  })
+}
+
 function key_down(e: KeyboardEvent) {
   e.preventDefault()
   keyCode.value = e.key
   if (e.key == 'f') {
     invoke('open_file', { path: '/home/satwik/Documents/test.py' }).then((bufferId) => {
       workspaceStore.bufferId = bufferId
-      invoke('get_visible_lines_wrap', { bufferId: bufferId }).then((result) => {
-        workspaceStore.visibleLines = result[0]
-        workspaceStore.cursorRow = result[1].row;
-        workspaceStore.cursorColumn = result[1].column;
-      })
+      getVisibleLines()
     })
   } else if (e.key == 'l') {
-    invoke('move_cursor_right', { bufferId: workspaceStore.bufferId}).then(() => {
-      invoke('get_visible_lines_wrap', { bufferId: workspaceStore.bufferId }).then((result) => {
-        workspaceStore.visibleLines = result[0]
-        workspaceStore.cursorRow = result[1].row;
-        workspaceStore.cursorColumn = result[1].column;
-      })
-    })
+    invoke('move_cursor_right', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
   } else if (e.key == 'h') {
-    invoke('move_cursor_left', { bufferId: workspaceStore.bufferId}).then(() => {
-      invoke('get_visible_lines_wrap', { bufferId: workspaceStore.bufferId }).then((result) => {
-        workspaceStore.visibleLines = result[0]
-        workspaceStore.cursorRow = result[1].row;
-        workspaceStore.cursorColumn = result[1].column;
-      })
-    })
+    invoke('move_cursor_left', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
   } else if (e.key == 'j') {
-    invoke('move_cursor_down', { bufferId: workspaceStore.bufferId}).then(() => {
-      invoke('get_visible_lines_wrap', { bufferId: workspaceStore.bufferId }).then((result) => {
-        workspaceStore.visibleLines = result[0]
-        workspaceStore.cursorRow = result[1].row;
-        workspaceStore.cursorColumn = result[1].column;
-      })
-    })
+    invoke('move_cursor_down', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
   } else if (e.key == 'k') {
-    invoke('move_cursor_up', { bufferId: workspaceStore.bufferId}).then(() => {
-      invoke('get_visible_lines_wrap', { bufferId: workspaceStore.bufferId }).then((result) => {
-        workspaceStore.visibleLines = result[0]
-        workspaceStore.cursorRow = result[1].row;
-        workspaceStore.cursorColumn = result[1].column;
-      })
-    })
+    invoke('move_cursor_up', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
   } 
 }
 

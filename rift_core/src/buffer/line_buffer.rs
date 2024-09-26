@@ -45,63 +45,126 @@ impl LineBuffer {
         visible_lines: usize,
         max_characters: usize,
         _soft_wrap: bool,
-    ) -> (Vec<String>, Cursor) {
+        reverse: bool,
+    ) -> (Vec<String>, Cursor, Vec<instance::GutterInfo>) {
         let mut lines = vec![];
-        let mut start = scroll.column;
-        let mut last_visible_row = scroll.row;
-        let mut last_visible_column = 0;
+        let mut line_info = vec![];
+
+        // Starting column
+        let mut start = if reverse { 0 } else { scroll.column };
+
+        // Relative cursor position
         let mut visible_cursor = instance::Cursor {
             row: 0,
             column: cursor.column,
         };
 
+        // Range of rows / lines to display
+        let range = if reverse {
+            scroll.row - visible_lines..scroll.row
+        } else {
+            scroll.row..scroll.row + visible_lines
+        };
+
+        let alternative_range = if reverse {
+            max(scroll.row - visible_lines, 0)..
+        } else {
+            scroll.row..
+        };
+
         for (line_idx, line) in self
             .lines
-            .get(scroll.row..scroll.row + visible_lines)
-            .unwrap_or(&self.lines[scroll.row..])
+            .get(range.clone())
+            .unwrap_or(&self.lines[alternative_range])
             .iter()
             .enumerate()
         {
-            while start < line.len() && lines.len() < visible_lines {
+            while start < line.len() {
                 let end = std::cmp::min(start + max_characters, line.len());
                 lines.push(line[start..end].to_string());
+                line_info.push(instance::GutterInfo {
+                    start: Cursor {
+                        row: range.start + line_idx,
+                        column: start,
+                    },
+                    end,
+                    wrapped: if start == 0 { false } else { true },
+                });
 
-                last_visible_row = scroll.row + line_idx;
-                last_visible_column = end;
-
-                if last_visible_row == cursor.row {
-                    visible_cursor.row += 1;
-                    if cursor.column < end {
-                        visible_cursor.column = cursor.column - start;
+                if line_info[line_info.len() - 1].start.row == cursor.row {
+                    visible_cursor.row = lines.len() - 1;
+                    if cursor.column < end && visible_cursor.column >= start {
+                        visible_cursor.column -= start;
                     }
                 }
 
                 start = end;
             }
-            if line.len() == 0 && lines.len() < visible_lines {
+            if line.len() == 0 {
                 lines.push("".to_string());
 
-                last_visible_row = scroll.row + line_idx;
-                last_visible_column = 0;
+                line_info.push(instance::GutterInfo {
+                    start: Cursor {
+                        row: range.start + line_idx,
+                        column: 0,
+                    },
+                    end: 0,
+                    wrapped: false,
+                });
+
+                if line_info[line_info.len() - 1].start.row == cursor.row {
+                    visible_cursor.row = lines.len() - 1;
+                    visible_cursor.column = 0;
+                }
             }
             start = 0;
         }
 
-        if cursor.row > last_visible_row
-            || (cursor.row == last_visible_row && cursor.column > last_visible_column)
-        {
-            scroll.row = last_visible_row;
-            scroll.column = last_visible_column;
+        // If reverse, return the last visible lines, else return the first visible lines
+        if reverse {
+            if lines.len() > visible_lines {
+                lines = lines[lines.len() - visible_lines..].to_vec();
+                line_info = line_info[line_info.len() - visible_lines..].to_vec();
+            }
+            scroll.row = line_info[0].start.row;
+            scroll.column = line_info[0].start.column;
+        } else {
+            if lines.len() > visible_lines {
+                lines = lines[..visible_lines].to_vec();
+                line_info = line_info[..visible_lines].to_vec();
+            }
+        }
+
+        // If cursor is before the visible area, use scroll as the visible row and column
+        if cursor.row < scroll.row || (cursor.row == scroll.row && cursor.column < scroll.column) {
             return self.get_visible_lines_with_wrap(
                 &mut scroll,
                 &cursor,
                 visible_lines,
                 max_characters,
                 _soft_wrap,
+                true,
             );
         }
 
-        (lines, cursor.clone())
+        // If cursor is after the visible area, scroll forward
+        if cursor.row > line_info[line_info.len() - 1].start.row
+            || (cursor.row == line_info[line_info.len() - 1].start.row
+                && cursor.column > line_info[line_info.len() - 1].end)
+        {
+            scroll.row = line_info[line_info.len() - 1].start.row;
+            scroll.column = line_info[line_info.len() - 1].end;
+            return self.get_visible_lines_with_wrap(
+                &mut scroll,
+                &cursor,
+                visible_lines,
+                max_characters,
+                _soft_wrap,
+                false,
+            );
+        }
+
+        (lines, visible_cursor, line_info)
     }
 
     /// Get line length
@@ -217,10 +280,10 @@ mod tests {
         let buf = LineBuffer::new("HelloWorld".into(), None);
         let mut scroll = instance::Cursor { row: 0, column: 0 };
         let cursor = instance::Cursor { row: 0, column: 0 };
-        let (lines, visible_cursor) =
-            buf.get_visible_lines_with_wrap(&mut scroll, &cursor, 10, 5, false);
+        let (lines, visible_cursor, _gutter_info) =
+            buf.get_visible_lines_with_wrap(&mut scroll, &cursor, 10, 5, false, false);
         assert_eq!(vec!["Hello", "World", ""], lines);
-        assert_eq!(visible_cursor, instance::Cursor { row: 0, column: 0 });
+        assert_eq!(visible_cursor, instance::Cursor { row: 1, column: 0 });
     }
 
     #[test]

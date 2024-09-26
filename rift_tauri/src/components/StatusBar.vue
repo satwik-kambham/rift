@@ -12,6 +12,6 @@ const workspaceStore = useWorkspaceStore()
     <div class="grow"></div>
     <div class="">{{ workspaceStore.debug }}</div>
     <div class="grow"></div>
-    <div class="">Right</div>
+    <div class="">{{ workspaceStore.relativeCursorRow }} : {{ workspaceStore.relativeCursorColumn}}</div>
   </div>
 </template>
