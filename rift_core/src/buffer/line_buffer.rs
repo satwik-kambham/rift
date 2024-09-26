@@ -40,7 +40,7 @@ impl LineBuffer {
     /// Get visible lines with line wrap
     pub fn get_visible_lines_with_wrap(
         &self,
-        mut scroll: &mut Cursor,
+        scroll: &mut Cursor,
         cursor: &Cursor,
         visible_lines: usize,
         max_characters: usize,
@@ -61,13 +61,14 @@ impl LineBuffer {
 
         // Range of rows / lines to display
         let range = if reverse {
-            scroll.row - visible_lines..scroll.row
+            scroll.row.saturating_sub(visible_lines)
+                ..scroll.row.saturating_sub(visible_lines) + visible_lines
         } else {
             scroll.row..scroll.row + visible_lines
         };
 
         let alternative_range = if reverse {
-            max(scroll.row - visible_lines, 0)..
+            scroll.row.saturating_sub(visible_lines)..
         } else {
             scroll.row..
         };
@@ -88,19 +89,20 @@ impl LineBuffer {
                         column: start,
                     },
                     end,
-                    wrapped: if start == 0 { false } else { true },
+                    wrapped: start != 0,
                 });
 
-                if line_info[line_info.len() - 1].start.row == cursor.row {
-                    if cursor.column <= end && visible_cursor.column >= start {
-                        visible_cursor.row = lines.len() - 1;
-                        visible_cursor.column -= start;
-                    }
+                if line_info[line_info.len() - 1].start.row == cursor.row
+                    && cursor.column <= end
+                    && visible_cursor.column >= start
+                {
+                    visible_cursor.row = lines.len() - 1;
+                    visible_cursor.column -= start;
                 }
 
                 start = end;
             }
-            if line.len() == 0 {
+            if line.is_empty() {
                 lines.push("".to_string());
 
                 line_info.push(instance::GutterInfo {
@@ -128,18 +130,16 @@ impl LineBuffer {
             }
             scroll.row = line_info[0].start.row;
             scroll.column = line_info[0].start.column;
-        } else {
-            if lines.len() > visible_lines {
-                lines = lines[..visible_lines].to_vec();
-                line_info = line_info[..visible_lines].to_vec();
-            }
+        } else if lines.len() > visible_lines {
+            lines = lines[..visible_lines].to_vec();
+            line_info = line_info[..visible_lines].to_vec();
         }
 
         // If cursor is before the visible area, use scroll as the visible row and column
         if cursor.row < scroll.row || (cursor.row == scroll.row && cursor.column < scroll.column) {
             return self.get_visible_lines_with_wrap(
-                &mut scroll,
-                &cursor,
+                scroll,
+                cursor,
                 visible_lines,
                 max_characters,
                 _soft_wrap,
@@ -155,8 +155,8 @@ impl LineBuffer {
             scroll.row = line_info[line_info.len() - 1].start.row;
             scroll.column = line_info[line_info.len() - 1].end;
             return self.get_visible_lines_with_wrap(
-                &mut scroll,
-                &cursor,
+                scroll,
+                cursor,
                 visible_lines,
                 max_characters,
                 _soft_wrap,

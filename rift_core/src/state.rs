@@ -57,3 +57,9 @@ impl EditorState {
         )
     }
 }
+
+impl Default for EditorState {
+    fn default() -> Self {
+        Self::new()
+    }
+}

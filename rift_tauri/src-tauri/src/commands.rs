@@ -35,8 +35,8 @@ pub fn get_visible_lines_wrap(
     Vec<instance::GutterInfo>,
 ) {
     let mut state = state.lock().unwrap();
-    let visible_lines = state.visible_lines.clone();
-    let max_characters = state.max_characters.clone();
+    let visible_lines = state.visible_lines;
+    let max_characters = state.max_characters;
     let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
     let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines_with_wrap(
         &mut instance.scroll,
