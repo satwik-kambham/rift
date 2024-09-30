@@ -1,8 +1,24 @@
 /// Struct representating a position in the buffer
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Cursor {
     pub row: usize,
     pub column: usize,
+}
+
+impl PartialEq for Cursor {
+    fn eq(&self, other: &Self) -> bool {
+        self.row == other.row && self.column == other.column
+    }
+}
+
+impl PartialOrd for Cursor {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.row == other.row {
+            self.column.partial_cmp(&other.column)
+        } else {
+            self.row.partial_cmp(&other.row)
+        }
+    }
 }
 
 /// Struct representing a selection where mark is the fixed point / start point

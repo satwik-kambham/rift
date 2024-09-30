@@ -19,7 +19,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::open_file,
             commands::panel_resized,
-            commands::get_visible_lines_wrap,
+            commands::get_visible_lines,
             commands::normal_mode,
             commands::insert_mode,
             commands::move_cursor_left,

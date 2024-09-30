@@ -37,134 +37,113 @@ impl LineBuffer {
         self.lines.join(&eol_sequence)
     }
 
-    /// Get visible lines with line wrap
-    pub fn get_visible_lines_with_wrap(
+    pub fn get_visible_lines(
         &self,
         scroll: &mut Cursor,
         cursor: &Cursor,
         visible_lines: usize,
         max_characters: usize,
-        _soft_wrap: bool,
-        reverse: bool,
     ) -> (Vec<String>, Cursor, Vec<GutterInfo>) {
         let mut lines = vec![];
-        let mut line_info = vec![];
-
-        // Starting column
-        let mut start = if reverse { 0 } else { scroll.column };
-
-        // Relative cursor position
-        let mut visible_cursor = Cursor {
+        let mut gutter_info = vec![];
+        let mut relative_cursor = Cursor {
             row: 0,
             column: cursor.column,
         };
+        let mut range_start = scroll.row;
+        let mut range_end = range_start + visible_lines + 3;
+        let mut start = 0;
+        let mut cursor_idx = 0;
 
-        // Range of rows / lines to display
-        let range = if reverse {
-            scroll.row.saturating_sub(visible_lines)
-                ..scroll.row.saturating_sub(visible_lines) + visible_lines
-        } else {
-            scroll.row..scroll.row + visible_lines
-        };
-
-        let alternative_range = if reverse {
-            scroll.row.saturating_sub(visible_lines)..
-        } else {
-            scroll.row..
-        };
+        if cursor < scroll {
+            range_start = cursor.row.saturating_sub(3);
+            range_end = range_start + visible_lines;
+        } else if cursor.row >= scroll.row + visible_lines {
+            range_end = cursor.row + 3;
+            range_start = range_end.saturating_sub(visible_lines);
+        }
 
         for (line_idx, line) in self
             .lines
-            .get(range.clone())
-            .unwrap_or(&self.lines[alternative_range])
+            .get(range_start..range_end)
+            .unwrap_or(&self.lines[range_start..])
             .iter()
             .enumerate()
         {
             while start < line.len() {
-                let end = std::cmp::min(start + max_characters, line.len());
+                let end = (start + max_characters).min(line.len());
                 lines.push(line[start..end].to_string());
-                line_info.push(GutterInfo {
+                gutter_info.push(GutterInfo {
                     start: Cursor {
-                        row: range.start + line_idx,
+                        row: range_start + line_idx,
                         column: start,
                     },
                     end,
                     wrapped: start != 0,
                 });
 
-                if line_info[line_info.len() - 1].start.row == cursor.row
-                    && cursor.column <= end
-                    && visible_cursor.column >= start
+                if cursor.row == range_start + line_idx
+                    && cursor.column >= start
+                    && cursor.column < end
                 {
-                    visible_cursor.row = lines.len() - 1;
-                    visible_cursor.column -= start;
+                    cursor_idx = line_idx;
+                    relative_cursor.column -= start;
                 }
 
                 start = end;
             }
+
             if line.is_empty() {
                 lines.push("".to_string());
-
-                line_info.push(GutterInfo {
+                gutter_info.push(GutterInfo {
                     start: Cursor {
-                        row: range.start + line_idx,
+                        row: range_start + line_idx,
                         column: 0,
                     },
                     end: 0,
                     wrapped: false,
                 });
 
-                if line_info[line_info.len() - 1].start.row == cursor.row {
-                    visible_cursor.row = lines.len() - 1;
-                    visible_cursor.column = 0;
+                if cursor.row == range_start + line_idx {
+                    cursor_idx = line_idx;
                 }
             }
+
             start = 0;
         }
 
-        // If reverse, return the last visible lines, else return the first visible lines
-        if reverse {
-            if lines.len() > visible_lines {
-                lines = lines[lines.len() - visible_lines..].to_vec();
-                line_info = line_info[line_info.len() - visible_lines..].to_vec();
+        if cursor < scroll {
+            range_start = cursor_idx.saturating_sub(3);
+            range_end = range_start + visible_lines;
+        } else if cursor.row >= scroll.row + visible_lines {
+            range_end = cursor_idx + 3;
+            range_start = range_end.saturating_sub(visible_lines);
+        } else {
+            range_start = 0;
+            range_end = visible_lines;
+            if cursor_idx > visible_lines {
+                range_end = cursor_idx + 3;
+                range_start = range_end.saturating_sub(visible_lines);
             }
-            scroll.row = line_info[0].start.row;
-            scroll.column = line_info[0].start.column;
-        } else if lines.len() > visible_lines {
-            lines = lines[..visible_lines].to_vec();
-            line_info = line_info[..visible_lines].to_vec();
         }
 
-        // If cursor is before the visible area, use scroll as the visible row and column
-        if cursor.row < scroll.row || (cursor.row == scroll.row && cursor.column < scroll.column) {
-            return self.get_visible_lines_with_wrap(
-                scroll,
-                cursor,
-                visible_lines,
-                max_characters,
-                _soft_wrap,
-                true,
-            );
-        }
+        range_end = lines.len().min(range_end);
+        relative_cursor.row = cursor_idx - range_start;
 
-        // If cursor is after the visible area, scroll forward
-        if cursor.row > line_info[line_info.len() - 1].start.row
-            || (cursor.row == line_info[line_info.len() - 1].start.row
-                && cursor.column > line_info[line_info.len() - 1].end)
-        {
-            scroll.row = line_info[line_info.len() - 1].start.row;
-            scroll.column = line_info[line_info.len() - 1].end;
-            return self.get_visible_lines_with_wrap(
-                scroll,
-                cursor,
-                visible_lines,
-                max_characters,
-                _soft_wrap,
-                false,
-            );
-        }
+        scroll.row = gutter_info[range_start].start.row;
+        scroll.column = gutter_info[range_start].start.column;
 
-        (lines, visible_cursor, line_info)
+        (
+            lines
+                .get(range_start..range_end)
+                .unwrap_or(&lines[range_start..])
+                .to_vec(),
+            relative_cursor,
+            gutter_info
+                .get(range_start..range_end)
+                .unwrap_or(&gutter_info[range_start..])
+                .to_vec(),
+        )
     }
 
     /// Get line length
@@ -281,7 +260,7 @@ mod tests {
         let mut scroll = Cursor { row: 0, column: 0 };
         let cursor = Cursor { row: 0, column: 0 };
         let (lines, visible_cursor, _gutter_info) =
-            buf.get_visible_lines_with_wrap(&mut scroll, &cursor, 10, 5, false, false);
+            buf.get_visible_lines(&mut scroll, &cursor, 10, 5);
         assert_eq!(vec!["Hello", "World", ""], lines);
         assert_eq!(visible_cursor, Cursor { row: 0, column: 0 });
     }

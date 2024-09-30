@@ -25,7 +25,7 @@ pub fn panel_resized(state: State<AppState>, visible_lines: usize, characters_pe
 
 /// Get the lines to be displayed for a given buffer with wrapping
 #[tauri::command]
-pub fn get_visible_lines_wrap(
+pub fn get_visible_lines(
     state: State<AppState>,
     buffer_id: u32,
 ) -> (
@@ -38,13 +38,11 @@ pub fn get_visible_lines_wrap(
     let visible_lines = state.visible_lines;
     let max_characters = state.max_characters;
     let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
-    let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines_with_wrap(
+    let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
         &mut instance.scroll,
         &instance.cursor,
         visible_lines,
         max_characters,
-        false,
-        false,
     );
     (
         lines.to_vec(),
