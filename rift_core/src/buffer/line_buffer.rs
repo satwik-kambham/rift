@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 
-use super::instance::{self, Cursor};
+use super::instance::{Cursor, GutterInfo};
 
 /// Text buffer implementation as a list of lines
 #[derive(Debug)]
@@ -46,7 +46,7 @@ impl LineBuffer {
         max_characters: usize,
         _soft_wrap: bool,
         reverse: bool,
-    ) -> (Vec<String>, Cursor, Vec<instance::GutterInfo>) {
+    ) -> (Vec<String>, Cursor, Vec<GutterInfo>) {
         let mut lines = vec![];
         let mut line_info = vec![];
 
@@ -54,7 +54,7 @@ impl LineBuffer {
         let mut start = if reverse { 0 } else { scroll.column };
 
         // Relative cursor position
-        let mut visible_cursor = instance::Cursor {
+        let mut visible_cursor = Cursor {
             row: 0,
             column: cursor.column,
         };
@@ -83,7 +83,7 @@ impl LineBuffer {
             while start < line.len() {
                 let end = std::cmp::min(start + max_characters, line.len());
                 lines.push(line[start..end].to_string());
-                line_info.push(instance::GutterInfo {
+                line_info.push(GutterInfo {
                     start: Cursor {
                         row: range.start + line_idx,
                         column: start,
@@ -105,7 +105,7 @@ impl LineBuffer {
             if line.is_empty() {
                 lines.push("".to_string());
 
-                line_info.push(instance::GutterInfo {
+                line_info.push(GutterInfo {
                     start: Cursor {
                         row: range.start + line_idx,
                         column: 0,
@@ -178,7 +178,7 @@ impl LineBuffer {
     }
 
     /// Move cursor right in insert mode
-    pub fn move_cursor_right(&self, cursor: &mut instance::Cursor) {
+    pub fn move_cursor_right(&self, cursor: &mut Cursor) {
         let line_length = self.get_line_length(cursor.row);
         if cursor.column == line_length {
             if cursor.row != self.get_num_lines() - 1 {
@@ -191,7 +191,7 @@ impl LineBuffer {
     }
 
     /// Move cursor left in insert mode
-    pub fn move_cursor_left(&self, cursor: &mut instance::Cursor) {
+    pub fn move_cursor_left(&self, cursor: &mut Cursor) {
         if cursor.column == 0 {
             if cursor.row != 0 {
                 cursor.row -= 1;
@@ -203,7 +203,7 @@ impl LineBuffer {
     }
 
     /// Move cursor up in insert mode
-    pub fn move_cursor_up(&self, cursor: &mut instance::Cursor, column_level: usize) -> usize {
+    pub fn move_cursor_up(&self, cursor: &mut Cursor, column_level: usize) -> usize {
         if cursor.row == 0 {
             cursor.column = 0;
             cursor.column
@@ -222,7 +222,7 @@ impl LineBuffer {
     }
 
     /// Move cursor down in insert mode
-    pub fn move_cursor_down(&self, cursor: &mut instance::Cursor, column_level: usize) -> usize {
+    pub fn move_cursor_down(&self, cursor: &mut Cursor, column_level: usize) -> usize {
         if cursor.row == self.get_num_lines() - 1 {
             cursor.column = self.get_line_length(cursor.row);
             cursor.column
@@ -243,7 +243,7 @@ impl LineBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::instance;
+    use crate::buffer::instance::Cursor;
 
     use super::LineBuffer;
 
@@ -278,35 +278,35 @@ mod tests {
     #[test]
     fn line_buffer_hard_wrap() {
         let buf = LineBuffer::new("HelloWorld".into(), None);
-        let mut scroll = instance::Cursor { row: 0, column: 0 };
-        let cursor = instance::Cursor { row: 0, column: 0 };
+        let mut scroll = Cursor { row: 0, column: 0 };
+        let cursor = Cursor { row: 0, column: 0 };
         let (lines, visible_cursor, _gutter_info) =
             buf.get_visible_lines_with_wrap(&mut scroll, &cursor, 10, 5, false, false);
         assert_eq!(vec!["Hello", "World", ""], lines);
-        assert_eq!(visible_cursor, instance::Cursor { row: 0, column: 0 });
+        assert_eq!(visible_cursor, Cursor { row: 0, column: 0 });
     }
 
     #[test]
     fn move_cursor_right_same_line() {
         let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        let mut cursor = instance::Cursor { row: 0, column: 0 };
+        let mut cursor = Cursor { row: 0, column: 0 };
         buf.move_cursor_right(&mut cursor);
-        assert_eq!(cursor, instance::Cursor { row: 0, column: 1 });
+        assert_eq!(cursor, Cursor { row: 0, column: 1 });
     }
 
     #[test]
     fn move_cursor_right_next_line() {
         let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        let mut cursor = instance::Cursor { row: 0, column: 5 };
+        let mut cursor = Cursor { row: 0, column: 5 };
         buf.move_cursor_right(&mut cursor);
-        assert_eq!(cursor, instance::Cursor { row: 1, column: 0 });
+        assert_eq!(cursor, Cursor { row: 1, column: 0 });
     }
 
     #[test]
     fn move_cursor_right_final_line() {
         let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        let mut cursor = instance::Cursor { row: 2, column: 0 };
+        let mut cursor = Cursor { row: 2, column: 0 };
         buf.move_cursor_right(&mut cursor);
-        assert_eq!(cursor, instance::Cursor { row: 2, column: 0 })
+        assert_eq!(cursor, Cursor { row: 2, column: 0 })
     }
 }

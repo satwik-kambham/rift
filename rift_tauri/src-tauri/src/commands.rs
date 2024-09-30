@@ -98,7 +98,7 @@ pub fn move_cursor_left(state: State<AppState>, buffer_id: u32) {
 pub fn move_cursor_up(state: State<AppState>, buffer_id: u32) {
     let mut state = state.lock().unwrap();
     let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
-    buffer.move_cursor_up(&mut instance.cursor, instance.column_level);
+    instance.column_level = buffer.move_cursor_up(&mut instance.cursor, instance.column_level);
 }
 
 /// Insert mode - Move cursor down
@@ -106,5 +106,5 @@ pub fn move_cursor_up(state: State<AppState>, buffer_id: u32) {
 pub fn move_cursor_down(state: State<AppState>, buffer_id: u32) {
     let mut state = state.lock().unwrap();
     let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
-    buffer.move_cursor_down(&mut instance.cursor, instance.column_level);
+    instance.column_level = buffer.move_cursor_down(&mut instance.cursor, instance.column_level);
 }

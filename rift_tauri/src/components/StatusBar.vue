@@ -12,7 +12,9 @@ const workspaceStore = useWorkspaceStore()
     <div class="grow"></div>
     <div class="">{{ workspaceStore.debug }}</div>
     <div class="grow"></div>
-    <div class="">Relative: {{ workspaceStore.relativeCursorRow }} : {{ workspaceStore.relativeCursorColumn}}</div>
-    <div class="">Original: {{ workspaceStore.cursorRow }} : {{ workspaceStore.cursorColumn}}</div>
+    <div class="">
+      Relative: {{ workspaceStore.relativeCursorRow }} : {{ workspaceStore.relativeCursorColumn }}
+    </div>
+    <div class="">Original: {{ workspaceStore.cursorRow }} : {{ workspaceStore.cursorColumn }}</div>
   </div>
 </template>

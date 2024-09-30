@@ -12,5 +12,14 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const cursorRow = ref(0)
   const cursorColumn = ref(0)
 
-  return { debug, bufferId, visibleLines, relativeCursorRow, relativeCursorColumn, cursorRow, cursorColumn, gutterInfo }
+  return {
+    debug,
+    bufferId,
+    visibleLines,
+    relativeCursorRow,
+    relativeCursorColumn,
+    cursorRow,
+    cursorColumn,
+    gutterInfo
+  }
 })

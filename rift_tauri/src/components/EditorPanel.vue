@@ -48,9 +48,12 @@ function calculateCapacity() {
       'line-height': settingsStore.lineHeight
     }"
   >
-    <div class="bg-bg-dark text-text-light" :style="{
-      width: gutterWidth + 'px'
-    }">
+    <div
+      class="bg-bg-dark text-text-light"
+      :style="{
+        width: gutterWidth + 'px'
+      }"
+    >
       <div v-for="line in workspaceStore.gutterInfo">
         <span class="inline-block whitespace-pre">
           <span v-if="line.wrapped" class="whitespace-pre px-4">.</span>
@@ -64,12 +67,15 @@ function calculateCapacity() {
           <span class="whitespace-pre">{{ line }}</span>
         </span>
       </div>
-      <div class="absolute pointer-events-none z-10 bg-primary opacity-30" :style="{
-        top: workspaceStore.relativeCursorRow * lineHeight + 'px',
-        left: (workspaceStore.relativeCursorColumn * characterWidth) + gutterWidth + 'px',
-        width: characterWidth + 'px',
-        height: lineHeight + 'px',
-      }"></div>
+      <div
+        class="absolute pointer-events-none z-10 bg-primary opacity-30"
+        :style="{
+          top: workspaceStore.relativeCursorRow * lineHeight + 'px',
+          left: workspaceStore.relativeCursorColumn * characterWidth + gutterWidth + 'px',
+          width: characterWidth + 'px',
+          height: lineHeight + 'px'
+        }"
+      ></div>
       <div ref="hiddenLine" class="absolute invisible whitespace-pre inline-block">X</div>
     </div>
   </div>

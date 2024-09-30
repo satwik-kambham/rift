@@ -30,14 +30,14 @@ function key_down(e: KeyboardEvent) {
       getVisibleLines()
     })
   } else if (e.key == 'l') {
-    invoke('move_cursor_right', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
+    invoke('move_cursor_right', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
   } else if (e.key == 'h') {
-    invoke('move_cursor_left', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
+    invoke('move_cursor_left', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
   } else if (e.key == 'j') {
-    invoke('move_cursor_down', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
+    invoke('move_cursor_down', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
   } else if (e.key == 'k') {
-    invoke('move_cursor_up', { bufferId: workspaceStore.bufferId}).then(getVisibleLines())
-  } 
+    invoke('move_cursor_up', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
+  }
 }
 
 function focusInput() {
