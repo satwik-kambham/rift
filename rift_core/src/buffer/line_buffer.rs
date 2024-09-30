@@ -53,7 +53,7 @@ impl LineBuffer {
         let mut range_start = scroll.row;
         let mut range_end = range_start + visible_lines + 3;
         let mut start = 0;
-        let mut cursor_idx = 0;
+        let mut cursor_idx: usize = 0;
 
         if cursor < scroll {
             range_start = cursor.row.saturating_sub(3);
@@ -80,15 +80,8 @@ impl LineBuffer {
                     },
                     end,
                     wrapped: start != 0,
+                    wrap_end: end == line.len(),
                 });
-
-                if cursor.row == range_start + line_idx
-                    && cursor.column >= start
-                    && cursor.column < end
-                {
-                    cursor_idx = line_idx;
-                    relative_cursor.column -= start;
-                }
 
                 start = end;
             }
@@ -102,20 +95,29 @@ impl LineBuffer {
                     },
                     end: 0,
                     wrapped: false,
+                    wrap_end: true,
                 });
-
-                if cursor.row == range_start + line_idx {
-                    cursor_idx = line_idx;
-                }
             }
 
             start = 0;
         }
 
+        for line_info in &gutter_info {
+            if cursor.row == line_info.start.row
+                && cursor.column >= line_info.start.column
+                && (cursor.column < line_info.end
+                    || (cursor.column == line_info.end && line_info.wrap_end))
+            {
+                relative_cursor.column -= line_info.start.column;
+                break;
+            }
+            cursor_idx += 1;
+        }
+
         if cursor < scroll {
             range_start = cursor_idx.saturating_sub(3);
             range_end = range_start + visible_lines;
-        } else if cursor.row >= scroll.row + visible_lines {
+        } else if cursor.row > scroll.row + visible_lines {
             range_end = cursor_idx + 3;
             range_start = range_end.saturating_sub(visible_lines);
         } else {

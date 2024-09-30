@@ -36,6 +36,7 @@ pub struct GutterInfo {
     pub start: Cursor,
     pub end: usize,
     pub wrapped: bool,
+    pub wrap_end: bool,
 }
 
 /// An instance of a buffer (a single buffer can have multiple instances)
