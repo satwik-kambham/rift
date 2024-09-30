@@ -117,13 +117,13 @@ impl LineBuffer {
         if cursor < scroll {
             range_start = cursor_idx.saturating_sub(3);
             range_end = range_start + visible_lines;
-        } else if cursor.row > scroll.row + visible_lines {
+        } else if cursor.row >= scroll.row + visible_lines {
             range_end = cursor_idx + 3;
             range_start = range_end.saturating_sub(visible_lines);
         } else {
             range_start = 0;
             range_end = visible_lines;
-            if cursor_idx > visible_lines {
+            if cursor_idx >= visible_lines {
                 range_end = cursor_idx + 3;
                 range_start = range_end.saturating_sub(visible_lines);
             }
