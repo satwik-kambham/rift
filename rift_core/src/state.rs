@@ -9,7 +9,6 @@ pub enum Mode {
     Insert,
 }
 
-#[derive(Debug)]
 pub struct EditorState {
     pub buffers: HashMap<u32, LineBuffer>,
     pub instances: HashMap<u32, BufferInstance>,

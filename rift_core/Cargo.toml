@@ -3,6 +3,13 @@ name = "rift_core"
 version = "0.1.0"
 edition = "2021"
 
+[build-dependencies]
+cc="*"
+
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+tree-sitter = "0.23.0"
+tree-sitter-highlight = "0.23.0"
+tree-sitter-python = "0.23.2"
+tree-sitter-rust = "0.23.0"

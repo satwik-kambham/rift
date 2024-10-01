@@ -25,7 +25,7 @@ function key_down(e: KeyboardEvent) {
   e.preventDefault()
   keyCode.value = e.key
   if (e.key == 'f') {
-    invoke('open_file', { path: '/home/satwik/Documents/test.py' }).then((bufferId) => {
+    invoke('open_file', { path: '/home/satwik/Documents/test.rs' }).then((bufferId) => {
       workspaceStore.bufferId = bufferId
       getVisibleLines()
     })

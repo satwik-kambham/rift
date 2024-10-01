@@ -1,12 +1,15 @@
 use std::cmp::{max, min};
 
+use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
+
 use super::instance::{Cursor, GutterInfo};
 
 /// Text buffer implementation as a list of lines
-#[derive(Debug)]
 pub struct LineBuffer {
     pub file_path: Option<String>,
     pub lines: Vec<String>,
+    highlighter: Highlighter,
+    language_config: HighlightConfiguration,
 }
 
 impl LineBuffer {
@@ -28,7 +31,45 @@ impl LineBuffer {
             lines.push("".into());
         }
 
-        Self { file_path, lines }
+        // Syntax highlighter
+        let highlighter = Highlighter::new();
+        let highlight_names = [
+            "attribute",
+            "constant",
+            "function.builtin",
+            "function",
+            "keyword",
+            "operator",
+            "property",
+            "punctuation",
+            "punctuation.bracket",
+            "punctuation.delimiter",
+            "string",
+            "string.special",
+            "tag",
+            "type",
+            "type.builtin",
+            "variable",
+            "variable.builtin",
+            "variable.parameter",
+        ];
+        let mut language_config = HighlightConfiguration::new(
+            tree_sitter_rust::LANGUAGE.into(),
+            "rust",
+            tree_sitter_rust::HIGHLIGHTS_QUERY,
+            tree_sitter_rust::INJECTIONS_QUERY,
+            "",
+        )
+        .unwrap();
+        language_config.configure(&highlight_names);
+        println!("Highlight Names: {:#?}", language_config.names());
+
+        Self {
+            file_path,
+            lines,
+            highlighter,
+            language_config,
+        }
     }
 
     /// Get text buffer content as a string
@@ -38,7 +79,7 @@ impl LineBuffer {
     }
 
     pub fn get_visible_lines(
-        &self,
+        &mut self,
         scroll: &mut Cursor,
         cursor: &Cursor,
         visible_lines: usize,
@@ -72,7 +113,7 @@ impl LineBuffer {
         {
             while start < line.len() {
                 let end = (start + max_characters).min(line.len());
-                lines.push(line[start..end].to_string());
+                // lines.push(line[start..end].to_string());
                 gutter_info.push(GutterInfo {
                     start: Cursor {
                         row: range_start + line_idx,
@@ -87,7 +128,7 @@ impl LineBuffer {
             }
 
             if line.is_empty() {
-                lines.push("".to_string());
+                // lines.push("".to_string());
                 gutter_info.push(GutterInfo {
                     start: Cursor {
                         row: range_start + line_idx,
@@ -129,11 +170,32 @@ impl LineBuffer {
             }
         }
 
-        range_end = lines.len().min(range_end);
+        range_end = gutter_info.len().min(range_end);
         relative_cursor.row = cursor_idx - range_start;
 
         scroll.row = gutter_info[range_start].start.row;
         scroll.column = gutter_info[range_start].start.column;
+
+        // Highlight
+        let content = self.get_content("\n".into());
+        let highlights = self
+            .highlighter
+            .highlight(&self.language_config, content.as_bytes(), None, |_| None)
+            .unwrap();
+
+        for event in highlights {
+            match event.unwrap() {
+                HighlightEvent::Source { start, end } => {
+                    println!("source: {}-{}", start, end);
+                }
+                HighlightEvent::HighlightStart(s) => {
+                    println!("highlight style started: {:?}", s);
+                }
+                HighlightEvent::HighlightEnd => {
+                    println!("highlight style ended");
+                }
+            }
+        }
 
         (
             lines
@@ -258,7 +320,7 @@ mod tests {
 
     #[test]
     fn line_buffer_hard_wrap() {
-        let buf = LineBuffer::new("HelloWorld".into(), None);
+        let mut buf = LineBuffer::new("HelloWorld".into(), None);
         let mut scroll = Cursor { row: 0, column: 0 };
         let cursor = Cursor { row: 0, column: 0 };
         let (lines, visible_cursor, _gutter_info) =

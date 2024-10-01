@@ -1,5 +1,7 @@
 # TODO
 
+o - Started / - Partial x - Done
+
 - [x] Line buffer from text
 - [x] Line buffer to text for saving to file
 - [x] Read file contents from path
@@ -12,16 +14,16 @@
 - [ ] Create commands for file handling methods
 - [x] Add frontend state for current buffer id
 - [x] Create editor panel component which is bound to the current buffer id
-- [ ] Add simple tree sitter based syntax highlighting
+- [o] Add simple tree sitter based syntax highlighting
 - [x] Add methods and commands to initialize the editor panel by calculating the number of visible lines based on a dummy element
 - [x] Add cursor, selection and scroll position (line number and percentage distance from the top) structs
-- [ ] Display syntax highlighted text
+- [o] Display syntax highlighted text
 - [/] Word wrap (soft wrap and hard wrap)
-- [o] Display cursor, selection
+- [/] Display cursor, selection
 - [ ] Add backend methods to insert and delete selections with tests
 - [ ] Add backend methods for undo and redo
 - [ ] Add edit grouping
 - [ ] Add methods and commands for changes to the number of visible lines
 - [-] Add backend methods to calculate the lines that need to be replaced after an edit or change
-- [o] Add scrolling functionality
+- [x] Add scrolling functionality
 - [ ] Add editing functinality to the frontend
