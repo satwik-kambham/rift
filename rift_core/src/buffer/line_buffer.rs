@@ -86,6 +86,7 @@ impl LineBuffer {
         cursor: &Cursor,
         visible_lines: usize,
         max_characters: usize,
+        eol_sequence: String,
     ) -> (HighlightedLine, Cursor, Vec<GutterInfo>) {
         let mut lines = vec![];
         let mut gutter_info = vec![];
@@ -111,7 +112,7 @@ impl LineBuffer {
 
         // Calculate start byte
         for line in self.lines.get(..range_start).unwrap() {
-            start_byte += line.len();
+            start_byte += line.len() + eol_sequence.len();
         }
 
         // Calculate gutter info
@@ -124,7 +125,12 @@ impl LineBuffer {
         {
             while start < line.len() {
                 let end = (start + max_characters).min(line.len());
-                // lines.push(line[start..end].to_string());
+                let eol_len = if end == line.len() {
+                    eol_sequence.len()
+                } else {
+                    0
+                };
+                let end_byte = start_byte + end - start + eol_len;
                 gutter_info.push(GutterInfo {
                     start: Cursor {
                         row: range_start + line_idx,
@@ -134,15 +140,15 @@ impl LineBuffer {
                     wrapped: start != 0,
                     wrap_end: end == line.len(),
                     start_byte,
-                    end_byte: start_byte + end - start,
+                    end_byte,
                 });
 
-                start_byte += end - start;
+                start_byte = end_byte;
                 start = end;
             }
 
             if line.is_empty() {
-                // lines.push("".to_string());
+                let end_byte = start_byte + eol_sequence.len();
                 gutter_info.push(GutterInfo {
                     start: Cursor {
                         row: range_start + line_idx,
@@ -152,8 +158,9 @@ impl LineBuffer {
                     wrapped: false,
                     wrap_end: true,
                     start_byte,
-                    end_byte: start_byte,
+                    end_byte,
                 });
+                start_byte = end_byte;
             }
 
             start = 0;
@@ -201,37 +208,35 @@ impl LineBuffer {
             .unwrap();
 
         start_byte = gutter_info.first().unwrap().start_byte;
-        println!("Gutter Info: {:#?}", gutter_info);
         let mut gutter_idx = 0;
         let mut highlighted_line = vec![];
         for event in highlights {
             match event.unwrap() {
                 HighlightEvent::Source { start, end } => {
-                    println!(
-                        "Highlighting {} {} of type {:#?}",
-                        start, end, highlight_type
-                    );
                     if end >= gutter_info.first().unwrap().start_byte
                         && start < gutter_info.last().unwrap().end_byte
                     {
                         if start_byte < start {
                             let gutter_line = gutter_info.first().unwrap();
-                            println!("Start byte {} < start {}", start_byte, start);
                             highlighted_line.push((
-                                self.lines.get(gutter_line.start.row).unwrap()[start_byte..start]
+                                self.lines.get(gutter_line.start.row).unwrap()
+                                    [..start - start_byte]
                                     .to_string(),
                                 highlight_type,
                             ));
                             start_byte = start;
                         }
 
-                        while start_byte < end {
+                        while start_byte < end && gutter_idx < gutter_info.len() {
                             let gutter_line = gutter_info.get(gutter_idx).unwrap();
                             if end >= gutter_line.end_byte {
-                                println!("New line {} - {}", start_byte, gutter_line.end_byte);
                                 highlighted_line.push((
-                                    self.lines.get(gutter_line.start.row).unwrap()
-                                        [start_byte - gutter_line.start_byte..]
+                                    self.lines.get(gutter_line.start.row).unwrap()[gutter_line
+                                        .start
+                                        .column
+                                        + start_byte
+                                        - gutter_line.start_byte
+                                        ..gutter_line.end]
                                         .to_string(),
                                     highlight_type,
                                 ));
@@ -240,14 +245,13 @@ impl LineBuffer {
                                 lines.push(highlighted_line);
                                 highlighted_line = vec![];
                             } else {
-                                println!(
-                                    "Append to current line till end {} - {}",
-                                    start_byte, end
-                                );
                                 highlighted_line.push((
-                                    self.lines.get(gutter_line.start.row).unwrap()[start_byte
+                                    self.lines.get(gutter_line.start.row).unwrap()[gutter_line
+                                        .start
+                                        .column
+                                        + start_byte
                                         - gutter_line.start_byte
-                                        ..end - gutter_line.start_byte]
+                                        ..gutter_line.start.column + end - gutter_line.start_byte]
                                         .to_string(),
                                     highlight_type,
                                 ));
@@ -392,7 +396,7 @@ mod tests {
         let mut scroll = Cursor { row: 0, column: 0 };
         let cursor = Cursor { row: 0, column: 0 };
         let (_lines, visible_cursor, _gutter_info) =
-            buf.get_visible_lines(&mut scroll, &cursor, 10, 5);
+            buf.get_visible_lines(&mut scroll, &cursor, 10, 5, "\n".into());
         // assert_eq!(vec!["Hello", "World", ""], lines);
         assert_eq!(visible_cursor, Cursor { row: 0, column: 0 });
     }

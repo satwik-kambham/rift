@@ -14,10 +14,10 @@ o - Started / - Partial x - Done
 - [ ] Create commands for file handling methods
 - [x] Add frontend state for current buffer id
 - [x] Create editor panel component which is bound to the current buffer id
-- [o] Add simple tree sitter based syntax highlighting
+- [x] Add simple tree sitter based syntax highlighting
 - [x] Add methods and commands to initialize the editor panel by calculating the number of visible lines based on a dummy element
 - [x] Add cursor, selection and scroll position (line number and percentage distance from the top) structs
-- [o] Display syntax highlighted text
+- [/] Display syntax highlighted text
 - [/] Word wrap (soft wrap and hard wrap)
 - [/] Display cursor, selection
 - [ ] Add backend methods to insert and delete selections with tests

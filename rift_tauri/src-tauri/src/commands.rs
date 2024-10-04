@@ -43,6 +43,7 @@ pub fn get_visible_lines(
         &instance.cursor,
         visible_lines,
         max_characters,
+        "\n".into(),
     );
     (lines, relative_cursor, instance.cursor, gutter_info)
 }
