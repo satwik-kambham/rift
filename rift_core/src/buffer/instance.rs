@@ -37,6 +37,8 @@ pub struct GutterInfo {
     pub end: usize,
     pub wrapped: bool,
     pub wrap_end: bool,
+    pub start_byte: usize,
+    pub end_byte: usize,
 }
 
 /// An instance of a buffer (a single buffer can have multiple instances)

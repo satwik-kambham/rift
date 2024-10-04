@@ -1,5 +1,5 @@
 use rift_core::buffer::instance;
-use rift_core::buffer::line_buffer::LineBuffer;
+use rift_core::buffer::line_buffer::{HighlightedLine, LineBuffer};
 use rift_core::io::file_io;
 use rift_core::state::Mode;
 use tauri::State;
@@ -29,7 +29,7 @@ pub fn get_visible_lines(
     state: State<AppState>,
     buffer_id: u32,
 ) -> (
-    Vec<String>,
+    HighlightedLine,
     instance::Cursor,
     instance::Cursor,
     Vec<instance::GutterInfo>,
@@ -44,12 +44,7 @@ pub fn get_visible_lines(
         visible_lines,
         max_characters,
     );
-    (
-        lines.to_vec(),
-        relative_cursor,
-        instance.cursor,
-        gutter_info,
-    )
+    (lines, relative_cursor, instance.cursor, gutter_info)
 }
 
 /// Switch to normal mode

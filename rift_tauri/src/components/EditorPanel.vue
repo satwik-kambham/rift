@@ -64,7 +64,14 @@ function calculateCapacity() {
     <div class="bg-bg flex-grow">
       <div v-for="line in workspaceStore.visibleLines">
         <span class="inline-block whitespace-pre">
-          <span class="whitespace-pre">{{ line }}</span>
+          <span
+            v-for="token in line"
+            :class="{
+              'whitespace-pre text-highlight-Red': token[1] != null,
+              'whitespace-pre': token[1] == null
+            }"
+            >{{ token[0] }}</span
+          >
         </span>
       </div>
       <div
