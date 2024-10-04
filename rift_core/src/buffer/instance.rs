@@ -41,6 +41,21 @@ pub struct GutterInfo {
     pub end_byte: usize,
 }
 
+/// Types of highlighted tokens
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+pub enum HighlightType {
+    None,
+    White,
+    Red,
+    Orange,
+    Blue,
+    Green,
+    Purple,
+    Yellow,
+    Gray,
+    Turquoise,
+}
+
 /// An instance of a buffer (a single buffer can have multiple instances)
 /// Contains a cursor for insert mode,
 /// a selection for normal / visual mode,

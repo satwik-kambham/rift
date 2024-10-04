@@ -1,8 +1,11 @@
-use std::cmp::{max, min};
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+};
 
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
-use super::instance::{Cursor, GutterInfo};
+use super::instance::{Cursor, GutterInfo, HighlightType};
 
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
@@ -10,9 +13,11 @@ pub struct LineBuffer {
     pub lines: Vec<String>,
     highlighter: Highlighter,
     language_config: HighlightConfiguration,
+    highlight_map: HashMap<String, HighlightType>,
+    highlight_names: Vec<String>,
 }
 
-pub type HighlightedLine = Vec<Vec<(String, Option<usize>)>>;
+pub type HighlightedLine = Vec<Vec<(String, HighlightType)>>;
 
 impl LineBuffer {
     /// Create a line buffer
@@ -35,26 +40,26 @@ impl LineBuffer {
 
         // Syntax highlighter
         let highlighter = Highlighter::new();
-        let highlight_names = [
-            "attribute",
-            "constant",
-            "function.builtin",
-            "function",
-            "keyword",
-            "operator",
-            "property",
-            "punctuation",
-            "punctuation.bracket",
-            "punctuation.delimiter",
-            "string",
-            "string.special",
-            "tag",
-            "type",
-            "type.builtin",
-            "variable",
-            "variable.builtin",
-            "variable.parameter",
-        ];
+        let highlight_map: HashMap<String, HighlightType> = HashMap::from([
+            ("attribute".into(), HighlightType::Red),
+            ("constant".into(), HighlightType::Red),
+            ("function.builtin".into(), HighlightType::Purple),
+            ("function".into(), HighlightType::Blue),
+            ("keyword".into(), HighlightType::Purple),
+            ("operator".into(), HighlightType::Purple),
+            ("property".into(), HighlightType::Yellow),
+            ("punctuation".into(), HighlightType::White),
+            ("punctuation.bracket".into(), HighlightType::Orange),
+            ("punctuation.delimiter".into(), HighlightType::Orange),
+            ("string".into(), HighlightType::Green),
+            ("string.special".into(), HighlightType::Orange),
+            ("tag".into(), HighlightType::Turquoise),
+            ("type".into(), HighlightType::Yellow),
+            ("type.builtin".into(), HighlightType::Yellow),
+            ("variable".into(), HighlightType::Red),
+            ("variable.builtin".into(), HighlightType::Orange),
+            ("variable.parameter".into(), HighlightType::Red),
+        ]);
         let mut language_config = HighlightConfiguration::new(
             tree_sitter_rust::LANGUAGE.into(),
             "rust",
@@ -63,6 +68,8 @@ impl LineBuffer {
             "",
         )
         .unwrap();
+        let highlight_names: Vec<String> =
+            highlight_map.keys().map(|key| key.to_string()).collect();
         language_config.configure(&highlight_names);
         println!("Highlight Names: {:#?}", language_config.names());
 
@@ -71,6 +78,8 @@ impl LineBuffer {
             lines,
             highlighter,
             language_config,
+            highlight_map,
+            highlight_names,
         }
     }
 
@@ -99,7 +108,7 @@ impl LineBuffer {
         let mut start = 0;
         let mut cursor_idx: usize = 0;
         let mut start_byte = 0;
-        let mut highlight_type: Option<usize> = None;
+        let mut highlight_type = HighlightType::None;
 
         // Calculate range
         if cursor < scroll {
@@ -261,10 +270,10 @@ impl LineBuffer {
                     }
                 }
                 HighlightEvent::HighlightStart(s) => {
-                    highlight_type = Some(s.0);
+                    highlight_type = self.highlight_map[&self.highlight_names[s.0]];
                 }
                 HighlightEvent::HighlightEnd => {
-                    highlight_type = None;
+                    highlight_type = HighlightType::None;
                 }
             }
         }
