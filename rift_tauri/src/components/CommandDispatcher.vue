@@ -25,19 +25,25 @@ function getVisibleLines() {
 function key_down(e: KeyboardEvent) {
   e.preventDefault()
   keyCode.value = e.key
-  if (e.key == 'f') {
+  if (e.key == 'F1') {
     invoke('open_file', { path: '/home/satwik/Documents/test.rs' }).then((bufferId) => {
       workspaceStore.bufferId = bufferId
       getVisibleLines()
     })
-  } else if (e.key == 'l') {
+  } else if (e.key == 'ArrowRight') {
     invoke('move_cursor_right', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
-  } else if (e.key == 'h') {
+  } else if (e.key == 'ArrowLeft') {
     invoke('move_cursor_left', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
-  } else if (e.key == 'j') {
+  } else if (e.key == 'ArrowDown') {
     invoke('move_cursor_down', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
-  } else if (e.key == 'k') {
+  } else if (e.key == 'ArrowUp') {
     invoke('move_cursor_up', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
+  } else if (e.key == 'Backspace') {
+    invoke('remove_text', { bufferId: workspaceStore.bufferId }).then(getVisibleLines())
+  } else if (e.key == 'Enter') {
+    invoke('insert_text', { bufferId: workspaceStore.bufferId, text: '\n' }).then(getVisibleLines())
+  } else {
+    invoke('insert_text', { bufferId: workspaceStore.bufferId, text: e.key }).then(getVisibleLines())
   }
 }
 

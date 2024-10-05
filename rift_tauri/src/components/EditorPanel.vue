@@ -80,7 +80,7 @@ function calculateCapacity() {
       ></div>
       <div
         ref="hiddenLine"
-        class="absolute invisible whitespace-pre inline-block text-highlight-None text-highlight-White text-highlight-Red text-highlight-Orange text-highlight-Blue text-highlight-Green text-highlight-Purple text-highlight-Yellow text-highlight-Gray text-highlight-Turquoise"
+        class="absolute invisible inline-block text-highlight-None text-highlight-White text-highlight-Red text-highlight-Orange text-highlight-Blue text-highlight-Green text-highlight-Purple text-highlight-Yellow text-highlight-Gray text-highlight-Turquoise"
       >
         X
       </div>

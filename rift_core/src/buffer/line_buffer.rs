@@ -5,7 +5,7 @@ use std::{
 
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
-use super::instance::{Cursor, GutterInfo, HighlightType};
+use super::instance::{Cursor, GutterInfo, HighlightType, Selection};
 
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
@@ -361,6 +361,73 @@ impl LineBuffer {
                 )
             }
             column_level
+        }
+    }
+
+    /// Insert text at cursor position and return update cursor position
+    pub fn insert_text(&mut self, text: &str, cursor: &Cursor) -> Cursor {
+        let mut updated_cursor = *cursor;
+        let current_line = self.lines[cursor.row].clone();
+        let mut text_iter = text.split('\n');
+        let (s1, s2) = current_line.split_at(cursor.column);
+        let mut s1 = s1.to_string();
+        let e = text_iter.next().unwrap();
+        updated_cursor.column += e.len();
+        s1.push_str(e);
+        self.lines[cursor.row] = s1;
+        for i in text_iter {
+            updated_cursor.row += 1;
+            updated_cursor.column = i.len();
+            self.lines.insert(updated_cursor.row, i.to_owned());
+        }
+        let mut current_line = self.lines[updated_cursor.row].clone();
+        current_line.push_str(s2);
+        self.lines[updated_cursor.row] = current_line;
+
+        updated_cursor
+    }
+    /// Removes the selected text and returns the updated cursor position
+    /// and the deleted text
+    pub fn remove_text(&mut self, selection: &Selection) -> (String, Cursor) {
+        let start = if selection.mark < selection.cursor {
+            selection.mark
+        } else {
+            selection.cursor
+        };
+        let end = if selection.mark < selection.cursor {
+            selection.cursor
+        } else {
+            selection.mark
+        };
+
+        if start.row == end.row {
+            let current_line = self.lines[start.row].clone();
+            let (first, second) = current_line.split_at(end.column);
+            let (first, middle) = first.split_at(start.column);
+            self.lines[start.row] = first.to_owned() + second;
+
+            (middle.to_owned(), start)
+        } else {
+            let mut buf = String::new();
+
+            let current_line = self.lines[end.row].clone();
+            let (first, second) = current_line.split_at(end.column);
+            buf.insert_str(0, first);
+            self.lines.remove(end.row);
+
+            for i in (start.row + 1..end.row).rev() {
+                let current_line = self.lines.remove(i);
+                buf.insert(0, '\n');
+                buf.insert_str(0, &current_line);
+            }
+
+            let current_line = self.lines[start.row].clone();
+            let (first, middle) = current_line.split_at(start.column);
+            buf.insert(0, '\n');
+            buf.insert_str(0, middle);
+            self.lines[start.row] = first.to_owned() + second;
+
+            (buf, start)
         }
     }
 }

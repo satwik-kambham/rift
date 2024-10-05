@@ -17,13 +17,14 @@ o - Started / - Partial x - Done
 - [x] Add simple tree sitter based syntax highlighting
 - [x] Add methods and commands to initialize the editor panel by calculating the number of visible lines based on a dummy element
 - [x] Add cursor, selection and scroll position (line number and percentage distance from the top) structs
-- [/] Display syntax highlighted text
+- [x] Display syntax highlighted text
 - [/] Word wrap (soft wrap and hard wrap)
 - [/] Display cursor, selection
-- [ ] Add backend methods to insert and delete selections with tests
-- [ ] Add backend methods for undo and redo
+- [/] Add backend methods to insert and delete selections with tests
+- [o] Add backend methods for undo and redo
 - [ ] Add edit grouping
 - [ ] Add methods and commands for changes to the number of visible lines
 - [-] Add backend methods to calculate the lines that need to be replaced after an edit or change
 - [x] Add scrolling functionality
-- [ ] Add editing functinality to the frontend
+- [/] Add editing functinality to the frontend
+- [o] Add async queue to ensure commands run in order

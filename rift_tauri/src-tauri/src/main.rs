@@ -26,6 +26,8 @@ fn main() {
             commands::move_cursor_right,
             commands::move_cursor_up,
             commands::move_cursor_down,
+            commands::insert_text,
+            commands::remove_text,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

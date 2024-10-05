@@ -102,3 +102,28 @@ pub fn move_cursor_down(state: State<AppState>, buffer_id: u32) {
     let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
     instance.column_level = buffer.move_cursor_down(&mut instance.cursor, instance.column_level);
 }
+
+// Editing commands
+
+/// Insert mode - Insert text at cursor position
+#[tauri::command]
+pub fn insert_text(state: State<AppState>, buffer_id: u32, text: String) {
+    let mut state = state.lock().unwrap();
+    let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+    let cursor = buffer.insert_text(&text, &instance.cursor);
+    instance.cursor = cursor;
+}
+
+/// Insert mode - Insert text at cursor position
+#[tauri::command]
+pub fn remove_text(state: State<AppState>, buffer_id: u32) {
+    let mut state = state.lock().unwrap();
+    let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+
+    instance.selection.cursor = instance.cursor;
+    instance.selection.mark = instance.cursor;
+    buffer.move_cursor_left(&mut instance.selection.mark);
+
+    let (_text, cursor) = buffer.remove_text(&instance.selection);
+    instance.cursor = cursor;
+}
