@@ -21,8 +21,28 @@
           gdk-pixbuf
           glib
           dbus
-          openssl_3
           librsvg
+
+          
+          trunk
+
+          # misc. libraries
+          openssl
+          pkg-config
+
+          # GUI libs
+          libxkbcommon
+          libGL
+          fontconfig
+
+          # wayland libraries
+          wayland
+
+          # x11 libraries
+          xorg.libXcursor
+          xorg.libXrandr
+          xorg.libXi
+          xorg.libX11
         ];
 
         packages = with pkgs; [
@@ -30,7 +50,7 @@
           wget
           pkg-config
           dbus
-          openssl_3
+          openssl
           glib
           gtk3
           libsoup

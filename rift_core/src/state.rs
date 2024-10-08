@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::buffer::{instance::BufferInstance, line_buffer::LineBuffer};
+use crate::buffer::{
+    instance::BufferInstance,
+    line_buffer::{HighlightedText, LineBuffer},
+};
 
 #[derive(Debug, Default)]
 pub enum Mode {
@@ -16,6 +19,8 @@ pub struct EditorState {
     pub visible_lines: usize,
     pub max_characters: usize,
     pub mode: Mode,
+    pub highlighted_text: HighlightedText,
+    pub buffer_idx: Option<u32>,
 }
 
 impl EditorState {
@@ -27,6 +32,8 @@ impl EditorState {
             max_characters: 0,
             mode: Mode::Normal,
             instances: HashMap::new(),
+            highlighted_text: vec![],
+            buffer_idx: None,
         }
     }
 

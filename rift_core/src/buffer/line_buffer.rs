@@ -17,7 +17,7 @@ pub struct LineBuffer {
     highlight_names: Vec<String>,
 }
 
-pub type HighlightedLine = Vec<Vec<(String, HighlightType)>>;
+pub type HighlightedText = Vec<Vec<(String, HighlightType)>>;
 
 impl LineBuffer {
     /// Create a line buffer
@@ -96,7 +96,7 @@ impl LineBuffer {
         visible_lines: usize,
         max_characters: usize,
         eol_sequence: String,
-    ) -> (HighlightedLine, Cursor, Vec<GutterInfo>) {
+    ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
         let mut lines = vec![];
         let mut gutter_info = vec![];
         let mut relative_cursor = Cursor {
