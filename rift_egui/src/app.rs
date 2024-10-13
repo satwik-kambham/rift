@@ -35,7 +35,7 @@ impl App {
                     let gutter_value = if gutter_line.wrapped {
                         ".".to_string()
                     } else {
-                        format!("{}", gutter_line.start.row)
+                        format!("{}", gutter_line.start.row + 1)
                     };
                     ui.label(
                         RichText::new(gutter_value)
@@ -44,6 +44,17 @@ impl App {
                     );
                 }
             });
+        egui::TopBottomPanel::bottom("status_line").show(ctx, |ui| {
+            if self.state.buffer_idx.is_some() {
+                let (_buffer, instance) =
+                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                ui.label(format!(
+                    "{}:{}",
+                    instance.cursor.row + 1,
+                    instance.cursor.column + 1
+                ));
+            }
+        });
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::from_rgb(24, 24, 24),
