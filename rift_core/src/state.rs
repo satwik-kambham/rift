@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::buffer::{
-    instance::BufferInstance,
+    instance::{BufferInstance, GutterInfo},
     line_buffer::{HighlightedText, LineBuffer},
 };
 
@@ -20,6 +20,7 @@ pub struct EditorState {
     pub max_characters: usize,
     pub mode: Mode,
     pub highlighted_text: HighlightedText,
+    pub gutter_info: Vec<GutterInfo>,
     pub buffer_idx: Option<u32>,
 }
 
@@ -33,6 +34,7 @@ impl EditorState {
             mode: Mode::Normal,
             instances: HashMap::new(),
             highlighted_text: vec![],
+            gutter_info: vec![],
             buffer_idx: None,
         }
     }

@@ -20,6 +20,30 @@ impl App {
         let mut char_height = 0.0;
         let mut char_width = 0.0;
         let mut relative_cursor = rift_core::buffer::instance::Cursor { row: 0, column: 0 };
+        let mut gutter_width = 0.0;
+        egui::SidePanel::left("gutter")
+            .frame(egui::Frame {
+                fill: Color32::from_rgb(24, 24, 24),
+                inner_margin: egui::Margin::same(8.0),
+                ..Default::default()
+            })
+            .show(ctx, |ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+                let rect = ui.max_rect();
+                gutter_width = rect.width() + 16.0;
+                for gutter_line in &self.state.gutter_info {
+                    let gutter_value = if gutter_line.wrapped {
+                        ".".to_string()
+                    } else {
+                        format!("{}", gutter_line.start.row)
+                    };
+                    ui.label(
+                        RichText::new(gutter_value)
+                            .font(FontId::monospace(24.0))
+                            .color(Color32::from_rgb(92, 99, 112)),
+                    );
+                }
+            });
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::from_rgb(24, 24, 24),
@@ -93,11 +117,14 @@ impl App {
                 ui.put(
                     Rect::from_two_pos(
                         egui::Pos2 {
-                            x: (relative_cursor.column as f32 * char_width) + 8.0,
+                            x: (relative_cursor.column as f32 * char_width) + gutter_width + 8.0,
                             y: (relative_cursor.row as f32 * char_height) + 8.0,
                         },
                         egui::Pos2 {
-                            x: (relative_cursor.column as f32 * char_width) + char_width + 8.0,
+                            x: (relative_cursor.column as f32 * char_width)
+                                + gutter_width
+                                + char_width
+                                + 8.0,
                             y: (relative_cursor.row as f32 * char_height) + char_height + 8.0,
                         },
                     ),
@@ -119,7 +146,7 @@ impl App {
             let (buffer, instance) = self
                 .state
                 .get_buffer_by_id_mut(self.state.buffer_idx.unwrap());
-            let (lines, relative_cursor, _gutter_info) = buffer.get_visible_lines(
+            let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
                 &mut instance.scroll,
                 &instance.selection,
                 visible_lines,
@@ -127,6 +154,7 @@ impl App {
                 "\n".into(),
             );
             self.state.highlighted_text = lines;
+            self.state.gutter_info = gutter_info;
             return relative_cursor;
         }
         rift_core::buffer::instance::Cursor { row: 0, column: 0 }
