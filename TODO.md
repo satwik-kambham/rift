@@ -22,10 +22,10 @@ o - Started / - Partial x - Done
 - [x] Display cursor
 - [x] Add backend methods to insert and delete selections
 - [x] Add editing functinality to the frontend
+- [x] Selection
 - [ ] Simple undo and redo
 - [ ] Edit grouping
 - [ ] Create completion component which shows all completions
 - [ ] Create commands for file handling methods
 - [ ] Word wrap (soft wrap)
-- [ ] Selection
 - [ ] LSP integration

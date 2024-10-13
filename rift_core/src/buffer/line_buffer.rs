@@ -17,7 +17,7 @@ pub struct LineBuffer {
     highlight_names: Vec<String>,
 }
 
-pub type HighlightedText = Vec<Vec<(String, HighlightType)>>;
+pub type HighlightedText = Vec<Vec<(String, HighlightType, bool)>>;
 
 impl LineBuffer {
     /// Create a line buffer
@@ -53,6 +53,8 @@ impl LineBuffer {
             ("punctuation.delimiter".into(), HighlightType::Orange),
             ("string".into(), HighlightType::Green),
             ("string.special".into(), HighlightType::Orange),
+            ("comment".into(), HighlightType::Gray),
+            ("comment.documentation".into(), HighlightType::Gray),
             ("tag".into(), HighlightType::Turquoise),
             ("type".into(), HighlightType::Yellow),
             ("type.builtin".into(), HighlightType::Yellow),
@@ -92,7 +94,7 @@ impl LineBuffer {
     pub fn get_visible_lines(
         &mut self,
         scroll: &mut Cursor,
-        cursor: &Cursor,
+        selection: &Selection,
         visible_lines: usize,
         max_characters: usize,
         eol_sequence: String,
@@ -101,7 +103,7 @@ impl LineBuffer {
         let mut gutter_info = vec![];
         let mut relative_cursor = Cursor {
             row: 0,
-            column: cursor.column,
+            column: selection.cursor.column,
         };
         let mut range_start = scroll.row;
         let mut range_end = range_start + visible_lines + 3;
@@ -111,11 +113,11 @@ impl LineBuffer {
         let mut highlight_type = HighlightType::None;
 
         // Calculate range
-        if cursor < scroll {
-            range_start = cursor.row.saturating_sub(3);
+        if &selection.cursor < scroll {
+            range_start = selection.cursor.row.saturating_sub(3);
             range_end = range_start + visible_lines;
-        } else if cursor.row >= scroll.row + visible_lines {
-            range_end = cursor.row + 3;
+        } else if selection.cursor.row >= scroll.row + visible_lines {
+            range_end = selection.cursor.row + 3;
             range_start = range_end.saturating_sub(visible_lines);
         }
 
@@ -177,10 +179,10 @@ impl LineBuffer {
 
         // Calculate relative cursor position
         for line_info in &gutter_info {
-            if cursor.row == line_info.start.row
-                && cursor.column >= line_info.start.column
-                && (cursor.column < line_info.end
-                    || (cursor.column == line_info.end && line_info.wrap_end))
+            if selection.cursor.row == line_info.start.row
+                && selection.cursor.column >= line_info.start.column
+                && (selection.cursor.column < line_info.end
+                    || (selection.cursor.column == line_info.end && line_info.wrap_end))
             {
                 relative_cursor.column -= line_info.start.column;
                 break;
@@ -188,10 +190,10 @@ impl LineBuffer {
             cursor_idx += 1;
         }
 
-        if cursor < scroll {
+        if &selection.cursor < scroll {
             range_start = cursor_idx.saturating_sub(3);
             range_end = range_start + visible_lines;
-        } else if cursor.row >= scroll.row + visible_lines {
+        } else if selection.cursor.row >= scroll.row + visible_lines {
             range_end = cursor_idx + 3;
             range_start = range_end.saturating_sub(visible_lines);
         } else {
@@ -219,51 +221,98 @@ impl LineBuffer {
         start_byte = gutter_info.first().unwrap().start_byte;
         let mut gutter_idx = 0;
         let mut highlighted_line = vec![];
+        let selection_start = if selection.mark > selection.cursor {
+            selection.cursor
+        } else {
+            selection.mark
+        };
+        let selection_end = if selection.mark > selection.cursor {
+            selection.mark
+        } else {
+            selection.cursor
+        };
         for event in highlights {
             match event.unwrap() {
                 HighlightEvent::Source { start, end } => {
                     if end >= gutter_info.first().unwrap().start_byte
                         && start < gutter_info.last().unwrap().end_byte
                     {
+                        // Append text present before syntax highlighting range
                         if start_byte < start {
                             let gutter_line = gutter_info.first().unwrap();
-                            highlighted_line.push((
-                                self.lines.get(gutter_line.start.row).unwrap()
-                                    [..start - start_byte]
-                                    .to_string(),
-                                highlight_type,
-                            ));
+                            let line = self.lines.get(gutter_line.start.row).unwrap()
+                                [..start - start_byte]
+                                .to_string();
+                            let segments = LineBuffer::split_line(
+                                &line,
+                                &gutter_line.start,
+                                &Cursor {
+                                    row: gutter_line.start.row,
+                                    column: start - start_byte,
+                                },
+                                &selection_start,
+                                &selection_end,
+                            );
+                            for (segment, selected) in segments {
+                                highlighted_line.push((segment, highlight_type, selected))
+                            }
                             start_byte = start;
                         }
 
                         while start_byte < end && gutter_idx < gutter_info.len() {
                             let gutter_line = gutter_info.get(gutter_idx).unwrap();
+                            // If highlight range is outside a single visual line then
+                            // highlight till line end and go to next line
                             if end >= gutter_line.end_byte {
-                                highlighted_line.push((
-                                    self.lines.get(gutter_line.start.row).unwrap()[gutter_line
-                                        .start
-                                        .column
-                                        + start_byte
-                                        - gutter_line.start_byte
+                                let line = self.lines.get(gutter_line.start.row).unwrap()
+                                    [gutter_line.start.column + start_byte - gutter_line.start_byte
                                         ..gutter_line.end]
-                                        .to_string(),
-                                    highlight_type,
-                                ));
+                                    .to_string();
+                                let segments = LineBuffer::split_line(
+                                    &line,
+                                    &Cursor {
+                                        row: gutter_line.start.row,
+                                        column: gutter_line.start.column + start_byte
+                                            - gutter_line.start_byte,
+                                    },
+                                    &Cursor {
+                                        row: gutter_line.start.row,
+                                        column: gutter_line.end,
+                                    },
+                                    &selection_start,
+                                    &selection_end,
+                                );
+                                for (segment, selected) in segments {
+                                    highlighted_line.push((segment, highlight_type, selected))
+                                }
                                 start_byte = gutter_line.end_byte;
                                 gutter_idx += 1;
                                 lines.push(highlighted_line);
                                 highlighted_line = vec![];
                             } else {
-                                highlighted_line.push((
-                                    self.lines.get(gutter_line.start.row).unwrap()[gutter_line
-                                        .start
-                                        .column
-                                        + start_byte
-                                        - gutter_line.start_byte
+                                // If not append till end of highlight
+                                let line = self.lines.get(gutter_line.start.row).unwrap()
+                                    [gutter_line.start.column + start_byte - gutter_line.start_byte
                                         ..gutter_line.start.column + end - gutter_line.start_byte]
-                                        .to_string(),
-                                    highlight_type,
-                                ));
+                                    .to_string();
+                                let segments = LineBuffer::split_line(
+                                    &line,
+                                    &Cursor {
+                                        row: gutter_line.start.row,
+                                        column: gutter_line.start.column + start_byte
+                                            - gutter_line.start_byte,
+                                    },
+                                    &Cursor {
+                                        row: gutter_line.start.row,
+                                        column: gutter_line.start.column + end
+                                            - gutter_line.start_byte,
+                                    },
+                                    &selection_start,
+                                    &selection_end,
+                                );
+                                for (segment, selected) in segments {
+                                    highlighted_line.push((segment, highlight_type, selected))
+                                }
                                 start_byte = end;
                             }
                         }
@@ -289,6 +338,49 @@ impl LineBuffer {
                 .unwrap_or(&gutter_info[range_start..])
                 .to_vec(),
         )
+    }
+
+    /// Splits line based on selection
+    fn split_line(
+        line: &String,
+        line_start: &Cursor,
+        line_end: &Cursor,
+        selection_start: &Cursor,
+        selection_end: &Cursor,
+    ) -> Vec<(String, bool)> {
+        let mut segments = vec![];
+
+        // If selection overlaps with line
+        if selection_end > line_start && selection_start < line_end {
+            // If selection completely overlaps
+            if selection_start <= line_start && selection_end >= line_end {
+                segments.push((line.to_string(), true));
+            } else if selection_start >= line_start && selection_end <= line_end {
+                // Selection completely withing line
+                let (first, middle) = line.split_at(selection_start.column - line_start.column);
+                let (middle, last) = middle.split_at(selection_end.column - selection_start.column);
+
+                segments.push((first.to_string(), false));
+                segments.push((middle.to_string(), true));
+                segments.push((last.to_string(), false));
+            } else if selection_start >= line_start {
+                // Selection on right portion of line
+                let (first, last) = line.split_at(selection_start.column - line_start.column);
+
+                segments.push((first.to_string(), false));
+                segments.push((last.to_string(), true));
+            } else if selection_end <= line_end {
+                // Selection on left portion of line
+                let (first, last) = line.split_at(selection_end.column - line_start.column);
+
+                segments.push((first.to_string(), true));
+                segments.push((last.to_string(), false));
+            }
+        } else {
+            segments.push((line.to_string(), false));
+        }
+
+        segments
     }
 
     /// Get line length
@@ -434,7 +526,7 @@ impl LineBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::instance::Cursor;
+    use crate::buffer::instance::{Cursor, Selection};
 
     use super::LineBuffer;
 
@@ -470,9 +562,12 @@ mod tests {
     fn line_buffer_hard_wrap() {
         let mut buf = LineBuffer::new("HelloWorld".into(), None);
         let mut scroll = Cursor { row: 0, column: 0 };
-        let cursor = Cursor { row: 0, column: 0 };
+        let selection = Selection {
+            mark: Cursor { row: 0, column: 0 },
+            cursor: Cursor { row: 0, column: 0 },
+        };
         let (_lines, visible_cursor, _gutter_info) =
-            buf.get_visible_lines(&mut scroll, &cursor, 10, 5, "\n".into());
+            buf.get_visible_lines(&mut scroll, &selection, 10, 5, "\n".into());
         // assert_eq!(vec!["Hello", "World", ""], lines);
         assert_eq!(visible_cursor, Cursor { row: 0, column: 0 });
     }

@@ -8,13 +8,7 @@ impl CommandDispatcher {
         Self {}
     }
 
-    pub fn show(
-        &self,
-        ui: &mut Ui,
-        state: &mut EditorState,
-        visible_lines: usize,
-        max_characters: usize,
-    ) {
+    pub fn show(&self, ui: &mut Ui, state: &mut EditorState) {
         ui.input(|i| {
             for event in &i.raw.events {
                 match event {
@@ -23,7 +17,7 @@ impl CommandDispatcher {
                         physical_key: _,
                         pressed,
                         repeat: _,
-                        modifiers: _,
+                        modifiers,
                     } => {
                         if *pressed {
                             match key {
@@ -33,18 +27,6 @@ impl CommandDispatcher {
                                     let buffer =
                                         LineBuffer::new(initial_text, Some(path.to_string()));
                                     state.buffer_idx = Some(state.add_buffer(buffer));
-                                    let (buffer, instance) =
-                                        state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                    let (lines, relative_cursor, gutter_info) = buffer
-                                        .get_visible_lines(
-                                            &mut instance.scroll,
-                                            &instance.cursor,
-                                            visible_lines,
-                                            max_characters,
-                                            "\n".into(),
-                                        );
-
-                                    state.highlighted_text = lines;
                                 }
                                 egui::Key::ArrowDown => {
                                     let (buffer, instance) =
@@ -53,6 +35,10 @@ impl CommandDispatcher {
                                         &mut instance.cursor,
                                         instance.column_level,
                                     );
+                                    instance.selection.cursor = instance.cursor;
+                                    if !modifiers.shift {
+                                        instance.selection.mark = instance.cursor;
+                                    }
                                 }
                                 egui::Key::ArrowUp => {
                                     let (buffer, instance) =
@@ -61,16 +47,28 @@ impl CommandDispatcher {
                                         &mut instance.cursor,
                                         instance.column_level,
                                     );
+                                    instance.selection.cursor = instance.cursor;
+                                    if !modifiers.shift {
+                                        instance.selection.mark = instance.cursor;
+                                    }
                                 }
                                 egui::Key::ArrowLeft => {
                                     let (buffer, instance) =
                                         state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                                     buffer.move_cursor_left(&mut instance.cursor);
+                                    instance.selection.cursor = instance.cursor;
+                                    if !modifiers.shift {
+                                        instance.selection.mark = instance.cursor;
+                                    }
                                 }
                                 egui::Key::ArrowRight => {
                                     let (buffer, instance) =
                                         state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                                     buffer.move_cursor_right(&mut instance.cursor);
+                                    instance.selection.cursor = instance.cursor;
+                                    if !modifiers.shift {
+                                        instance.selection.mark = instance.cursor;
+                                    }
                                 }
                                 egui::Key::Backspace => {
                                     let (buffer, instance) =
@@ -81,12 +79,16 @@ impl CommandDispatcher {
 
                                     let (_text, cursor) = buffer.remove_text(&instance.selection);
                                     instance.cursor = cursor;
+                                    instance.selection.cursor = instance.cursor;
+                                    instance.selection.mark = instance.cursor;
                                 }
                                 egui::Key::Enter => {
                                     let (buffer, instance) =
                                         state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                                     let cursor = buffer.insert_text("\n", &instance.cursor);
                                     instance.cursor = cursor;
+                                    instance.selection.cursor = instance.cursor;
+                                    instance.selection.mark = instance.cursor;
                                 }
                                 _ => {}
                             }
@@ -97,6 +99,8 @@ impl CommandDispatcher {
                             state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                         let cursor = buffer.insert_text(text, &instance.cursor);
                         instance.cursor = cursor;
+                        instance.selection.cursor = instance.cursor;
+                        instance.selection.mark = instance.cursor;
                     }
                     _ => {}
                 }

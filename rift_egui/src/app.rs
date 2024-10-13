@@ -22,7 +22,8 @@ impl App {
         let mut relative_cursor = rift_core::buffer::instance::Cursor { row: 0, column: 0 };
         egui::CentralPanel::default()
             .frame(egui::Frame {
-                fill: Color32::PLACEHOLDER,
+                fill: Color32::from_rgb(24, 24, 24),
+                inner_margin: egui::Margin::same(8.0),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -32,7 +33,8 @@ impl App {
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {
-                fill: Color32::from_rgb(33, 37, 43),
+                fill: Color32::from_rgb(24, 24, 24),
+                outer_margin: egui::Margin::same(8.0),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -68,6 +70,10 @@ impl App {
                                     HighlightType::Gray => Color32::from_rgb(92, 99, 112),
                                     HighlightType::Turquoise => Color32::from_rgb(86, 182, 194),
                                 },
+                                background: match &token.2 {
+                                    true => Color32::from_rgb(108, 112, 134),
+                                    false => Color32::TRANSPARENT,
+                                },
                                 ..Default::default()
                             },
                         )
@@ -75,30 +81,30 @@ impl App {
                     ui.label(job);
                 }
 
-                self.dispatcher
-                    .show(ui, &mut self.state, visible_lines, max_characters);
+                self.dispatcher.show(ui, &mut self.state);
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,
+                outer_margin: egui::Margin::same(8.0),
                 ..Default::default()
             })
             .show(ctx, |ui| {
                 ui.put(
                     Rect::from_two_pos(
                         egui::Pos2 {
-                            x: relative_cursor.column as f32 * char_width,
-                            y: relative_cursor.row as f32 * char_height,
+                            x: (relative_cursor.column as f32 * char_width) + 8.0,
+                            y: (relative_cursor.row as f32 * char_height) + 8.0,
                         },
                         egui::Pos2 {
-                            x: (relative_cursor.column as f32 * char_width) + char_width,
-                            y: (relative_cursor.row as f32 * char_height) + char_height,
+                            x: (relative_cursor.column as f32 * char_width) + char_width + 8.0,
+                            y: (relative_cursor.row as f32 * char_height) + char_height + 8.0,
                         },
                     ),
                     Label::new(
                         RichText::new(" ")
                             .font(FontId::monospace(24.0))
-                            .background_color(Color32::WHITE.gamma_multiply(0.8)),
+                            .background_color(Color32::from_rgb(166, 227, 161).gamma_multiply(0.8)),
                     ),
                 );
             });
@@ -115,7 +121,7 @@ impl App {
                 .get_buffer_by_id_mut(self.state.buffer_idx.unwrap());
             let (lines, relative_cursor, _gutter_info) = buffer.get_visible_lines(
                 &mut instance.scroll,
-                &instance.cursor,
+                &instance.selection,
                 visible_lines,
                 max_characters,
                 "\n".into(),
