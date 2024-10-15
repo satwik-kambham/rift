@@ -68,6 +68,30 @@ impl CommandDispatcher {
                                         instance.cursor = instance.selection.cursor;
                                     }
                                 }
+                                egui::Key::X => {
+                                    if matches!(state.mode, Mode::Normal) {
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        if !modifiers.shift {
+                                            instance.selection.mark = instance.selection.cursor;
+                                        }
+                                        instance.selection =
+                                            buffer.select_line(&instance.selection);
+                                        instance.cursor = instance.selection.cursor;
+                                    }
+                                }
+                                egui::Key::W => {
+                                    if matches!(state.mode, Mode::Normal) {
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        if !modifiers.shift {
+                                            instance.selection.mark = instance.selection.cursor;
+                                        }
+                                        instance.selection =
+                                            buffer.select_word(&instance.selection);
+                                        instance.cursor = instance.selection.cursor;
+                                    }
+                                }
                                 egui::Key::F1 => {
                                     let path = "/home/satwik/Documents/test.rs";
                                     let initial_text = file_io::read_file_content(path).unwrap();

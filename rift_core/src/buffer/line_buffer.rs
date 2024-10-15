@@ -569,6 +569,36 @@ impl LineBuffer {
         }
         updated_selection
     }
+
+    /// Adds line to selection and returns updated selection
+    pub fn select_line(&self, selection: &Selection) -> Selection {
+        let mut updated_selection = *selection;
+        if selection.mark.column == 0
+            && selection.cursor.column == self.get_line_length(selection.cursor.row)
+        {
+            updated_selection.cursor.row += 1;
+        }
+        updated_selection.mark.column = 0;
+        updated_selection.cursor.column = self.get_line_length(updated_selection.cursor.row);
+        updated_selection
+    }
+
+    /// Adds word to selection and returns updated selection
+    pub fn select_word(&self, selection: &Selection) -> Selection {
+        let mut updated_selection = *selection;
+        let line = &self.lines[selection.cursor.row];
+        // let mut start = selection.cursor.column;
+        let mut end = selection.cursor.column;
+        // while start > 0 && line.chars().nth(start - 1).unwrap().is_alphanumeric() {
+        //     start -= 1;
+        // }
+        while end < line.len() && line.chars().nth(end).unwrap().is_alphanumeric() {
+            end += 1;
+        }
+        // updated_selection.mark.column = start;
+        updated_selection.cursor.column = end;
+        updated_selection
+    }
 }
 
 #[cfg(test)]
