@@ -30,6 +30,22 @@ pub struct Selection {
     pub mark: Cursor,
 }
 
+impl Selection {
+    pub fn in_order(&self) -> (&Cursor, &Cursor) {
+        if self.cursor >= self.mark {
+            return (&self.cursor, &self.mark);
+        }
+        (&self.mark, &self.cursor)
+    }
+
+    pub fn in_order_mut(&mut self) -> (&mut Cursor, &mut Cursor) {
+        if self.cursor >= self.mark {
+            return (&mut self.cursor, &mut self.mark);
+        }
+        (&mut self.mark, &mut self.cursor)
+    }
+}
+
 /// Gutter Information
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct GutterInfo {

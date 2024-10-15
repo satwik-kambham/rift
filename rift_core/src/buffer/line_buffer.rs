@@ -478,6 +478,7 @@ impl LineBuffer {
 
         updated_cursor
     }
+
     /// Removes the selected text and returns the updated cursor position
     /// and the deleted text
     pub fn remove_text(&mut self, selection: &Selection) -> (String, Cursor) {
@@ -521,6 +522,52 @@ impl LineBuffer {
 
             (buf, start)
         }
+    }
+
+    /// Get indentation level (number of spaces) of given row
+    pub fn get_indentation_level(&self, row: usize) -> usize {
+        let line = &self.lines[row];
+        line.chars().take_while(|c| *c == ' ').count()
+    }
+
+    /// Add indentation to the selected lines and returns the updated cursor position
+    pub fn add_indentation(&mut self, selection: &Selection, tab_size: usize) -> Selection {
+        let mut updated_selection = *selection;
+        let tab = " ".repeat(tab_size);
+        updated_selection.mark.column += tab_size;
+        updated_selection.cursor.column += tab_size;
+        let (start, end) = selection.in_order();
+        for i in start.row..=end.row {
+            let current_line = &self.lines[i];
+            let mut new_line = String::new();
+            new_line.push_str(&tab);
+            new_line.push_str(current_line);
+            self.lines[i] = new_line;
+        }
+        updated_selection
+    }
+
+    /// Remove indentation from the selected lines if present and returns the updated cursor position
+    pub fn remove_indentation(&mut self, selection: &Selection, tab_size: usize) -> Selection {
+        let mut updated_selection = *selection;
+        let tab = " ".repeat(tab_size);
+        let (start, end) = selection.in_order();
+        let (start_new, end_new) = updated_selection.in_order_mut();
+        for i in start.row..=end.row {
+            let current_line = &self.lines[i];
+            if current_line.starts_with(&tab) {
+                let (_first, second) = current_line.split_at(tab_size);
+                self.lines[i] = second.to_owned();
+
+                if i == start.row {
+                    start_new.column -= tab_size;
+                }
+                if i == end.row {
+                    end_new.column -= tab_size;
+                }
+            }
+        }
+        updated_selection
     }
 }
 

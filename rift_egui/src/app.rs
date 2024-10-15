@@ -1,5 +1,8 @@
 use egui::{text::LayoutJob, Color32, FontId, Label, Rect, RichText};
-use rift_core::{buffer::instance::HighlightType, state::EditorState};
+use rift_core::{
+    buffer::instance::HighlightType,
+    state::{EditorState, Mode},
+};
 
 use crate::command_dispatcher::CommandDispatcher;
 
@@ -21,6 +24,32 @@ impl App {
         let mut char_width = 0.0;
         let mut relative_cursor = rift_core::buffer::instance::Cursor { row: 0, column: 0 };
         let mut gutter_width = 0.0;
+        egui::TopBottomPanel::bottom("status_line").show(ctx, |ui| {
+            if self.state.buffer_idx.is_some() {
+                let (_buffer, instance) =
+                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                ui.columns(2, |columns| {
+                    let mode = &self.state.mode;
+                    match mode {
+                        Mode::Normal => columns[0].label(
+                            RichText::new("NORMAL")
+                                .color(Color32::from_rgb(24, 24, 24))
+                                .background_color(Color32::from_rgb(203, 166, 247)),
+                        ),
+                        Mode::Insert => columns[0].label(
+                            RichText::new("INSERT")
+                                .color(Color32::from_rgb(24, 24, 24))
+                                .background_color(Color32::from_rgb(166, 227, 161)),
+                        ),
+                    };
+                    columns[1].label(format!(
+                        "{}:{}",
+                        instance.cursor.row + 1,
+                        instance.cursor.column + 1
+                    ));
+                });
+            }
+        });
         egui::SidePanel::left("gutter")
             .frame(egui::Frame {
                 fill: Color32::from_rgb(24, 24, 24),
@@ -44,17 +73,6 @@ impl App {
                     );
                 }
             });
-        egui::TopBottomPanel::bottom("status_line").show(ctx, |ui| {
-            if self.state.buffer_idx.is_some() {
-                let (_buffer, instance) =
-                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                ui.label(format!(
-                    "{}:{}",
-                    instance.cursor.row + 1,
-                    instance.cursor.column + 1
-                ));
-            }
-        });
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::from_rgb(24, 24, 24),
