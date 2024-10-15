@@ -33,6 +33,41 @@ impl CommandDispatcher {
                                         state.mode = Mode::Insert;
                                     }
                                 }
+                                egui::Key::O => {
+                                    if matches!(state.mode, Mode::Normal) {
+                                        state.mode = Mode::Insert;
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        instance.cursor = instance.selection.cursor;
+                                        let indent_size =
+                                            buffer.get_indentation_level(instance.cursor.row);
+                                        let cursor = buffer.insert_text("\n", &instance.cursor);
+                                        instance.cursor = cursor;
+                                        instance.selection.cursor = instance.cursor;
+                                        instance.selection.mark = instance.cursor;
+                                        instance.selection = buffer
+                                            .add_indentation(&instance.selection, indent_size);
+                                        instance.cursor = instance.selection.cursor;
+                                    }
+                                }
+                                egui::Key::Comma => {
+                                    if matches!(state.mode, Mode::Normal) && modifiers.shift {
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        instance.selection =
+                                            buffer.remove_indentation(&instance.selection, 4);
+                                        instance.cursor = instance.selection.cursor;
+                                    }
+                                }
+                                egui::Key::Period => {
+                                    if matches!(state.mode, Mode::Normal) && modifiers.shift {
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        instance.selection =
+                                            buffer.add_indentation(&instance.selection, 4);
+                                        instance.cursor = instance.selection.cursor;
+                                    }
+                                }
                                 egui::Key::F1 => {
                                     let path = "/home/satwik/Documents/test.rs";
                                     let initial_text = file_io::read_file_content(path).unwrap();
