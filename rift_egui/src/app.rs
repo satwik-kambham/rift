@@ -164,6 +164,18 @@ impl App {
                     ),
                 );
             });
+        if self.state.modal_open {
+            egui::Window::new("modal")
+                .movable(false)
+                .order(egui::Order::Foreground)
+                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -20.0))
+                .resizable(false)
+                .collapsible(false)
+                .title_bar(false)
+                .show(ctx, |ui| {
+                    ui.label("Modalllllll!!!!!!!!!!");
+                });
+        }
     }
 
     pub fn update_visible_lines(

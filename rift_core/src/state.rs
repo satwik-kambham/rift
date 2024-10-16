@@ -22,6 +22,8 @@ pub struct EditorState {
     pub highlighted_text: HighlightedText,
     pub gutter_info: Vec<GutterInfo>,
     pub buffer_idx: Option<u32>,
+    pub modal_open: bool,
+    pub modal_options: Vec<String>,
 }
 
 impl EditorState {
@@ -36,6 +38,8 @@ impl EditorState {
             highlighted_text: vec![],
             gutter_info: vec![],
             buffer_idx: None,
+            modal_open: false,
+            modal_options: vec![],
         }
     }
 
