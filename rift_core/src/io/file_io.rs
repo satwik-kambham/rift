@@ -8,10 +8,10 @@ use std::{
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FolderEntry {
-    path: String,
-    is_dir: bool,
-    name: String,
-    extension: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub name: String,
+    pub extension: String,
 }
 
 impl PartialOrd for FolderEntry {
@@ -105,7 +105,7 @@ pub fn move_file_or_directory(path: &str, to: &str) -> Result<(), Box<dyn Error>
 }
 
 /// Get all items in folder
-pub fn get_directory_entries(path: &str) -> Result<(), Box<dyn Error>> {
+pub fn get_directory_entries(path: &str) -> Result<Vec<FolderEntry>, Box<dyn Error>> {
     let mut entries: Vec<FolderEntry> = vec![];
     for entry in fs::read_dir(path)? {
         let entry = entry?;
@@ -129,5 +129,5 @@ pub fn get_directory_entries(path: &str) -> Result<(), Box<dyn Error>> {
         });
     }
     entries.sort();
-    Ok(())
+    Ok(entries)
 }

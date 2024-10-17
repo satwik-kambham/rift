@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
-use crate::buffer::{
-    instance::{BufferInstance, GutterInfo},
-    line_buffer::{HighlightedText, LineBuffer},
+use crate::{
+    buffer::{
+        instance::{BufferInstance, GutterInfo},
+        line_buffer::{HighlightedText, LineBuffer},
+    },
+    io::file_io::FolderEntry,
 };
 
 #[derive(Debug, Default)]
@@ -23,7 +26,9 @@ pub struct EditorState {
     pub gutter_info: Vec<GutterInfo>,
     pub buffer_idx: Option<u32>,
     pub modal_open: bool,
-    pub modal_options: Vec<String>,
+    pub modal_options: Vec<FolderEntry>,
+    pub modal_selection_idx: Option<usize>,
+    pub modal_input: String,
 }
 
 impl EditorState {
@@ -40,6 +45,8 @@ impl EditorState {
             buffer_idx: None,
             modal_open: false,
             modal_options: vec![],
+            modal_selection_idx: None,
+            modal_input: "".to_string(),
         }
     }
 

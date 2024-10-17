@@ -173,7 +173,20 @@ impl App {
                 .collapsible(false)
                 .title_bar(false)
                 .show(ctx, |ui| {
-                    ui.label("Modalllllll!!!!!!!!!!");
+                    ui.label(&self.state.modal_input);
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for (idx, entry) in self.state.modal_options.iter().enumerate() {
+                            ui.label(RichText::new(&entry.name).color(
+                                if self.state.modal_selection_idx.is_some()
+                                    && idx == self.state.modal_selection_idx.unwrap()
+                                {
+                                    Color32::WHITE
+                                } else {
+                                    Color32::GRAY
+                                },
+                            ));
+                        }
+                    });
                 });
         }
     }
