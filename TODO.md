@@ -23,6 +23,7 @@ o - Started / - Partial x - Done
 - [x] Add backend methods to insert and delete selections
 - [x] Add editing functinality to the frontend
 - [x] Selection
+- [ ] Preferences
 - [ ] Simple undo and redo
 - [ ] Edit grouping
 - [ ] Create completion component which shows all completions

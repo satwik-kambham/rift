@@ -1,6 +1,7 @@
 use egui::{text::LayoutJob, Color32, FontId, Label, Rect, RichText};
 use rift_core::{
     buffer::instance::HighlightType,
+    preferences::Preferences,
     state::{EditorState, Mode},
 };
 
@@ -9,6 +10,7 @@ use crate::command_dispatcher::CommandDispatcher;
 pub struct App {
     dispatcher: CommandDispatcher,
     state: EditorState,
+    preferences: Preferences,
 }
 
 impl App {
@@ -16,6 +18,7 @@ impl App {
         Self {
             dispatcher: CommandDispatcher::new(),
             state: EditorState::default(),
+            preferences: Preferences::default(),
         }
     }
 
@@ -33,13 +36,13 @@ impl App {
                     match mode {
                         Mode::Normal => columns[0].label(
                             RichText::new("NORMAL")
-                                .color(Color32::from_rgb(24, 24, 24))
-                                .background_color(Color32::from_rgb(203, 166, 247)),
+                                .color(self.preferences.theme.status_bar_normal_mode_fg)
+                                .background_color(self.preferences.theme.status_bar_normal_mode_bg),
                         ),
                         Mode::Insert => columns[0].label(
                             RichText::new("INSERT")
-                                .color(Color32::from_rgb(24, 24, 24))
-                                .background_color(Color32::from_rgb(166, 227, 161)),
+                                .color(self.preferences.theme.status_bar_insert_mode_fg)
+                                .background_color(self.preferences.theme.status_bar_insert_mode_bg),
                         ),
                     };
                     columns[1].label(format!(
@@ -53,15 +56,15 @@ impl App {
         });
         egui::SidePanel::left("gutter")
             .frame(egui::Frame {
-                fill: Color32::from_rgb(24, 24, 24),
-                inner_margin: egui::Margin::same(8.0),
+                fill: self.preferences.theme.gutter_bg.into(),
+                inner_margin: egui::Margin::same(self.preferences.gutter_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
-                gutter_width = rect.width() + 16.0;
-                for gutter_line in &self.state.gutter_info {
+                gutter_width = rect.width() + self.preferences.gutter_padding * 2.0;
+                for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
                     let gutter_value = if gutter_line.wrapped {
                         ".".to_string()
                     } else {
@@ -69,26 +72,32 @@ impl App {
                     };
                     ui.label(
                         RichText::new(gutter_value)
-                            .font(FontId::monospace(24.0))
-                            .color(Color32::from_rgb(92, 99, 112)),
+                            .font(FontId::monospace(self.preferences.font_size as f32))
+                            .color(if idx == relative_cursor.row {
+                                self.preferences.theme.gutter_text_current_line
+                            } else {
+                                self.preferences.theme.gutter_text
+                            }),
                     );
                 }
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {
-                fill: Color32::from_rgb(24, 24, 24),
-                inner_margin: egui::Margin::same(8.0),
+                fill: self.preferences.theme.editor_bg.into(),
+                inner_margin: egui::Margin::same(self.preferences.editor_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                let label_response = ui.label(RichText::new("x").font(FontId::monospace(24.0)));
+                let label_response = ui.label(
+                    RichText::new("x").font(FontId::monospace(self.preferences.font_size as f32)),
+                );
                 char_width = label_response.rect.width();
                 char_height = label_response.rect.height();
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {
-                fill: Color32::from_rgb(24, 24, 24),
-                outer_margin: egui::Margin::same(8.0),
+                fill: self.preferences.theme.editor_bg.into(),
+                outer_margin: egui::Margin::same(self.preferences.editor_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -111,7 +120,7 @@ impl App {
                             &token.0,
                             0.0,
                             egui::TextFormat {
-                                font_id: FontId::monospace(24.0),
+                                font_id: FontId::monospace(self.preferences.font_size as f32),
                                 color: match &token.1 {
                                     HighlightType::None => Color32::from_rgb(171, 178, 191),
                                     HighlightType::White => Color32::from_rgb(171, 178, 191),
@@ -140,28 +149,33 @@ impl App {
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,
-                outer_margin: egui::Margin::same(8.0),
+                outer_margin: egui::Margin::same(self.preferences.editor_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
                 ui.put(
                     Rect::from_two_pos(
                         egui::Pos2 {
-                            x: (relative_cursor.column as f32 * char_width) + gutter_width + 8.0,
-                            y: (relative_cursor.row as f32 * char_height) + 8.0,
+                            x: (relative_cursor.column as f32 * char_width)
+                                + gutter_width
+                                + self.preferences.editor_padding,
+                            y: (relative_cursor.row as f32 * char_height)
+                                + self.preferences.editor_padding,
                         },
                         egui::Pos2 {
                             x: (relative_cursor.column as f32 * char_width)
                                 + gutter_width
                                 + char_width
-                                + 8.0,
-                            y: (relative_cursor.row as f32 * char_height) + char_height + 8.0,
+                                + self.preferences.editor_padding,
+                            y: (relative_cursor.row as f32 * char_height)
+                                + char_height
+                                + self.preferences.editor_padding,
                         },
                     ),
                     Label::new(
                         RichText::new(" ")
-                            .font(FontId::monospace(24.0))
-                            .background_color(Color32::from_rgb(166, 227, 161).gamma_multiply(0.8)),
+                            .font(FontId::monospace(self.preferences.font_size as f32))
+                            .background_color(self.preferences.theme.cursor_normal_mode_bg),
                     ),
                 );
             });
