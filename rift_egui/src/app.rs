@@ -26,9 +26,9 @@ impl App {
         let mut gutter_width = 0.0;
         egui::TopBottomPanel::bottom("status_line").show(ctx, |ui| {
             if self.state.buffer_idx.is_some() {
-                let (_buffer, instance) =
+                let (buffer, instance) =
                     self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                ui.columns(2, |columns| {
+                ui.columns(3, |columns| {
                     let mode = &self.state.mode;
                     match mode {
                         Mode::Normal => columns[0].label(
@@ -47,6 +47,7 @@ impl App {
                         instance.cursor.row + 1,
                         instance.cursor.column + 1
                     ));
+                    columns[2].label(if buffer.modified { "U" } else { "" });
                 });
             }
         });

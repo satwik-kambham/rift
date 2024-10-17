@@ -115,6 +115,18 @@ impl CommandDispatcher {
                                             return;
                                         }
                                     }
+                                    egui::Key::S => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, _instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            buffer.modified = false;
+                                            file_io::override_file_content(
+                                                &buffer.file_path.clone().unwrap(),
+                                                buffer.get_content("\n".into()),
+                                            )
+                                            .unwrap();
+                                        }
+                                    }
                                     egui::Key::ArrowDown => {
                                         let (buffer, instance) =
                                             state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
@@ -155,6 +167,56 @@ impl CommandDispatcher {
                                         instance.selection.cursor = instance.cursor;
                                         if !modifiers.shift {
                                             instance.selection.mark = instance.cursor;
+                                        }
+                                    }
+                                    egui::Key::J => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            buffer.move_cursor_down(
+                                                &mut instance.cursor,
+                                                instance.column_level,
+                                            );
+                                            instance.selection.cursor = instance.cursor;
+                                            if !modifiers.shift {
+                                                instance.selection.mark = instance.cursor;
+                                            }
+                                        }
+                                    }
+                                    egui::Key::K => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            buffer.move_cursor_up(
+                                                &mut instance.cursor,
+                                                instance.column_level,
+                                            );
+                                            instance.selection.cursor = instance.cursor;
+                                            if !modifiers.shift {
+                                                instance.selection.mark = instance.cursor;
+                                            }
+                                        }
+                                    }
+                                    egui::Key::H => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            buffer.move_cursor_left(&mut instance.cursor);
+                                            instance.selection.cursor = instance.cursor;
+                                            if !modifiers.shift {
+                                                instance.selection.mark = instance.cursor;
+                                            }
+                                        }
+                                    }
+                                    egui::Key::L => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            buffer.move_cursor_right(&mut instance.cursor);
+                                            instance.selection.cursor = instance.cursor;
+                                            if !modifiers.shift {
+                                                instance.selection.mark = instance.cursor;
+                                            }
                                         }
                                     }
                                     egui::Key::Backspace => {

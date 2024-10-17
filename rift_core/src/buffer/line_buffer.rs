@@ -15,6 +15,7 @@ pub struct LineBuffer {
     language_config: HighlightConfiguration,
     highlight_map: HashMap<String, HighlightType>,
     highlight_names: Vec<String>,
+    pub modified: bool,
 }
 
 pub type HighlightedText = Vec<Vec<(String, HighlightType, bool)>>;
@@ -82,6 +83,7 @@ impl LineBuffer {
             language_config,
             highlight_map,
             highlight_names,
+            modified: false,
         }
     }
 
@@ -458,6 +460,8 @@ impl LineBuffer {
 
     /// Insert text at cursor position and return update cursor position
     pub fn insert_text(&mut self, text: &str, cursor: &Cursor) -> Cursor {
+        self.modified = true;
+
         let mut updated_cursor = *cursor;
         let current_line = self.lines[cursor.row].clone();
         let mut text_iter = text.split('\n');
@@ -482,6 +486,8 @@ impl LineBuffer {
     /// Removes the selected text and returns the updated cursor position
     /// and the deleted text
     pub fn remove_text(&mut self, selection: &Selection) -> (String, Cursor) {
+        self.modified = true;
+
         let start = if selection.mark < selection.cursor {
             selection.mark
         } else {
@@ -532,6 +538,8 @@ impl LineBuffer {
 
     /// Add indentation to the selected lines and returns the updated cursor position
     pub fn add_indentation(&mut self, selection: &Selection, tab_size: usize) -> Selection {
+        self.modified = true;
+
         let mut updated_selection = *selection;
         let tab = " ".repeat(tab_size);
         updated_selection.mark.column += tab_size;
@@ -549,6 +557,8 @@ impl LineBuffer {
 
     /// Remove indentation from the selected lines if present and returns the updated cursor position
     pub fn remove_indentation(&mut self, selection: &Selection, tab_size: usize) -> Selection {
+        self.modified = true;
+
         let mut updated_selection = *selection;
         let tab = " ".repeat(tab_size);
         let (start, end) = selection.in_order();
