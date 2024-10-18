@@ -27,33 +27,42 @@ impl App {
         let mut char_width = 0.0;
         let mut relative_cursor = rift_core::buffer::instance::Cursor { row: 0, column: 0 };
         let mut gutter_width = 0.0;
-        egui::TopBottomPanel::bottom("status_line").show(ctx, |ui| {
-            if self.state.buffer_idx.is_some() {
-                let (buffer, instance) =
-                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                ui.columns(3, |columns| {
-                    let mode = &self.state.mode;
-                    match mode {
-                        Mode::Normal => columns[0].label(
-                            RichText::new("NORMAL")
-                                .color(self.preferences.theme.status_bar_normal_mode_fg)
-                                .background_color(self.preferences.theme.status_bar_normal_mode_bg),
-                        ),
-                        Mode::Insert => columns[0].label(
-                            RichText::new("INSERT")
-                                .color(self.preferences.theme.status_bar_insert_mode_fg)
-                                .background_color(self.preferences.theme.status_bar_insert_mode_bg),
-                        ),
-                    };
-                    columns[1].label(format!(
-                        "{}:{}",
-                        instance.cursor.row + 1,
-                        instance.cursor.column + 1
-                    ));
-                    columns[2].label(if buffer.modified { "U" } else { "" });
-                });
-            }
-        });
+        egui::TopBottomPanel::bottom("status_line")
+            .frame(egui::Frame {
+                fill: self.preferences.theme.status_bar_bg.into(),
+                ..Default::default()
+            })
+            .show(ctx, |ui| {
+                if self.state.buffer_idx.is_some() {
+                    let (buffer, instance) =
+                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    ui.columns(3, |columns| {
+                        let mode = &self.state.mode;
+                        match mode {
+                            Mode::Normal => columns[0].label(
+                                RichText::new("NORMAL")
+                                    .color(self.preferences.theme.status_bar_normal_mode_fg)
+                                    .background_color(
+                                        self.preferences.theme.status_bar_normal_mode_bg,
+                                    ),
+                            ),
+                            Mode::Insert => columns[0].label(
+                                RichText::new("INSERT")
+                                    .color(self.preferences.theme.status_bar_insert_mode_fg)
+                                    .background_color(
+                                        self.preferences.theme.status_bar_insert_mode_bg,
+                                    ),
+                            ),
+                        };
+                        columns[1].label(format!(
+                            "{}:{}",
+                            instance.cursor.row + 1,
+                            instance.cursor.column + 1
+                        ));
+                        columns[2].label(if buffer.modified { "U" } else { "" });
+                    });
+                }
+            });
         egui::SidePanel::left("gutter")
             .frame(egui::Frame {
                 fill: self.preferences.theme.gutter_bg.into(),
@@ -64,7 +73,7 @@ impl App {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
                 gutter_width = rect.width() + self.preferences.gutter_padding * 2.0;
-                for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
+                for gutter_line in &self.state.gutter_info {
                     let gutter_value = if gutter_line.wrapped {
                         ".".to_string()
                     } else {
@@ -72,12 +81,8 @@ impl App {
                     };
                     ui.label(
                         RichText::new(gutter_value)
-                            .font(FontId::monospace(self.preferences.font_size as f32))
-                            .color(if idx == relative_cursor.row {
-                                self.preferences.theme.gutter_text_current_line
-                            } else {
-                                self.preferences.theme.gutter_text
-                            }),
+                            .font(FontId::monospace(self.preferences.editor_font_size as f32))
+                            .color(self.preferences.theme.gutter_text),
                     );
                 }
             });
@@ -89,7 +94,8 @@ impl App {
             })
             .show(ctx, |ui| {
                 let label_response = ui.label(
-                    RichText::new("x").font(FontId::monospace(self.preferences.font_size as f32)),
+                    RichText::new("x")
+                        .font(FontId::monospace(self.preferences.editor_font_size as f32)),
                 );
                 char_width = label_response.rect.width();
                 char_height = label_response.rect.height();
@@ -120,7 +126,9 @@ impl App {
                             &token.0,
                             0.0,
                             egui::TextFormat {
-                                font_id: FontId::monospace(self.preferences.font_size as f32),
+                                font_id: FontId::monospace(
+                                    self.preferences.editor_font_size as f32,
+                                ),
                                 color: match &token.1 {
                                     HighlightType::None => Color32::from_rgb(171, 178, 191),
                                     HighlightType::White => Color32::from_rgb(171, 178, 191),
@@ -174,7 +182,7 @@ impl App {
                     ),
                     Label::new(
                         RichText::new(" ")
-                            .font(FontId::monospace(self.preferences.font_size as f32))
+                            .font(FontId::monospace(self.preferences.editor_font_size as f32))
                             .background_color(self.preferences.theme.cursor_normal_mode_bg),
                     ),
                 );
@@ -190,16 +198,20 @@ impl App {
                 .show(ctx, |ui| {
                     ui.label(&self.state.modal_input);
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        for (idx, entry) in self.state.modal_options.iter().enumerate() {
-                            ui.label(RichText::new(&entry.name).color(
-                                if self.state.modal_selection_idx.is_some()
-                                    && idx == self.state.modal_selection_idx.unwrap()
-                                {
-                                    Color32::WHITE
-                                } else {
-                                    Color32::GRAY
-                                },
-                            ));
+                        for (idx, entry) in self.state.modal_options_filtered.iter().enumerate() {
+                            ui.label(
+                                RichText::new(&entry.name)
+                                    .color(
+                                        if self.state.modal_selection_idx.is_some()
+                                            && idx == self.state.modal_selection_idx.unwrap()
+                                        {
+                                            Color32::WHITE
+                                        } else {
+                                            Color32::GRAY
+                                        },
+                                    )
+                                    .size(self.preferences.ui_font_size as f32),
+                            );
                         }
                     });
                 });

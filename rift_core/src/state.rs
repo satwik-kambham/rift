@@ -27,6 +27,7 @@ pub struct EditorState {
     pub buffer_idx: Option<u32>,
     pub modal_open: bool,
     pub modal_options: Vec<FolderEntry>,
+    pub modal_options_filtered: Vec<FolderEntry>,
     pub modal_selection_idx: Option<usize>,
     pub modal_input: String,
 }
@@ -45,6 +46,7 @@ impl EditorState {
             buffer_idx: None,
             modal_open: false,
             modal_options: vec![],
+            modal_options_filtered: vec![],
             modal_selection_idx: None,
             modal_input: "".to_string(),
         }

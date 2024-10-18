@@ -110,6 +110,8 @@ impl CommandDispatcher {
                                             state.modal_open = true;
                                             state.modal_options =
                                                 file_io::get_directory_entries("/").unwrap();
+                                            state.modal_options_filtered =
+                                                state.modal_options.clone();
                                             state.modal_selection_idx = None;
                                             state.modal_input = "/".into();
                                             return;
@@ -253,72 +255,100 @@ impl CommandDispatcher {
                 }
             } else {
                 for event in &i.raw.events {
-                    if let egui::Event::Key {
-                        key,
-                        physical_key: _,
-                        pressed,
-                        repeat: _,
-                        modifiers: _,
-                    } = event
-                    {
-                        if *pressed {
-                            match key {
-                                egui::Key::Tab => {
-                                    if !state.modal_options.is_empty() {
-                                        if state.modal_selection_idx.is_none() {
-                                            state.modal_selection_idx = Some(0);
-                                        } else {
-                                            state.modal_selection_idx =
-                                                Some(state.modal_selection_idx.unwrap() + 1);
-                                            if state.modal_selection_idx.unwrap()
-                                                >= state.modal_options.len()
-                                            {
+                    match event {
+                        egui::Event::Text(text) => {
+                            state.modal_input.push_str(text);
+                            state.modal_options_filtered = state
+                                .modal_options
+                                .iter()
+                                .filter(|entry| entry.path.starts_with(&state.modal_input))
+                                .cloned()
+                                .collect();
+                        }
+                        egui::Event::Key {
+                            key,
+                            physical_key: _,
+                            pressed,
+                            repeat: _,
+                            modifiers: _,
+                        } => {
+                            if *pressed {
+                                match key {
+                                    egui::Key::Tab => {
+                                        if !state.modal_options_filtered.is_empty() {
+                                            if state.modal_selection_idx.is_none() {
                                                 state.modal_selection_idx = Some(0);
+                                            } else {
+                                                state.modal_selection_idx =
+                                                    Some(state.modal_selection_idx.unwrap() + 1);
+                                                if state.modal_selection_idx.unwrap()
+                                                    >= state.modal_options_filtered.len()
+                                                {
+                                                    state.modal_selection_idx = Some(0);
+                                                }
+                                            }
+
+                                            state.modal_input = state.modal_options_filtered
+                                                [state.modal_selection_idx.unwrap()]
+                                            .path
+                                            .clone();
+                                        } else {
+                                            state.modal_selection_idx = None;
+                                        }
+                                    }
+                                    egui::Key::Backspace => {
+                                        state.modal_input.pop();
+                                        state.modal_options_filtered = state
+                                            .modal_options
+                                            .iter()
+                                            .filter(|entry| {
+                                                entry.path.starts_with(&state.modal_input)
+                                            })
+                                            .cloned()
+                                            .collect();
+                                    }
+                                    egui::Key::Enter => {
+                                        if state.modal_selection_idx.is_some() {
+                                            let entry = &state.modal_options_filtered
+                                                [state.modal_selection_idx.unwrap()];
+                                            if !entry.is_dir {
+                                                let path = &entry.path;
+                                                let initial_text =
+                                                    file_io::read_file_content(path).unwrap();
+                                                let buffer = LineBuffer::new(
+                                                    initial_text,
+                                                    Some(path.to_string()),
+                                                );
+                                                state.buffer_idx = Some(state.add_buffer(buffer));
+                                                state.modal_open = false;
+                                                state.modal_options = vec![];
+                                                state.modal_options_filtered = vec![];
+                                                state.modal_selection_idx = None;
+                                                state.modal_input = "".into();
+                                            } else {
+                                                state.modal_input = entry.path.clone();
+                                                state.modal_input.push('/');
+                                                state.modal_options =
+                                                    file_io::get_directory_entries(&entry.path)
+                                                        .unwrap();
+                                                state.modal_options_filtered =
+                                                    state.modal_options.clone();
+                                                state.modal_selection_idx = None;
                                             }
                                         }
-
-                                        state.modal_input = state.modal_options
-                                            [state.modal_selection_idx.unwrap()]
-                                        .path
-                                        .clone();
-                                    } else {
+                                    }
+                                    egui::Key::Escape => {
+                                        state.modal_open = false;
+                                        state.modal_options = vec![];
+                                        state.modal_options_filtered = vec![];
                                         state.modal_selection_idx = None;
+                                        state.modal_input = "".into();
                                     }
+                                    _ => {}
                                 }
-                                egui::Key::Enter => {
-                                    if state.modal_selection_idx.is_some() {
-                                        let entry = &state.modal_options
-                                            [state.modal_selection_idx.unwrap()];
-                                        if !entry.is_dir {
-                                            let path = &entry.path;
-                                            let initial_text =
-                                                file_io::read_file_content(path).unwrap();
-                                            let buffer = LineBuffer::new(
-                                                initial_text,
-                                                Some(path.to_string()),
-                                            );
-                                            state.buffer_idx = Some(state.add_buffer(buffer));
-                                            state.modal_open = false;
-                                            state.modal_options = vec![];
-                                            state.modal_selection_idx = None;
-                                            state.modal_input = "".into();
-                                        } else {
-                                            state.modal_options =
-                                                file_io::get_directory_entries(&state.modal_input)
-                                                    .unwrap();
-                                            state.modal_selection_idx = None;
-                                        }
-                                    }
-                                }
-                                egui::Key::Escape => {
-                                    state.modal_open = false;
-                                    state.modal_options = vec![];
-                                    state.modal_selection_idx = None;
-                                    state.modal_input = "".into();
-                                }
-                                _ => {}
                             }
                         }
+                        _ => {}
                     }
                 }
             }
