@@ -25,7 +25,6 @@ impl App {
     pub fn draw(&mut self, ctx: &egui::Context) {
         let mut char_height = 0.0;
         let mut char_width = 0.0;
-        let mut relative_cursor = rift_core::buffer::instance::Cursor { row: 0, column: 0 };
         let mut gutter_width = 0.0;
         egui::TopBottomPanel::bottom("status_line")
             .frame(egui::Frame {
@@ -73,17 +72,25 @@ impl App {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
                 gutter_width = rect.width() + self.preferences.gutter_padding * 2.0;
-                for gutter_line in &self.state.gutter_info {
+                for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
                     let gutter_value = if gutter_line.wrapped {
                         ".".to_string()
                     } else {
                         format!("{}", gutter_line.start.row + 1)
                     };
-                    ui.label(
-                        RichText::new(gutter_value)
-                            .font(FontId::monospace(self.preferences.editor_font_size as f32))
-                            .color(self.preferences.theme.gutter_text),
-                    );
+                    if idx == self.state.relative_cursor.row {
+                        ui.label(
+                            RichText::new(gutter_value)
+                                .font(FontId::monospace(self.preferences.editor_font_size as f32))
+                                .color(self.preferences.theme.gutter_text_current_line),
+                        );
+                    } else {
+                        ui.label(
+                            RichText::new(gutter_value)
+                                .font(FontId::monospace(self.preferences.editor_font_size as f32))
+                                .color(self.preferences.theme.gutter_text),
+                        );
+                    }
                 }
             });
         egui::CentralPanel::default()
@@ -116,8 +123,14 @@ impl App {
                 {
                     self.state.visible_lines = visible_lines;
                     self.state.max_characters = max_characters;
+                    self.state.update_view = true;
                 }
-                relative_cursor = self.update_visible_lines(visible_lines, max_characters);
+
+                if self.state.update_view {
+                    self.state.relative_cursor =
+                        self.update_visible_lines(visible_lines, max_characters);
+                    self.state.update_view = false;
+                }
 
                 for line in &self.state.highlighted_text {
                     let mut job = LayoutJob::default();
@@ -164,18 +177,18 @@ impl App {
                 ui.put(
                     Rect::from_two_pos(
                         egui::Pos2 {
-                            x: (relative_cursor.column as f32 * char_width)
+                            x: (self.state.relative_cursor.column as f32 * char_width)
                                 + gutter_width
                                 + self.preferences.editor_padding,
-                            y: (relative_cursor.row as f32 * char_height)
+                            y: (self.state.relative_cursor.row as f32 * char_height)
                                 + self.preferences.editor_padding,
                         },
                         egui::Pos2 {
-                            x: (relative_cursor.column as f32 * char_width)
+                            x: (self.state.relative_cursor.column as f32 * char_width)
                                 + gutter_width
                                 + char_width
                                 + self.preferences.editor_padding,
-                            y: (relative_cursor.row as f32 * char_height)
+                            y: (self.state.relative_cursor.row as f32 * char_height)
                                 + char_height
                                 + self.preferences.editor_padding,
                         },
@@ -183,7 +196,11 @@ impl App {
                     Label::new(
                         RichText::new(" ")
                             .font(FontId::monospace(self.preferences.editor_font_size as f32))
-                            .background_color(self.preferences.theme.cursor_normal_mode_bg),
+                            .background_color(if matches!(self.state.mode, Mode::Normal) {
+                                self.preferences.theme.cursor_normal_mode_bg
+                            } else {
+                                self.preferences.theme.cursor_insert_mode_bg
+                            }),
                     ),
                 );
             });

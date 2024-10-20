@@ -16,6 +16,7 @@ impl CommandDispatcher {
         ui.input(|i| {
             if !state.modal_open {
                 for event in &i.raw.events {
+                    state.update_view = true;
                     match event {
                         egui::Event::Text(text) => {
                             if matches!(state.mode, Mode::Insert) {
@@ -255,6 +256,7 @@ impl CommandDispatcher {
                 }
             } else {
                 for event in &i.raw.events {
+                    state.update_view = true;
                     match event {
                         egui::Event::Text(text) => {
                             state.modal_input.push_str(text);

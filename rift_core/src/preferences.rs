@@ -70,6 +70,7 @@ pub struct Theme {
     pub status_bar_insert_mode_bg: Color,
     pub gutter_bg: Color,
     pub gutter_text: Color,
+    pub gutter_text_current_line: Color,
 }
 
 impl Theme {
@@ -87,6 +88,7 @@ impl Theme {
             status_bar_insert_mode_bg: themes::catppuccin_mocha::GREEN,
             gutter_bg: themes::catppuccin_mocha::BASE,
             gutter_text: themes::catppuccin_mocha::SUBTEXT0,
+            gutter_text_current_line: themes::catppuccin_mocha::MAUVE,
         }
     }
 }
