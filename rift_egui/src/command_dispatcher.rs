@@ -329,7 +329,20 @@ impl CommandDispatcher {
                                                 state.modal_input = "".into();
                                             } else {
                                                 state.modal_input = entry.path.clone();
-                                                state.modal_input.push('/');
+
+                                                #[cfg(target_os = "windows")]
+                                                {
+                                                    state.modal_input.push('\\');
+                                                }
+
+                                                #[cfg(any(
+                                                    target_os = "linux",
+                                                    target_os = "macos"
+                                                ))]
+                                                {
+                                                    state.modal_input.push('/');
+                                                }
+
                                                 state.modal_options =
                                                     file_io::get_directory_entries(&entry.path)
                                                         .unwrap();

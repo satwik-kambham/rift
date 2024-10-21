@@ -41,9 +41,15 @@ pub struct Preferences {
 
 impl Default for Preferences {
     fn default() -> Self {
+        let line_ending = if cfg!(target_os = "windows") {
+            String::from("\r\n")
+        } else {
+            String::from("\n")
+        };
+
         Self {
             theme: Theme::catppuccin_mocha(),
-            line_ending: "\n".into(),
+            line_ending,
             tab_width: 4,
             editor_font_family: "".into(),
             editor_font_size: 18,
