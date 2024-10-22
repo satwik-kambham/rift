@@ -15,15 +15,8 @@
           inherit system overlays;
         };
         libraries = with pkgs;[
-          webkitgtk
-          gtk3
-          cairo
-          gdk-pixbuf
-          glib
-          dbus
-          librsvg
-
-          
+          rust-bin.stable.latest.default
+          rust-analyzer
           trunk
 
           # misc. libraries
@@ -44,39 +37,14 @@
           xorg.libXi
           xorg.libX11
         ];
-
-        packages = with pkgs; [
-          curl
-          wget
-          pkg-config
-          dbus
-          openssl
-          glib
-          gtk3
-          libsoup
-          webkitgtk
-          librsvg
-
-          rust-bin.stable.latest.default
-          rust-analyzer
-          typescript-language-server
-          vue-language-server
-          vscode-langservers-extracted
-          tailwindcss-language-server
-          nodejs_20
-          cargo-tauri
-        ];
       in
       {
         devShells.default = with pkgs; mkShell {
-          buildInputs = packages;
+          buildInputs = libraries;
 
           shellHook =
           ''
-            # export WEBKIT_DISABLE_COMPOSITING_MODE=1
-            export WEBKIT_DISABLE_DMABUF_RENDERER=1
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath libraries}:$LD_LIBRARY_PATH
-            export XDG_DATA_DIRS=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$XDG_DATA_DIRS
           '';
         };
       }

@@ -7,3 +7,4 @@ edition = "2021"
 eframe = "0.29.1"
 egui = "0.29.1"
 rift_core = { path = "../rift_core" }
+font-kit = "0.14.2"

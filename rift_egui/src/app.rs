@@ -1,4 +1,8 @@
-use egui::{text::LayoutJob, Color32, FontId, Label, Rect, RichText};
+use std::{fs::File, io::Read};
+
+use egui::{
+    text::LayoutJob, Color32, FontData, FontDefinitions, FontId, FontTweak, Label, Rect, RichText,
+};
 use rift_core::{
     buffer::instance::HighlightType,
     preferences::Preferences,
@@ -11,18 +15,103 @@ pub struct App {
     dispatcher: CommandDispatcher,
     state: EditorState,
     preferences: Preferences,
+    font_definitions: FontDefinitions,
 }
 
 impl App {
     pub fn new() -> Self {
+        let preferences = Preferences::default();
+        let mut fonts = FontDefinitions::default();
+        let editor_font = font_kit::source::SystemSource::new()
+            .select_best_match(
+                &[font_kit::family_name::FamilyName::Title(
+                    preferences.editor_font_family.to_owned(),
+                )],
+                &font_kit::properties::Properties::new(),
+            )
+            .unwrap();
+        let ui_font = font_kit::source::SystemSource::new()
+            .select_best_match(
+                &[font_kit::family_name::FamilyName::Title(
+                    preferences.ui_font_family.to_owned(),
+                )],
+                &font_kit::properties::Properties::new(),
+            )
+            .unwrap();
+        fonts
+            .families
+            .get_mut(&egui::FontFamily::Monospace)
+            .unwrap()
+            .insert(0, preferences.editor_font_family.to_owned());
+        fonts
+            .families
+            .get_mut(&egui::FontFamily::Proportional)
+            .unwrap()
+            .insert(0, preferences.ui_font_family.to_owned());
+        match editor_font {
+            font_kit::handle::Handle::Path { path, font_index } => {
+                let mut font_content = Vec::new();
+                File::open(path)
+                    .unwrap()
+                    .read_to_end(&mut font_content)
+                    .unwrap();
+                fonts.font_data.insert(
+                    preferences.editor_font_family.to_owned(),
+                    FontData {
+                        font: std::borrow::Cow::Owned(font_content),
+                        index: font_index,
+                        tweak: FontTweak::default(),
+                    },
+                );
+            }
+            font_kit::handle::Handle::Memory { bytes, font_index } => {
+                fonts.font_data.insert(
+                    preferences.editor_font_family.to_owned(),
+                    FontData {
+                        font: std::borrow::Cow::Owned((*bytes).clone()),
+                        index: font_index,
+                        tweak: FontTweak::default(),
+                    },
+                );
+            }
+        }
+        match ui_font {
+            font_kit::handle::Handle::Path { path, font_index } => {
+                let mut font_content = Vec::new();
+                File::open(path)
+                    .unwrap()
+                    .read_to_end(&mut font_content)
+                    .unwrap();
+                fonts.font_data.insert(
+                    preferences.ui_font_family.to_owned(),
+                    FontData {
+                        font: std::borrow::Cow::Owned(font_content),
+                        index: font_index,
+                        tweak: FontTweak::default(),
+                    },
+                );
+            }
+            font_kit::handle::Handle::Memory { bytes, font_index } => {
+                fonts.font_data.insert(
+                    preferences.ui_font_family.to_owned(),
+                    FontData {
+                        font: std::borrow::Cow::Owned((*bytes).clone()),
+                        index: font_index,
+                        tweak: FontTweak::default(),
+                    },
+                );
+            }
+        }
         Self {
             dispatcher: CommandDispatcher::new(),
             state: EditorState::default(),
-            preferences: Preferences::default(),
+            preferences,
+            font_definitions: fonts,
         }
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
+        ctx.set_fonts(self.font_definitions.clone());
         let mut char_height = 0.0;
         let mut char_width = 0.0;
         let mut gutter_width = 0.0;
