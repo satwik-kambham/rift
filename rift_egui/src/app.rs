@@ -116,8 +116,11 @@ impl App {
         let mut char_width = 0.0;
         let mut gutter_width = 0.0;
         egui::TopBottomPanel::bottom("status_line")
+            .resizable(false)
+            .show_separator_line(true)
             .frame(egui::Frame {
                 fill: self.preferences.theme.status_bar_bg.into(),
+                inner_margin: egui::Margin::symmetric(8.0, 8.0),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -129,17 +132,11 @@ impl App {
                         match mode {
                             Mode::Normal => columns[0].label(
                                 RichText::new("NORMAL")
-                                    .color(self.preferences.theme.status_bar_normal_mode_fg)
-                                    .background_color(
-                                        self.preferences.theme.status_bar_normal_mode_bg,
-                                    ),
+                                    .color(self.preferences.theme.status_bar_normal_mode_fg),
                             ),
                             Mode::Insert => columns[0].label(
                                 RichText::new("INSERT")
-                                    .color(self.preferences.theme.status_bar_insert_mode_fg)
-                                    .background_color(
-                                        self.preferences.theme.status_bar_insert_mode_bg,
-                                    ),
+                                    .color(self.preferences.theme.status_bar_insert_mode_fg),
                             ),
                         };
                         columns[1].label(format!(
@@ -152,6 +149,8 @@ impl App {
                 }
             });
         egui::SidePanel::left("gutter")
+            .resizable(false)
+            .show_separator_line(true)
             .frame(egui::Frame {
                 fill: self.preferences.theme.gutter_bg.into(),
                 inner_margin: egui::Margin::same(self.preferences.gutter_padding),
@@ -232,19 +231,39 @@ impl App {
                                     self.preferences.editor_font_size as f32,
                                 ),
                                 color: match &token.1 {
-                                    HighlightType::None => Color32::from_rgb(171, 178, 191),
-                                    HighlightType::White => Color32::from_rgb(171, 178, 191),
-                                    HighlightType::Red => Color32::from_rgb(224, 108, 117),
-                                    HighlightType::Orange => Color32::from_rgb(209, 154, 102),
-                                    HighlightType::Blue => Color32::from_rgb(95, 170, 232),
-                                    HighlightType::Green => Color32::from_rgb(152, 195, 121),
-                                    HighlightType::Purple => Color32::from_rgb(198, 120, 221),
-                                    HighlightType::Yellow => Color32::from_rgb(229, 192, 123),
-                                    HighlightType::Gray => Color32::from_rgb(92, 99, 112),
-                                    HighlightType::Turquoise => Color32::from_rgb(86, 182, 194),
+                                    HighlightType::None => {
+                                        self.preferences.theme.highlight_none.into()
+                                    }
+                                    HighlightType::White => {
+                                        self.preferences.theme.highlight_white.into()
+                                    }
+                                    HighlightType::Red => {
+                                        self.preferences.theme.highlight_red.into()
+                                    }
+                                    HighlightType::Orange => {
+                                        self.preferences.theme.highlight_orange.into()
+                                    }
+                                    HighlightType::Blue => {
+                                        self.preferences.theme.highlight_blue.into()
+                                    }
+                                    HighlightType::Green => {
+                                        self.preferences.theme.highlight_green.into()
+                                    }
+                                    HighlightType::Purple => {
+                                        self.preferences.theme.highlight_purple.into()
+                                    }
+                                    HighlightType::Yellow => {
+                                        self.preferences.theme.highlight_yellow.into()
+                                    }
+                                    HighlightType::Gray => {
+                                        self.preferences.theme.highlight_gray.into()
+                                    }
+                                    HighlightType::Turquoise => {
+                                        self.preferences.theme.highlight_turquoise.into()
+                                    }
                                 },
                                 background: match &token.2 {
-                                    true => Color32::from_rgb(108, 112, 134),
+                                    true => self.preferences.theme.selection_bg.into(),
                                     false => Color32::TRANSPARENT,
                                 },
                                 ..Default::default()
