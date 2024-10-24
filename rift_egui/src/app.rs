@@ -273,7 +273,8 @@ impl App {
                     ui.label(job);
                 }
 
-                self.dispatcher.show(ui, &mut self.state);
+                self.dispatcher
+                    .show(ui, &mut self.state, &mut self.preferences);
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {

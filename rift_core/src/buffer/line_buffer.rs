@@ -458,6 +458,28 @@ impl LineBuffer {
         }
     }
 
+    /// Move cursor to start of line
+    pub fn move_cursor_line_start(&self, cursor: &mut Cursor) {
+        cursor.column = 0;
+    }
+
+    /// Move cursor to end of line
+    pub fn move_cursor_line_end(&self, cursor: &mut Cursor) {
+        cursor.column = self.get_line_length(cursor.row);
+    }
+
+    /// Move cursor to start of buffer
+    pub fn move_cursor_buffer_start(&self, cursor: &mut Cursor) {
+        cursor.row = 0;
+        cursor.column = 0;
+    }
+
+    /// Move cursor to end of buffer
+    pub fn move_cursor_buffer_end(&self, cursor: &mut Cursor) {
+        cursor.row = self.get_num_lines() - 1;
+        cursor.column = self.get_line_length(cursor.row);
+    }
+
     /// Insert text at cursor position and return update cursor position
     pub fn insert_text(&mut self, text: &str, cursor: &Cursor) -> Cursor {
         self.modified = true;

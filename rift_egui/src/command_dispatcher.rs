@@ -2,6 +2,7 @@ use egui::Ui;
 use rift_core::{
     buffer::line_buffer::LineBuffer,
     io::file_io,
+    preferences::Preferences,
     state::{EditorState, Mode},
 };
 
@@ -12,7 +13,7 @@ impl CommandDispatcher {
         Self {}
     }
 
-    pub fn show(&self, ui: &mut Ui, state: &mut EditorState) {
+    pub fn show(&self, ui: &mut Ui, state: &mut EditorState, preferences: &mut Preferences) {
         ui.input(|i| {
             if !state.modal_open {
                 for event in &i.raw.events {
@@ -54,6 +55,7 @@ impl CommandDispatcher {
                                             instance.cursor = instance.selection.cursor;
                                             let indent_size =
                                                 buffer.get_indentation_level(instance.cursor.row);
+                                            buffer.move_cursor_line_end(&mut instance.cursor);
                                             let cursor = buffer.insert_text("\n", &instance.cursor);
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
@@ -61,6 +63,7 @@ impl CommandDispatcher {
                                             instance.selection = buffer
                                                 .add_indentation(&instance.selection, indent_size);
                                             instance.cursor = instance.selection.cursor;
+                                            instance.column_level = instance.cursor.column;
                                             return;
                                         }
                                     }
@@ -68,18 +71,24 @@ impl CommandDispatcher {
                                         if matches!(state.mode, Mode::Normal) && modifiers.shift {
                                             let (buffer, instance) = state
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            instance.selection =
-                                                buffer.remove_indentation(&instance.selection, 4);
+                                            instance.selection = buffer.remove_indentation(
+                                                &instance.selection,
+                                                preferences.tab_width,
+                                            );
                                             instance.cursor = instance.selection.cursor;
+                                            instance.column_level = instance.cursor.column;
                                         }
                                     }
                                     egui::Key::Period => {
                                         if matches!(state.mode, Mode::Normal) && modifiers.shift {
                                             let (buffer, instance) = state
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            instance.selection =
-                                                buffer.add_indentation(&instance.selection, 4);
+                                            instance.selection = buffer.add_indentation(
+                                                &instance.selection,
+                                                preferences.tab_width,
+                                            );
                                             instance.cursor = instance.selection.cursor;
+                                            instance.column_level = instance.cursor.column;
                                         }
                                     }
                                     egui::Key::X => {
@@ -92,6 +101,7 @@ impl CommandDispatcher {
                                             instance.selection =
                                                 buffer.select_line(&instance.selection);
                                             instance.cursor = instance.selection.cursor;
+                                            instance.column_level = instance.cursor.column;
                                         }
                                     }
                                     egui::Key::W => {
@@ -104,6 +114,7 @@ impl CommandDispatcher {
                                             instance.selection =
                                                 buffer.select_word(&instance.selection);
                                             instance.cursor = instance.selection.cursor;
+                                            instance.column_level = instance.cursor.column;
                                         }
                                     }
                                     egui::Key::F => {
@@ -159,6 +170,7 @@ impl CommandDispatcher {
                                             state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                                         buffer.move_cursor_left(&mut instance.cursor);
                                         instance.selection.cursor = instance.cursor;
+                                        instance.column_level = instance.cursor.column;
                                         if !modifiers.shift {
                                             instance.selection.mark = instance.cursor;
                                         }
@@ -168,9 +180,49 @@ impl CommandDispatcher {
                                             state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                                         buffer.move_cursor_right(&mut instance.cursor);
                                         instance.selection.cursor = instance.cursor;
+                                        instance.column_level = instance.cursor.column;
                                         if !modifiers.shift {
                                             instance.selection.mark = instance.cursor;
                                         }
+                                    }
+                                    egui::Key::Home => {
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        buffer.move_cursor_line_start(&mut instance.cursor);
+                                        instance.selection.cursor = instance.cursor;
+                                        instance.column_level = instance.cursor.column;
+                                        if !modifiers.shift {
+                                            instance.selection.mark = instance.cursor;
+                                        }
+                                    }
+                                    egui::Key::End => {
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        buffer.move_cursor_line_end(&mut instance.cursor);
+                                        instance.selection.cursor = instance.cursor;
+                                        instance.column_level = instance.cursor.column;
+                                        if !modifiers.shift {
+                                            instance.selection.mark = instance.cursor;
+                                        }
+                                    }
+                                    egui::Key::G => {
+                                        let (buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        if !modifiers.shift {
+                                            buffer.move_cursor_buffer_start(&mut instance.cursor);
+                                        } else {
+                                            buffer.move_cursor_buffer_end(&mut instance.cursor);
+                                        }
+                                        instance.selection.cursor = instance.cursor;
+                                        instance.selection.mark = instance.cursor;
+                                        instance.column_level = instance.cursor.column;
+                                    }
+                                    egui::Key::Semicolon => {
+                                        let (_buffer, instance) =
+                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                        instance.selection.cursor = instance.cursor;
+                                        instance.selection.mark = instance.cursor;
+                                        instance.column_level = instance.cursor.column;
                                     }
                                     egui::Key::J => {
                                         if matches!(state.mode, Mode::Normal) {
@@ -206,6 +258,7 @@ impl CommandDispatcher {
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
                                             buffer.move_cursor_left(&mut instance.cursor);
                                             instance.selection.cursor = instance.cursor;
+                                            instance.column_level = instance.cursor.column;
                                             if !modifiers.shift {
                                                 instance.selection.mark = instance.cursor;
                                             }
@@ -217,6 +270,7 @@ impl CommandDispatcher {
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
                                             buffer.move_cursor_right(&mut instance.cursor);
                                             instance.selection.cursor = instance.cursor;
+                                            instance.column_level = instance.cursor.column;
                                             if !modifiers.shift {
                                                 instance.selection.mark = instance.cursor;
                                             }
@@ -235,6 +289,7 @@ impl CommandDispatcher {
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;
+                                            instance.column_level = instance.cursor.column;
                                         }
                                     }
                                     egui::Key::Enter => {
@@ -245,6 +300,21 @@ impl CommandDispatcher {
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;
+                                            instance.column_level = instance.cursor.column;
+                                        }
+                                    }
+                                    egui::Key::Tab => {
+                                        if matches!(state.mode, Mode::Insert) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            let cursor = buffer.insert_text(
+                                                &" ".repeat(preferences.tab_width),
+                                                &instance.cursor,
+                                            );
+                                            instance.cursor = cursor;
+                                            instance.selection.cursor = instance.cursor;
+                                            instance.selection.mark = instance.cursor;
+                                            instance.column_level = instance.cursor.column;
                                         }
                                     }
                                     _ => {}
