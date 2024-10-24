@@ -77,6 +77,10 @@ pub struct Theme {
     pub gutter_bg: Color,
     pub gutter_text: Color,
     pub gutter_text_current_line: Color,
+    pub modal_bg: Color,
+    pub modal_text: Color,
+    pub modal_active: Color,
+    pub modal_primary: Color,
     pub highlight_none: Color,
     pub highlight_white: Color,
     pub highlight_red: Color,
@@ -115,6 +119,10 @@ impl Theme {
             highlight_yellow: themes::catppuccin_mocha::YELLOW,
             highlight_gray: themes::catppuccin_mocha::OVERLAY0,
             highlight_turquoise: themes::catppuccin_mocha::TEAL,
+            modal_bg: themes::catppuccin_mocha::MANTLE,
+            modal_text: themes::catppuccin_mocha::TEXT,
+            modal_active: themes::catppuccin_mocha::SUBTEXT0,
+            modal_primary: themes::catppuccin_mocha::MAUVE,
         }
     }
     fn onedark() -> Self {
@@ -142,6 +150,10 @@ impl Theme {
             highlight_yellow: themes::onedark::ORANGE1,
             highlight_gray: themes::onedark::MONO2,
             highlight_turquoise: themes::onedark::CYAN,
+            modal_bg: themes::onedark::UI_BG,
+            modal_text: themes::onedark::MONO2,
+            modal_active: themes::onedark::MONO1,
+            modal_primary: themes::onedark::BLUE,
         }
     }
 }

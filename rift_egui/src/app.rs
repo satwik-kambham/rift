@@ -321,6 +321,10 @@ impl App {
                 .resizable(false)
                 .collapsible(false)
                 .title_bar(false)
+                .frame(egui::Frame {
+                    fill: self.preferences.theme.modal_bg.into(),
+                    ..Default::default()
+                })
                 .show(ctx, |ui| {
                     ui.label(&self.state.modal_input);
                     egui::ScrollArea::vertical().show(ui, |ui| {
@@ -331,9 +335,9 @@ impl App {
                                         if self.state.modal_selection_idx.is_some()
                                             && idx == self.state.modal_selection_idx.unwrap()
                                         {
-                                            Color32::WHITE
+                                            self.preferences.theme.modal_active
                                         } else {
-                                            Color32::GRAY
+                                            self.preferences.theme.modal_text
                                         },
                                     )
                                     .size(self.preferences.ui_font_size as f32),
