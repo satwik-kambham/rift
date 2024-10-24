@@ -1,11 +1,11 @@
 use std::{
     cmp::{max, min},
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
 };
 
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
-use super::instance::{Cursor, GutterInfo, HighlightType, Selection};
+use super::instance::{Cursor, Edit, GutterInfo, HighlightType, Selection};
 
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
@@ -16,6 +16,8 @@ pub struct LineBuffer {
     highlight_map: HashMap<String, HighlightType>,
     highlight_names: Vec<String>,
     pub modified: bool,
+    pub changes: VecDeque<Edit>,
+    pub change_idx: usize,
 }
 
 pub type HighlightedText = Vec<Vec<(String, HighlightType, bool)>>;
@@ -84,6 +86,8 @@ impl LineBuffer {
             highlight_map,
             highlight_names,
             modified: false,
+            changes: VecDeque::new(),
+            change_idx: 0,
         }
     }
 
@@ -481,7 +485,7 @@ impl LineBuffer {
     }
 
     /// Insert text at cursor position and return update cursor position
-    pub fn insert_text(&mut self, text: &str, cursor: &Cursor) -> Cursor {
+    pub fn insert_text_no_log(&mut self, text: &str, cursor: &Cursor) -> Cursor {
         self.modified = true;
 
         let mut updated_cursor = *cursor;
@@ -505,9 +509,23 @@ impl LineBuffer {
         updated_cursor
     }
 
+    pub fn insert_text(&mut self, text: &str, cursor: &Cursor) -> Cursor {
+        let updated_cursor = self.insert_text_no_log(text, cursor);
+
+        self.changes.truncate(self.change_idx);
+        self.changes.push_back(Edit::Insert {
+            start: *cursor,
+            end: updated_cursor,
+            text: text.to_owned(),
+        });
+        self.change_idx = self.changes.len();
+
+        updated_cursor
+    }
+
     /// Removes the selected text and returns the updated cursor position
     /// and the deleted text
-    pub fn remove_text(&mut self, selection: &Selection) -> (String, Cursor) {
+    pub fn remove_text_no_log(&mut self, selection: &Selection) -> (String, Cursor) {
         self.modified = true;
 
         let start = if selection.mark < selection.cursor {
@@ -552,6 +570,81 @@ impl LineBuffer {
         }
     }
 
+    pub fn remove_text(&mut self, selection: &Selection) -> (String, Cursor) {
+        let (text, cursor) = self.remove_text_no_log(selection);
+
+        let (start, end) = selection.in_order();
+        self.changes.truncate(self.change_idx);
+        self.changes.push_back(Edit::Delete {
+            start: *start,
+            end: *end,
+            text: text.to_owned(),
+        });
+        self.change_idx = self.changes.len();
+
+        (text, cursor)
+    }
+
+    /// Undo
+    pub fn undo(&mut self) -> Option<Cursor> {
+        if self.change_idx > 0 {
+            self.change_idx -= 1;
+            let edit = self.changes.get(self.change_idx).unwrap();
+            match edit {
+                Edit::Insert {
+                    start,
+                    end,
+                    text: _,
+                } => {
+                    let (_text, cursor) = self.remove_text_no_log(&Selection {
+                        cursor: *start,
+                        mark: *end,
+                    });
+                    return Some(cursor);
+                }
+                Edit::Delete {
+                    start,
+                    end: _,
+                    text,
+                } => {
+                    let cursor = self.insert_text_no_log(&text.clone(), &start.clone());
+                    return Some(cursor);
+                }
+            }
+        }
+        None
+    }
+
+    /// Redo
+    pub fn redo(&mut self) -> Option<Cursor> {
+        if self.change_idx < self.changes.len() {
+            self.change_idx += 1;
+            let edit = self.changes.get(self.change_idx - 1).unwrap();
+            match edit {
+                Edit::Insert {
+                    start,
+                    end: _,
+                    text,
+                } => {
+                    let cursor = self.insert_text_no_log(&text.clone(), &start.clone());
+                    return Some(cursor);
+                }
+                Edit::Delete {
+                    start,
+                    end,
+                    text: _,
+                } => {
+                    let (_text, cursor) = self.remove_text_no_log(&Selection {
+                        cursor: *start,
+                        mark: *end,
+                    });
+                    return Some(cursor);
+                }
+            }
+        }
+        None
+    }
+
     /// Get indentation level (number of spaces) of given row
     pub fn get_indentation_level(&self, row: usize) -> usize {
         let line = &self.lines[row];
@@ -568,11 +661,7 @@ impl LineBuffer {
         updated_selection.cursor.column += tab_size;
         let (start, end) = selection.in_order();
         for i in start.row..=end.row {
-            let current_line = &self.lines[i];
-            let mut new_line = String::new();
-            new_line.push_str(&tab);
-            new_line.push_str(current_line);
-            self.lines[i] = new_line;
+            self.insert_text(&tab, &Cursor { row: i, column: 0 });
         }
         updated_selection
     }
@@ -588,8 +677,13 @@ impl LineBuffer {
         for i in start.row..=end.row {
             let current_line = &self.lines[i];
             if current_line.starts_with(&tab) {
-                let (_first, second) = current_line.split_at(tab_size);
-                self.lines[i] = second.to_owned();
+                self.remove_text(&Selection {
+                    cursor: Cursor { row: i, column: 0 },
+                    mark: Cursor {
+                        row: i,
+                        column: tab_size,
+                    },
+                });
 
                 if i == start.row {
                     start_new.column -= tab_size;

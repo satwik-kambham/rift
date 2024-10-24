@@ -46,6 +46,21 @@ impl Selection {
     }
 }
 
+/// Edit type
+#[derive(Debug, Clone)]
+pub enum Edit {
+    Insert {
+        start: Cursor,
+        end: Cursor,
+        text: String,
+    },
+    Delete {
+        start: Cursor,
+        end: Cursor,
+        text: String,
+    },
+}
+
 /// Gutter Information
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct GutterInfo {

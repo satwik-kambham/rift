@@ -317,6 +317,25 @@ impl CommandDispatcher {
                                             instance.column_level = instance.cursor.column;
                                         }
                                     }
+                                    egui::Key::U => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            if !modifiers.shift {
+                                                if let Some(cursor) = buffer.undo() {
+                                                    instance.cursor = cursor;
+                                                    instance.selection.cursor = instance.cursor;
+                                                    instance.selection.mark = instance.cursor;
+                                                    instance.column_level = instance.cursor.column;
+                                                }
+                                            } else if let Some(cursor) = buffer.redo() {
+                                                instance.cursor = cursor;
+                                                instance.selection.cursor = instance.cursor;
+                                                instance.selection.mark = instance.cursor;
+                                                instance.column_level = instance.cursor.column;
+                                            }
+                                        }
+                                    }
                                     _ => {}
                                 }
                             }
