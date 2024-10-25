@@ -127,24 +127,24 @@ impl App {
                 if self.state.buffer_idx.is_some() {
                     let (buffer, instance) =
                         self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                    ui.columns(3, |columns| {
+                    ui.horizontal(|ui| {
                         let mode = &self.state.mode;
                         match mode {
-                            Mode::Normal => columns[0].label(
+                            Mode::Normal => ui.label(
                                 RichText::new("NORMAL")
                                     .color(self.preferences.theme.status_bar_normal_mode_fg),
                             ),
-                            Mode::Insert => columns[0].label(
+                            Mode::Insert => ui.label(
                                 RichText::new("INSERT")
                                     .color(self.preferences.theme.status_bar_insert_mode_fg),
                             ),
                         };
-                        columns[1].label(format!(
+                        ui.label(format!(
                             "{}:{}",
                             instance.cursor.row + 1,
                             instance.cursor.column + 1
                         ));
-                        columns[2].label(if buffer.modified { "U" } else { "" });
+                        ui.label(if buffer.modified { "U" } else { "" });
                     });
                 }
             });
