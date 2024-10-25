@@ -91,6 +91,11 @@ pub struct Theme {
     pub highlight_yellow: Color,
     pub highlight_gray: Color,
     pub highlight_turquoise: Color,
+    pub ui_text: Color,
+    pub ui_bg_fill: Color,
+    pub ui_weak_bg_fill: Color,
+    pub ui_bg_stroke: Color,
+    pub ui_fg_stroke: Color,
 }
 
 impl Theme {
@@ -123,6 +128,11 @@ impl Theme {
             modal_text: themes::catppuccin_mocha::TEXT,
             modal_active: themes::catppuccin_mocha::SUBTEXT0,
             modal_primary: themes::catppuccin_mocha::MAUVE,
+            ui_text: themes::catppuccin_mocha::TEXT,
+            ui_bg_fill: themes::catppuccin_mocha::SURFACE1,
+            ui_weak_bg_fill: themes::catppuccin_mocha::SURFACE0,
+            ui_bg_stroke: themes::catppuccin_mocha::OVERLAY1,
+            ui_fg_stroke: themes::catppuccin_mocha::OVERLAY2,
         }
     }
     fn onedark() -> Self {
@@ -154,6 +164,11 @@ impl Theme {
             modal_text: themes::onedark::MONO2,
             modal_active: themes::onedark::MONO1,
             modal_primary: themes::onedark::BLUE,
+            ui_text: themes::onedark::MONO1,
+            ui_bg_fill: themes::onedark::SYNTAX_BG,
+            ui_weak_bg_fill: themes::onedark::SYNTAX_BG,
+            ui_bg_stroke: themes::onedark::MONO3,
+            ui_fg_stroke: themes::onedark::MONO2,
         }
     }
 }

@@ -112,6 +112,51 @@ impl App {
 
     pub fn draw(&mut self, ctx: &egui::Context) {
         ctx.set_fonts(self.font_definitions.clone());
+        ctx.style_mut(|style| {
+            style.visuals.override_text_color = Some(self.preferences.theme.ui_text.into());
+            style.visuals.widgets = egui::style::Widgets {
+                noninteractive: egui::style::WidgetVisuals {
+                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    rounding: egui::Rounding::same(2.0),
+                    fg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_fg_stroke),
+                    expansion: 0.0,
+                },
+                inactive: egui::style::WidgetVisuals {
+                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    rounding: egui::Rounding::same(2.0),
+                    fg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_fg_stroke),
+                    expansion: 0.0,
+                },
+                hovered: egui::style::WidgetVisuals {
+                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    rounding: egui::Rounding::same(3.0),
+                    fg_stroke: egui::Stroke::new(1.5, self.preferences.theme.ui_fg_stroke),
+                    expansion: 0.0,
+                },
+                active: egui::style::WidgetVisuals {
+                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    rounding: egui::Rounding::same(2.0),
+                    fg_stroke: egui::Stroke::new(2.0, self.preferences.theme.ui_fg_stroke),
+                    expansion: 0.0,
+                },
+                open: egui::style::WidgetVisuals {
+                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    rounding: egui::Rounding::same(2.0),
+                    fg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_fg_stroke),
+                    expansion: 0.0,
+                },
+            };
+        });
         let mut char_height = 0.0;
         let mut char_width = 0.0;
         let mut gutter_width = 0.0;
@@ -139,12 +184,23 @@ impl App {
                                     .color(self.preferences.theme.status_bar_insert_mode_fg),
                             ),
                         };
+                        ui.separator();
                         ui.label(format!(
                             "{}:{}",
                             instance.cursor.row + 1,
                             instance.cursor.column + 1
                         ));
+                        ui.separator();
                         ui.label(if buffer.modified { "U" } else { "" });
+                        ui.separator();
+                        if ui.button("+").clicked() {
+                            self.preferences.editor_font_size += 1;
+                        };
+                        ui.label(format!("Font Size: {}", self.preferences.editor_font_size));
+                        if ui.button("-").clicked() {
+                            self.preferences.editor_font_size -= 1;
+                        };
+                        ui.separator();
                     });
                 }
             });
