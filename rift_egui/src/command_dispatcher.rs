@@ -136,7 +136,9 @@ impl CommandDispatcher {
                                             buffer.modified = false;
                                             file_io::override_file_content(
                                                 &buffer.file_path.clone().unwrap(),
-                                                buffer.get_content("\n".into()),
+                                                buffer.get_content(
+                                                    preferences.line_ending.to_string(),
+                                                ),
                                             )
                                             .unwrap();
                                         }
@@ -296,7 +298,10 @@ impl CommandDispatcher {
                                         if matches!(state.mode, Mode::Insert) {
                                             let (buffer, instance) = state
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            let cursor = buffer.insert_text("\n", &instance.cursor);
+                                            let cursor = buffer.insert_text(
+                                                &preferences.line_ending,
+                                                &instance.cursor,
+                                            );
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;

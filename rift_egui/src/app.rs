@@ -201,6 +201,35 @@ impl App {
                             self.preferences.editor_font_size -= 1;
                         };
                         ui.separator();
+                        if ui
+                            .button(format!("Tab Size: {}", self.preferences.tab_width))
+                            .clicked()
+                        {
+                            if self.preferences.tab_width == 4 {
+                                self.preferences.tab_width = 2;
+                            } else {
+                                self.preferences.tab_width = 4;
+                            }
+                        };
+                        ui.separator();
+                        if ui
+                            .button(
+                                (if self.preferences.line_ending == "\n" {
+                                    "lf"
+                                } else {
+                                    "crlf"
+                                })
+                                .to_string(),
+                            )
+                            .clicked()
+                        {
+                            if self.preferences.line_ending == "\n" {
+                                self.preferences.line_ending = "\r\n".to_string()
+                            } else {
+                                self.preferences.line_ending = "\n".to_string();
+                            }
+                        };
+                        ui.separator();
                     });
                 }
             });
