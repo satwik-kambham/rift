@@ -68,27 +68,44 @@ impl CommandDispatcher {
                                         }
                                     }
                                     egui::Key::Comma => {
-                                        if matches!(state.mode, Mode::Normal) && modifiers.shift {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            instance.selection = buffer.remove_indentation(
-                                                &instance.selection,
-                                                preferences.tab_width,
-                                            );
-                                            instance.cursor = instance.selection.cursor;
-                                            instance.column_level = instance.cursor.column;
+                                        if matches!(state.mode, Mode::Normal) {
+                                            if modifiers.shift {
+                                                let (buffer, instance) = state
+                                                    .get_buffer_by_id_mut(
+                                                        state.buffer_idx.unwrap(),
+                                                    );
+                                                instance.selection = buffer.remove_indentation(
+                                                    &instance.selection,
+                                                    preferences.tab_width,
+                                                );
+                                                instance.cursor = instance.selection.cursor;
+                                                instance.column_level = instance.cursor.column;
+                                            } else if modifiers.ctrl {
+                                                state.cycle_buffer(true);
+                                            }
                                         }
                                     }
                                     egui::Key::Period => {
-                                        if matches!(state.mode, Mode::Normal) && modifiers.shift {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            instance.selection = buffer.add_indentation(
-                                                &instance.selection,
-                                                preferences.tab_width,
-                                            );
-                                            instance.cursor = instance.selection.cursor;
-                                            instance.column_level = instance.cursor.column;
+                                        if matches!(state.mode, Mode::Normal) {
+                                            if modifiers.shift {
+                                                let (buffer, instance) = state
+                                                    .get_buffer_by_id_mut(
+                                                        state.buffer_idx.unwrap(),
+                                                    );
+                                                instance.selection = buffer.add_indentation(
+                                                    &instance.selection,
+                                                    preferences.tab_width,
+                                                );
+                                                instance.cursor = instance.selection.cursor;
+                                                instance.column_level = instance.cursor.column;
+                                            } else if modifiers.ctrl {
+                                                state.cycle_buffer(false);
+                                            }
+                                        }
+                                    }
+                                    egui::Key::Slash => {
+                                        if modifiers.ctrl && state.buffer_idx.is_some() {
+                                            state.remove_buffer(state.buffer_idx.unwrap());
                                         }
                                     }
                                     egui::Key::X => {
@@ -120,12 +137,14 @@ impl CommandDispatcher {
                                     egui::Key::F => {
                                         if matches!(state.mode, Mode::Normal) {
                                             state.modal_open = true;
-                                            state.modal_options =
-                                                file_io::get_directory_entries("/").unwrap();
+                                            state.modal_options = file_io::get_directory_entries(
+                                                &state.workspace_folder,
+                                            )
+                                            .unwrap();
                                             state.modal_options_filtered =
                                                 state.modal_options.clone();
                                             state.modal_selection_idx = None;
-                                            state.modal_input = "/".into();
+                                            state.modal_input = state.workspace_folder.clone();
                                             return;
                                         }
                                     }
@@ -366,7 +385,7 @@ impl CommandDispatcher {
                             physical_key: _,
                             pressed,
                             repeat: _,
-                            modifiers: _,
+                            modifiers,
                         } => {
                             if *pressed {
                                 match key {
@@ -423,6 +442,10 @@ impl CommandDispatcher {
                                                 state.modal_input = "".into();
                                             } else {
                                                 state.modal_input = entry.path.clone();
+
+                                                if modifiers.shift {
+                                                    state.workspace_folder = entry.path.clone();
+                                                }
 
                                                 #[cfg(target_os = "windows")]
                                                 {

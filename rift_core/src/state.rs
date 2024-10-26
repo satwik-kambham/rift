@@ -19,6 +19,7 @@ pub struct EditorState {
     pub buffers: HashMap<u32, LineBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
     next_id: u32,
+    pub workspace_folder: String,
     pub visible_lines: usize,
     pub max_characters: usize,
     pub mode: Mode,
@@ -39,6 +40,7 @@ impl EditorState {
         Self {
             buffers: HashMap::new(),
             next_id: 0,
+            workspace_folder: "/".to_owned(),
             visible_lines: 0,
             max_characters: 0,
             mode: Mode::Normal,
@@ -66,6 +68,29 @@ impl EditorState {
 
     pub fn remove_buffer(&mut self, id: u32) {
         self.buffers.remove(&id);
+        if self.buffers.is_empty() {
+            self.buffer_idx = None;
+        } else {
+            self.buffer_idx = Some(self.buffer_idx.unwrap().saturating_sub(1));
+        }
+    }
+
+    pub fn cycle_buffer(&mut self, reverse: bool) {
+        if self.buffer_idx.is_some() {
+            if reverse {
+                self.buffer_idx = if self.buffer_idx.unwrap() == 0 {
+                    Some((self.buffers.len() - 1).try_into().unwrap())
+                } else {
+                    Some(self.buffer_idx.unwrap() - 1)
+                };
+            } else {
+                self.buffer_idx = if self.buffer_idx.unwrap() == self.buffers.len() as u32 - 1 {
+                    Some(0)
+                } else {
+                    Some(self.buffer_idx.unwrap() + 1)
+                };
+            }
+        }
     }
 
     pub fn get_buffer_by_id(&self, id: u32) -> (&LineBuffer, &BufferInstance) {
