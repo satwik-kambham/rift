@@ -1,6 +1,6 @@
+use anyhow::Result;
 use std::{
     cmp::Ordering,
-    error::Error,
     fs::{self, File},
     io::{Read, Write},
     path,
@@ -31,7 +31,7 @@ impl Ord for FolderEntry {
 }
 
 /// Read file at path to string
-pub fn read_file_content(path: &str) -> Result<String, Box<dyn Error>> {
+pub fn read_file_content(path: &str) -> Result<String> {
     let mut f = File::open(path)?;
     let mut buf = String::new();
 
@@ -41,7 +41,7 @@ pub fn read_file_content(path: &str) -> Result<String, Box<dyn Error>> {
 }
 
 /// Override file at path with new content
-pub fn override_file_content(path: &str, buf: String) -> Result<(), Box<dyn Error>> {
+pub fn override_file_content(path: &str, buf: String) -> Result<()> {
     let mut f = File::create(path)?;
     f.write_all(buf.as_bytes())?;
 
@@ -49,31 +49,31 @@ pub fn override_file_content(path: &str, buf: String) -> Result<(), Box<dyn Erro
 }
 
 /// Create directory at path (recursively)
-pub fn create_directory(path: &str) -> Result<(), Box<dyn Error>> {
+pub fn create_directory(path: &str) -> Result<()> {
     fs::create_dir_all(path)?;
     Ok(())
 }
 
 /// Create file at path
-pub fn create_file(path: &str) -> Result<(), Box<dyn Error>> {
+pub fn create_file(path: &str) -> Result<()> {
     override_file_content(path, "".into())?;
     Ok(())
 }
 
 /// Delete file at path
-pub fn delete_file(path: &str) -> Result<(), Box<dyn Error>> {
+pub fn delete_file(path: &str) -> Result<()> {
     fs::remove_file(path)?;
     Ok(())
 }
 
 /// Delete directory with all its contents
-pub fn delete_directory_recursively(path: &str) -> Result<(), Box<dyn Error>> {
+pub fn delete_directory_recursively(path: &str) -> Result<()> {
     fs::remove_dir_all(path)?;
     Ok(())
 }
 
 /// Rename file or directory
-pub fn rename_file_or_directory(path: &str, to: &str) -> Result<(), Box<dyn Error>> {
+pub fn rename_file_or_directory(path: &str, to: &str) -> Result<()> {
     let mut new_path = path::PathBuf::from(path);
     new_path.pop();
     new_path.push(to);
@@ -82,7 +82,7 @@ pub fn rename_file_or_directory(path: &str, to: &str) -> Result<(), Box<dyn Erro
 }
 
 /// Duplicate file and append _copy to new file
-pub fn duplicate_file(path: &str) -> Result<(), Box<dyn Error>> {
+pub fn duplicate_file(path: &str) -> Result<()> {
     let mut new_path = path::PathBuf::from(path);
     if let Some(stem) = new_path.file_stem() {
         if let Some(extension) = new_path.extension() {
@@ -99,13 +99,13 @@ pub fn duplicate_file(path: &str) -> Result<(), Box<dyn Error>> {
 }
 
 /// Move file or directory to new path
-pub fn move_file_or_directory(path: &str, to: &str) -> Result<(), Box<dyn Error>> {
+pub fn move_file_or_directory(path: &str, to: &str) -> Result<()> {
     fs::rename(path, to)?;
     Ok(())
 }
 
 /// Get all items in folder
-pub fn get_directory_entries(path: &str) -> Result<Vec<FolderEntry>, Box<dyn Error>> {
+pub fn get_directory_entries(path: &str) -> Result<Vec<FolderEntry>> {
     let mut entries: Vec<FolderEntry> = vec![];
     for entry in fs::read_dir(path)? {
         let entry = entry?;

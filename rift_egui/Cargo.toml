@@ -8,3 +8,5 @@ eframe = "0.29.1"
 egui = "0.29.1"
 rift_core = { path = "../rift_core" }
 font-kit = "0.14.2"
+tokio = { version = "1.41.0", features = ["full"] }
+anyhow = "1.0"
