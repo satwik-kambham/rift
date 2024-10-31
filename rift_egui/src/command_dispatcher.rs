@@ -227,16 +227,19 @@ impl CommandDispatcher {
                                         }
                                     }
                                     egui::Key::G => {
-                                        let (buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        if !modifiers.shift {
-                                            buffer.move_cursor_buffer_start(&mut instance.cursor);
-                                        } else {
-                                            buffer.move_cursor_buffer_end(&mut instance.cursor);
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            if !modifiers.shift {
+                                                buffer
+                                                    .move_cursor_buffer_start(&mut instance.cursor);
+                                            } else {
+                                                buffer.move_cursor_buffer_end(&mut instance.cursor);
+                                            }
+                                            instance.selection.cursor = instance.cursor;
+                                            instance.selection.mark = instance.cursor;
+                                            instance.column_level = instance.cursor.column;
                                         }
-                                        instance.selection.cursor = instance.cursor;
-                                        instance.selection.mark = instance.cursor;
-                                        instance.column_level = instance.cursor.column;
                                     }
                                     egui::Key::Semicolon => {
                                         let (_buffer, instance) =
