@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::{
     io::{BufRead, Read, Write},
     process::{self, Command, Stdio},
@@ -10,9 +11,9 @@ use super::types::{self, base::CompletionItemClientCapabilities};
 
 static ID: AtomicU32 = AtomicU32::new(0);
 
-pub fn init() {
+pub fn init() -> Result<()> {
     ID.fetch_add(1, Ordering::SeqCst);
-    let request_body = types::base::RequestMessage {
+    let _request_body = types::base::RequestMessage {
         jsonrpc: "2.0".to_owned(),
         id: ID.load(Ordering::SeqCst),
         method: "initialize".to_owned(),
@@ -68,17 +69,19 @@ pub fn init() {
 
     let mut reader = std::io::BufReader::new(stdout);
 
-    stdin.write_all(&request.into_bytes());
+    stdin.write_all(&request.into_bytes())?;
 
     let mut response_header = String::new();
-    reader.read_line(&mut response_header);
+    reader.read_line(&mut response_header)?;
     let mut empty_line = String::new();
-    reader.read_line(&mut empty_line);
+    reader.read_line(&mut empty_line)?;
 
     let content_length = response_header.strip_prefix("Content-Length: ").unwrap();
     let content_length: usize = content_length.trim().parse().unwrap();
 
     let mut body = vec![0; content_length];
-    reader.read_exact(&mut body);
+    reader.read_exact(&mut body)?;
     println!("{}", String::from_utf8_lossy(&body));
+
+    Ok(())
 }
