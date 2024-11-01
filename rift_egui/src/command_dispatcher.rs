@@ -320,10 +320,16 @@ impl CommandDispatcher {
                                         if matches!(state.mode, Mode::Insert) {
                                             let (buffer, instance) = state
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                                            instance.cursor = instance.selection.cursor;
+                                            let indent_size =
+                                                buffer.get_indentation_level(instance.cursor.row);
                                             let cursor = buffer.insert_text("\n", &instance.cursor);
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;
+                                            instance.selection = buffer
+                                                .add_indentation(&instance.selection, indent_size);
+                                            instance.cursor = instance.selection.cursor;
                                             instance.column_level = instance.cursor.column;
                                         }
                                     }

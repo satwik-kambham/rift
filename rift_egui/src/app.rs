@@ -162,7 +162,7 @@ impl App {
         let mut gutter_width = 0.0;
         egui::TopBottomPanel::bottom("status_line")
             .resizable(false)
-            .show_separator_line(true)
+            .show_separator_line(false)
             .frame(egui::Frame {
                 fill: self.preferences.theme.status_bar_bg.into(),
                 inner_margin: egui::Margin::symmetric(8.0, 8.0),
@@ -184,6 +184,8 @@ impl App {
                                     .color(self.preferences.theme.status_bar_insert_mode_fg),
                             ),
                         };
+                        ui.separator();
+                        ui.label(buffer.file_path.as_ref().unwrap());
                         ui.separator();
                         ui.label(format!(
                             "{}:{}",
@@ -235,7 +237,7 @@ impl App {
             });
         egui::SidePanel::left("gutter")
             .resizable(false)
-            .show_separator_line(true)
+            .show_separator_line(false)
             .frame(egui::Frame {
                 fill: self.preferences.theme.gutter_bg.into(),
                 inner_margin: egui::Margin::same(self.preferences.gutter_padding),

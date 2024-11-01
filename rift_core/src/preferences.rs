@@ -186,7 +186,7 @@ impl Theme {
             status_bar_normal_mode_fg: themes::kanagawa::BLUE,
             status_bar_insert_mode_fg: themes::kanagawa::GREEN1,
             gutter_bg: themes::kanagawa::BLACK3,
-            gutter_text: themes::kanagawa::WHITE0,
+            gutter_text: themes::kanagawa::GRAY2,
             gutter_text_current_line: themes::kanagawa::WHITE1,
             highlight_none: themes::kanagawa::WHITE0,
             highlight_white: themes::kanagawa::WHITE0,
@@ -205,7 +205,7 @@ impl Theme {
             ui_text: themes::kanagawa::WHITE0,
             ui_bg_fill: themes::kanagawa::BLACK3,
             ui_weak_bg_fill: themes::kanagawa::BLACK1,
-            ui_bg_stroke: themes::kanagawa::GRAY1,
+            ui_bg_stroke: themes::kanagawa::BLACK1,
             ui_fg_stroke: themes::kanagawa::GRAY2,
         }
     }
