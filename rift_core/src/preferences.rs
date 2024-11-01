@@ -48,7 +48,7 @@ impl Default for Preferences {
         };
 
         Self {
-            theme: Theme::onedark(),
+            theme: Theme::kanagawa(),
             line_ending,
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),
@@ -135,6 +135,7 @@ impl Theme {
             ui_fg_stroke: themes::catppuccin_mocha::OVERLAY2,
         }
     }
+
     fn onedark() -> Self {
         Self {
             editor_bg: themes::onedark::SYNTAX_BG,
@@ -169,6 +170,43 @@ impl Theme {
             ui_weak_bg_fill: themes::onedark::SYNTAX_BG,
             ui_bg_stroke: themes::onedark::MONO3,
             ui_fg_stroke: themes::onedark::MONO2,
+        }
+    }
+
+    fn kanagawa() -> Self {
+        Self {
+            editor_bg: themes::kanagawa::BLACK3,
+            selection_bg: themes::kanagawa::BLACK5,
+            ui_border: themes::kanagawa::BLACK0,
+            cursor_normal_mode_fg: themes::kanagawa::BLACK3,
+            cursor_insert_mode_fg: themes::kanagawa::BLACK3,
+            cursor_normal_mode_bg: themes::kanagawa::BLUE,
+            cursor_insert_mode_bg: themes::kanagawa::GREEN1,
+            status_bar_bg: themes::kanagawa::BLACK0,
+            status_bar_normal_mode_fg: themes::kanagawa::BLUE,
+            status_bar_insert_mode_fg: themes::kanagawa::GREEN1,
+            gutter_bg: themes::kanagawa::BLACK3,
+            gutter_text: themes::kanagawa::WHITE0,
+            gutter_text_current_line: themes::kanagawa::WHITE1,
+            highlight_none: themes::kanagawa::WHITE0,
+            highlight_white: themes::kanagawa::WHITE0,
+            highlight_red: themes::kanagawa::RED,
+            highlight_orange: themes::kanagawa::ORANGE0,
+            highlight_blue: themes::kanagawa::BLUE,
+            highlight_green: themes::kanagawa::GREEN0,
+            highlight_purple: themes::kanagawa::VIOLET,
+            highlight_yellow: themes::kanagawa::YELLOW,
+            highlight_gray: themes::kanagawa::GRAY0,
+            highlight_turquoise: themes::kanagawa::TEAL,
+            modal_bg: themes::kanagawa::BLACK0,
+            modal_text: themes::kanagawa::WHITE0,
+            modal_active: themes::kanagawa::WHITE1,
+            modal_primary: themes::kanagawa::BLUE,
+            ui_text: themes::kanagawa::WHITE0,
+            ui_bg_fill: themes::kanagawa::BLACK3,
+            ui_weak_bg_fill: themes::kanagawa::BLACK1,
+            ui_bg_stroke: themes::kanagawa::GRAY1,
+            ui_fg_stroke: themes::kanagawa::GRAY2,
         }
     }
 }

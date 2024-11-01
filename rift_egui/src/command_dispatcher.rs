@@ -320,10 +320,7 @@ impl CommandDispatcher {
                                         if matches!(state.mode, Mode::Insert) {
                                             let (buffer, instance) = state
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            let cursor = buffer.insert_text(
-                                                &preferences.line_ending,
-                                                &instance.cursor,
-                                            );
+                                            let cursor = buffer.insert_text("\n", &instance.cursor);
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;
