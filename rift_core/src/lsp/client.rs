@@ -1,87 +1,142 @@
 use anyhow::Result;
+use serde_json::Value;
 use std::{
-    io::{BufRead, Read, Write},
-    process::{self, Command, Stdio},
-    sync::atomic::{AtomicU32, Ordering},
+    process::Stdio,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
+    process::Command,
+    sync::mpsc,
 };
 
-use serde_json::json;
+use super::types;
 
-use super::types::{self, base::CompletionItemClientCapabilities};
+static ID: AtomicUsize = AtomicUsize::new(0);
 
-static ID: AtomicU32 = AtomicU32::new(0);
+fn next_id() -> usize {
+    ID.fetch_add(1, Ordering::SeqCst)
+}
 
-pub fn init() -> Result<()> {
-    ID.fetch_add(1, Ordering::SeqCst);
-    let _request_body = types::base::RequestMessage {
-        jsonrpc: "2.0".to_owned(),
-        id: ID.load(Ordering::SeqCst),
-        method: "initialize".to_owned(),
-        params: serde_json::to_value(types::base::InitializeParams {
-            process_id: process::id(),
-            root_path: "/home/satwik/Documents/rift".to_owned(),
-            capabilities: types::base::ClientCapabilities {
-                text_document: types::base::TextDocumentClientCapabilities {
-                    completion: types::base::CompletionClientCapabilities {
-                        completion_item: CompletionItemClientCapabilities {
-                            snippet_support: true,
-                        },
-                    },
-                    hover: types::base::HoverClientCapabilities {
-                        content_format: vec!["plaintext".to_owned(), "markdown".to_owned()],
-                    },
-                },
-            },
-        })
-        .unwrap(),
-    };
-    let request_body = json!({
-        "jsonrpc": "2.0",
-        "id": ID.load(Ordering::SeqCst),
-        "method": "initialize",
-        "params": {
-            "processId": process::id(),
-            "rootUri": "file:////home/satwik/Documents/rift",
-            "capabilities": {
-                "textDocument": {
-                    "completion": {
-                        "completionItem": {
-                            "snippetSupport": true,
-                        },
-                    },
-                },
-            },
-        },
-    });
-    let body = serde_json::to_string(&request_body).unwrap();
-    let header = format!("Content-Length: {}\r\n\r\n", body.len());
-    let request = format!("{}{}", header, body);
-    println!("*********\n\n{}\n\n*******\n\n", request);
+pub enum IncomingMessage {
+    Response(types::ResponseMessage),
+    Notification(types::NotificationMessage),
+}
 
-    let mut process = Command::new("rust-analyzer")
+pub struct Request {
+    pub method: String,
+    pub params: Option<Value>,
+}
+pub struct Notification {
+    pub method: String,
+    pub params: Option<Value>,
+}
+
+pub enum OutgoingMessage {
+    Request(Request),
+    Notification(Notification),
+}
+
+pub struct LSPClientHandle {}
+
+/// Starts lsp and sends initialize request
+pub async fn init_lsp() -> Result<LSPClientHandle> {
+    let mut child = Command::new("rust-analyzer")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap();
 
-    let stdin = process.stdin.as_mut().unwrap();
-    let stdout = process.stdout.take().unwrap();
+    let stdin = child.stdin.take().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
 
-    let mut reader = std::io::BufReader::new(stdout);
+    let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<OutgoingMessage>(32);
+    let (incoming_tx, incoming_rx) = mpsc::channel::<IncomingMessage>(32);
 
-    stdin.write_all(&request.into_bytes())?;
+    // Send pending outgoing messages to lsp stdin
+    tokio::spawn(async move {
+        let mut writer = BufWriter::new(stdin);
+        while let Some(message_content) = outgoing_rx.recv().await {
+            let mut body = String::default();
 
-    let mut response_header = String::new();
-    reader.read_line(&mut response_header)?;
-    let mut empty_line = String::new();
-    reader.read_line(&mut empty_line)?;
+            match message_content {
+                OutgoingMessage::Request(request) => {
+                    let request_body = types::RequestMessage {
+                        jsonrpc: "2.0".to_string(),
+                        id: next_id(),
+                        method: request.method,
+                        params: request.params,
+                    };
+                    body = serde_json::to_string(&request_body).unwrap();
+                }
+                OutgoingMessage::Notification(notification) => {
+                    let notification_body = types::NotificationMessage {
+                        jsonrpc: "2.0".to_string(),
+                        method: notification.method,
+                        params: notification.params,
+                    };
+                    body = serde_json::to_string(&notification_body).unwrap();
+                }
+            }
 
-    let content_length = response_header.strip_prefix("Content-Length: ").unwrap();
-    let content_length: usize = content_length.trim().parse().unwrap();
+            let header = format!("Content-Length: {}\r\n\r\n", body.len());
+            let message = format!("{}{}", header, body);
+            writer.write_all(&message.into_bytes()).await.unwrap();
+            writer.flush().await.unwrap();
+        }
+    });
 
-    let mut body = vec![0; content_length];
-    reader.read_exact(&mut body)?;
-    println!("{}", String::from_utf8_lossy(&body));
+    // Read incoming messages from the lsp stdout
+    let itx = incoming_tx.clone();
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(stdout);
+        let mut line = String::new();
+        while let Ok(bytes_read) = reader.read_line(&mut line).await {
+            if bytes_read > 0 {}
+        }
+    });
 
-    Ok(())
+    // Read incoming errors from the lsp stderr
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(stderr);
+        let mut line = String::new();
+        while let Ok(bytes_read) = reader.read_line(&mut line).await {
+            if bytes_read > 0 {
+                println!("{}", line);
+            }
+        }
+    });
+
+    Ok(LSPClientHandle {})
 }
+
+impl LSPClientHandle {}
+
+//         "params": {
+//             "processId": process::id(),
+//             "rootUri": "file:////home/satwik/Documents/rift",
+//             "capabilities": {
+//                 "textDocument": {
+//                     "completion": {
+//                         "completionItem": {
+//                             "snippetSupport": true,
+//                         },
+//                     },
+//                 },
+//             },
+//         },
+//     });
+
+//     let mut response_header = String::new();
+//     reader.read_line(&mut response_header)?;
+//     let mut empty_line = String::new();
+//     reader.read_line(&mut empty_line)?;
+
+//     let content_length = response_header.strip_prefix("Content-Length: ").unwrap();
+//     let content_length: usize = content_length.trim().parse().unwrap();
+
+//     let mut body = vec![0; content_length];
+//     reader.read_exact(&mut body)?;
+//     println!("{}", String::from_utf8_lossy(&body));
