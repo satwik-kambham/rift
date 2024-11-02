@@ -5,9 +5,9 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
     process::Command,
-    sync::mpsc,
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 use super::types;
@@ -37,7 +37,10 @@ pub enum OutgoingMessage {
     Notification(Notification),
 }
 
-pub struct LSPClientHandle {}
+pub struct LSPClientHandle {
+    pub sender: Sender<OutgoingMessage>,
+    pub reciever: Receiver<IncomingMessage>,
+}
 
 /// Starts lsp and sends initialize request
 pub async fn init_lsp() -> Result<LSPClientHandle> {
@@ -92,9 +95,34 @@ pub async fn init_lsp() -> Result<LSPClientHandle> {
     let itx = incoming_tx.clone();
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout);
-        let mut line = String::new();
-        while let Ok(bytes_read) = reader.read_line(&mut line).await {
-            if bytes_read > 0 {}
+        let mut header = String::new();
+        while let Ok(bytes_read) = reader.read_line(&mut header).await {
+            if bytes_read > 0 {
+                // Read empty line
+                reader.read_line(&mut String::new()).await.unwrap();
+
+                // Parse content length from header
+                let content_length = header.strip_prefix("Content-Length: ").unwrap();
+                let content_length: usize = content_length.trim().parse().unwrap();
+
+                // Parse content body
+                let mut body = vec![0; content_length];
+                reader.read_exact(&mut body).await.unwrap();
+                let body = String::from_utf8_lossy(&body);
+                let body: Value = serde_json::from_str(&body).unwrap();
+
+                // If id is present then it is a response
+                if let Some(_id) = body.get("id") {
+                    let response: types::ResponseMessage = serde_json::from_value(body).unwrap();
+                    itx.send(IncomingMessage::Response(response)).await.unwrap();
+                } else {
+                    let notification: types::NotificationMessage =
+                        serde_json::from_value(body).unwrap();
+                    itx.send(IncomingMessage::Notification(notification))
+                        .await
+                        .unwrap();
+                }
+            }
         }
     });
 
@@ -109,7 +137,10 @@ pub async fn init_lsp() -> Result<LSPClientHandle> {
         }
     });
 
-    Ok(LSPClientHandle {})
+    Ok(LSPClientHandle {
+        sender: outgoing_tx,
+        reciever: incoming_rx,
+    })
 }
 
 impl LSPClientHandle {}
