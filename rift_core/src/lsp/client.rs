@@ -143,7 +143,28 @@ pub async fn init_lsp() -> Result<LSPClientHandle> {
     })
 }
 
-impl LSPClientHandle {}
+impl LSPClientHandle {
+    pub async fn send_request(&self, method: String, params: Option<Value>) -> Result<()> {
+        self.sender
+            .send(OutgoingMessage::Request(Request { method, params }))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn send_notification(&self, method: String, params: Option<Value>) -> Result<()> {
+        self.sender
+            .send(OutgoingMessage::Notification(Notification {
+                method,
+                params,
+            }))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn recv_message(&mut self) -> Option<IncomingMessage> {
+        self.reciever.recv().await
+    }
+}
 
 //         "params": {
 //             "processId": process::id(),
@@ -159,15 +180,3 @@ impl LSPClientHandle {}
 //             },
 //         },
 //     });
-
-//     let mut response_header = String::new();
-//     reader.read_line(&mut response_header)?;
-//     let mut empty_line = String::new();
-//     reader.read_line(&mut empty_line)?;
-
-//     let content_length = response_header.strip_prefix("Content-Length: ").unwrap();
-//     let content_length: usize = content_length.trim().parse().unwrap();
-
-//     let mut body = vec![0; content_length];
-//     reader.read_exact(&mut body)?;
-//     println!("{}", String::from_utf8_lossy(&body));
