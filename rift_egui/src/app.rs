@@ -169,6 +169,11 @@ impl App {
                 ..Default::default()
             })
             .show(ctx, |ui| {
+                ui.memory_mut(|mem| {
+                    if let Some(id) = mem.focused() {
+                        mem.surrender_focus(id);
+                    }
+                });
                 if self.state.buffer_idx.is_some() {
                     let (buffer, instance) =
                         self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
