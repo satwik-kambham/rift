@@ -1,7 +1,8 @@
 use anyhow::Result;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{
-    process::Stdio,
+    collections::HashMap,
+    process::{self, Stdio},
     sync::atomic::{AtomicUsize, Ordering},
 };
 use tokio::{
@@ -18,6 +19,7 @@ fn next_id() -> usize {
     ID.fetch_add(1, Ordering::SeqCst)
 }
 
+#[derive(Debug)]
 pub enum IncomingMessage {
     Response(types::ResponseMessage),
     Notification(types::NotificationMessage),
@@ -31,19 +33,27 @@ pub struct Notification {
     pub method: String,
     pub params: Option<Value>,
 }
+pub struct Response {
+    pub id: usize,
+    pub result: Option<Value>,
+    pub error: Option<types::ResponseError>,
+}
 
 pub enum OutgoingMessage {
     Request(Request),
     Notification(Notification),
+    Response(Response),
 }
 
 pub struct LSPClientHandle {
     pub sender: Sender<OutgoingMessage>,
     pub reciever: Receiver<IncomingMessage>,
+    pub pending_id: usize,
+    pub pending_requests: HashMap<usize, IncomingMessage>,
 }
 
-/// Starts lsp and sends initialize request
-pub async fn init_lsp() -> Result<LSPClientHandle> {
+/// Starts lsp
+pub async fn start_lsp() -> Result<LSPClientHandle> {
     let mut child = Command::new("rust-analyzer")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -79,6 +89,15 @@ pub async fn init_lsp() -> Result<LSPClientHandle> {
                         jsonrpc: "2.0".to_string(),
                         method: notification.method,
                         params: notification.params,
+                    };
+                    body = serde_json::to_string(&notification_body).unwrap();
+                }
+                OutgoingMessage::Response(response) => {
+                    let notification_body = types::ResponseMessage {
+                        jsonrpc: "2.0".to_string(),
+                        id: response.id,
+                        result: response.result,
+                        error: response.error,
                     };
                     body = serde_json::to_string(&notification_body).unwrap();
                 }
@@ -140,6 +159,8 @@ pub async fn init_lsp() -> Result<LSPClientHandle> {
     Ok(LSPClientHandle {
         sender: outgoing_tx,
         reciever: incoming_rx,
+        pending_id: 0,
+        pending_requests: HashMap::new(),
     })
 }
 
@@ -147,6 +168,18 @@ impl LSPClientHandle {
     pub async fn send_request(&self, method: String, params: Option<Value>) -> Result<()> {
         self.sender
             .send(OutgoingMessage::Request(Request { method, params }))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn send_response(
+        &self,
+        id: usize,
+        result: Option<Value>,
+        error: Option<types::ResponseError>,
+    ) -> Result<()> {
+        self.sender
+            .send(OutgoingMessage::Response(Response { id, result, error }))
             .await?;
         Ok(())
     }
@@ -162,21 +195,53 @@ impl LSPClientHandle {
     }
 
     pub async fn recv_message(&mut self) -> Option<IncomingMessage> {
-        self.reciever.recv().await
+        if let Some(message) = self.reciever.recv().await {
+            match &message {
+                IncomingMessage::Response(response) => {
+                    self.pending_requests.insert(response.id, message);
+                }
+                IncomingMessage::Notification(_notification) => {
+                    return Some(message);
+                }
+            }
+        }
+
+        if self.pending_requests.contains_key(&self.pending_id) {
+            let message = self.pending_requests.remove(&self.pending_id);
+            self.pending_id += 1;
+            return message;
+        }
+        None
+    }
+
+    /// Send initialize request and wait for response
+    pub async fn init_lsp(&mut self) {
+        self.send_request(
+            "initialize".to_string(),
+            Some(json!({
+                "processId": process::id(),
+                "rootUri": "file:////home/satwik/Documents/rift",
+                "capabilities": {
+                    "textDocument": {
+                        "completion": {
+                            "completionItem": {
+                                "snippetSupport": true,
+                            }
+                        }
+                    }
+                }
+            })),
+        )
+        .await
+        .unwrap();
+
+        loop {
+            if let Some(response) = self.recv_message().await {
+                if let IncomingMessage::Response(message) = response {
+                    println!("{:#?}", message);
+                }
+                break;
+            }
+        }
     }
 }
-
-//         "params": {
-//             "processId": process::id(),
-//             "rootUri": "file:////home/satwik/Documents/rift",
-//             "capabilities": {
-//                 "textDocument": {
-//                     "completion": {
-//                         "completionItem": {
-//                             "snippetSupport": true,
-//                         },
-//                     },
-//                 },
-//             },
-//         },
-//     });

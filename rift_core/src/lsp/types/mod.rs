@@ -14,7 +14,6 @@ pub struct RequestMessage {
 pub struct ResponseMessage {
     pub jsonrpc: String,
     pub id: usize,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub error: Option<ResponseError>,

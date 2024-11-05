@@ -5,6 +5,7 @@ use egui::{
 };
 use rift_core::{
     buffer::instance::HighlightType,
+    lsp::client::{start_lsp, LSPClientHandle},
     preferences::Preferences,
     state::{EditorState, Mode},
 };
@@ -16,10 +17,11 @@ pub struct App {
     state: EditorState,
     preferences: Preferences,
     font_definitions: FontDefinitions,
+    lsp_handle: LSPClientHandle,
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let preferences = Preferences::default();
         let mut fonts = FontDefinitions::default();
         let editor_font = font_kit::source::SystemSource::new()
@@ -102,11 +104,16 @@ impl App {
                 );
             }
         }
+
+        let mut lsp_handle = start_lsp().await.unwrap();
+        lsp_handle.init_lsp().await;
+
         Self {
             dispatcher: CommandDispatcher::new(),
             state: EditorState::default(),
             preferences,
             font_definitions: fonts,
+            lsp_handle,
         }
     }
 
