@@ -30,7 +30,7 @@ impl CommandDispatcher {
                             if matches!(state.mode, Mode::Insert) {
                                 let (buffer, instance) =
                                     state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                let cursor = buffer.insert_text(text, &instance.cursor);
+                                let cursor = buffer.insert_text(text, &instance.cursor, lsp_handle);
                                 instance.cursor = cursor;
                                 instance.selection.cursor = instance.cursor;
                                 instance.selection.mark = instance.cursor;
@@ -63,12 +63,19 @@ impl CommandDispatcher {
                                             let indent_size =
                                                 buffer.get_indentation_level(instance.cursor.row);
                                             buffer.move_cursor_line_end(&mut instance.cursor);
-                                            let cursor = buffer.insert_text("\n", &instance.cursor);
+                                            let cursor = buffer.insert_text(
+                                                "\n",
+                                                &instance.cursor,
+                                                lsp_handle,
+                                            );
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;
-                                            instance.selection = buffer
-                                                .add_indentation(&instance.selection, indent_size);
+                                            instance.selection = buffer.add_indentation(
+                                                &instance.selection,
+                                                indent_size,
+                                                lsp_handle,
+                                            );
                                             instance.cursor = instance.selection.cursor;
                                             instance.column_level = instance.cursor.column;
                                             return;
@@ -84,6 +91,7 @@ impl CommandDispatcher {
                                                 instance.selection = buffer.remove_indentation(
                                                     &instance.selection,
                                                     preferences.tab_width,
+                                                    lsp_handle,
                                                 );
                                                 instance.cursor = instance.selection.cursor;
                                                 instance.column_level = instance.cursor.column;
@@ -102,6 +110,7 @@ impl CommandDispatcher {
                                                 instance.selection = buffer.add_indentation(
                                                     &instance.selection,
                                                     preferences.tab_width,
+                                                    lsp_handle,
                                                 );
                                                 instance.cursor = instance.selection.cursor;
                                                 instance.column_level = instance.cursor.column;
@@ -332,7 +341,7 @@ impl CommandDispatcher {
                                             buffer.move_cursor_left(&mut instance.selection.mark);
 
                                             let (_text, cursor) =
-                                                buffer.remove_text(&instance.selection);
+                                                buffer.remove_text(&instance.selection, lsp_handle);
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;
@@ -346,12 +355,19 @@ impl CommandDispatcher {
                                             instance.cursor = instance.selection.cursor;
                                             let indent_size =
                                                 buffer.get_indentation_level(instance.cursor.row);
-                                            let cursor = buffer.insert_text("\n", &instance.cursor);
+                                            let cursor = buffer.insert_text(
+                                                "\n",
+                                                &instance.cursor,
+                                                lsp_handle,
+                                            );
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;
                                             instance.selection.mark = instance.cursor;
-                                            instance.selection = buffer
-                                                .add_indentation(&instance.selection, indent_size);
+                                            instance.selection = buffer.add_indentation(
+                                                &instance.selection,
+                                                indent_size,
+                                                lsp_handle,
+                                            );
                                             instance.cursor = instance.selection.cursor;
                                             instance.column_level = instance.cursor.column;
                                         }
@@ -363,6 +379,7 @@ impl CommandDispatcher {
                                             let cursor = buffer.insert_text(
                                                 &" ".repeat(preferences.tab_width),
                                                 &instance.cursor,
+                                                lsp_handle,
                                             );
                                             instance.cursor = cursor;
                                             instance.selection.cursor = instance.cursor;

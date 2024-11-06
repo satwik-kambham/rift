@@ -5,6 +5,8 @@ use std::{
 
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
+use crate::lsp::client::LSPClientHandle;
+
 use super::instance::{Cursor, Edit, GutterInfo, HighlightType, Selection};
 
 /// Text buffer implementation as a list of lines
@@ -509,7 +511,12 @@ impl LineBuffer {
         updated_cursor
     }
 
-    pub fn insert_text(&mut self, text: &str, cursor: &Cursor) -> Cursor {
+    pub fn insert_text(
+        &mut self,
+        text: &str,
+        cursor: &Cursor,
+        lsp_handle: &LSPClientHandle,
+    ) -> Cursor {
         let updated_cursor = self.insert_text_no_log(text, cursor);
 
         self.changes.truncate(self.change_idx);
@@ -519,6 +526,21 @@ impl LineBuffer {
             text: text.to_owned(),
         });
         self.change_idx = self.changes.len();
+
+        lsp_handle
+            .send_notification_sync(
+                "textDocument/didChange".to_string(),
+                Some(LSPClientHandle::did_change_text_document(
+                    self.file_path.clone().unwrap(),
+                    self.change_idx,
+                    Selection {
+                        cursor: *cursor,
+                        mark: *cursor,
+                    },
+                    text.to_string(),
+                )),
+            )
+            .unwrap();
 
         updated_cursor
     }
@@ -570,7 +592,11 @@ impl LineBuffer {
         }
     }
 
-    pub fn remove_text(&mut self, selection: &Selection) -> (String, Cursor) {
+    pub fn remove_text(
+        &mut self,
+        selection: &Selection,
+        lsp_handle: &LSPClientHandle,
+    ) -> (String, Cursor) {
         let (text, cursor) = self.remove_text_no_log(selection);
 
         let (start, end) = selection.in_order();
@@ -581,6 +607,18 @@ impl LineBuffer {
             text: text.to_owned(),
         });
         self.change_idx = self.changes.len();
+
+        lsp_handle
+            .send_notification_sync(
+                "textDocument/didChange".to_string(),
+                Some(LSPClientHandle::did_change_text_document(
+                    self.file_path.clone().unwrap(),
+                    self.change_idx,
+                    *selection,
+                    "".to_string(),
+                )),
+            )
+            .unwrap();
 
         (text, cursor)
     }
@@ -652,7 +690,12 @@ impl LineBuffer {
     }
 
     /// Add indentation to the selected lines and returns the updated cursor position
-    pub fn add_indentation(&mut self, selection: &Selection, tab_size: usize) -> Selection {
+    pub fn add_indentation(
+        &mut self,
+        selection: &Selection,
+        tab_size: usize,
+        lsp_handle: &LSPClientHandle,
+    ) -> Selection {
         self.modified = true;
 
         let mut updated_selection = *selection;
@@ -661,13 +704,18 @@ impl LineBuffer {
         updated_selection.cursor.column += tab_size;
         let (start, end) = selection.in_order();
         for i in start.row..=end.row {
-            self.insert_text(&tab, &Cursor { row: i, column: 0 });
+            self.insert_text(&tab, &Cursor { row: i, column: 0 }, lsp_handle);
         }
         updated_selection
     }
 
     /// Remove indentation from the selected lines if present and returns the updated cursor position
-    pub fn remove_indentation(&mut self, selection: &Selection, tab_size: usize) -> Selection {
+    pub fn remove_indentation(
+        &mut self,
+        selection: &Selection,
+        tab_size: usize,
+        lsp_handle: &LSPClientHandle,
+    ) -> Selection {
         self.modified = true;
 
         let mut updated_selection = *selection;
@@ -677,13 +725,16 @@ impl LineBuffer {
         for i in start.row..=end.row {
             let current_line = &self.lines[i];
             if current_line.starts_with(&tab) {
-                self.remove_text(&Selection {
-                    cursor: Cursor { row: i, column: 0 },
-                    mark: Cursor {
-                        row: i,
-                        column: tab_size,
+                self.remove_text(
+                    &Selection {
+                        cursor: Cursor { row: i, column: 0 },
+                        mark: Cursor {
+                            row: i,
+                            column: tab_size,
+                        },
                     },
-                });
+                    lsp_handle,
+                );
 
                 if i == start.row {
                     start_new.column -= tab_size;
