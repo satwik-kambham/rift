@@ -18,10 +18,11 @@ pub struct App {
     preferences: Preferences,
     font_definitions: FontDefinitions,
     lsp_handle: LSPClientHandle,
+    rt: tokio::runtime::Runtime,
 }
 
 impl App {
-    pub async fn new() -> Self {
+    pub fn new(rt: tokio::runtime::Runtime) -> Self {
         let preferences = Preferences::default();
         let mut fonts = FontDefinitions::default();
         let editor_font = font_kit::source::SystemSource::new()
@@ -105,8 +106,7 @@ impl App {
             }
         }
 
-        let mut lsp_handle = start_lsp().await.unwrap();
-        lsp_handle.init_lsp().await;
+        let lsp_handle = rt.block_on(async { start_lsp().await.unwrap() });
 
         Self {
             dispatcher: CommandDispatcher::new(),
@@ -114,6 +114,7 @@ impl App {
             preferences,
             font_definitions: fonts,
             lsp_handle,
+            rt,
         }
     }
 
@@ -372,8 +373,12 @@ impl App {
                     ui.label(job);
                 }
 
-                self.dispatcher
-                    .show(ui, &mut self.state, &mut self.preferences);
+                self.dispatcher.show(
+                    ui,
+                    &mut self.state,
+                    &mut self.preferences,
+                    &mut self.lsp_handle,
+                );
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {

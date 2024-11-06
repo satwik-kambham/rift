@@ -2,6 +2,7 @@ use egui::Ui;
 use rift_core::{
     buffer::line_buffer::LineBuffer,
     io::file_io,
+    lsp::client::LSPClientHandle,
     preferences::Preferences,
     state::{EditorState, Mode},
 };
@@ -13,7 +14,13 @@ impl CommandDispatcher {
         Self {}
     }
 
-    pub fn show(&self, ui: &mut Ui, state: &mut EditorState, preferences: &mut Preferences) {
+    pub fn show(
+        &self,
+        ui: &mut Ui,
+        state: &mut EditorState,
+        preferences: &mut Preferences,
+        lsp_handle: &mut LSPClientHandle,
+    ) {
         ui.input(|i| {
             if !state.modal_open {
                 for event in &i.raw.events {
@@ -451,6 +458,9 @@ impl CommandDispatcher {
 
                                                 if modifiers.shift {
                                                     state.workspace_folder = entry.path.clone();
+                                                    lsp_handle.init_lsp_sync(
+                                                        state.workspace_folder.clone(),
+                                                    );
                                                 }
 
                                                 #[cfg(target_os = "windows")]

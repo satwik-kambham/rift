@@ -172,6 +172,12 @@ impl LSPClientHandle {
         Ok(())
     }
 
+    pub fn send_request_sync(&self, method: String, params: Option<Value>) -> Result<()> {
+        self.sender
+            .blocking_send(OutgoingMessage::Request(Request { method, params }))?;
+        Ok(())
+    }
+
     pub async fn send_response(
         &self,
         id: usize,
@@ -184,6 +190,17 @@ impl LSPClientHandle {
         Ok(())
     }
 
+    pub fn send_response_sync(
+        &self,
+        id: usize,
+        result: Option<Value>,
+        error: Option<types::ResponseError>,
+    ) -> Result<()> {
+        self.sender
+            .blocking_send(OutgoingMessage::Response(Response { id, result, error }))?;
+        Ok(())
+    }
+
     pub async fn send_notification(&self, method: String, params: Option<Value>) -> Result<()> {
         self.sender
             .send(OutgoingMessage::Notification(Notification {
@@ -191,6 +208,15 @@ impl LSPClientHandle {
                 params,
             }))
             .await?;
+        Ok(())
+    }
+
+    pub fn send_notification_sync(&self, method: String, params: Option<Value>) -> Result<()> {
+        self.sender
+            .blocking_send(OutgoingMessage::Notification(Notification {
+                method,
+                params,
+            }))?;
         Ok(())
     }
 
@@ -214,29 +240,71 @@ impl LSPClientHandle {
         None
     }
 
-    /// Send initialize request and wait for response
-    pub async fn init_lsp(&mut self) {
-        self.send_request(
-            "initialize".to_string(),
-            Some(json!({
-                "processId": process::id(),
-                "rootUri": "file:////home/satwik/Documents/rift",
-                "capabilities": {
-                    "textDocument": {
-                        "completion": {
-                            "completionItem": {
-                                "snippetSupport": true,
-                            }
+    pub fn recv_message_sync(&mut self) -> Option<IncomingMessage> {
+        if let Ok(message) = self.reciever.try_recv() {
+            match &message {
+                IncomingMessage::Response(response) => {
+                    self.pending_requests.insert(response.id, message);
+                }
+                IncomingMessage::Notification(_notification) => {
+                    return Some(message);
+                }
+            }
+        }
+
+        if self.pending_requests.contains_key(&self.pending_id) {
+            let message = self.pending_requests.remove(&self.pending_id);
+            self.pending_id += 1;
+            return message;
+        }
+        None
+    }
+
+    pub fn get_initialization_params(&self, workspace_folder: String) -> Value {
+        json!({
+            "processId": process::id(),
+            "rootUri": format!("file:///{}", workspace_folder),
+            "capabilities": {
+                "textDocument": {
+                    "completion": {
+                        "completionItem": {
+                            "snippetSupport": true,
                         }
                     }
                 }
-            })),
+            }
+        })
+    }
+
+    /// Send initialize request and wait for response
+    pub async fn init_lsp(&mut self, workspace_folder: String) {
+        self.send_request(
+            "initialize".to_string(),
+            Some(self.get_initialization_params(workspace_folder)),
         )
         .await
         .unwrap();
 
         loop {
             if let Some(response) = self.recv_message().await {
+                if let IncomingMessage::Response(message) = response {
+                    println!("{:#?}", message);
+                }
+                break;
+            }
+        }
+    }
+
+    /// Send initialize request and wait for response
+    pub fn init_lsp_sync(&mut self, workspace_folder: String) {
+        self.send_request_sync(
+            "initialize".to_string(),
+            Some(self.get_initialization_params(workspace_folder)),
+        )
+        .unwrap();
+
+        loop {
+            if let Some(response) = self.recv_message_sync() {
                 if let IncomingMessage::Response(message) = response {
                     println!("{:#?}", message);
                 }

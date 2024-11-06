@@ -4,10 +4,13 @@
 pub mod app;
 pub mod command_dispatcher;
 
-#[tokio::main]
-async fn main() -> eframe::Result {
+fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions::default();
-    let mut app = app::App::new().await;
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let mut app = app::App::new(rt);
     eframe::run_simple_native("Rift", native_options, move |ctx, _frame| {
         app.draw(ctx);
     })
