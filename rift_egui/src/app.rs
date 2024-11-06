@@ -306,6 +306,11 @@ impl App {
                 let rect = ui.max_rect();
                 let visible_lines = (rect.height() / char_height).floor() as usize;
                 let max_characters = (rect.width() / char_width).floor() as usize;
+
+                if let Some(message) = self.lsp_handle.recv_message_sync() {
+                    println!("{:#?}", message);
+                }
+
                 if visible_lines != self.state.visible_lines
                     || max_characters != self.state.max_characters
                 {

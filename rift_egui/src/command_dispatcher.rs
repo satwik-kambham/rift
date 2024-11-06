@@ -307,6 +307,22 @@ impl CommandDispatcher {
                                             }
                                         }
                                     }
+                                    egui::Key::Z => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            let (buffer, instance) = state
+                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
+
+                                            lsp_handle
+                                                .send_request_sync(
+                                                    "textDocument/hover".to_string(),
+                                                    Some(LSPClientHandle::hover_request(
+                                                        buffer.file_path.clone().unwrap(),
+                                                        instance.cursor,
+                                                    )),
+                                                )
+                                                .unwrap();
+                                        }
+                                    }
                                     egui::Key::Backspace => {
                                         if matches!(state.mode, Mode::Insert) {
                                             let (buffer, instance) = state
@@ -440,12 +456,12 @@ impl CommandDispatcher {
                                             let entry = &state.modal_options_filtered
                                                 [state.modal_selection_idx.unwrap()];
                                             if !entry.is_dir {
-                                                let path = &entry.path;
+                                                let path = entry.path.clone();
                                                 let initial_text =
-                                                    file_io::read_file_content(path).unwrap();
+                                                    file_io::read_file_content(&path).unwrap();
                                                 let buffer = LineBuffer::new(
-                                                    initial_text,
-                                                    Some(path.to_string()),
+                                                    initial_text.clone(),
+                                                    Some(path.clone()),
                                                 );
                                                 state.buffer_idx = Some(state.add_buffer(buffer));
                                                 state.modal_open = false;
@@ -453,6 +469,18 @@ impl CommandDispatcher {
                                                 state.modal_options_filtered = vec![];
                                                 state.modal_selection_idx = None;
                                                 state.modal_input = "".into();
+
+                                                lsp_handle
+                                                    .send_notification_sync(
+                                                        "textDocument/didOpen".to_string(),
+                                                        Some(
+                                                            LSPClientHandle::did_open_text_document(
+                                                                path.clone(),
+                                                                initial_text,
+                                                            ),
+                                                        ),
+                                                    )
+                                                    .unwrap();
                                             } else {
                                                 state.modal_input = entry.path.clone();
 

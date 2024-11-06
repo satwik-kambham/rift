@@ -11,6 +11,8 @@ use tokio::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
+use crate::buffer::instance::{Cursor, Selection};
+
 use super::types;
 
 static ID: AtomicUsize = AtomicUsize::new(0);
@@ -141,6 +143,8 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
                         .await
                         .unwrap();
                 }
+
+                header = String::new();
             }
         }
     });
@@ -289,6 +293,10 @@ impl LSPClientHandle {
             if let Some(response) = self.recv_message().await {
                 if let IncomingMessage::Response(message) = response {
                     println!("{:#?}", message);
+                    self.send_notification("initialized".to_string(), None)
+                        .await
+                        .unwrap();
+                    break;
                 }
                 break;
             }
@@ -307,9 +315,68 @@ impl LSPClientHandle {
             if let Some(response) = self.recv_message_sync() {
                 if let IncomingMessage::Response(message) = response {
                     println!("{:#?}", message);
+                    self.send_notification_sync("initialized".to_string(), None)
+                        .unwrap();
                 }
                 break;
             }
         }
+    }
+
+    /// DidOpenTextDocument Notification
+    /// method: 'textDocument/didOpen'
+    pub fn did_open_text_document(document_path: String, document_content: String) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+                "languageId": "rust",
+                "version": 0,
+                "text": document_content,
+            }
+        })
+    }
+
+    /// DidChangeTextDocument Notification
+    /// method: 'textDocument/didChange'
+    pub fn did_change_text_document(
+        document_path: String,
+        document_version: usize,
+        range: Selection,
+        text: String,
+    ) -> Value {
+        let (start, end) = range.in_order();
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+                "version": document_version,
+            },
+            "contentChanges": [{
+                "range": {
+                    "start": {
+                        "line": start.row,
+                        "character": start.column,
+                    },
+                    "end": {
+                        "line": end.row,
+                        "character": end.column,
+                    },
+                },
+                "text": text,
+            }],
+        })
+    }
+
+    /// Hover Request
+    /// method: 'textDocument/hover'
+    pub fn hover_request(document_path: String, cursor: Cursor) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+            },
+            "position": {
+                "line": cursor.row,
+                "character": cursor.column,
+            },
+        })
     }
 }
