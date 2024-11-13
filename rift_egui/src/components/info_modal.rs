@@ -21,7 +21,6 @@ impl InfoModal {
             .vscroll(true)
             .show(ctx, |ui| {
                 ui.label(&self.info);
-                println!("{:#?}", &self.info);
             });
     }
 }
