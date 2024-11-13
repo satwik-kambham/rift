@@ -15,8 +15,13 @@ impl InfoModal {
             .interactable(false)
             .order(egui::Order::Tooltip)
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .resizable(false)
+            .collapsible(false)
+            .title_bar(false)
+            .vscroll(true)
             .show(ctx, |ui| {
                 ui.label(&self.info);
+                println!("{:#?}", &self.info);
             });
     }
 }
