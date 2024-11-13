@@ -110,7 +110,11 @@ pub fn get_directory_entries(path: &str) -> Result<Vec<FolderEntry>> {
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         entries.push(FolderEntry {
-            path: entry.path().to_str().unwrap().to_string(),
+            path: path::absolute(entry.path())
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
             is_dir: entry.metadata()?.is_dir(),
             name: entry
                 .path()

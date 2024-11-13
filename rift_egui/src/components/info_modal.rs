@@ -12,7 +12,7 @@ impl InfoModal {
     pub fn show(&self, ctx: &egui::Context) {
         egui::Window::new("info_modal")
             .movable(false)
-            .interactable(false)
+            .interactable(true)
             .order(egui::Order::Tooltip)
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
             .resizable(false)

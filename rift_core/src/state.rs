@@ -40,7 +40,11 @@ impl EditorState {
         Self {
             buffers: HashMap::new(),
             next_id: 0,
-            workspace_folder: "/".to_owned(),
+            workspace_folder: std::path::absolute("/")
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned(),
             visible_lines: 0,
             max_characters: 0,
             mode: Mode::Normal,
