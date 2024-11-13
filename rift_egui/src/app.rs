@@ -10,7 +10,7 @@ use rift_core::{
     state::{EditorState, Mode},
 };
 
-use crate::command_dispatcher::CommandDispatcher;
+use crate::{command_dispatcher::CommandDispatcher, components::info_modal::InfoModal};
 
 pub struct App {
     dispatcher: CommandDispatcher,
@@ -19,6 +19,8 @@ pub struct App {
     font_definitions: FontDefinitions,
     lsp_handle: LSPClientHandle,
     rt: tokio::runtime::Runtime,
+    info_modal: InfoModal,
+    editor_focused: bool,
 }
 
 impl App {
@@ -109,12 +111,14 @@ impl App {
         let lsp_handle = rt.block_on(async { start_lsp().await.unwrap() });
 
         Self {
-            dispatcher: CommandDispatcher::new(),
+            dispatcher: CommandDispatcher::default(),
             state: EditorState::default(),
             preferences,
             font_definitions: fonts,
             lsp_handle,
             rt,
+            info_modal: InfoModal::default(),
+            editor_focused: true,
         }
     }
 
@@ -309,6 +313,7 @@ impl App {
 
                 if let Some(message) = self.lsp_handle.recv_message_sync() {
                     println!("{:#?}", message);
+                    self.info_modal.info = format!("{:#?}", message);
                 }
 
                 if visible_lines != self.state.visible_lines
@@ -385,6 +390,7 @@ impl App {
                     &mut self.lsp_handle,
                 );
             });
+        self.info_modal.show(ctx);
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,

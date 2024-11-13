@@ -3,6 +3,7 @@
 
 pub mod app;
 pub mod command_dispatcher;
+pub mod components;
 
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions::default();

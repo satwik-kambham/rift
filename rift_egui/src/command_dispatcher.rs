@@ -7,6 +7,8 @@ use rift_core::{
     state::{EditorState, Mode},
 };
 
+use crate::components::info_modal::InfoModal;
+
 pub struct CommandDispatcher {}
 
 impl CommandDispatcher {
@@ -546,5 +548,11 @@ impl CommandDispatcher {
                 }
             }
         });
+    }
+}
+
+impl Default for CommandDispatcher {
+    fn default() -> Self {
+        Self::new()
     }
 }
