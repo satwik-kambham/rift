@@ -314,6 +314,8 @@ impl App {
                 if let Some(message) = self.lsp_handle.recv_message_sync() {
                     println!("{:#?}", message);
                     self.info_modal.info = format!("{:#?}", message);
+                    self.info_modal.active = true;
+                    self.editor_focused = false;
                 }
 
                 if visible_lines != self.state.visible_lines
@@ -383,14 +385,16 @@ impl App {
                     ui.label(job);
                 }
 
-                self.dispatcher.show(
-                    ui,
-                    &mut self.state,
-                    &mut self.preferences,
-                    &mut self.lsp_handle,
-                );
+                if self.editor_focused {
+                    self.dispatcher.show(
+                        ui,
+                        &mut self.state,
+                        &mut self.preferences,
+                        &mut self.lsp_handle,
+                    );
+                }
             });
-        self.info_modal.show(ctx);
+        self.editor_focused = self.info_modal.show(ctx);
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,
