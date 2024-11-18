@@ -321,7 +321,14 @@ impl App {
                                     response.error.unwrap()
                                 );
                             } else {
-                                self.info_modal.info = format!("{:#?}", response);
+                                let message = format!(
+                                    "---Response to: {}({})\n\n{:#?}---",
+                                    self.lsp_handle.id_method[&response.id],
+                                    response.id,
+                                    response.result
+                                );
+                                println!("{:#?}", message);
+                                self.info_modal.info = format!("{:#?}", message);
                                 self.info_modal.active = true;
                                 self.editor_focused = false;
                             }

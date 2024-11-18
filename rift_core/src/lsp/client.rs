@@ -28,6 +28,7 @@ pub enum IncomingMessage {
 }
 
 pub struct Request {
+    pub id: usize,
     pub method: String,
     pub params: Option<Value>,
 }
@@ -52,6 +53,7 @@ pub struct LSPClientHandle {
     pub reciever: Receiver<IncomingMessage>,
     pub pending_id: usize,
     pub pending_requests: HashMap<usize, IncomingMessage>,
+    pub id_method: HashMap<usize, String>,
 }
 
 /// Starts lsp
@@ -80,7 +82,7 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
                 OutgoingMessage::Request(request) => {
                     let request_body = types::RequestMessage {
                         jsonrpc: "2.0".to_string(),
-                        id: next_id(),
+                        id: request.id,
                         method: request.method,
                         params: request.params,
                     };
@@ -165,20 +167,25 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
         reciever: incoming_rx,
         pending_id: 0,
         pending_requests: HashMap::new(),
+        id_method: HashMap::new(),
     })
 }
 
 impl LSPClientHandle {
-    pub async fn send_request(&self, method: String, params: Option<Value>) -> Result<()> {
+    pub async fn send_request(&mut self, method: String, params: Option<Value>) -> Result<()> {
+        let id = next_id();
+        self.id_method.insert(id, method.clone());
         self.sender
-            .send(OutgoingMessage::Request(Request { method, params }))
+            .send(OutgoingMessage::Request(Request { method, params, id }))
             .await?;
         Ok(())
     }
 
-    pub fn send_request_sync(&self, method: String, params: Option<Value>) -> Result<()> {
+    pub fn send_request_sync(&mut self, method: String, params: Option<Value>) -> Result<()> {
+        let id = next_id();
+        self.id_method.insert(id, method.clone());
         self.sender
-            .blocking_send(OutgoingMessage::Request(Request { method, params }))?;
+            .blocking_send(OutgoingMessage::Request(Request { method, params, id }))?;
         Ok(())
     }
 
