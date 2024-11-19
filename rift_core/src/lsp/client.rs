@@ -280,7 +280,10 @@ impl LSPClientHandle {
                     "completion": {
                         "completionItem": {
                             "snippetSupport": true,
-                        }
+                        },
+                    },
+                    "hover": {
+                        "contentFormat": ["plaintext"],
                     }
                 }
             }

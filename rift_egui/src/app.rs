@@ -316,18 +316,29 @@ impl App {
                         rift_core::lsp::client::IncomingMessage::Response(response) => {
                             if response.error.is_some() {
                                 println!(
-                                    "---Error: Message Id: {}\n\n{:#?}---",
+                                    "---Error: Message Id: {}\n\n{:#?}---\n",
                                     response.id,
                                     response.error.unwrap()
                                 );
                             } else {
-                                let message = format!(
-                                    "---Response to: {}({})\n\n{:#?}---",
+                                let mut message = format!(
+                                    "---Response to: {}({})\n\n{:#?}---\n",
                                     self.lsp_handle.id_method[&response.id],
                                     response.id,
                                     response.result
                                 );
                                 println!("{:#?}", message);
+                                if self.lsp_handle.id_method[&response.id] == "textDocument/hover"
+                                    && response.result.is_some()
+                                {
+                                    message = format!(
+                                        "{:#}",
+                                        response.result.unwrap()["contents"]["value"]
+                                            .as_str()
+                                            .unwrap()
+                                            .to_string()
+                                    );
+                                }
                                 self.info_modal.info = format!("{:#?}", message);
                                 self.info_modal.active = true;
                                 self.editor_focused = false;
@@ -335,7 +346,7 @@ impl App {
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
                             println!(
-                                "---Notification: {}\n\n{:#?}---",
+                                "---Notification: {}\n\n{:#?}---\n",
                                 notification.method, notification.params
                             );
                         }
