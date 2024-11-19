@@ -4,13 +4,19 @@ use egui::{
     text::LayoutJob, Color32, FontData, FontDefinitions, FontId, FontTweak, Label, Rect, RichText,
 };
 use rift_core::{
-    buffer::instance::HighlightType,
-    lsp::client::{start_lsp, LSPClientHandle},
+    buffer::instance::{Cursor, HighlightType, Selection},
+    lsp::{
+        client::{start_lsp, LSPClientHandle},
+        types,
+    },
     preferences::Preferences,
     state::{EditorState, Mode},
 };
 
-use crate::{command_dispatcher::CommandDispatcher, components::info_modal::InfoModal};
+use crate::{
+    command_dispatcher::CommandDispatcher,
+    components::{completion_menu::CompletionMenu, info_modal::InfoModal},
+};
 
 pub struct App {
     dispatcher: CommandDispatcher,
@@ -20,6 +26,7 @@ pub struct App {
     lsp_handle: LSPClientHandle,
     rt: tokio::runtime::Runtime,
     info_modal: InfoModal,
+    completion_menu: CompletionMenu,
     editor_focused: bool,
 }
 
@@ -113,6 +120,7 @@ impl App {
         Self {
             dispatcher: CommandDispatcher::default(),
             state: EditorState::default(),
+            completion_menu: CompletionMenu::new(5, preferences.theme.selection_bg),
             preferences,
             font_definitions: fonts,
             lsp_handle,
@@ -321,7 +329,7 @@ impl App {
                                     response.error.unwrap()
                                 );
                             } else {
-                                let mut message = format!(
+                                let message = format!(
                                     "---Response to: {}({})\n\n{:#?}---\n",
                                     self.lsp_handle.id_method[&response.id],
                                     response.id,
@@ -331,14 +339,63 @@ impl App {
                                 if self.lsp_handle.id_method[&response.id] == "textDocument/hover"
                                     && response.result.is_some()
                                 {
-                                    message = response.result.unwrap()["contents"]["value"]
+                                    let message = response.result.unwrap()["contents"]["value"]
                                         .as_str()
                                         .unwrap()
                                         .to_string();
+                                    self.info_modal.info = message;
+                                    self.info_modal.active = true;
+                                    self.editor_focused = false;
+                                } else if self.lsp_handle.id_method[&response.id]
+                                    == "textDocument/completion"
+                                    && response.result.is_some()
+                                {
+                                    let items = response.result.unwrap()["items"]
+                                        .as_array()
+                                        .unwrap()
+                                        .clone();
+                                    let mut completion_items = vec![];
+                                    for item in items {
+                                        completion_items.push(types::CompletionItem {
+                                            label: item["label"].as_str().unwrap().to_owned(),
+                                            edit: types::TextEdit {
+                                                text: item["textEdit"]["newText"]
+                                                    .as_str()
+                                                    .unwrap()
+                                                    .to_owned(),
+                                                range: Selection {
+                                                    cursor: Cursor {
+                                                        row: item["textEdit"]["range"]["end"]
+                                                            ["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: item["textEdit"]["range"]["end"]
+                                                            ["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                    mark: Cursor {
+                                                        row: item["textEdit"]["range"]["start"]
+                                                            ["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: item["textEdit"]["range"]["start"]
+                                                            ["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                },
+                                            },
+                                        });
+                                    }
+                                    self.completion_menu.set_items(completion_items);
+                                    self.completion_menu.active = true;
+                                    self.editor_focused = false;
                                 }
-                                self.info_modal.info = message;
-                                self.info_modal.active = true;
-                                self.editor_focused = false;
                             }
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
@@ -427,6 +484,7 @@ impl App {
                 }
             });
         self.editor_focused = self.info_modal.show(ctx);
+        self.editor_focused = self.editor_focused && self.completion_menu.show(ctx);
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,

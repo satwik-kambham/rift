@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::buffer::instance::Selection;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestMessage {
     pub jsonrpc: String,
@@ -33,4 +35,16 @@ pub struct NotificationMessage {
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub params: Option<Value>,
+}
+
+#[derive(Debug)]
+pub struct CompletionItem {
+    pub label: String,
+    pub edit: TextEdit,
+}
+
+#[derive(Debug)]
+pub struct TextEdit {
+    pub text: String,
+    pub range: Selection,
 }

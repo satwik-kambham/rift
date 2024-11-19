@@ -279,7 +279,8 @@ impl LSPClientHandle {
                 "textDocument": {
                     "completion": {
                         "completionItem": {
-                            "snippetSupport": true,
+                            "documentationFormat": ["plaintext"],
+                            // "insertReplaceSupport": false,
                         },
                     },
                     "hover": {
@@ -379,6 +380,20 @@ impl LSPClientHandle {
     /// Hover Request
     /// method: 'textDocument/hover'
     pub fn hover_request(document_path: String, cursor: Cursor) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+            },
+            "position": {
+                "line": cursor.row,
+                "character": cursor.column,
+            },
+        })
+    }
+
+    /// Completion Request
+    /// method: 'textDocument/completion'
+    pub fn completion_request(document_path: String, cursor: Cursor) -> Value {
         json!({
             "textDocument": {
                 "uri": format!("file:///{}", document_path),

@@ -323,15 +323,27 @@ impl CommandDispatcher {
                                             let (buffer, instance) = state
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
 
-                                            lsp_handle
-                                                .send_request_sync(
-                                                    "textDocument/hover".to_string(),
-                                                    Some(LSPClientHandle::hover_request(
-                                                        buffer.file_path.clone().unwrap(),
-                                                        instance.cursor,
-                                                    )),
-                                                )
-                                                .unwrap();
+                                            if !modifiers.shift {
+                                                lsp_handle
+                                                    .send_request_sync(
+                                                        "textDocument/hover".to_string(),
+                                                        Some(LSPClientHandle::hover_request(
+                                                            buffer.file_path.clone().unwrap(),
+                                                            instance.cursor,
+                                                        )),
+                                                    )
+                                                    .unwrap();
+                                            } else {
+                                                lsp_handle
+                                                    .send_request_sync(
+                                                        "textDocument/completion".to_string(),
+                                                        Some(LSPClientHandle::completion_request(
+                                                            buffer.file_path.clone().unwrap(),
+                                                            instance.cursor,
+                                                        )),
+                                                    )
+                                                    .unwrap();
+                                            }
                                         }
                                     }
                                     egui::Key::Backspace => {
