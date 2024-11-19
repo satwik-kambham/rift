@@ -331,15 +331,12 @@ impl App {
                                 if self.lsp_handle.id_method[&response.id] == "textDocument/hover"
                                     && response.result.is_some()
                                 {
-                                    message = format!(
-                                        "{:#}",
-                                        response.result.unwrap()["contents"]["value"]
-                                            .as_str()
-                                            .unwrap()
-                                            .to_string()
-                                    );
+                                    message = response.result.unwrap()["contents"]["value"]
+                                        .as_str()
+                                        .unwrap()
+                                        .to_string();
                                 }
-                                self.info_modal.info = format!("{:#?}", message);
+                                self.info_modal.info = message;
                                 self.info_modal.active = true;
                                 self.editor_focused = false;
                             }
