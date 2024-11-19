@@ -312,10 +312,27 @@ impl App {
                 let max_characters = (rect.width() / char_width).floor() as usize;
 
                 if let Some(message) = self.lsp_handle.recv_message_sync() {
-                    println!("{:#?}", message);
-                    self.info_modal.info = format!("{:#?}", message);
-                    self.info_modal.active = true;
-                    self.editor_focused = false;
+                    match message {
+                        rift_core::lsp::client::IncomingMessage::Response(response) => {
+                            if response.error.is_some() {
+                                println!(
+                                    "---Error: Message Id: {}\n\n{:#?}---",
+                                    response.id,
+                                    response.error.unwrap()
+                                );
+                            } else {
+                                self.info_modal.info = format!("{:#?}", response);
+                                self.info_modal.active = true;
+                                self.editor_focused = false;
+                            }
+                        }
+                        rift_core::lsp::client::IncomingMessage::Notification(notification) => {
+                            println!(
+                                "---Notification: {}\n\n{:#?}---",
+                                notification.method, notification.params
+                            );
+                        }
+                    }
                 }
 
                 if visible_lines != self.state.visible_lines
