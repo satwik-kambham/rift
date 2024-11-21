@@ -58,7 +58,15 @@ pub struct LSPClientHandle {
 
 /// Starts lsp
 pub async fn start_lsp() -> Result<LSPClientHandle> {
-    let mut child = Command::new("rust-analyzer")
+    let mut command = Command::new("rust-analyzer");
+
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
