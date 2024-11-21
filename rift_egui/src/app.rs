@@ -4,6 +4,7 @@ use egui::{
     text::LayoutJob, Color32, FontData, FontDefinitions, FontId, FontTweak, Label, Rect, RichText,
 };
 use rift_core::{
+    actions::{perform_action, Action},
     buffer::instance::{Cursor, HighlightType, Selection},
     lsp::{
         client::{start_lsp, LSPClientHandle},
@@ -390,7 +391,6 @@ impl App {
                                 == "textDocument/formatting"
                                 && response.result.is_some()
                             {
-                                let mut text_edits = vec![];
                                 let edits = response.result.unwrap().as_array().unwrap().clone();
                                 for edit in edits {
                                     let text_edit = types::TextEdit {
@@ -416,7 +416,18 @@ impl App {
                                             },
                                         },
                                     };
-                                    text_edits.push(text_edit);
+                                    perform_action(
+                                        Action::DeleteText(text_edit.range),
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                    perform_action(
+                                        Action::InsertText(text_edit.text, text_edit.range.mark),
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
                                 }
                             } else {
                                 let message = format!(

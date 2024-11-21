@@ -1,5 +1,6 @@
 use egui::Ui;
 use rift_core::{
+    actions::{perform_action, Action},
     buffer::line_buffer::LineBuffer,
     io::file_io,
     lsp::client::LSPClientHandle,
@@ -27,14 +28,12 @@ impl CommandDispatcher {
                     state.update_view = true;
                     match event {
                         egui::Event::Text(text) => {
-                            if matches!(state.mode, Mode::Insert) {
-                                let (buffer, instance) =
-                                    state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                let cursor = buffer.insert_text(text, &instance.cursor, lsp_handle);
-                                instance.cursor = cursor;
-                                instance.selection.cursor = instance.cursor;
-                                instance.selection.mark = instance.cursor;
-                            }
+                            perform_action(
+                                Action::InsertTextAtCursor(text.to_string()),
+                                state,
+                                preferences,
+                                lsp_handle,
+                            );
                         }
                         egui::Event::Key {
                             key,
@@ -46,388 +45,416 @@ impl CommandDispatcher {
                             if *pressed {
                                 match key {
                                     egui::Key::Escape => {
-                                        state.mode = Mode::Normal;
+                                        perform_action(
+                                            Action::QuitInsertMode,
+                                            state,
+                                            preferences,
+                                            lsp_handle,
+                                        );
                                     }
                                     egui::Key::I => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            state.mode = Mode::Insert;
+                                            perform_action(
+                                                Action::EnterInsertMode,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                             return;
                                         }
                                     }
                                     egui::Key::O => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            state.mode = Mode::Insert;
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            instance.cursor = instance.selection.cursor;
-                                            let indent_size =
-                                                buffer.get_indentation_level(instance.cursor.row);
-                                            buffer.move_cursor_line_end(&mut instance.cursor);
-                                            let cursor = buffer.insert_text(
-                                                "\n",
-                                                &instance.cursor,
+                                            perform_action(
+                                                Action::AddNewLineBelowAndEnterInsertMode,
+                                                state,
+                                                preferences,
                                                 lsp_handle,
                                             );
-                                            instance.cursor = cursor;
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.selection.mark = instance.cursor;
-                                            instance.selection = buffer.add_indentation(
-                                                &instance.selection,
-                                                indent_size,
-                                                lsp_handle,
-                                            );
-                                            instance.cursor = instance.selection.cursor;
-                                            instance.column_level = instance.cursor.column;
                                             return;
                                         }
                                     }
                                     egui::Key::Comma => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            if modifiers.shift {
-                                                let (buffer, instance) = state
-                                                    .get_buffer_by_id_mut(
-                                                        state.buffer_idx.unwrap(),
-                                                    );
-                                                instance.selection = buffer.remove_indentation(
-                                                    &instance.selection,
-                                                    preferences.tab_width,
-                                                    lsp_handle,
-                                                );
-                                                instance.cursor = instance.selection.cursor;
-                                                instance.column_level = instance.cursor.column;
-                                            } else if modifiers.ctrl {
-                                                state.cycle_buffer(true);
-                                            }
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::RemoveIndent,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::CyclePreviousBuffer,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::Period => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            if modifiers.shift {
-                                                let (buffer, instance) = state
-                                                    .get_buffer_by_id_mut(
-                                                        state.buffer_idx.unwrap(),
-                                                    );
-                                                instance.selection = buffer.add_indentation(
-                                                    &instance.selection,
-                                                    preferences.tab_width,
-                                                    lsp_handle,
-                                                );
-                                                instance.cursor = instance.selection.cursor;
-                                                instance.column_level = instance.cursor.column;
-                                            } else if modifiers.ctrl {
-                                                state.cycle_buffer(false);
-                                            }
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::AddIndent,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::CycleNextBuffer,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::Slash => {
-                                        if modifiers.ctrl && state.buffer_idx.is_some() {
-                                            state.remove_buffer(state.buffer_idx.unwrap());
+                                        if modifiers.ctrl {
+                                            perform_action(
+                                                Action::CloseCurrentBuffer,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::X => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            if !modifiers.shift {
-                                                instance.selection.mark = instance.selection.cursor;
-                                            }
-                                            instance.selection =
-                                                buffer.select_line(&instance.selection);
-                                            instance.cursor = instance.selection.cursor;
-                                            instance.column_level = instance.cursor.column;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::SelectAndExtentCurrentLine,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::SelectCurrentLine,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::W => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            if !modifiers.shift {
-                                                instance.selection.mark = instance.selection.cursor;
-                                            }
-                                            instance.selection =
-                                                buffer.select_word(&instance.selection);
-                                            instance.cursor = instance.selection.cursor;
-                                            instance.column_level = instance.cursor.column;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::ExtendSelectTillEndOfWord,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::SelectTillEndOfWord,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::F => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            state.modal_open = true;
-                                            state.modal_options = file_io::get_directory_entries(
-                                                &state.workspace_folder,
-                                            )
-                                            .unwrap();
-                                            state.modal_options_filtered =
-                                                state.modal_options.clone();
-                                            state.modal_selection_idx = None;
-                                            state.modal_input = state.workspace_folder.clone();
+                                            perform_action(
+                                                Action::OpenFile,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                             return;
                                         }
                                     }
                                     egui::Key::S => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, _instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            if modifiers.shift {
-                                                buffer.modified = false;
-                                                file_io::override_file_content(
-                                                    &buffer.file_path.clone().unwrap(),
-                                                    buffer.get_content(
-                                                        preferences.line_ending.to_string(),
-                                                    ),
-                                                )
-                                                .unwrap();
-                                            } else {
-                                                lsp_handle
-                                                    .send_request_sync(
-                                                        "textDocument/formatting".to_string(),
-                                                        Some(LSPClientHandle::formatting_request(
-                                                            buffer.file_path.clone().unwrap(),
-                                                            preferences.tab_width,
-                                                        )),
-                                                    )
-                                                    .unwrap();
-                                            }
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::SaveCurrentBuffer,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::FormatCurrentBuffer,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::ArrowDown => {
-                                        let (buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        buffer.move_cursor_down(
-                                            &mut instance.cursor,
-                                            instance.column_level,
-                                        );
-                                        instance.selection.cursor = instance.cursor;
-                                        if !modifiers.shift {
-                                            instance.selection.mark = instance.cursor;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::ExtendCursorDown,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::MoveCursorDown,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::ArrowUp => {
-                                        let (buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        buffer.move_cursor_up(
-                                            &mut instance.cursor,
-                                            instance.column_level,
-                                        );
-                                        instance.selection.cursor = instance.cursor;
-                                        if !modifiers.shift {
-                                            instance.selection.mark = instance.cursor;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::ExtendCursorUp,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::MoveCursorUp,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::ArrowLeft => {
-                                        let (buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        buffer.move_cursor_left(&mut instance.cursor);
-                                        instance.selection.cursor = instance.cursor;
-                                        instance.column_level = instance.cursor.column;
-                                        if !modifiers.shift {
-                                            instance.selection.mark = instance.cursor;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::ExtendCursorLeft,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::MoveCursorLeft,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::ArrowRight => {
-                                        let (buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        buffer.move_cursor_right(&mut instance.cursor);
-                                        instance.selection.cursor = instance.cursor;
-                                        instance.column_level = instance.cursor.column;
-                                        if !modifiers.shift {
-                                            instance.selection.mark = instance.cursor;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::ExtendCursorRight,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::MoveCursorRight,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::Home => {
-                                        let (buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        buffer.move_cursor_line_start(&mut instance.cursor);
-                                        instance.selection.cursor = instance.cursor;
-                                        instance.column_level = instance.cursor.column;
-                                        if !modifiers.shift {
-                                            instance.selection.mark = instance.cursor;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::ExtendCursorLineStart,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::MoveCursorLineStart,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::End => {
-                                        let (buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        buffer.move_cursor_line_end(&mut instance.cursor);
-                                        instance.selection.cursor = instance.cursor;
-                                        instance.column_level = instance.cursor.column;
-                                        if !modifiers.shift {
-                                            instance.selection.mark = instance.cursor;
+                                        if modifiers.shift {
+                                            perform_action(
+                                                Action::ExtendCursorLineEnd,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::MoveCursorLineEnd,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::G => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            if !modifiers.shift {
-                                                buffer
-                                                    .move_cursor_buffer_start(&mut instance.cursor);
-                                            } else {
-                                                buffer.move_cursor_buffer_end(&mut instance.cursor);
-                                            }
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.selection.mark = instance.cursor;
-                                            instance.column_level = instance.cursor.column;
+                                        if !modifiers.shift {
+                                            perform_action(
+                                                Action::GoToBufferStart,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::GoToBufferEnd,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::Semicolon => {
-                                        let (_buffer, instance) =
-                                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                        instance.selection.cursor = instance.cursor;
-                                        instance.selection.mark = instance.cursor;
-                                        instance.column_level = instance.cursor.column;
+                                        perform_action(
+                                            Action::Unselect,
+                                            state,
+                                            preferences,
+                                            lsp_handle,
+                                        );
                                     }
                                     egui::Key::J => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            buffer.move_cursor_down(
-                                                &mut instance.cursor,
-                                                instance.column_level,
-                                            );
-                                            instance.selection.cursor = instance.cursor;
-                                            if !modifiers.shift {
-                                                instance.selection.mark = instance.cursor;
+                                            if modifiers.shift {
+                                                perform_action(
+                                                    Action::ExtendCursorDown,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
+                                            } else {
+                                                perform_action(
+                                                    Action::MoveCursorDown,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
                                             }
                                         }
                                     }
                                     egui::Key::K => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            buffer.move_cursor_up(
-                                                &mut instance.cursor,
-                                                instance.column_level,
-                                            );
-                                            instance.selection.cursor = instance.cursor;
-                                            if !modifiers.shift {
-                                                instance.selection.mark = instance.cursor;
+                                            if modifiers.shift {
+                                                perform_action(
+                                                    Action::ExtendCursorUp,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
+                                            } else {
+                                                perform_action(
+                                                    Action::MoveCursorUp,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
                                             }
                                         }
                                     }
                                     egui::Key::H => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            buffer.move_cursor_left(&mut instance.cursor);
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.column_level = instance.cursor.column;
-                                            if !modifiers.shift {
-                                                instance.selection.mark = instance.cursor;
+                                            if modifiers.shift {
+                                                perform_action(
+                                                    Action::ExtendCursorLeft,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
+                                            } else {
+                                                perform_action(
+                                                    Action::MoveCursorLeft,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
                                             }
                                         }
                                     }
                                     egui::Key::L => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            buffer.move_cursor_right(&mut instance.cursor);
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.column_level = instance.cursor.column;
-                                            if !modifiers.shift {
-                                                instance.selection.mark = instance.cursor;
+                                            if modifiers.shift {
+                                                perform_action(
+                                                    Action::ExtendCursorRight,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
+                                            } else {
+                                                perform_action(
+                                                    Action::MoveCursorRight,
+                                                    state,
+                                                    preferences,
+                                                    lsp_handle,
+                                                );
                                             }
                                         }
                                     }
                                     egui::Key::Z => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-
-                                            if !modifiers.shift {
-                                                lsp_handle
-                                                    .send_request_sync(
-                                                        "textDocument/hover".to_string(),
-                                                        Some(LSPClientHandle::hover_request(
-                                                            buffer.file_path.clone().unwrap(),
-                                                            instance.cursor,
-                                                        )),
-                                                    )
-                                                    .unwrap();
-                                            } else {
-                                                lsp_handle
-                                                    .send_request_sync(
-                                                        "textDocument/completion".to_string(),
-                                                        Some(LSPClientHandle::completion_request(
-                                                            buffer.file_path.clone().unwrap(),
-                                                            instance.cursor,
-                                                        )),
-                                                    )
-                                                    .unwrap();
-                                            }
+                                        if !modifiers.shift {
+                                            perform_action(
+                                                Action::LSPHover,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::LSPCompletion,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     egui::Key::Backspace => {
-                                        if matches!(state.mode, Mode::Insert) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.selection.mark = instance.cursor;
-                                            buffer.move_cursor_left(&mut instance.selection.mark);
-
-                                            let (_text, cursor) =
-                                                buffer.remove_text(&instance.selection, lsp_handle);
-                                            instance.cursor = cursor;
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.selection.mark = instance.cursor;
-                                            instance.column_level = instance.cursor.column;
-                                        }
+                                        perform_action(
+                                            Action::DeletePreviousCharacter,
+                                            state,
+                                            preferences,
+                                            lsp_handle,
+                                        );
+                                    }
+                                    egui::Key::Delete => {
+                                        perform_action(
+                                            Action::DeleteNextCharacter,
+                                            state,
+                                            preferences,
+                                            lsp_handle,
+                                        );
+                                    }
+                                    egui::Key::D => {
+                                        perform_action(
+                                            Action::DeleteSelection,
+                                            state,
+                                            preferences,
+                                            lsp_handle,
+                                        );
                                     }
                                     egui::Key::Enter => {
-                                        if matches!(state.mode, Mode::Insert) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            instance.cursor = instance.selection.cursor;
-                                            let indent_size =
-                                                buffer.get_indentation_level(instance.cursor.row);
-                                            let cursor = buffer.insert_text(
-                                                "\n",
-                                                &instance.cursor,
-                                                lsp_handle,
-                                            );
-                                            instance.cursor = cursor;
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.selection.mark = instance.cursor;
-                                            instance.selection = buffer.add_indentation(
-                                                &instance.selection,
-                                                indent_size,
-                                                lsp_handle,
-                                            );
-                                            instance.cursor = instance.selection.cursor;
-                                            instance.column_level = instance.cursor.column;
-                                        }
+                                        perform_action(
+                                            Action::InsertNewLineAtCursor,
+                                            state,
+                                            preferences,
+                                            lsp_handle,
+                                        );
                                     }
                                     egui::Key::Tab => {
-                                        if matches!(state.mode, Mode::Insert) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            let cursor = buffer.insert_text(
-                                                &" ".repeat(preferences.tab_width),
-                                                &instance.cursor,
-                                                lsp_handle,
-                                            );
-                                            instance.cursor = cursor;
-                                            instance.selection.cursor = instance.cursor;
-                                            instance.selection.mark = instance.cursor;
-                                            instance.column_level = instance.cursor.column;
-                                        }
+                                        perform_action(
+                                            Action::AddTab,
+                                            state,
+                                            preferences,
+                                            lsp_handle,
+                                        );
                                     }
                                     egui::Key::U => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            let (buffer, instance) = state
-                                                .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            if !modifiers.shift {
-                                                if let Some(cursor) = buffer.undo() {
-                                                    instance.cursor = cursor;
-                                                    instance.selection.cursor = instance.cursor;
-                                                    instance.selection.mark = instance.cursor;
-                                                    instance.column_level = instance.cursor.column;
-                                                }
-                                            } else if let Some(cursor) = buffer.redo() {
-                                                instance.cursor = cursor;
-                                                instance.selection.cursor = instance.cursor;
-                                                instance.selection.mark = instance.cursor;
-                                                instance.column_level = instance.cursor.column;
-                                            }
+                                        if !modifiers.shift {
+                                            perform_action(
+                                                Action::Undo,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::Redo,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
                                         }
                                     }
                                     _ => {}
