@@ -168,14 +168,26 @@ impl CommandDispatcher {
                                         if matches!(state.mode, Mode::Normal) {
                                             let (buffer, _instance) = state
                                                 .get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                                            buffer.modified = false;
-                                            file_io::override_file_content(
-                                                &buffer.file_path.clone().unwrap(),
-                                                buffer.get_content(
-                                                    preferences.line_ending.to_string(),
-                                                ),
-                                            )
-                                            .unwrap();
+                                            if modifiers.shift {
+                                                buffer.modified = false;
+                                                file_io::override_file_content(
+                                                    &buffer.file_path.clone().unwrap(),
+                                                    buffer.get_content(
+                                                        preferences.line_ending.to_string(),
+                                                    ),
+                                                )
+                                                .unwrap();
+                                            } else {
+                                                lsp_handle
+                                                    .send_request_sync(
+                                                        "textDocument/formatting".to_string(),
+                                                        Some(LSPClientHandle::formatting_request(
+                                                            buffer.file_path.clone().unwrap(),
+                                                            preferences.tab_width,
+                                                        )),
+                                                    )
+                                                    .unwrap();
+                                            }
                                         }
                                     }
                                     egui::Key::ArrowDown => {

@@ -404,4 +404,19 @@ impl LSPClientHandle {
             },
         })
     }
+
+    /// Formatting Request
+    /// method: 'textDocument/formatting'
+    pub fn formatting_request(document_path: String, tab_size: usize) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+            },
+            "options": {
+                "tabSize": tab_size,
+                "insertSpaces": true,
+                "trimTrailingWhitespace": true,
+            },
+        })
+    }
 }

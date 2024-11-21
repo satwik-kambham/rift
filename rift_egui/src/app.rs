@@ -328,6 +328,96 @@ impl App {
                                     response.id,
                                     response.error.unwrap()
                                 );
+                            } else if self.lsp_handle.id_method[&response.id]
+                                == "textDocument/hover"
+                                && response.result.is_some()
+                            {
+                                let message = response.result.unwrap()["contents"]["value"]
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string();
+                                self.info_modal.info = message;
+                                self.info_modal.active = true;
+                                self.editor_focused = false;
+                            } else if self.lsp_handle.id_method[&response.id]
+                                == "textDocument/completion"
+                                && response.result.is_some()
+                            {
+                                let items = response.result.unwrap()["items"]
+                                    .as_array()
+                                    .unwrap()
+                                    .clone();
+                                let mut completion_items = vec![];
+                                for item in items {
+                                    completion_items.push(types::CompletionItem {
+                                        label: item["label"].as_str().unwrap().to_owned(),
+                                        edit: types::TextEdit {
+                                            text: item["textEdit"]["newText"]
+                                                .as_str()
+                                                .unwrap()
+                                                .to_owned(),
+                                            range: Selection {
+                                                cursor: Cursor {
+                                                    row: item["textEdit"]["range"]["end"]["line"]
+                                                        .as_u64()
+                                                        .unwrap()
+                                                        as usize,
+                                                    column: item["textEdit"]["range"]["end"]
+                                                        ["character"]
+                                                        .as_u64()
+                                                        .unwrap()
+                                                        as usize,
+                                                },
+                                                mark: Cursor {
+                                                    row: item["textEdit"]["range"]["start"]["line"]
+                                                        .as_u64()
+                                                        .unwrap()
+                                                        as usize,
+                                                    column: item["textEdit"]["range"]["start"]
+                                                        ["character"]
+                                                        .as_u64()
+                                                        .unwrap()
+                                                        as usize,
+                                                },
+                                            },
+                                        },
+                                    });
+                                }
+                                self.completion_menu.set_items(completion_items);
+                                self.completion_menu.active = true;
+                                self.editor_focused = false;
+                            } else if self.lsp_handle.id_method[&response.id]
+                                == "textDocument/formatting"
+                                && response.result.is_some()
+                            {
+                                let mut text_edits = vec![];
+                                let edits = response.result.unwrap().as_array().unwrap().clone();
+                                for edit in edits {
+                                    let text_edit = types::TextEdit {
+                                        text: edit["newText"].as_str().unwrap().to_owned(),
+                                        range: Selection {
+                                            cursor: Cursor {
+                                                row: edit["range"]["end"]["line"].as_u64().unwrap()
+                                                    as usize,
+                                                column: edit["range"]["end"]["character"]
+                                                    .as_u64()
+                                                    .unwrap()
+                                                    as usize,
+                                            },
+                                            mark: Cursor {
+                                                row: edit["range"]["start"]["line"]
+                                                    .as_u64()
+                                                    .unwrap()
+                                                    as usize,
+                                                column: edit["range"]["start"]["character"]
+                                                    .as_u64()
+                                                    .unwrap()
+                                                    as usize,
+                                            },
+                                        },
+                                    };
+                                    text_edits.push(text_edit);
+                                }
                             } else {
                                 let message = format!(
                                     "---Response to: {}({})\n\n{:#?}---\n",
@@ -336,66 +426,6 @@ impl App {
                                     response.result
                                 );
                                 println!("{:#?}", message);
-                                if self.lsp_handle.id_method[&response.id] == "textDocument/hover"
-                                    && response.result.is_some()
-                                {
-                                    let message = response.result.unwrap()["contents"]["value"]
-                                        .as_str()
-                                        .unwrap()
-                                        .to_string();
-                                    self.info_modal.info = message;
-                                    self.info_modal.active = true;
-                                    self.editor_focused = false;
-                                } else if self.lsp_handle.id_method[&response.id]
-                                    == "textDocument/completion"
-                                    && response.result.is_some()
-                                {
-                                    let items = response.result.unwrap()["items"]
-                                        .as_array()
-                                        .unwrap()
-                                        .clone();
-                                    let mut completion_items = vec![];
-                                    for item in items {
-                                        completion_items.push(types::CompletionItem {
-                                            label: item["label"].as_str().unwrap().to_owned(),
-                                            edit: types::TextEdit {
-                                                text: item["textEdit"]["newText"]
-                                                    .as_str()
-                                                    .unwrap()
-                                                    .to_owned(),
-                                                range: Selection {
-                                                    cursor: Cursor {
-                                                        row: item["textEdit"]["range"]["end"]
-                                                            ["line"]
-                                                            .as_u64()
-                                                            .unwrap()
-                                                            as usize,
-                                                        column: item["textEdit"]["range"]["end"]
-                                                            ["character"]
-                                                            .as_u64()
-                                                            .unwrap()
-                                                            as usize,
-                                                    },
-                                                    mark: Cursor {
-                                                        row: item["textEdit"]["range"]["start"]
-                                                            ["line"]
-                                                            .as_u64()
-                                                            .unwrap()
-                                                            as usize,
-                                                        column: item["textEdit"]["range"]["start"]
-                                                            ["character"]
-                                                            .as_u64()
-                                                            .unwrap()
-                                                            as usize,
-                                                    },
-                                                },
-                                            },
-                                        });
-                                    }
-                                    self.completion_menu.set_items(completion_items);
-                                    self.completion_menu.active = true;
-                                    self.editor_focused = false;
-                                }
                             }
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
