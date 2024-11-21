@@ -1,5 +1,9 @@
 use egui::RichText;
-use rift_core::{lsp::types, preferences::Color};
+use rift_core::{
+    lsp::{client::LSPClientHandle, types},
+    preferences::{Color, Preferences},
+    state::EditorState,
+};
 
 pub struct CompletionMenu {
     pub items: Vec<types::CompletionItem>,
@@ -28,7 +32,13 @@ impl CompletionMenu {
         self.start = 0;
     }
 
-    pub fn show(&mut self, ctx: &egui::Context) -> bool {
+    pub fn show(
+        &mut self,
+        ctx: &egui::Context,
+        state: &mut EditorState,
+        preferences: &mut Preferences,
+        lsp_handle: &mut LSPClientHandle,
+    ) -> bool {
         if self.active {
             egui::Window::new("completion_menu")
                 .movable(false)
@@ -55,14 +65,20 @@ impl CompletionMenu {
                             ui.label(item.label.clone());
                         }
                     }
-                    self.handle_input(ui);
+                    self.handle_input(ui, state, preferences, lsp_handle);
                 });
             return false;
         }
         true
     }
 
-    pub fn handle_input(&mut self, ui: &mut egui::Ui) {
+    pub fn handle_input(
+        &mut self,
+        ui: &mut egui::Ui,
+        state: &mut EditorState,
+        preferences: &mut Preferences,
+        lsp_handle: &mut LSPClientHandle,
+    ) {
         ui.input(|i| {
             for event in &i.raw.events {
                 if let egui::Event::Key {
@@ -87,6 +103,23 @@ impl CompletionMenu {
                             if self.idx >= self.start + self.max_items {
                                 self.start = self.idx;
                             }
+                        }
+                        egui::Key::Enter => {
+                            let (buffer, instance) =
+                                state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                            println!("{:#?}", self.items[self.idx]);
+                            let _ =
+                                buffer.remove_text(&self.items[self.idx].edit.range, lsp_handle);
+                            let cursor = buffer.insert_text(
+                                &self.items[self.idx].edit.text,
+                                &self.items[self.idx].edit.range.mark,
+                                lsp_handle,
+                            );
+                            instance.cursor = cursor;
+                            instance.selection.cursor = instance.cursor;
+                            instance.selection.mark = instance.cursor;
+                            instance.column_level = instance.cursor.column;
+                            self.active = false;
                         }
                         _ => {}
                     }

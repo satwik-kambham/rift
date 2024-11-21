@@ -484,7 +484,13 @@ impl App {
                 }
             });
         self.editor_focused = self.info_modal.show(ctx);
-        self.editor_focused = self.editor_focused && self.completion_menu.show(ctx);
+        self.editor_focused = self.editor_focused
+            && self.completion_menu.show(
+                ctx,
+                &mut self.state,
+                &mut self.preferences,
+                &mut self.lsp_handle,
+            );
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,

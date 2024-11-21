@@ -341,7 +341,7 @@ impl LSPClientHandle {
             "textDocument": {
                 "uri": format!("file:///{}", document_path),
                 "languageId": "rust",
-                "version": 0,
+                "version": 1,
                 "text": document_content,
             }
         })
@@ -352,26 +352,26 @@ impl LSPClientHandle {
     pub fn did_change_text_document(
         document_path: String,
         document_version: usize,
-        range: Selection,
+        // range: Selection,
         text: String,
     ) -> Value {
-        let (start, end) = range.in_order();
+        // let (start, end) = range.in_order();
         json!({
             "textDocument": {
                 "uri": format!("file:///{}", document_path),
                 "version": document_version,
             },
             "contentChanges": [{
-                "range": {
-                    "start": {
-                        "line": start.row,
-                        "character": start.column,
-                    },
-                    "end": {
-                        "line": end.row,
-                        "character": end.column,
-                    },
-                },
+                // "range": {
+                //     "start": {
+                //         "line": start.row,
+                //         "character": start.column,
+                //     },
+                //     "end": {
+                //         "line": end.row,
+                //         "character": end.column,
+                //     },
+                // },
                 "text": text,
             }],
         })

@@ -532,12 +532,13 @@ impl LineBuffer {
                 "textDocument/didChange".to_string(),
                 Some(LSPClientHandle::did_change_text_document(
                     self.file_path.clone().unwrap(),
-                    self.change_idx,
-                    Selection {
-                        cursor: *cursor,
-                        mark: *cursor,
-                    },
-                    text.to_string(),
+                    self.change_idx + 1,
+                    // Selection {
+                    //     cursor: *cursor,
+                    //     mark: *cursor,
+                    // },
+                    // text.to_string(),
+                    self.get_content("\n".to_owned()),
                 )),
             )
             .unwrap();
@@ -613,9 +614,10 @@ impl LineBuffer {
                 "textDocument/didChange".to_string(),
                 Some(LSPClientHandle::did_change_text_document(
                     self.file_path.clone().unwrap(),
-                    self.change_idx,
-                    *selection,
-                    "".to_string(),
+                    self.change_idx + 1,
+                    // *selection,
+                    // "".to_string(),
+                    self.get_content("\n".to_owned()),
                 )),
             )
             .unwrap();
