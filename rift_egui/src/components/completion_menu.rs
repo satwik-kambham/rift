@@ -76,7 +76,7 @@ impl CompletionMenu {
         &mut self,
         ui: &mut egui::Ui,
         state: &mut EditorState,
-        preferences: &mut Preferences,
+        _preferences: &mut Preferences,
         lsp_handle: &mut LSPClientHandle,
     ) {
         ui.input(|i| {
@@ -108,12 +108,16 @@ impl CompletionMenu {
                             let (buffer, instance) =
                                 state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                             println!("{:#?}", self.items[self.idx]);
-                            let _ =
-                                buffer.remove_text(&self.items[self.idx].edit.range, lsp_handle);
+                            let _ = buffer.remove_text(
+                                &self.items[self.idx].edit.range,
+                                lsp_handle,
+                                true,
+                            );
                             let cursor = buffer.insert_text(
                                 &self.items[self.idx].edit.text,
                                 &self.items[self.idx].edit.range.mark,
                                 lsp_handle,
+                                true,
                             );
                             instance.cursor = cursor;
                             instance.selection.cursor = instance.cursor;

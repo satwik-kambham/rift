@@ -65,7 +65,7 @@ pub fn perform_action(
         Action::InsertTextAtCursor(text) => {
             if matches!(state.mode, Mode::Insert) {
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                let cursor = buffer.insert_text(&text, &instance.cursor, lsp_handle);
+                let cursor = buffer.insert_text(&text, &instance.cursor, lsp_handle, true);
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -73,7 +73,7 @@ pub fn perform_action(
         }
         Action::InsertText(text, cursor) => {
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            let _cursor = buffer.insert_text(&text, &cursor, lsp_handle);
+            let _cursor = buffer.insert_text(&text, &cursor, lsp_handle, true);
             instance.cursor = Cursor { row: 0, column: 0 };
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
@@ -81,7 +81,7 @@ pub fn perform_action(
         }
         Action::DeleteText(selection) => {
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            let (_text, _cursor) = buffer.remove_text(&selection, lsp_handle);
+            let (_text, _cursor) = buffer.remove_text(&selection, lsp_handle, true);
             instance.cursor = Cursor { row: 0, column: 0 };
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
@@ -92,7 +92,7 @@ pub fn perform_action(
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.cursor = instance.selection.cursor;
                 let indent_size = buffer.get_indentation_level(instance.cursor.row);
-                let cursor = buffer.insert_text("\n", &instance.cursor, lsp_handle);
+                let cursor = buffer.insert_text("\n", &instance.cursor, lsp_handle, true);
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -117,7 +117,7 @@ pub fn perform_action(
                 instance.cursor = instance.selection.cursor;
                 let indent_size = buffer.get_indentation_level(instance.cursor.row);
                 buffer.move_cursor_line_end(&mut instance.cursor);
-                let cursor = buffer.insert_text("\n", &instance.cursor, lsp_handle);
+                let cursor = buffer.insert_text("\n", &instance.cursor, lsp_handle, true);
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -368,7 +368,7 @@ pub fn perform_action(
                 instance.selection.mark = instance.cursor;
                 buffer.move_cursor_left(&mut instance.selection.mark);
 
-                let (_text, cursor) = buffer.remove_text(&instance.selection, lsp_handle);
+                let (_text, cursor) = buffer.remove_text(&instance.selection, lsp_handle, true);
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -382,7 +382,7 @@ pub fn perform_action(
                 instance.selection.mark = instance.cursor;
                 buffer.move_cursor_right(&mut instance.selection.cursor);
 
-                let (_text, cursor) = buffer.remove_text(&instance.selection, lsp_handle);
+                let (_text, cursor) = buffer.remove_text(&instance.selection, lsp_handle, true);
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -392,7 +392,7 @@ pub fn perform_action(
         Action::DeleteSelection => {
             if matches!(state.mode, Mode::Normal) {
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                let (_text, cursor) = buffer.remove_text(&instance.selection, lsp_handle);
+                let (_text, cursor) = buffer.remove_text(&instance.selection, lsp_handle, true);
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -402,7 +402,7 @@ pub fn perform_action(
         Action::Undo => {
             if matches!(state.mode, Mode::Normal) {
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                if let Some(cursor) = buffer.undo() {
+                if let Some(cursor) = buffer.undo(lsp_handle) {
                     instance.cursor = cursor;
                     instance.selection.cursor = instance.cursor;
                     instance.selection.mark = instance.cursor;
@@ -413,7 +413,7 @@ pub fn perform_action(
         Action::Redo => {
             if matches!(state.mode, Mode::Normal) {
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                if let Some(cursor) = buffer.redo() {
+                if let Some(cursor) = buffer.redo(lsp_handle) {
                     instance.cursor = cursor;
                     instance.selection.cursor = instance.cursor;
                     instance.selection.mark = instance.cursor;
@@ -428,6 +428,7 @@ pub fn perform_action(
                     &" ".repeat(preferences.tab_width),
                     &instance.cursor,
                     lsp_handle,
+                    true,
                 );
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;

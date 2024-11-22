@@ -11,7 +11,7 @@ use tokio::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::buffer::instance::{Cursor, Selection};
+use crate::buffer::instance::Cursor;
 
 use super::types;
 
@@ -84,9 +84,7 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
     tokio::spawn(async move {
         let mut writer = BufWriter::new(stdin);
         while let Some(message_content) = outgoing_rx.recv().await {
-            let mut body = String::default();
-
-            match message_content {
+            let body = match message_content {
                 OutgoingMessage::Request(request) => {
                     let request_body = types::RequestMessage {
                         jsonrpc: "2.0".to_string(),
@@ -94,7 +92,7 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
                         method: request.method,
                         params: request.params,
                     };
-                    body = serde_json::to_string(&request_body).unwrap();
+                    serde_json::to_string(&request_body).unwrap()
                 }
                 OutgoingMessage::Notification(notification) => {
                     let notification_body = types::NotificationMessage {
@@ -102,7 +100,7 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
                         method: notification.method,
                         params: notification.params,
                     };
-                    body = serde_json::to_string(&notification_body).unwrap();
+                    serde_json::to_string(&notification_body).unwrap()
                 }
                 OutgoingMessage::Response(response) => {
                     let notification_body = types::ResponseMessage {
@@ -111,9 +109,9 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
                         result: response.result,
                         error: response.error,
                     };
-                    body = serde_json::to_string(&notification_body).unwrap();
+                    serde_json::to_string(&notification_body).unwrap()
                 }
-            }
+            };
 
             let header = format!("Content-Length: {}\r\n\r\n", body.len());
             let message = format!("{}{}", header, body);

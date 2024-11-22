@@ -20,6 +20,7 @@ pub struct LineBuffer {
     pub modified: bool,
     pub changes: VecDeque<Edit>,
     pub change_idx: usize,
+    pub version: usize,
 }
 
 pub type HighlightedText = Vec<Vec<(String, HighlightType, bool)>>;
@@ -90,6 +91,7 @@ impl LineBuffer {
             modified: false,
             changes: VecDeque::new(),
             change_idx: 0,
+            version: 1,
         }
     }
 
@@ -516,23 +518,27 @@ impl LineBuffer {
         text: &str,
         cursor: &Cursor,
         lsp_handle: &LSPClientHandle,
+        log: bool,
     ) -> Cursor {
         let updated_cursor = self.insert_text_no_log(text, cursor);
 
-        self.changes.truncate(self.change_idx);
-        self.changes.push_back(Edit::Insert {
-            start: *cursor,
-            end: updated_cursor,
-            text: text.to_owned(),
-        });
-        self.change_idx = self.changes.len();
+        if log {
+            self.changes.truncate(self.change_idx);
+            self.changes.push_back(Edit::Insert {
+                start: *cursor,
+                end: updated_cursor,
+                text: text.to_owned(),
+            });
+            self.change_idx = self.changes.len();
+        }
+        self.version += 1;
 
         lsp_handle
             .send_notification_sync(
                 "textDocument/didChange".to_string(),
                 Some(LSPClientHandle::did_change_text_document(
                     self.file_path.clone().unwrap(),
-                    self.change_idx + 1,
+                    self.version,
                     // Selection {
                     //     cursor: *cursor,
                     //     mark: *cursor,
@@ -597,24 +603,28 @@ impl LineBuffer {
         &mut self,
         selection: &Selection,
         lsp_handle: &LSPClientHandle,
+        log: bool,
     ) -> (String, Cursor) {
         let (text, cursor) = self.remove_text_no_log(selection);
 
         let (start, end) = selection.in_order();
-        self.changes.truncate(self.change_idx);
-        self.changes.push_back(Edit::Delete {
-            start: *start,
-            end: *end,
-            text: text.to_owned(),
-        });
-        self.change_idx = self.changes.len();
+        if log {
+            self.changes.truncate(self.change_idx);
+            self.changes.push_back(Edit::Delete {
+                start: *start,
+                end: *end,
+                text: text.to_owned(),
+            });
+            self.change_idx = self.changes.len();
+        }
+        self.version += 1;
 
         lsp_handle
             .send_notification_sync(
                 "textDocument/didChange".to_string(),
                 Some(LSPClientHandle::did_change_text_document(
                     self.file_path.clone().unwrap(),
-                    self.change_idx + 1,
+                    self.version,
                     // *selection,
                     // "".to_string(),
                     self.get_content("\n".to_owned()),
@@ -626,7 +636,8 @@ impl LineBuffer {
     }
 
     /// Undo
-    pub fn undo(&mut self) -> Option<Cursor> {
+    pub fn undo(&mut self, lsp_handle: &LSPClientHandle) -> Option<Cursor> {
+        self.version += 1;
         if self.change_idx > 0 {
             self.change_idx -= 1;
             let edit = self.changes.get(self.change_idx).unwrap();
@@ -636,10 +647,14 @@ impl LineBuffer {
                     end,
                     text: _,
                 } => {
-                    let (_text, cursor) = self.remove_text_no_log(&Selection {
-                        cursor: *start,
-                        mark: *end,
-                    });
+                    let (_text, cursor) = self.remove_text(
+                        &Selection {
+                            cursor: *start,
+                            mark: *end,
+                        },
+                        lsp_handle,
+                        false,
+                    );
                     return Some(cursor);
                 }
                 Edit::Delete {
@@ -647,7 +662,7 @@ impl LineBuffer {
                     end: _,
                     text,
                 } => {
-                    let cursor = self.insert_text_no_log(&text.clone(), &start.clone());
+                    let cursor = self.insert_text(&text.clone(), &start.clone(), lsp_handle, false);
                     return Some(cursor);
                 }
             }
@@ -656,7 +671,8 @@ impl LineBuffer {
     }
 
     /// Redo
-    pub fn redo(&mut self) -> Option<Cursor> {
+    pub fn redo(&mut self, lsp_handle: &LSPClientHandle) -> Option<Cursor> {
+        self.version += 1;
         if self.change_idx < self.changes.len() {
             self.change_idx += 1;
             let edit = self.changes.get(self.change_idx - 1).unwrap();
@@ -666,7 +682,7 @@ impl LineBuffer {
                     end: _,
                     text,
                 } => {
-                    let cursor = self.insert_text_no_log(&text.clone(), &start.clone());
+                    let cursor = self.insert_text(&text.clone(), &start.clone(), lsp_handle, false);
                     return Some(cursor);
                 }
                 Edit::Delete {
@@ -674,10 +690,14 @@ impl LineBuffer {
                     end,
                     text: _,
                 } => {
-                    let (_text, cursor) = self.remove_text_no_log(&Selection {
-                        cursor: *start,
-                        mark: *end,
-                    });
+                    let (_text, cursor) = self.remove_text(
+                        &Selection {
+                            cursor: *start,
+                            mark: *end,
+                        },
+                        lsp_handle,
+                        false,
+                    );
                     return Some(cursor);
                 }
             }
@@ -706,7 +726,7 @@ impl LineBuffer {
         updated_selection.cursor.column += tab_size;
         let (start, end) = selection.in_order();
         for i in start.row..=end.row {
-            self.insert_text(&tab, &Cursor { row: i, column: 0 }, lsp_handle);
+            self.insert_text(&tab, &Cursor { row: i, column: 0 }, lsp_handle, true);
         }
         updated_selection
     }
@@ -736,13 +756,14 @@ impl LineBuffer {
                         },
                     },
                     lsp_handle,
+                    true,
                 );
 
                 if i == start.row {
-                    start_new.column -= tab_size;
+                    start_new.column = start_new.column.saturating_sub(tab_size);
                 }
                 if i == end.row {
-                    end_new.column -= tab_size;
+                    end_new.column = end_new.column.saturating_sub(tab_size);
                 }
             }
         }
