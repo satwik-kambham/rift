@@ -16,7 +16,10 @@ use rift_core::{
 
 use crate::{
     command_dispatcher::CommandDispatcher,
-    components::{completion_menu::CompletionMenu, info_modal::InfoModal},
+    components::{
+        completion_menu::CompletionMenu, diagnostics_overlay::DiagnosticsOverlay,
+        info_modal::InfoModal,
+    },
 };
 
 pub struct App {
@@ -28,6 +31,7 @@ pub struct App {
     rt: tokio::runtime::Runtime,
     info_modal: InfoModal,
     completion_menu: CompletionMenu,
+    diagnostics_overlay: DiagnosticsOverlay,
     editor_focused: bool,
 }
 
@@ -127,6 +131,7 @@ impl App {
             lsp_handle,
             rt,
             info_modal: InfoModal::default(),
+            diagnostics_overlay: DiagnosticsOverlay::default(),
             editor_focused: true,
         }
     }
@@ -440,10 +445,12 @@ impl App {
                             }
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
-                            println!(
+                            let message = format!(
                                 "---Notification: {}\n\n{:#?}---\n",
                                 notification.method, notification.params
                             );
+                            println!("{:#?}", message);
+                            self.diagnostics_overlay.info = message;
                         }
                     }
                 }
@@ -532,6 +539,7 @@ impl App {
                 &mut self.preferences,
                 &mut self.lsp_handle,
             );
+        self.diagnostics_overlay.show(ctx);
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,
