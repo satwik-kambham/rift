@@ -4,4 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ratatui = "0.28.1"
+ratatui = "0.29.0"
+rift_core = { path = "../rift_core" }
+anyhow = "1.0"
+tokio = { version = "1.41.0", features = ["full"] }
