@@ -21,20 +21,22 @@ pub struct App {
     pub preferences: Preferences,
     pub lsp_handle: LSPClientHandle,
     pub modal_list_state: widgets::ListState,
+    pub rt: tokio::runtime::Runtime,
 }
 
 impl App {
-    pub async fn new() -> Self {
-        let lsp_handle = start_lsp().await.unwrap();
+    pub fn new(rt: tokio::runtime::Runtime) -> Self {
+        let lsp_handle = rt.block_on(async { start_lsp().await.unwrap() });
         Self {
             state: EditorState::default(),
             preferences: Preferences::default(),
             lsp_handle,
             modal_list_state: widgets::ListState::default(),
+            rt,
         }
     }
 
-    pub async fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
+    pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
         loop {
             terminal.draw(|frame| {
                 // Layout
@@ -221,14 +223,13 @@ impl App {
                                         self.state.modal_input = "".into();
 
                                         self.lsp_handle
-                                            .send_notification(
+                                            .send_notification_sync(
                                                 "textDocument/didOpen".to_string(),
                                                 Some(LSPClientHandle::did_open_text_document(
                                                     path.clone(),
                                                     initial_text,
                                                 )),
                                             )
-                                            .await
                                             .unwrap();
                                     } else {
                                         self.state.modal_input = entry.path.clone();
@@ -236,8 +237,7 @@ impl App {
                                         if key.modifiers == KeyModifiers::SHIFT {
                                             self.state.workspace_folder = entry.path.clone();
                                             self.lsp_handle
-                                                .init_lsp(self.state.workspace_folder.clone())
-                                                .await;
+                                                .init_lsp_sync(self.state.workspace_folder.clone());
                                         }
 
                                         #[cfg(target_os = "windows")]
