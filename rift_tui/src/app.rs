@@ -276,7 +276,7 @@ impl App {
                                     &mut self.lsp_handle,
                                 );
                             } else {
-                                println!("{:#?}", key.code);
+                                // println!("{:#?}", key.code);
                             }
                         }
                     }
