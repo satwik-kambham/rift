@@ -3,7 +3,7 @@ use std::time::Duration;
 use ratatui::{
     crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
+    style::Style,
     text,
     widgets::{self},
     DefaultTerminal,
@@ -13,9 +13,13 @@ use rift_core::{
     buffer::line_buffer::LineBuffer,
     io::file_io,
     lsp::client::{start_lsp, LSPClientHandle},
-    preferences::Preferences,
+    preferences::{Color, Preferences},
     state::{EditorState, Mode},
 };
+
+pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
+    ratatui::style::Color::Rgb(c.r, c.g, c.b)
+}
 
 pub struct App {
     pub state: EditorState,
@@ -47,7 +51,7 @@ impl App {
                     .split(frame.area());
                 let h_layout = Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([Constraint::Length(5), Constraint::Fill(1)])
+                    .constraints([Constraint::Length(7), Constraint::Fill(1)])
                     .split(v_layout[0]);
 
                 let visible_lines = h_layout[1].height as usize;
@@ -76,8 +80,55 @@ impl App {
                         let mut line_widget = vec![];
                         for token in line {
                             let mut style = Style::new();
+                            match token.1 {
+                                rift_core::buffer::instance::HighlightType::None => {
+                                    style = style
+                                        .fg(color_from_rgb(self.preferences.theme.highlight_none));
+                                }
+                                rift_core::buffer::instance::HighlightType::White => {
+                                    style = style
+                                        .fg(color_from_rgb(self.preferences.theme.highlight_white));
+                                }
+                                rift_core::buffer::instance::HighlightType::Red => {
+                                    style = style
+                                        .fg(color_from_rgb(self.preferences.theme.highlight_red));
+                                }
+                                rift_core::buffer::instance::HighlightType::Orange => {
+                                    style = style.fg(color_from_rgb(
+                                        self.preferences.theme.highlight_orange,
+                                    ));
+                                }
+                                rift_core::buffer::instance::HighlightType::Blue => {
+                                    style = style
+                                        .fg(color_from_rgb(self.preferences.theme.highlight_blue));
+                                }
+                                rift_core::buffer::instance::HighlightType::Green => {
+                                    style = style
+                                        .fg(color_from_rgb(self.preferences.theme.highlight_green));
+                                }
+                                rift_core::buffer::instance::HighlightType::Purple => {
+                                    style = style.fg(color_from_rgb(
+                                        self.preferences.theme.highlight_purple,
+                                    ));
+                                }
+                                rift_core::buffer::instance::HighlightType::Yellow => {
+                                    style = style.fg(color_from_rgb(
+                                        self.preferences.theme.highlight_yellow,
+                                    ));
+                                }
+                                rift_core::buffer::instance::HighlightType::Gray => {
+                                    style = style
+                                        .fg(color_from_rgb(self.preferences.theme.highlight_gray));
+                                }
+                                rift_core::buffer::instance::HighlightType::Turquoise => {
+                                    style = style.fg(color_from_rgb(
+                                        self.preferences.theme.highlight_turquoise,
+                                    ));
+                                }
+                            }
                             if token.2 {
-                                style = style.on_dark_gray();
+                                style =
+                                    style.bg(color_from_rgb(self.preferences.theme.selection_bg));
                             }
                             line_widget.push(text::Span::styled(&token.0, style));
                         }
@@ -87,6 +138,35 @@ impl App {
                     frame.render_widget(text::Text::from(lines), h_layout[1]);
 
                     // Render gutter
+                    let mut gutter_lines = vec![];
+                    for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
+                        let gutter_value = if gutter_line.wrapped {
+                            ".  ".to_string()
+                        } else {
+                            format!("{}  ", gutter_line.start.row + 1)
+                        };
+                        if idx == self.state.relative_cursor.row {
+                            gutter_lines.push(
+                                text::Line::styled(
+                                    gutter_value,
+                                    Style::new().fg(color_from_rgb(
+                                        self.preferences.theme.gutter_text_current_line,
+                                    )),
+                                )
+                                .alignment(ratatui::layout::Alignment::Right),
+                            );
+                        } else {
+                            gutter_lines.push(
+                                text::Line::styled(
+                                    gutter_value,
+                                    Style::new()
+                                        .fg(color_from_rgb(self.preferences.theme.gutter_text)),
+                                )
+                                .alignment(ratatui::layout::Alignment::Right),
+                            );
+                        }
+                    }
+                    frame.render_widget(text::Text::from(gutter_lines), h_layout[0]);
 
                     // Render status line
                     let status = text::Line::from(vec![
