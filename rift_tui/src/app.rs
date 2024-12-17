@@ -3,7 +3,8 @@ use std::time::Duration;
 use ratatui::{
     crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Constraint, Direction, Layout, Rect},
-    style::Stylize,
+    style::{Style, Stylize},
+    text,
     widgets::{self},
     DefaultTerminal,
 };
@@ -61,64 +62,46 @@ impl App {
                     self.state.update_view = true;
                 }
 
-                // Compute view if updated
-                if self.state.update_view {
-                    self.state.relative_cursor =
-                        self.update_visible_lines(visible_lines, max_characters);
-                    self.state.update_view = false;
-                }
-
-                // Render text
-                for line in &self.state.highlighted_text {
-                    for token in line {
-                        // job.append(
-                        //     &token.0,
-                        //     egui::TextFormat {
-                        //         color: match &token.1 {
-                        //             HighlightType::None => {
-                        //                 self.preferences.theme.highlight_none.into()
-                        //             }
-                        //             HighlightType::White => {
-                        //                 self.preferences.theme.highlight_white.into()
-                        //             }
-                        //             HighlightType::Red => {
-                        //                 self.preferences.theme.highlight_red.into()
-                        //             }
-                        //             HighlightType::Orange => {
-                        //                 self.preferences.theme.highlight_orange.into()
-                        //             }
-                        //             HighlightType::Blue => {
-                        //                 self.preferences.theme.highlight_blue.into()
-                        //             }
-                        //             HighlightType::Green => {
-                        //                 self.preferences.theme.highlight_green.into()
-                        //             }
-                        //             HighlightType::Purple => {
-                        //                 self.preferences.theme.highlight_purple.into()
-                        //             }
-                        //             HighlightType::Yellow => {
-                        //                 self.preferences.theme.highlight_yellow.into()
-                        //             }
-                        //             HighlightType::Gray => {
-                        //                 self.preferences.theme.highlight_gray.into()
-                        //             }
-                        //             HighlightType::Turquoise => {
-                        //                 self.preferences.theme.highlight_turquoise.into()
-                        //             }
-                        //         },
-                        //         background: match &token.2 {
-                        //             true => self.preferences.theme.selection_bg.into(),
-                        //             false => Color32::TRANSPARENT,
-                        //         },
-                        //     },
-                        // )
+                if self.state.buffer_idx.is_some() {
+                    // Compute view if updated
+                    if self.state.update_view {
+                        self.state.relative_cursor =
+                            self.update_visible_lines(visible_lines, max_characters);
+                        self.state.update_view = false;
                     }
-                }
 
-                let greeting = widgets::Paragraph::new(format!("{:#?}", h_layout[1]))
-                    .white()
-                    .on_dark_gray();
-                frame.render_widget(greeting, h_layout[1]);
+                    // Render text
+                    let mut lines = vec![];
+                    for line in &self.state.highlighted_text {
+                        let mut line_widget = vec![];
+                        for token in line {
+                            let mut style = Style::new();
+                            if token.2 {
+                                style = style.on_dark_gray();
+                            }
+                            line_widget.push(text::Span::styled(&token.0, style));
+                        }
+                        lines.push(text::Line::from(line_widget));
+                    }
+
+                    frame.render_widget(text::Text::from(lines), h_layout[1]);
+
+                    // Render gutter
+
+                    // Render status line
+                    let status = text::Line::from(vec![
+                        format!("{:#?}", self.state.mode).into(),
+                        format!(
+                            "{:#?}",
+                            self.state
+                                .get_buffer_by_id(self.state.buffer_idx.unwrap())
+                                .1
+                                .cursor
+                        )
+                        .into(),
+                    ]);
+                    frame.render_widget(status, v_layout[1]);
+                }
 
                 // Render Modal
                 if self.state.modal_open {

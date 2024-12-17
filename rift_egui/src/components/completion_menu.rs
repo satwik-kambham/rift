@@ -107,7 +107,6 @@ impl CompletionMenu {
                         egui::Key::Enter => {
                             let (buffer, instance) =
                                 state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                            println!("{:#?}", self.items[self.idx]);
                             let _ = buffer.remove_text(
                                 &self.items[self.idx].edit.range,
                                 lsp_handle,
