@@ -241,6 +241,7 @@ impl App {
             // Handle keyboard events
             if event::poll(Duration::from_millis(5))? {
                 if let event::Event::Key(key) = event::read()? {
+                    self.state.update_view = true;
                     if key.kind == KeyEventKind::Press {
                         if self.state.modal_open {
                             if let KeyCode::Char(char) = key.code {
@@ -320,7 +321,7 @@ impl App {
                                     } else {
                                         self.state.modal_input = entry.path.clone();
 
-                                        if key.modifiers == KeyModifiers::SHIFT {
+                                        if key.modifiers.contains(KeyModifiers::SHIFT) {
                                             self.state.workspace_folder = entry.path.clone();
                                             self.lsp_handle
                                                 .init_lsp_sync(self.state.workspace_folder.clone());
@@ -369,6 +370,102 @@ impl App {
                                     &mut self.preferences,
                                     &mut self.lsp_handle,
                                 );
+                            } else if key.code == KeyCode::Char('j') {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorDown,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorDown,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
+                            } else if key.code == KeyCode::Char('k') {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorUp,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorUp,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
+                            } else if key.code == KeyCode::Char('h') {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorLeft,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorLeft,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
+                            } else if key.code == KeyCode::Char('l') {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorRight,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorRight,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
+                            } else if key.code == KeyCode::Home {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorLineStart,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorLineStart,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
+                            } else if key.code == KeyCode::End {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorLineEnd,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorLineEnd,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
                             }
                         } else if matches!(self.state.mode, Mode::Insert) {
                             if key.code == KeyCode::Esc {
@@ -378,6 +475,45 @@ impl App {
                                     &mut self.preferences,
                                     &mut self.lsp_handle,
                                 );
+                            } else if let KeyCode::Char(c) = key.code {
+                                perform_action(
+                                    Action::InsertTextAtCursor(c.into()),
+                                    &mut self.state,
+                                    &mut self.preferences,
+                                    &mut self.lsp_handle,
+                                );
+                            } else if key.code == KeyCode::Home {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorLineStart,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorLineStart,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
+                            } else if key.code == KeyCode::End {
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    perform_action(
+                                        Action::ExtendCursorLineEnd,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                } else {
+                                    perform_action(
+                                        Action::MoveCursorLineEnd,
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
                             } else {
                                 // println!("{:#?}", key.code);
                             }
