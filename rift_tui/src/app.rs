@@ -137,6 +137,29 @@ impl App {
 
                     frame.render_widget(text::Text::from(lines), h_layout[1]);
 
+                    // Render cursor
+                    let buf = frame.buffer_mut();
+                    if let Some(cell) = buf.cell_mut((
+                        self.state.relative_cursor.column as u16 + h_layout[1].x,
+                        self.state.relative_cursor.row as u16 + h_layout[1].y,
+                    )) {
+                        if matches!(self.state.mode, Mode::Normal) {
+                            cell.set_fg(color_from_rgb(
+                                self.preferences.theme.cursor_normal_mode_fg,
+                            ));
+                            cell.set_bg(color_from_rgb(
+                                self.preferences.theme.cursor_normal_mode_bg,
+                            ));
+                        } else {
+                            cell.set_fg(color_from_rgb(
+                                self.preferences.theme.cursor_insert_mode_fg,
+                            ));
+                            cell.set_bg(color_from_rgb(
+                                self.preferences.theme.cursor_insert_mode_bg,
+                            ));
+                        }
+                    }
+
                     // Render gutter
                     let mut gutter_lines = vec![];
                     for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
