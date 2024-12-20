@@ -8,3 +8,4 @@ ratatui = "0.29.0"
 rift_core = { path = "../rift_core" }
 anyhow = "1.0"
 tokio = { version = "1.41.0", features = ["full"] }
+clap = { version = "4.5.23", features = ["derive"] }

@@ -17,6 +17,8 @@ use rift_core::{
     state::{EditorState, Mode},
 };
 
+use crate::cli;
+
 pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
     ratatui::style::Color::Rgb(c.r, c.g, c.b)
 }
@@ -30,10 +32,42 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(rt: tokio::runtime::Runtime) -> Self {
-        let lsp_handle = rt.block_on(async { start_lsp().await.unwrap() });
+    pub fn new(rt: tokio::runtime::Runtime, cli_args: cli::CLIArgs) -> Self {
+        let mut lsp_handle = rt.block_on(async { start_lsp().await.unwrap() });
+        let mut state = EditorState::default();
+
+        if let Some(path) = cli_args.path {
+            let mut path = path;
+            if path.is_relative() {
+                path = std::path::absolute(path).unwrap();
+            }
+            if path.is_dir() {
+                state.workspace_folder = path.into_os_string().into_string().unwrap();
+                lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+            } else {
+                state.workspace_folder = path.parent().unwrap().to_str().unwrap().to_string();
+                lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+                let initial_text = file_io::read_file_content(path.to_str().unwrap()).unwrap();
+                let buffer = LineBuffer::new(
+                    initial_text.clone(),
+                    Some(path.to_str().unwrap().to_string()),
+                );
+                state.buffer_idx = Some(state.add_buffer(buffer));
+
+                lsp_handle
+                    .send_notification_sync(
+                        "textDocument/didOpen".to_string(),
+                        Some(LSPClientHandle::did_open_text_document(
+                            path.to_str().unwrap().to_string(),
+                            initial_text,
+                        )),
+                    )
+                    .unwrap();
+            }
+        }
+
         Self {
-            state: EditorState::default(),
+            state,
             preferences: Preferences::default(),
             lsp_handle,
             modal_list_state: widgets::ListState::default(),
