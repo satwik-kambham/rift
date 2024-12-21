@@ -329,11 +329,11 @@ impl App {
                     match message {
                         rift_core::lsp::client::IncomingMessage::Response(response) => {
                             if response.error.is_some() {
-                                // println!(
-                                //     "---Error: Message Id: {}\n\n{:#?}---\n",
-                                //     response.id,
-                                //     response.error.unwrap()
-                                // );
+                                tracing::error!(
+                                    "---Error: Message Id: {}\n\n{:#?}---\n",
+                                    response.id,
+                                    response.error.unwrap()
+                                );
                             } else if self.lsp_handle.id_method[&response.id]
                                 == "textDocument/hover"
                                 && response.result.is_some()
@@ -441,7 +441,7 @@ impl App {
                                     response.id,
                                     response.result
                                 );
-                                // println!("{:#?}", message);
+                                tracing::info!("{}", message);
                             }
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
@@ -449,7 +449,7 @@ impl App {
                                 "---Notification: {}\n\n{:#?}---\n",
                                 notification.method, notification.params
                             );
-                            // println!("{:#?}", message);
+                            tracing::info!("{}", message);
                             self.diagnostics_overlay.info = message;
                         }
                     }

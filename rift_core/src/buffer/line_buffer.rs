@@ -79,7 +79,7 @@ impl LineBuffer {
         let highlight_names: Vec<String> =
             highlight_map.keys().map(|key| key.to_string()).collect();
         language_config.configure(&highlight_names);
-        // println!("Highlight Names: {:#?}", language_config.names());
+        tracing::info!("Highlight Names: {:#?}", language_config.names());
 
         Self {
             file_path,
