@@ -35,6 +35,13 @@ pub struct App {
     pub lsp_handle: LSPClientHandle,
     pub modal_list_state: widgets::ListState,
     pub rt: tokio::runtime::Runtime,
+    pub info_modal_active: bool,
+    pub info_modal_content: String,
+    pub info_modal_scroll: u16,
+    pub completion_menu_active: bool,
+    pub completion_menu_items: Vec<types::CompletionItem>,
+    pub completion_menu_idx: Option<usize>,
+    pub completion_menu_state: widgets::ListState,
 }
 
 impl App {
@@ -78,6 +85,13 @@ impl App {
             lsp_handle,
             modal_list_state: widgets::ListState::default(),
             rt,
+            info_modal_active: false,
+            info_modal_content: "".into(),
+            info_modal_scroll: 0,
+            completion_menu_active: false,
+            completion_menu_items: vec![],
+            completion_menu_idx: None,
+            completion_menu_state: widgets::ListState::default(),
         }
     }
 
@@ -133,9 +147,8 @@ impl App {
                                     .as_str()
                                     .unwrap()
                                     .to_string();
-                                // self.info_modal.info = message;
-                                // self.info_modal.active = true;
-                                // self.editor_focused = false;
+                                self.info_modal_content = message;
+                                self.info_modal_active = true;
                             } else if self.lsp_handle.id_method[&response.id]
                                 == "textDocument/completion"
                                 && response.result.is_some()
@@ -180,9 +193,9 @@ impl App {
                                         },
                                     });
                                 }
-                                // self.completion_menu.set_items(completion_items);
-                                // self.completion_menu.active = true;
-                                // self.editor_focused = false;
+                                self.completion_menu_active = true;
+                                self.completion_menu_items = completion_items;
+                                self.completion_menu_idx = None;
                             } else if self.lsp_handle.id_method[&response.id]
                                 == "textDocument/formatting"
                                 && response.result.is_some()
@@ -434,6 +447,46 @@ impl App {
                         &mut self.modal_list_state,
                     );
                 }
+
+                // Render Completion Items
+                if self.completion_menu_active {
+                    let popup_area = Rect {
+                        x: 4,
+                        y: 2,
+                        width: frame.area().width - 8,
+                        height: frame.area().height - 4,
+                    };
+                    let completion_block = widgets::Block::default().borders(widgets::Borders::ALL);
+                    let completion_list = self
+                        .completion_menu_items
+                        .iter()
+                        .map(|item| item.label.clone())
+                        .collect::<widgets::List>()
+                        .block(completion_block);
+                    frame.render_widget(widgets::Clear, popup_area);
+                    frame.render_stateful_widget(
+                        completion_list,
+                        popup_area,
+                        &mut self.completion_menu_state,
+                    );
+                }
+
+                // Render Info Modal
+                if self.info_modal_active {
+                    let popup_area = Rect {
+                        x: 4,
+                        y: 2,
+                        width: frame.area().width - 8,
+                        height: frame.area().height - 4,
+                    };
+                    let info_modal_block = widgets::Block::default().borders(widgets::Borders::ALL);
+                    let content = widgets::Paragraph::new(&*self.info_modal_content)
+                        .block(info_modal_block)
+                        .wrap(widgets::Wrap { trim: false })
+                        .scroll((self.info_modal_scroll, 0));
+                    frame.render_widget(widgets::Clear, popup_area);
+                    frame.render_widget(content, popup_area);
+                }
             })?;
 
             // Handle keyboard events
@@ -441,7 +494,22 @@ impl App {
                 if let event::Event::Key(key) = event::read()? {
                     self.state.update_view = true;
                     if key.kind == KeyEventKind::Press {
-                        if self.state.modal_open {
+                        if self.info_modal_active {
+                            if key.code == KeyCode::Esc {
+                                self.info_modal_active = false;
+                            } else if key.code == KeyCode::Up {
+                                self.info_modal_scroll = self.info_modal_scroll.saturating_sub(1);
+                            } else if key.code == KeyCode::Down {
+                                self.info_modal_scroll = self.info_modal_scroll.saturating_add(1);
+                            }
+                        } else if self.completion_menu_active {
+                            if key.code == KeyCode::Esc {
+                                self.completion_menu_active = false;
+                            } else if key.code == KeyCode::Tab {
+                            } else if key.code == KeyCode::Enter {
+                                self.completion_menu_active = false;
+                            }
+                        } else if self.state.modal_open {
                             if let KeyCode::Char(char) = key.code {
                                 self.state.modal_input.push(char);
                                 self.state.modal_options_filtered = self
@@ -519,7 +587,7 @@ impl App {
                                     } else {
                                         self.state.modal_input = entry.path.clone();
 
-                                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                        if key.modifiers.contains(KeyModifiers::ALT) {
                                             self.state.workspace_folder = entry.path.clone();
                                             self.lsp_handle
                                                 .init_lsp_sync(self.state.workspace_folder.clone());
@@ -644,6 +712,10 @@ impl App {
                                 self.perform_action(Action::AddIndent);
                             } else if key.code == KeyCode::Char('<') {
                                 self.perform_action(Action::RemoveIndent);
+                            } else if key.code == KeyCode::Char('z') {
+                                self.perform_action(Action::LSPHover);
+                            } else if key.code == KeyCode::Char('Z') {
+                                self.perform_action(Action::LSPCompletion);
                             }
                         } else if matches!(self.state.mode, Mode::Insert) {
                             if key.code == KeyCode::Esc {
