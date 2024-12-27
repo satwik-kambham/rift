@@ -385,8 +385,15 @@ impl App {
                     frame.render_widget(text::Text::from(gutter_lines), h_layout[0]);
 
                     // Render status line
+                    let status_mode_style = Style::default()
+                        .fg(color_from_rgb(self.preferences.theme.status_bar_bg))
+                        .bg(color_from_rgb(if matches!(self.state.mode, Mode::Normal) {
+                            self.preferences.theme.status_bar_normal_mode_fg
+                        } else {
+                            self.preferences.theme.status_bar_insert_mode_fg
+                        }));
                     let status = text::Line::from(vec![
-                        format!(" {:#?} ", self.state.mode).into(),
+                        text::Span::styled(format!(" {:#?} ", self.state.mode), status_mode_style),
                         format!(
                             " {} ",
                             self.state
