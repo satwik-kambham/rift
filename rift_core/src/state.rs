@@ -63,11 +63,19 @@ impl EditorState {
     }
 
     pub fn add_buffer(&mut self, buffer: LineBuffer) -> u32 {
-        self.buffers.insert(self.next_id, buffer);
-        self.instances
-            .insert(self.next_id, BufferInstance::new(self.next_id));
-        self.next_id += 1;
-        self.next_id - 1
+        if let Some((idx, _)) = self
+            .buffers
+            .iter()
+            .find(|(_, buf)| buf.file_path == buffer.file_path)
+        {
+            *idx
+        } else {
+            self.buffers.insert(self.next_id, buffer);
+            self.instances
+                .insert(self.next_id, BufferInstance::new(self.next_id));
+            self.next_id += 1;
+            self.next_id - 1
+        }
     }
 
     pub fn remove_buffer(&mut self, id: u32) {

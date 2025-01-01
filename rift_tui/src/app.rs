@@ -395,13 +395,14 @@ impl App {
                     let status = text::Line::from(vec![
                         text::Span::styled(format!(" {:#?} ", self.state.mode), status_mode_style),
                         format!(
-                            " {} ",
+                            " {}({:?}) ",
                             self.state
                                 .get_buffer_by_id(self.state.buffer_idx.unwrap())
                                 .0
                                 .file_path
                                 .as_ref()
-                                .unwrap()
+                                .unwrap(),
+                            self.state.buffer_idx
                         )
                         .into(),
                         format!(
@@ -719,6 +720,10 @@ impl App {
                                 self.perform_action(Action::AddIndent);
                             } else if key.code == KeyCode::Char('<') {
                                 self.perform_action(Action::RemoveIndent);
+                            } else if key.code == KeyCode::Char(',') {
+                                self.perform_action(Action::CyclePreviousBuffer);
+                            } else if key.code == KeyCode::Char('.') {
+                                self.perform_action(Action::CycleNextBuffer);
                             } else if key.code == KeyCode::Char('z') {
                                 self.perform_action(Action::LSPHover);
                             } else if key.code == KeyCode::Char('Z') {
