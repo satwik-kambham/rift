@@ -1,5 +1,6 @@
 use egui::RichText;
 use rift_core::{
+    actions::{perform_action, Action},
     lsp::{client::LSPClientHandle, types},
     preferences::{Color, Preferences},
     state::EditorState,
@@ -76,7 +77,7 @@ impl CompletionMenu {
         &mut self,
         ui: &mut egui::Ui,
         state: &mut EditorState,
-        _preferences: &mut Preferences,
+        preferences: &mut Preferences,
         lsp_handle: &mut LSPClientHandle,
     ) {
         ui.input(|i| {
@@ -84,47 +85,48 @@ impl CompletionMenu {
                 if let egui::Event::Key {
                     key,
                     physical_key: _,
-                    pressed: _,
+                    pressed,
                     repeat: _,
                     modifiers: _,
                 } = event
                 {
-                    match key {
-                        egui::Key::Escape => {
-                            self.active = false;
-                        }
-                        egui::Key::Tab => {
-                            self.idx += 1;
-                            if self.idx >= self.items.len() {
-                                self.idx = 0;
-                                self.start = 0;
+                    if *pressed {
+                        match key {
+                            egui::Key::Escape => {
+                                self.active = false;
                             }
+                            egui::Key::Tab => {
+                                self.idx += 1;
+                                if self.idx >= self.items.len() {
+                                    self.idx = 0;
+                                    self.start = 0;
+                                }
 
-                            if self.idx >= self.start + self.max_items {
-                                self.start = self.idx;
+                                if self.idx >= self.start + self.max_items {
+                                    self.start = self.idx;
+                                }
                             }
+                            egui::Key::Enter => {
+                                let completion_item = &self.items[self.idx];
+                                perform_action(
+                                    Action::DeleteText(completion_item.edit.range),
+                                    state,
+                                    preferences,
+                                    lsp_handle,
+                                );
+                                perform_action(
+                                    Action::InsertText(
+                                        completion_item.edit.text.clone(),
+                                        completion_item.edit.range.mark,
+                                    ),
+                                    state,
+                                    preferences,
+                                    lsp_handle,
+                                );
+                                self.active = false;
+                            }
+                            _ => {}
                         }
-                        egui::Key::Enter => {
-                            let (buffer, instance) =
-                                state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                            let _ = buffer.remove_text(
-                                &self.items[self.idx].edit.range,
-                                lsp_handle,
-                                true,
-                            );
-                            let cursor = buffer.insert_text(
-                                &self.items[self.idx].edit.text,
-                                &self.items[self.idx].edit.range.mark,
-                                lsp_handle,
-                                true,
-                            );
-                            instance.cursor = cursor;
-                            instance.selection.cursor = instance.cursor;
-                            instance.selection.mark = instance.cursor;
-                            instance.column_level = instance.cursor.column;
-                            self.active = false;
-                        }
-                        _ => {}
                     }
                 }
             }

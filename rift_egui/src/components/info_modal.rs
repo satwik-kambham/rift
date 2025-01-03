@@ -37,16 +37,18 @@ impl InfoModal {
                 if let egui::Event::Key {
                     key,
                     physical_key: _,
-                    pressed: _,
+                    pressed,
                     repeat: _,
                     modifiers: _,
                 } = event
                 {
-                    match key {
-                        egui::Key::Escape => {
-                            self.active = false;
+                    if *pressed {
+                        match key {
+                            egui::Key::Escape => {
+                                self.active = false;
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
             }

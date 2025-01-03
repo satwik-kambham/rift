@@ -445,7 +445,8 @@ impl App {
                         .modal_options_filtered
                         .iter()
                         .map(|entry| entry.name.clone())
-                        .collect::<widgets::List>();
+                        .collect::<widgets::List>()
+                        .highlight_symbol(">>");
                     frame.render_widget(widgets::Clear, popup_area);
                     frame.render_widget(modal_block, popup_area);
                     frame.render_widget(&self.state.modal_input, modal_layout[0]);
@@ -470,7 +471,8 @@ impl App {
                         .iter()
                         .map(|item| item.label.clone())
                         .collect::<widgets::List>()
-                        .block(completion_block);
+                        .block(completion_block)
+                        .highlight_symbol(">>");
                     frame.render_widget(widgets::Clear, popup_area);
                     frame.render_stateful_widget(
                         completion_list,
@@ -513,9 +515,47 @@ impl App {
                         } else if self.completion_menu_active {
                             if key.code == KeyCode::Esc {
                                 self.completion_menu_active = false;
+                                self.completion_menu_items = vec![];
+                                self.completion_menu_idx = None;
+                                self.completion_menu_state.select(None);
                             } else if key.code == KeyCode::Tab {
+                                if !self.completion_menu_items.is_empty() {
+                                    if self.completion_menu_idx.is_none() {
+                                        self.completion_menu_idx = Some(0);
+                                    } else {
+                                        self.completion_menu_idx =
+                                            Some(self.completion_menu_idx.unwrap() + 1);
+                                        if self.completion_menu_idx.unwrap()
+                                            >= self.completion_menu_items.len()
+                                        {
+                                            self.completion_menu_idx = Some(0);
+                                        }
+                                    }
+                                    self.completion_menu_state.select(self.completion_menu_idx);
+                                }
                             } else if key.code == KeyCode::Enter {
+                                if let Some(idx) = self.completion_menu_idx {
+                                    let completion_item = &self.completion_menu_items[idx];
+                                    perform_action(
+                                        Action::DeleteText(completion_item.edit.range),
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                    perform_action(
+                                        Action::InsertText(
+                                            completion_item.edit.text.clone(),
+                                            completion_item.edit.range.mark,
+                                        ),
+                                        &mut self.state,
+                                        &mut self.preferences,
+                                        &mut self.lsp_handle,
+                                    );
+                                }
                                 self.completion_menu_active = false;
+                                self.completion_menu_items = vec![];
+                                self.completion_menu_idx = None;
+                                self.completion_menu_state.select(None);
                             }
                         } else if self.state.modal_open {
                             if let KeyCode::Char(char) = key.code {
@@ -535,9 +575,8 @@ impl App {
                                     } else {
                                         self.state.modal_selection_idx =
                                             Some(self.state.modal_selection_idx.unwrap() + 1);
-                                        self.modal_list_state.select(Some(
-                                            self.state.modal_selection_idx.unwrap() + 1,
-                                        ));
+                                        self.modal_list_state
+                                            .select(Some(self.state.modal_selection_idx.unwrap()));
                                         if self.state.modal_selection_idx.unwrap()
                                             >= self.state.modal_options_filtered.len()
                                         {
@@ -716,6 +755,10 @@ impl App {
                                 self.perform_action(Action::FormatCurrentBuffer);
                             } else if key.code == KeyCode::Char('S') {
                                 self.perform_action(Action::SaveCurrentBuffer);
+                            } else if key.code == KeyCode::Char('u') {
+                                self.perform_action(Action::Undo);
+                            } else if key.code == KeyCode::Char('U') {
+                                self.perform_action(Action::Redo);
                             } else if key.code == KeyCode::Char('>') {
                                 self.perform_action(Action::AddIndent);
                             } else if key.code == KeyCode::Char('<') {
