@@ -33,16 +33,16 @@ pub struct Selection {
 impl Selection {
     pub fn in_order(&self) -> (&Cursor, &Cursor) {
         if self.cursor >= self.mark {
-            return (&self.cursor, &self.mark);
+            return (&self.mark, &self.cursor);
         }
-        (&self.mark, &self.cursor)
+        (&self.cursor, &self.mark)
     }
 
     pub fn in_order_mut(&mut self) -> (&mut Cursor, &mut Cursor) {
         if self.cursor >= self.mark {
-            return (&mut self.cursor, &mut self.mark);
+            return (&mut self.mark, &mut self.cursor);
         }
-        (&mut self.mark, &mut self.cursor)
+        (&mut self.cursor, &mut self.mark)
     }
 }
 
@@ -140,5 +140,37 @@ impl BufferInstance {
     pub fn set_scroll_position(&mut self, row: usize, column: usize) {
         self.scroll.row = row;
         self.scroll.column = column;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::buffer::instance::{Cursor, Selection};
+
+    #[test]
+    fn cursor_eq() {
+        let start = Cursor { row: 1, column: 2 };
+        let end = Cursor { row: 1, column: 2 };
+        assert!(start == end);
+    }
+
+    #[test]
+    fn cursor_order() {
+        let start = Cursor { row: 5, column: 2 };
+        let end = Cursor { row: 1, column: 2 };
+        assert!(start > end);
+    }
+
+    #[test]
+    fn selection_order() {
+        let start = Cursor { row: 5, column: 2 };
+        let end = Cursor { row: 1, column: 2 };
+        let selection = Selection {
+            mark: end,
+            cursor: start,
+        };
+        let (start_ord, end_ord) = selection.in_order();
+        assert_eq!(end, *start_ord);
+        assert_eq!(start, *end_ord);
     }
 }
