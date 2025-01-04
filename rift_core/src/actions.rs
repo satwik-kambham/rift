@@ -1,5 +1,4 @@
 use copypasta::ClipboardProvider;
-use tracing::info;
 
 use crate::{
     buffer::instance::{Cursor, Selection},
@@ -448,7 +447,6 @@ pub fn perform_action(
         Action::CopyToRegister => {}
         Action::CopyToClipboard => {
             let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-            info!("Copying: {}", buffer.get_selection(&instance.selection));
             state
                 .clipboard_ctx
                 .set_contents(buffer.get_selection(&instance.selection))
@@ -459,7 +457,6 @@ pub fn perform_action(
         Action::PasteFromRegister => {}
         Action::PasteFromClipboard => {
             let content = state.clipboard_ctx.get_contents().unwrap();
-            info!("Pasting: {}", &content);
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
             instance.cursor = cursor;
