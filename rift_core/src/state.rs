@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use copypasta::ClipboardContext;
+
 use crate::{
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo},
@@ -33,6 +35,7 @@ pub struct EditorState {
     pub modal_options_filtered: Vec<FolderEntry>,
     pub modal_selection_idx: Option<usize>,
     pub modal_input: String,
+    pub clipboard_ctx: ClipboardContext,
 }
 
 impl EditorState {
@@ -59,6 +62,7 @@ impl EditorState {
             modal_input: "".to_string(),
             relative_cursor: Cursor { row: 0, column: 0 },
             update_view: true,
+            clipboard_ctx: ClipboardContext::new().unwrap(),
         }
     }
 

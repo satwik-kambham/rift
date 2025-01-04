@@ -771,6 +771,14 @@ impl App {
                                 self.perform_action(Action::LSPHover);
                             } else if key.code == KeyCode::Char('Z') {
                                 self.perform_action(Action::LSPCompletion);
+                            } else if key.code == KeyCode::Char('y') {
+                                self.perform_action(Action::CopyToRegister);
+                            } else if key.code == KeyCode::Char('Y') {
+                                self.perform_action(Action::CopyToClipboard);
+                            } else if key.code == KeyCode::Char('p') {
+                                self.perform_action(Action::PasteFromRegister);
+                            } else if key.code == KeyCode::Char('P') {
+                                self.perform_action(Action::PasteFromClipboard);
                             }
                         } else if matches!(self.state.mode, Mode::Insert) {
                             if key.code == KeyCode::Esc {

@@ -299,6 +299,40 @@ impl CommandDispatcher {
                                             );
                                         }
                                     }
+                                    egui::Key::Y => {
+                                        if !modifiers.shift {
+                                            perform_action(
+                                                Action::CopyToRegister,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::CopyToClipboard,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        }
+                                    }
+                                    egui::Key::P => {
+                                        if !modifiers.shift {
+                                            perform_action(
+                                                Action::PasteFromRegister,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::PasteFromClipboard,
+                                                state,
+                                                preferences,
+                                                lsp_handle,
+                                            );
+                                        }
+                                    }
                                     egui::Key::Semicolon => {
                                         perform_action(
                                             Action::Unselect,

@@ -1,3 +1,6 @@
+use copypasta::ClipboardProvider;
+use tracing::info;
+
 use crate::{
     buffer::instance::{Cursor, Selection},
     io::file_io,
@@ -53,6 +56,12 @@ pub enum Action {
     AddTab,
     Undo,
     Redo,
+    CopyToRegister,
+    CopyToClipboard,
+    CutToRegister,
+    CutToClipboard,
+    PasteFromRegister,
+    PasteFromClipboard,
 }
 
 pub fn perform_action(
@@ -435,6 +444,27 @@ pub fn perform_action(
                 instance.selection.mark = instance.cursor;
                 instance.column_level = instance.cursor.column;
             }
+        }
+        Action::CopyToRegister => {}
+        Action::CopyToClipboard => {
+            let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+            info!("Copying: {}", buffer.get_selection(&instance.selection));
+            state
+                .clipboard_ctx
+                .set_contents(buffer.get_selection(&instance.selection))
+                .unwrap();
+        }
+        Action::CutToRegister => {}
+        Action::CutToClipboard => {}
+        Action::PasteFromRegister => {}
+        Action::PasteFromClipboard => {
+            let content = state.clipboard_ctx.get_contents().unwrap();
+            info!("Pasting: {}", &content);
+            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
+            instance.cursor = cursor;
+            instance.selection.cursor = instance.cursor;
+            instance.selection.mark = instance.cursor;
         }
     }
 }

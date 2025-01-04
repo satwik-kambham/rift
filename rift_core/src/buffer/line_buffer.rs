@@ -101,6 +101,25 @@ impl LineBuffer {
         self.lines.join(&eol_sequence)
     }
 
+    /// Get selection as string
+    pub fn get_selection(&self, selection: &Selection) -> String {
+        let mut content = String::new();
+        let (start, end) = selection.in_order();
+        let mut cursor = *start;
+
+        while &cursor < end {
+            if cursor.row == end.row {
+                content.push_str(&self.lines[cursor.row][cursor.column..end.column]);
+            } else {
+                content.push_str(&self.lines[cursor.row][cursor.column..]);
+            }
+            content.push('\n');
+            cursor.row += 1;
+            cursor.column = 0;
+        }
+        content
+    }
+
     pub fn get_visible_lines(
         &mut self,
         scroll: &mut Cursor,
