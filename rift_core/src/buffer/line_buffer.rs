@@ -1,13 +1,13 @@
 use std::{
     cmp::{max, min},
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
 };
 
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
 use crate::lsp::client::LSPClientHandle;
 
-use super::instance::{Cursor, Edit, GutterInfo, HighlightType, Selection};
+use super::instance::{Cursor, Edit, GutterInfo, HighlightType, Range, Selection};
 
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
@@ -118,6 +118,40 @@ impl LineBuffer {
             cursor.column = 0;
         }
         content
+    }
+
+    pub fn split_ranges(ranges: Vec<Range>) -> Vec<Range> {
+        let mut boundaries = vec![];
+        for range in &ranges {
+            boundaries.push(range.start);
+            boundaries.push(range.end + 1);
+        }
+
+        boundaries.sort();
+        boundaries.dedup();
+
+        let mut result = vec![];
+        for window in boundaries.windows(2) {
+            let start = window[0];
+            let end = window[1] - 1;
+
+            let mut active_attributes = HashSet::new();
+            for range in &ranges {
+                if start <= range.end && end >= range.start {
+                    active_attributes.extend(range.attributes.clone());
+                }
+            }
+
+            if !active_attributes.is_empty() {
+                result.push(Range {
+                    start,
+                    end,
+                    attributes: active_attributes,
+                });
+            }
+        }
+
+        result
     }
 
     pub fn get_visible_lines(
