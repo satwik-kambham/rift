@@ -162,20 +162,11 @@ impl LineBuffer {
         max_characters: usize,
         eol_sequence: String,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
-        let mut lines = vec![];
-        let mut gutter_info = vec![];
-        let mut relative_cursor = Cursor {
-            row: 0,
-            column: selection.cursor.column,
-        };
+        // Calculate range of lines which need to be rendered
+        // before taking line wrap into account
         let mut range_start = scroll.row;
         let mut range_end = range_start + visible_lines + 3;
-        let mut start = 0;
-        let mut cursor_idx: usize = 0;
-        let mut start_byte = 0;
-        let mut highlight_type = HighlightType::None;
 
-        // Calculate range
         if &selection.cursor < scroll {
             range_start = selection.cursor.row.saturating_sub(3);
             range_end = range_start + visible_lines;
@@ -185,11 +176,14 @@ impl LineBuffer {
         }
 
         // Calculate start byte
+        let mut start_byte = 0;
         for line in self.lines.get(..range_start).unwrap() {
             start_byte += line.len() + eol_sequence.len();
         }
 
         // Calculate gutter info
+        let mut gutter_info = vec![];
+        let mut start = 0;
         for (line_idx, line) in self
             .lines
             .get(range_start..range_end)
@@ -241,6 +235,11 @@ impl LineBuffer {
         }
 
         // Calculate relative cursor position
+        let mut relative_cursor = Cursor {
+            row: 0,
+            column: selection.cursor.column,
+        };
+        let mut cursor_idx: usize = 0;
         for line_info in &gutter_info {
             if selection.cursor.row == line_info.start.row
                 && selection.cursor.column >= line_info.start.column
@@ -253,6 +252,8 @@ impl LineBuffer {
             cursor_idx += 1;
         }
 
+        // Update range of lines that need to be rendered
+        // taking line wrap into account
         if &selection.cursor < scroll {
             range_start = cursor_idx.saturating_sub(3);
             range_end = range_start + visible_lines;
@@ -275,6 +276,7 @@ impl LineBuffer {
         scroll.column = gutter_info[range_start].start.column;
 
         // Highlight
+        let mut highlight_type = HighlightType::None;
         let content = self.get_content("\n".into());
         let highlights = self
             .highlighter
@@ -283,17 +285,10 @@ impl LineBuffer {
 
         start_byte = gutter_info.first().unwrap().start_byte;
         let mut gutter_idx = 0;
+        let mut lines = vec![];
         let mut highlighted_line = vec![];
-        let selection_start = if selection.mark > selection.cursor {
-            selection.cursor
-        } else {
-            selection.mark
-        };
-        let selection_end = if selection.mark > selection.cursor {
-            selection.mark
-        } else {
-            selection.cursor
-        };
+        let (selection_start, selection_end) = selection.in_order();
+
         for event in highlights {
             match event.unwrap() {
                 HighlightEvent::Source { start, end } => {
@@ -313,8 +308,8 @@ impl LineBuffer {
                                     row: gutter_line.start.row,
                                     column: start - start_byte,
                                 },
-                                &selection_start,
-                                &selection_end,
+                                selection_start,
+                                selection_end,
                             );
                             for (segment, selected) in segments {
                                 highlighted_line.push((segment, highlight_type, selected))
@@ -342,8 +337,8 @@ impl LineBuffer {
                                         row: gutter_line.start.row,
                                         column: gutter_line.end,
                                     },
-                                    &selection_start,
-                                    &selection_end,
+                                    selection_start,
+                                    selection_end,
                                 );
                                 for (segment, selected) in segments {
                                     highlighted_line.push((segment, highlight_type, selected))
@@ -370,8 +365,8 @@ impl LineBuffer {
                                         column: gutter_line.start.column + end
                                             - gutter_line.start_byte,
                                     },
-                                    &selection_start,
-                                    &selection_end,
+                                    selection_start,
+                                    selection_end,
                                 );
                                 for (segment, selected) in segments {
                                     highlighted_line.push((segment, highlight_type, selected))
