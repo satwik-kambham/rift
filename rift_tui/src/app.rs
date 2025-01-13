@@ -850,6 +850,7 @@ impl App {
                 .get_buffer_by_id_mut(self.state.buffer_idx.unwrap());
             let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
                 &mut instance.scroll,
+                &instance.cursor,
                 &instance.selection,
                 visible_lines,
                 max_characters,

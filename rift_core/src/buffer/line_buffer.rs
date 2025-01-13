@@ -175,6 +175,7 @@ impl LineBuffer {
     pub fn get_visible_lines(
         &mut self,
         scroll: &mut Cursor,
+        cursor: &Cursor,
         selection: &Selection,
         visible_lines: usize,
         max_characters: usize,
@@ -187,11 +188,11 @@ impl LineBuffer {
         let mut range_start = scroll.row;
         let mut range_end = range_start + visible_lines + 3;
 
-        if &selection.cursor < scroll {
-            range_start = selection.cursor.row.saturating_sub(3);
+        if cursor < scroll {
+            range_start = cursor.row.saturating_sub(3);
             range_end = range_start + visible_lines;
-        } else if selection.cursor.row >= scroll.row + visible_lines {
-            range_end = selection.cursor.row + 3;
+        } else if cursor.row >= scroll.row + visible_lines {
+            range_end = cursor.row + 3;
             range_start = range_end.saturating_sub(visible_lines);
         }
 
@@ -266,14 +267,14 @@ impl LineBuffer {
         // Calculate relative cursor position
         let mut relative_cursor = Cursor {
             row: 0,
-            column: selection.cursor.column,
+            column: cursor.column,
         };
         let mut cursor_idx: usize = 0;
         for line_info in &gutter_info {
-            if selection.cursor.row == line_info.start.row
-                && selection.cursor.column >= line_info.start.column
-                && (selection.cursor.column < line_info.end
-                    || (selection.cursor.column == line_info.end && line_info.wrap_end))
+            if cursor.row == line_info.start.row
+                && cursor.column >= line_info.start.column
+                && (cursor.column < line_info.end
+                    || (cursor.column == line_info.end && line_info.wrap_end))
             {
                 relative_cursor.column -= line_info.start.column;
                 break;
@@ -283,10 +284,10 @@ impl LineBuffer {
 
         // Update range of lines that need to be rendered
         // taking line wrap into account
-        if &selection.cursor < scroll {
+        if cursor < scroll {
             range_start = cursor_idx.saturating_sub(3);
             range_end = range_start + visible_lines;
-        } else if selection.cursor.row >= scroll.row + visible_lines {
+        } else if cursor.row >= scroll.row + visible_lines {
             range_end = cursor_idx + 3;
             range_start = range_end.saturating_sub(visible_lines);
         } else {
@@ -315,9 +316,9 @@ impl LineBuffer {
         }
 
         segments.push(Range {
-            start: self.byte_index_from_cursor(selection_start),
-            end: self.byte_index_from_cursor(selection_end),
-            attributes: HashSet::from([Attribute::Select]),
+            start: self.byte_index_from_cursor(cursor),
+            end: self.byte_index_from_cursor(cursor),
+            attributes: HashSet::from([Attribute::Cursor]),
         });
 
         // Highlight
@@ -329,9 +330,7 @@ impl LineBuffer {
             .unwrap();
 
         start_byte = gutter_info.first().unwrap().start_byte;
-        let mut gutter_idx = 0;
         let mut lines = vec![];
-        // let mut highlighted_line = vec![];
 
         for event in highlights {
             match event.unwrap() {
@@ -812,12 +811,13 @@ mod tests {
     fn line_buffer_hard_wrap() {
         let mut buf = LineBuffer::new("HelloWorld".into(), None);
         let mut scroll = Cursor { row: 0, column: 0 };
+        let cursor = Cursor { row: 0, column: 0 };
         let selection = Selection {
             mark: Cursor { row: 0, column: 0 },
             cursor: Cursor { row: 0, column: 0 },
         };
         let (_lines, visible_cursor, _gutter_info) =
-            buf.get_visible_lines(&mut scroll, &selection, 10, 5, "\n".into());
+            buf.get_visible_lines(&mut scroll, &cursor, &selection, 10, 5, "\n".into());
         // assert_eq!(vec!["Hello", "World", ""], lines);
         assert_eq!(visible_cursor, Cursor { row: 0, column: 0 });
     }
