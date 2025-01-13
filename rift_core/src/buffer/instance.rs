@@ -75,7 +75,7 @@ pub struct GutterInfo {
 }
 
 /// Types of highlighted tokens
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum HighlightType {
     None,
     White,
@@ -94,13 +94,16 @@ pub enum Attribute {
     None,
     Visible,
     Underline,
+    Highlight(HighlightType),
+    Select,
+    Cursor,
 }
 
 /// Struct representating a position in the buffer
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Range {
-    pub start: u32,
-    pub end: u32,
+    pub start: usize,
+    pub end: usize,
     pub attributes: HashSet<Attribute>,
 }
 
