@@ -23,7 +23,7 @@ pub struct LineBuffer {
     pub version: usize,
 }
 
-pub type HighlightedText = Vec<Vec<(String, HighlightType, bool)>>;
+pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
 
 impl LineBuffer {
     /// Create a line buffer
@@ -154,13 +154,13 @@ impl LineBuffer {
         result
     }
 
-    pub fn byte_index_from_cursor(&self, cursor: &Cursor) -> usize {
+    pub fn byte_index_from_cursor(&self, cursor: &Cursor, eol_sequence: &str) -> usize {
         let mut byte_index = 0;
 
         for (idx, line) in self.lines.iter().enumerate() {
-            match cursor.row.cmp(&idx) {
+            match idx.cmp(&cursor.row) {
                 std::cmp::Ordering::Less => {
-                    byte_index += line.len();
+                    byte_index += line.len() + eol_sequence.len();
                 }
                 std::cmp::Ordering::Equal => {
                     byte_index += cursor.column;
@@ -309,15 +309,15 @@ impl LineBuffer {
         let (selection_start, selection_end) = selection.in_order();
         if selection_start != selection_end {
             segments.push(Range {
-                start: self.byte_index_from_cursor(selection_start),
-                end: self.byte_index_from_cursor(selection_end),
+                start: self.byte_index_from_cursor(selection_start, &eol_sequence),
+                end: self.byte_index_from_cursor(selection_end, &eol_sequence),
                 attributes: HashSet::from([Attribute::Select]),
             });
         }
 
         segments.push(Range {
-            start: self.byte_index_from_cursor(cursor),
-            end: self.byte_index_from_cursor(cursor),
+            start: self.byte_index_from_cursor(cursor, &eol_sequence),
+            end: self.byte_index_from_cursor(cursor, &eol_sequence),
             attributes: HashSet::from([Attribute::Cursor]),
         });
 
@@ -329,17 +329,18 @@ impl LineBuffer {
             .highlight(&self.language_config, content.as_bytes(), None, |_| None)
             .unwrap();
 
-        start_byte = gutter_info.first().unwrap().start_byte;
-        let mut lines = vec![];
-
         for event in highlights {
             match event.unwrap() {
                 HighlightEvent::Source { start, end } => {
-                    segments.push(Range {
-                        start,
-                        end: end.saturating_sub(1),
-                        attributes: HashSet::from([Attribute::Highlight(highlight_type)]),
-                    });
+                    if end >= gutter_info.first().unwrap().start_byte
+                        && start <= gutter_info.last().unwrap().end_byte
+                    {
+                        segments.push(Range {
+                            start,
+                            end: end.saturating_sub(1),
+                            attributes: HashSet::from([Attribute::Highlight(highlight_type)]),
+                        });
+                    }
                 }
                 HighlightEvent::HighlightStart(s) => {
                     highlight_type = self.highlight_map[&self.highlight_names[s.0]];
@@ -350,7 +351,27 @@ impl LineBuffer {
             }
         }
 
-        let split_segments = LineBuffer::split_ranges(segments);
+        // Split and render segments
+        let mut split_segments = LineBuffer::split_ranges(segments);
+        let mut split_segments_iter = split_segments.iter_mut().peekable();
+        let mut lines = vec![];
+        let mut highlighted_line = vec![];
+
+        for line_info in &gutter_info {
+            while let Some(segment) = split_segments_iter.next_if(|s| s.end <= line_info.end_byte) {
+                highlighted_line.push((
+                    self.lines[line_info.start.row][segment.start - line_info.start_byte
+                        ..(segment.end - line_info.start_byte + 1)
+                            .min(line_info.end_byte - line_info.start_byte - 1)]
+                        .to_string(),
+                    segment.attributes.clone(),
+                ));
+                if segment.end == line_info.end_byte {
+                    lines.push(highlighted_line);
+                    highlighted_line = vec![];
+                }
+            }
+        }
 
         (
             lines
@@ -844,5 +865,16 @@ mod tests {
         let mut cursor = Cursor { row: 2, column: 0 };
         buf.move_cursor_right(&mut cursor);
         assert_eq!(cursor, Cursor { row: 2, column: 0 })
+    }
+
+    #[test]
+    fn byte_index_from_cursor() {
+        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
+        let cursor = Cursor { row: 0, column: 0 };
+        assert_eq!(buf.byte_index_from_cursor(&cursor, "\n"), 0);
+        let cursor = Cursor { row: 1, column: 0 };
+        assert_eq!(buf.byte_index_from_cursor(&cursor, "\n"), 6);
+        let cursor = Cursor { row: 1, column: 2 };
+        assert_eq!(buf.byte_index_from_cursor(&cursor, "\n"), 8);
     }
 }

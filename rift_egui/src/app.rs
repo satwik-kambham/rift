@@ -5,7 +5,7 @@ use egui::{
 };
 use rift_core::{
     actions::{perform_action, Action},
-    buffer::instance::{Cursor, HighlightType, Selection},
+    buffer::instance::{Attribute, Cursor, HighlightType, Selection},
     lsp::{
         client::{start_lsp, LSPClientHandle},
         types,
@@ -472,52 +472,56 @@ impl App {
                 for line in &self.state.highlighted_text {
                     let mut job = LayoutJob::default();
                     for token in line {
-                        job.append(
-                            &token.0,
-                            0.0,
-                            egui::TextFormat {
-                                font_id: FontId::monospace(
-                                    self.preferences.editor_font_size as f32,
-                                ),
-                                color: match &token.1 {
-                                    HighlightType::None => {
-                                        self.preferences.theme.highlight_none.into()
-                                    }
-                                    HighlightType::White => {
-                                        self.preferences.theme.highlight_white.into()
-                                    }
-                                    HighlightType::Red => {
-                                        self.preferences.theme.highlight_red.into()
-                                    }
-                                    HighlightType::Orange => {
-                                        self.preferences.theme.highlight_orange.into()
-                                    }
-                                    HighlightType::Blue => {
-                                        self.preferences.theme.highlight_blue.into()
-                                    }
-                                    HighlightType::Green => {
-                                        self.preferences.theme.highlight_green.into()
-                                    }
-                                    HighlightType::Purple => {
-                                        self.preferences.theme.highlight_purple.into()
-                                    }
-                                    HighlightType::Yellow => {
-                                        self.preferences.theme.highlight_yellow.into()
-                                    }
-                                    HighlightType::Gray => {
-                                        self.preferences.theme.highlight_gray.into()
-                                    }
-                                    HighlightType::Turquoise => {
-                                        self.preferences.theme.highlight_turquoise.into()
-                                    }
-                                },
-                                background: match &token.2 {
-                                    true => self.preferences.theme.selection_bg.into(),
-                                    false => Color32::TRANSPARENT,
-                                },
-                                ..Default::default()
-                            },
-                        )
+                        let mut format = egui::TextFormat {
+                            font_id: FontId::monospace(self.preferences.editor_font_size as f32),
+                            ..Default::default()
+                        };
+                        for attribute in &token.1 {
+                            match attribute {
+                                Attribute::None => {}
+                                Attribute::Visible => {}
+                                Attribute::Underline => {}
+                                Attribute::Highlight(highlight_type) => {
+                                    format.color = match highlight_type {
+                                        HighlightType::None => {
+                                            self.preferences.theme.highlight_none.into()
+                                        }
+                                        HighlightType::White => {
+                                            self.preferences.theme.highlight_white.into()
+                                        }
+                                        HighlightType::Red => {
+                                            self.preferences.theme.highlight_red.into()
+                                        }
+                                        HighlightType::Orange => {
+                                            self.preferences.theme.highlight_orange.into()
+                                        }
+                                        HighlightType::Blue => {
+                                            self.preferences.theme.highlight_blue.into()
+                                        }
+                                        HighlightType::Green => {
+                                            self.preferences.theme.highlight_green.into()
+                                        }
+                                        HighlightType::Purple => {
+                                            self.preferences.theme.highlight_purple.into()
+                                        }
+                                        HighlightType::Yellow => {
+                                            self.preferences.theme.highlight_yellow.into()
+                                        }
+                                        HighlightType::Gray => {
+                                            self.preferences.theme.highlight_gray.into()
+                                        }
+                                        HighlightType::Turquoise => {
+                                            self.preferences.theme.highlight_turquoise.into()
+                                        }
+                                    };
+                                }
+                                Attribute::Select => {
+                                    format.background = self.preferences.theme.selection_bg.into();
+                                }
+                                Attribute::Cursor => {}
+                            }
+                        }
+                        job.append(&token.0, 0.0, format);
                     }
                     ui.label(job);
                 }
