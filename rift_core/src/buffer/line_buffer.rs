@@ -79,7 +79,7 @@ impl LineBuffer {
         let highlight_names: Vec<String> =
             highlight_map.keys().map(|key| key.to_string()).collect();
         language_config.configure(&highlight_names);
-        tracing::info!("Highlight Names: {:#?}", language_config.names());
+        // tracing::info!("Highlight Names: {:#?}", language_config.names());
 
         Self {
             file_path,
@@ -358,15 +358,17 @@ impl LineBuffer {
         let mut highlighted_line = vec![];
 
         for line_info in &gutter_info {
-            while let Some(segment) = split_segments_iter.next_if(|s| s.end <= line_info.end_byte) {
+            while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {
                 highlighted_line.push((
                     self.lines[line_info.start.row][segment.start - line_info.start_byte
-                        ..(segment.end - line_info.start_byte + 1)
-                            .min(line_info.end_byte - line_info.start_byte - 1)]
+                        + line_info.start.column
+                        ..(segment.end - line_info.start_byte + 1 + line_info.start.column).min(
+                            line_info.end_byte - line_info.start_byte - 1 + line_info.start.column,
+                        )]
                         .to_string(),
                     segment.attributes.clone(),
                 ));
-                if segment.end == line_info.end_byte {
+                if segment.end == line_info.end_byte - 1 {
                     lines.push(highlighted_line);
                     highlighted_line = vec![];
                 }

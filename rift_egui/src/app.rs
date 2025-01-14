@@ -441,7 +441,7 @@ impl App {
                                     response.id,
                                     response.result
                                 );
-                                tracing::info!("{}", message);
+                                // tracing::info!("{}", message);
                             }
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
@@ -449,7 +449,7 @@ impl App {
                                 "---Notification: {}\n\n{:#?}---\n",
                                 notification.method, notification.params
                             );
-                            tracing::info!("{}", message);
+                            // tracing::info!("{}", message);
                             self.diagnostics_overlay.info = message;
                         }
                     }
