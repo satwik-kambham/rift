@@ -357,6 +357,11 @@ impl LineBuffer {
         let mut lines = vec![];
         let mut highlighted_line = vec![];
 
+        while split_segments_iter
+            .next_if(|s| s.start < gutter_info.first().unwrap().start_byte)
+            .is_some()
+        {}
+
         for line_info in &gutter_info {
             while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {
                 highlighted_line.push((
