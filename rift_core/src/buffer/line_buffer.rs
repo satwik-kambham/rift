@@ -79,7 +79,7 @@ impl LineBuffer {
         let highlight_names: Vec<String> =
             highlight_map.keys().map(|key| key.to_string()).collect();
         language_config.configure(&highlight_names);
-        // tracing::info!("Highlight Names: {:#?}", language_config.names());
+        tracing::info!("Highlight Names: {:#?}", language_config.names());
 
         Self {
             file_path,
@@ -180,8 +180,10 @@ impl LineBuffer {
         visible_lines: usize,
         max_characters: usize,
         eol_sequence: String,
+        mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
         let mut segments = vec![];
+        segments.append(&mut extra_segments);
 
         // Calculate range of lines which need to be rendered
         // before taking line wrap into account
@@ -845,7 +847,7 @@ mod tests {
             cursor: Cursor { row: 0, column: 0 },
         };
         let (_lines, visible_cursor, _gutter_info) =
-            buf.get_visible_lines(&mut scroll, &cursor, &selection, 10, 5, "\n".into());
+            buf.get_visible_lines(&mut scroll, &cursor, &selection, 10, 5, "\n".into(), vec![]);
         // assert_eq!(vec!["Hello", "World", ""], lines);
         assert_eq!(visible_cursor, Cursor { row: 0, column: 0 });
     }

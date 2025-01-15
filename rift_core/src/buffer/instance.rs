@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use crate::lsp::types;
+
 /// Struct representating a position in the buffer
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Cursor {
@@ -97,6 +99,7 @@ pub enum Attribute {
     Highlight(HighlightType),
     Select,
     Cursor,
+    DiagnosticSeverity(types::DiagnosticSeverity),
 }
 
 /// Struct representating a position in the buffer

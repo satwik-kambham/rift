@@ -96,6 +96,10 @@ pub struct Theme {
     pub ui_weak_bg_fill: Color,
     pub ui_bg_stroke: Color,
     pub ui_fg_stroke: Color,
+    pub error: Color,
+    pub warning: Color,
+    pub information: Color,
+    pub hint: Color,
 }
 
 impl Theme {
@@ -133,6 +137,10 @@ impl Theme {
             ui_weak_bg_fill: themes::catppuccin_mocha::SURFACE0,
             ui_bg_stroke: themes::catppuccin_mocha::OVERLAY1,
             ui_fg_stroke: themes::catppuccin_mocha::OVERLAY2,
+            error: themes::catppuccin_mocha::RED,
+            warning: themes::catppuccin_mocha::MAROON,
+            information: themes::catppuccin_mocha::YELLOW,
+            hint: themes::catppuccin_mocha::BLUE,
         }
     }
 
@@ -170,6 +178,10 @@ impl Theme {
             ui_weak_bg_fill: themes::onedark::SYNTAX_BG,
             ui_bg_stroke: themes::onedark::MONO3,
             ui_fg_stroke: themes::onedark::MONO2,
+            error: themes::onedark::RED1,
+            warning: themes::onedark::ORANGE1,
+            information: themes::onedark::CYAN,
+            hint: themes::onedark::BLUE,
         }
     }
 
@@ -207,6 +219,10 @@ impl Theme {
             ui_weak_bg_fill: themes::kanagawa::BLACK1,
             ui_bg_stroke: themes::kanagawa::BLACK1,
             ui_fg_stroke: themes::kanagawa::GRAY2,
+            error: themes::kanagawa::RED,
+            warning: themes::kanagawa::ORANGE1,
+            information: themes::kanagawa::TEAL,
+            hint: themes::kanagawa::BLUE,
         }
     }
 }
