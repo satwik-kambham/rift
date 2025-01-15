@@ -11,7 +11,7 @@ use ratatui::{
 use rift_core::{
     actions::{perform_action, Action},
     buffer::{
-        instance::{Cursor, Selection},
+        instance::{Attribute, Cursor, Selection},
         line_buffer::LineBuffer,
     },
     io::file_io,
@@ -245,7 +245,7 @@ impl App {
                                     response.id,
                                     response.result
                                 );
-                                tracing::info!("{}", message);
+                                // tracing::info!("{}", message);
                             }
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
@@ -253,7 +253,7 @@ impl App {
                                 "---Notification: {}\n\n{:#?}---\n",
                                 notification.method, notification.params
                             );
-                            tracing::info!("{}", message);
+                            // tracing::info!("{}", message);
                             // self.diagnostics_overlay.info = message;
                         }
                     }
@@ -273,55 +273,70 @@ impl App {
                         let mut line_widget = vec![];
                         for token in line {
                             let mut style = Style::new();
-                            match token.1 {
-                                rift_core::buffer::instance::HighlightType::None => {
-                                    style = style
-                                        .fg(color_from_rgb(self.preferences.theme.highlight_none));
+                            for attribute in &token.1 {
+                                match attribute {
+                                    Attribute::None => {}
+                                    Attribute::Visible => {}
+                                    Attribute::Underline => {}
+                                    Attribute::Highlight(highlight_type) => match highlight_type {
+                                        rift_core::buffer::instance::HighlightType::None => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_none,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::White => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_white,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Red => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_red,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Orange => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_orange,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Blue => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_blue,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Green => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_green,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Purple => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_purple,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Yellow => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_yellow,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Gray => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_gray,
+                                            ));
+                                        }
+                                        rift_core::buffer::instance::HighlightType::Turquoise => {
+                                            style = style.fg(color_from_rgb(
+                                                self.preferences.theme.highlight_turquoise,
+                                            ));
+                                        }
+                                    },
+                                    Attribute::Select => {
+                                        style = style.bg(color_from_rgb(
+                                            self.preferences.theme.selection_bg,
+                                        ));
+                                    }
+                                    Attribute::Cursor => {}
                                 }
-                                rift_core::buffer::instance::HighlightType::White => {
-                                    style = style
-                                        .fg(color_from_rgb(self.preferences.theme.highlight_white));
-                                }
-                                rift_core::buffer::instance::HighlightType::Red => {
-                                    style = style
-                                        .fg(color_from_rgb(self.preferences.theme.highlight_red));
-                                }
-                                rift_core::buffer::instance::HighlightType::Orange => {
-                                    style = style.fg(color_from_rgb(
-                                        self.preferences.theme.highlight_orange,
-                                    ));
-                                }
-                                rift_core::buffer::instance::HighlightType::Blue => {
-                                    style = style
-                                        .fg(color_from_rgb(self.preferences.theme.highlight_blue));
-                                }
-                                rift_core::buffer::instance::HighlightType::Green => {
-                                    style = style
-                                        .fg(color_from_rgb(self.preferences.theme.highlight_green));
-                                }
-                                rift_core::buffer::instance::HighlightType::Purple => {
-                                    style = style.fg(color_from_rgb(
-                                        self.preferences.theme.highlight_purple,
-                                    ));
-                                }
-                                rift_core::buffer::instance::HighlightType::Yellow => {
-                                    style = style.fg(color_from_rgb(
-                                        self.preferences.theme.highlight_yellow,
-                                    ));
-                                }
-                                rift_core::buffer::instance::HighlightType::Gray => {
-                                    style = style
-                                        .fg(color_from_rgb(self.preferences.theme.highlight_gray));
-                                }
-                                rift_core::buffer::instance::HighlightType::Turquoise => {
-                                    style = style.fg(color_from_rgb(
-                                        self.preferences.theme.highlight_turquoise,
-                                    ));
-                                }
-                            }
-                            if token.2 {
-                                style =
-                                    style.bg(color_from_rgb(self.preferences.theme.selection_bg));
                             }
                             line_widget.push(text::Span::styled(&token.0, style));
                         }
@@ -850,6 +865,7 @@ impl App {
                 .get_buffer_by_id_mut(self.state.buffer_idx.unwrap());
             let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
                 &mut instance.scroll,
+                &instance.cursor,
                 &instance.selection,
                 visible_lines,
                 max_characters,
