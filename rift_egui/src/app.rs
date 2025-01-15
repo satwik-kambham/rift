@@ -1,11 +1,11 @@
-use std::{fs::File, io::Read};
+use std::{collections::HashSet, fs::File, io::Read};
 
 use egui::{
     text::LayoutJob, Color32, FontData, FontDefinitions, FontId, FontTweak, Label, Rect, RichText,
 };
 use rift_core::{
     actions::{perform_action, Action},
-    buffer::instance::{Attribute, Cursor, HighlightType, Selection},
+    buffer::instance::{Attribute, Cursor, HighlightType, Range, Selection},
     lsp::{
         client::{start_lsp, LSPClientHandle},
         types,
@@ -441,16 +441,93 @@ impl App {
                                     response.id,
                                     response.result
                                 );
-                                // tracing::info!("{}", message);
+                                tracing::info!("{}", message);
                             }
                         }
                         rift_core::lsp::client::IncomingMessage::Notification(notification) => {
-                            let message = format!(
-                                "---Notification: {}\n\n{:#?}---\n",
-                                notification.method, notification.params
-                            );
-                            // tracing::info!("{}", message);
-                            self.diagnostics_overlay.info = message;
+                            if notification.method == "textDocument/publishDiagnostics"
+                                && notification.params.is_some()
+                            {
+                                let mut uri = std::path::absolute(
+                                    notification.params.as_ref().unwrap()["uri"]
+                                        .as_str()
+                                        .unwrap()
+                                        .strip_prefix("file:")
+                                        .unwrap()
+                                        .trim_start_matches("\\")
+                                        .trim_start_matches("/")
+                                        .to_owned(),
+                                )
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_string();
+                                #[cfg(target_os = "windows")]
+                                {
+                                    uri = uri.to_lowercase();
+                                }
+
+                                let mut diagnostics = types::PublishDiagnostics {
+                                    uri,
+                                    version: notification.params.as_ref().unwrap()["version"]
+                                        .as_u64()
+                                        .unwrap_or(0)
+                                        as usize,
+                                    diagnostics: vec![],
+                                };
+
+                                for diagnostic in notification.params.as_ref().unwrap()
+                                    ["diagnostics"]
+                                    .as_array()
+                                    .unwrap()
+                                {
+                                    diagnostics.diagnostics.push(types::Diagnostic {
+                                        range: Selection {
+                                            cursor: Cursor {
+                                                row: diagnostic["range"]["end"]["line"]
+                                                    .as_u64()
+                                                    .unwrap()
+                                                    as usize,
+                                                column: diagnostic["range"]["end"]["character"]
+                                                    .as_u64()
+                                                    .unwrap()
+                                                    as usize,
+                                            },
+                                            mark: Cursor {
+                                                row: diagnostic["range"]["start"]["line"]
+                                                    .as_u64()
+                                                    .unwrap()
+                                                    as usize,
+                                                column: diagnostic["range"]["start"]["character"]
+                                                    .as_u64()
+                                                    .unwrap()
+                                                    as usize,
+                                            },
+                                        },
+                                        severity: match diagnostic["severity"].as_u64().unwrap_or(1)
+                                        {
+                                            1 => types::DiagnosticSeverity::Error,
+                                            2 => types::DiagnosticSeverity::Warning,
+                                            3 => types::DiagnosticSeverity::Information,
+                                            4 => types::DiagnosticSeverity::Hint,
+                                            _ => types::DiagnosticSeverity::Error,
+                                        },
+                                        code: diagnostic["code"].to_string(),
+                                        source: diagnostic["source"].to_string(),
+                                        message: diagnostic["message"].to_string(),
+                                    });
+                                }
+                                self.state
+                                    .diagnostics
+                                    .insert(diagnostics.uri.clone(), diagnostics);
+                            } else {
+                                let message = format!(
+                                    "---Notification: {}\n\n{:#?}---\n",
+                                    notification.method, notification.params
+                                );
+                                tracing::info!("{}", message);
+                                self.diagnostics_overlay.info = message;
+                            }
                         }
                     }
                 }
@@ -519,6 +596,25 @@ impl App {
                                     format.background = self.preferences.theme.selection_bg.into();
                                 }
                                 Attribute::Cursor => {}
+                                Attribute::DiagnosticSeverity(severity) => {
+                                    format.underline = egui::Stroke::new(
+                                        1.0,
+                                        match severity {
+                                            types::DiagnosticSeverity::Error => {
+                                                self.preferences.theme.error
+                                            }
+                                            types::DiagnosticSeverity::Warning => {
+                                                self.preferences.theme.warning
+                                            }
+                                            types::DiagnosticSeverity::Information => {
+                                                self.preferences.theme.information
+                                            }
+                                            types::DiagnosticSeverity::Hint => {
+                                                self.preferences.theme.hint
+                                            }
+                                        },
+                                    );
+                                }
                             }
                         }
                         job.append(&token.0, 0.0, format);
@@ -622,6 +718,29 @@ impl App {
         max_characters: usize,
     ) -> rift_core::buffer::instance::Cursor {
         if self.state.buffer_idx.is_some() {
+            let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+            let mut extra_segments = vec![];
+            let mut path = buffer.file_path.as_ref().unwrap().clone();
+            #[cfg(target_os = "windows")]
+            {
+                path = path.to_lowercase();
+            }
+
+            if let Some(diagnostics) = self.state.diagnostics.get(&path) {
+                if diagnostics.version != 0 && diagnostics.version == buffer.version {
+                    for diagnostic in &diagnostics.diagnostics {
+                        extra_segments.push(Range {
+                            start: buffer
+                                .byte_index_from_cursor(&diagnostic.range.mark, "\n".into()),
+                            end: buffer
+                                .byte_index_from_cursor(&diagnostic.range.cursor, "\n".into()),
+                            attributes: HashSet::from([Attribute::DiagnosticSeverity(
+                                diagnostic.severity.clone(),
+                            )]),
+                        });
+                    }
+                }
+            }
             let (buffer, instance) = self
                 .state
                 .get_buffer_by_id_mut(self.state.buffer_idx.unwrap());
@@ -632,6 +751,7 @@ impl App {
                 visible_lines,
                 max_characters,
                 "\n".into(),
+                extra_segments,
             );
             self.state.highlighted_text = lines;
             self.state.gutter_info = gutter_info;

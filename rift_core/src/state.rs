@@ -8,6 +8,7 @@ use crate::{
         line_buffer::{HighlightedText, LineBuffer},
     },
     io::file_io::FolderEntry,
+    lsp::types,
 };
 
 #[derive(Debug, Default)]
@@ -36,6 +37,7 @@ pub struct EditorState {
     pub modal_selection_idx: Option<usize>,
     pub modal_input: String,
     pub clipboard_ctx: ClipboardContext,
+    pub diagnostics: HashMap<String, types::PublishDiagnostics>,
 }
 
 impl EditorState {
@@ -63,6 +65,7 @@ impl EditorState {
             relative_cursor: Cursor { row: 0, column: 0 },
             update_view: true,
             clipboard_ctx: ClipboardContext::new().unwrap(),
+            diagnostics: HashMap::new(),
         }
     }
 

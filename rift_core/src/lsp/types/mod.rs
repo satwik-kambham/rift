@@ -48,3 +48,27 @@ pub struct TextEdit {
     pub text: String,
     pub range: Selection,
 }
+
+#[derive(Debug)]
+pub struct PublishDiagnostics {
+    pub uri: String,
+    pub version: usize,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+pub enum DiagnosticSeverity {
+    Error,
+    Warning,
+    Information,
+    Hint,
+}
+
+#[derive(Debug)]
+pub struct Diagnostic {
+    pub range: Selection,
+    pub severity: DiagnosticSeverity,
+    pub code: String,
+    pub source: String,
+    pub message: String,
+}
