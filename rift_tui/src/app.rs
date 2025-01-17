@@ -413,22 +413,21 @@ impl App {
                                     }
                                     Attribute::Cursor => {}
                                     Attribute::DiagnosticSeverity(severity) => {
-                                        style = style
-                                            .add_modifier(Modifier::UNDERLINED)
-                                            .underline_color(color_from_rgb(match severity {
-                                                types::DiagnosticSeverity::Error => {
-                                                    self.preferences.theme.error
-                                                }
-                                                types::DiagnosticSeverity::Warning => {
-                                                    self.preferences.theme.warning
-                                                }
-                                                types::DiagnosticSeverity::Information => {
-                                                    self.preferences.theme.information
-                                                }
-                                                types::DiagnosticSeverity::Hint => {
-                                                    self.preferences.theme.hint
-                                                }
-                                            }));
+                                        style = style.add_modifier(Modifier::UNDERLINED);
+                                        // .underline_color(color_from_rgb(match severity {
+                                        //     types::DiagnosticSeverity::Error => {
+                                        //         self.preferences.theme.error
+                                        //     }
+                                        //     types::DiagnosticSeverity::Warning => {
+                                        //         self.preferences.theme.warning
+                                        //     }
+                                        //     types::DiagnosticSeverity::Information => {
+                                        //         self.preferences.theme.information
+                                        //     }
+                                        //     types::DiagnosticSeverity::Hint => {
+                                        //         self.preferences.theme.hint
+                                        //     }
+                                        // }));
                                     }
                                 }
                             }
