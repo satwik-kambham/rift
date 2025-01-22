@@ -453,8 +453,7 @@ impl App {
                                         .unwrap()
                                         .strip_prefix("file:")
                                         .unwrap()
-                                        .trim_start_matches("\\")
-                                        .trim_start_matches("/"),
+                                        .trim_start_matches("\\"),
                                 )
                                 .unwrap()
                                 .to_str()
