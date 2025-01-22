@@ -4,7 +4,6 @@ use crate::{
     buffer::instance::{Cursor, Selection},
     io::file_io,
     lsp::client::LSPClientHandle,
-    preferences::Preferences,
     state::{EditorState, Mode},
 };
 
@@ -63,12 +62,7 @@ pub enum Action {
     PasteFromClipboard,
 }
 
-pub fn perform_action(
-    action: Action,
-    state: &mut EditorState,
-    preferences: &mut Preferences,
-    lsp_handle: &mut LSPClientHandle,
-) {
+pub fn perform_action(action: Action, state: &mut EditorState, lsp_handle: &mut LSPClientHandle) {
     match action {
         Action::InsertTextAtCursor(text) => {
             if matches!(state.mode, Mode::Insert) {
@@ -138,21 +132,20 @@ pub fn perform_action(
         Action::InsertAfterSelection => {}
         Action::AddIndent => {
             if matches!(state.mode, Mode::Normal) {
+                let tab_width = state.preferences.tab_width;
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.selection =
-                    buffer.add_indentation(&instance.selection, preferences.tab_width, lsp_handle);
+                    buffer.add_indentation(&instance.selection, tab_width, lsp_handle);
                 instance.cursor = instance.selection.cursor;
                 instance.column_level = instance.cursor.column;
             }
         }
         Action::RemoveIndent => {
             if matches!(state.mode, Mode::Normal) {
+                let tab_width = state.preferences.tab_width;
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                instance.selection = buffer.remove_indentation(
-                    &instance.selection,
-                    preferences.tab_width,
-                    lsp_handle,
-                );
+                instance.selection =
+                    buffer.remove_indentation(&instance.selection, tab_width, lsp_handle);
                 instance.cursor = instance.selection.cursor;
                 instance.column_level = instance.cursor.column;
             }
@@ -174,11 +167,12 @@ pub fn perform_action(
         }
         Action::SaveCurrentBuffer => {
             if matches!(state.mode, Mode::Normal) {
+                let line_ending = state.preferences.line_ending.clone();
                 let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 buffer.modified = false;
                 file_io::override_file_content(
                     &buffer.file_path.clone().unwrap(),
-                    buffer.get_content(preferences.line_ending.to_string()),
+                    buffer.get_content(line_ending.to_string()),
                 )
                 .unwrap();
             }
@@ -237,7 +231,7 @@ pub fn perform_action(
                         "textDocument/formatting".to_string(),
                         Some(LSPClientHandle::formatting_request(
                             buffer.file_path.clone().unwrap(),
-                            preferences.tab_width,
+                            state.preferences.tab_width,
                         )),
                     )
                     .unwrap();
@@ -431,13 +425,10 @@ pub fn perform_action(
         }
         Action::AddTab => {
             if matches!(state.mode, Mode::Insert) {
+                let tab_width = state.preferences.tab_width;
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                let cursor = buffer.insert_text(
-                    &" ".repeat(preferences.tab_width),
-                    &instance.cursor,
-                    lsp_handle,
-                    true,
-                );
+                let cursor =
+                    buffer.insert_text(&" ".repeat(tab_width), &instance.cursor, lsp_handle, true);
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;

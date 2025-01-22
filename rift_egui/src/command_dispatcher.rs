@@ -4,7 +4,6 @@ use rift_core::{
     buffer::line_buffer::LineBuffer,
     io::file_io,
     lsp::client::LSPClientHandle,
-    preferences::Preferences,
     state::{EditorState, Mode},
 };
 
@@ -15,13 +14,7 @@ impl CommandDispatcher {
         Self {}
     }
 
-    pub fn show(
-        &self,
-        ui: &mut Ui,
-        state: &mut EditorState,
-        preferences: &mut Preferences,
-        lsp_handle: &mut LSPClientHandle,
-    ) {
+    pub fn show(&self, ui: &mut Ui, state: &mut EditorState, lsp_handle: &mut LSPClientHandle) {
         ui.input(|i| {
             if !state.modal_open {
                 for event in &i.raw.events {
@@ -31,7 +24,6 @@ impl CommandDispatcher {
                             perform_action(
                                 Action::InsertTextAtCursor(text.to_string()),
                                 state,
-                                preferences,
                                 lsp_handle,
                             );
                         }
@@ -45,19 +37,13 @@ impl CommandDispatcher {
                             if *pressed {
                                 match key {
                                     egui::Key::Escape => {
-                                        perform_action(
-                                            Action::QuitInsertMode,
-                                            state,
-                                            preferences,
-                                            lsp_handle,
-                                        );
+                                        perform_action(Action::QuitInsertMode, state, lsp_handle);
                                     }
                                     egui::Key::I => {
                                         if matches!(state.mode, Mode::Normal) {
                                             perform_action(
                                                 Action::EnterInsertMode,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                             return;
@@ -68,7 +54,6 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::AddNewLineBelowAndEnterInsertMode,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                             return;
@@ -76,34 +61,22 @@ impl CommandDispatcher {
                                     }
                                     egui::Key::Comma => {
                                         if modifiers.shift {
-                                            perform_action(
-                                                Action::RemoveIndent,
-                                                state,
-                                                preferences,
-                                                lsp_handle,
-                                            );
+                                            perform_action(Action::RemoveIndent, state, lsp_handle);
                                         } else {
                                             perform_action(
                                                 Action::CyclePreviousBuffer,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
                                     }
                                     egui::Key::Period => {
                                         if modifiers.shift {
-                                            perform_action(
-                                                Action::AddIndent,
-                                                state,
-                                                preferences,
-                                                lsp_handle,
-                                            );
+                                            perform_action(Action::AddIndent, state, lsp_handle);
                                         } else {
                                             perform_action(
                                                 Action::CycleNextBuffer,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -113,7 +86,6 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::CloseCurrentBuffer,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -123,14 +95,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::SelectAndExtentCurrentLine,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::SelectCurrentLine,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -140,26 +110,19 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendSelectTillEndOfWord,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::SelectTillEndOfWord,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
                                     }
                                     egui::Key::F => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            perform_action(
-                                                Action::OpenFile,
-                                                state,
-                                                preferences,
-                                                lsp_handle,
-                                            );
+                                            perform_action(Action::OpenFile, state, lsp_handle);
                                             return;
                                         }
                                     }
@@ -168,14 +131,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::SaveCurrentBuffer,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::FormatCurrentBuffer,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -185,14 +146,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorDown,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorDown,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -202,16 +161,10 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorUp,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
-                                            perform_action(
-                                                Action::MoveCursorUp,
-                                                state,
-                                                preferences,
-                                                lsp_handle,
-                                            );
+                                            perform_action(Action::MoveCursorUp, state, lsp_handle);
                                         }
                                     }
                                     egui::Key::ArrowLeft => {
@@ -219,14 +172,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorLeft,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorLeft,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -236,14 +187,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorRight,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorRight,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -253,14 +202,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorLineStart,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorLineStart,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -270,14 +217,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorLineEnd,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorLineEnd,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -287,14 +232,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::GoToBufferStart,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::GoToBufferEnd,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -304,14 +247,12 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::CopyToRegister,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::CopyToClipboard,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -321,25 +262,18 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::PasteFromRegister,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::PasteFromClipboard,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
                                     }
                                     egui::Key::Semicolon => {
-                                        perform_action(
-                                            Action::Unselect,
-                                            state,
-                                            preferences,
-                                            lsp_handle,
-                                        );
+                                        perform_action(Action::Unselect, state, lsp_handle);
                                     }
                                     egui::Key::J => {
                                         if matches!(state.mode, Mode::Normal) {
@@ -347,14 +281,12 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorDown,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorDown,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             }
@@ -366,14 +298,12 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorUp,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorUp,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             }
@@ -385,14 +315,12 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorLeft,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorLeft,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             }
@@ -404,14 +332,12 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorRight,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorRight,
                                                     state,
-                                                    preferences,
                                                     lsp_handle,
                                                 );
                                             }
@@ -419,17 +345,11 @@ impl CommandDispatcher {
                                     }
                                     egui::Key::Z => {
                                         if !modifiers.shift {
-                                            perform_action(
-                                                Action::LSPHover,
-                                                state,
-                                                preferences,
-                                                lsp_handle,
-                                            );
+                                            perform_action(Action::LSPHover, state, lsp_handle);
                                         } else {
                                             perform_action(
                                                 Action::LSPCompletion,
                                                 state,
-                                                preferences,
                                                 lsp_handle,
                                             );
                                         }
@@ -438,7 +358,6 @@ impl CommandDispatcher {
                                         perform_action(
                                             Action::DeletePreviousCharacter,
                                             state,
-                                            preferences,
                                             lsp_handle,
                                         );
                                     }
@@ -446,49 +365,27 @@ impl CommandDispatcher {
                                         perform_action(
                                             Action::DeleteNextCharacter,
                                             state,
-                                            preferences,
                                             lsp_handle,
                                         );
                                     }
                                     egui::Key::D => {
-                                        perform_action(
-                                            Action::DeleteSelection,
-                                            state,
-                                            preferences,
-                                            lsp_handle,
-                                        );
+                                        perform_action(Action::DeleteSelection, state, lsp_handle);
                                     }
                                     egui::Key::Enter => {
                                         perform_action(
                                             Action::InsertNewLineAtCursor,
                                             state,
-                                            preferences,
                                             lsp_handle,
                                         );
                                     }
                                     egui::Key::Tab => {
-                                        perform_action(
-                                            Action::AddTab,
-                                            state,
-                                            preferences,
-                                            lsp_handle,
-                                        );
+                                        perform_action(Action::AddTab, state, lsp_handle);
                                     }
                                     egui::Key::U => {
                                         if !modifiers.shift {
-                                            perform_action(
-                                                Action::Undo,
-                                                state,
-                                                preferences,
-                                                lsp_handle,
-                                            );
+                                            perform_action(Action::Undo, state, lsp_handle);
                                         } else {
-                                            perform_action(
-                                                Action::Redo,
-                                                state,
-                                                preferences,
-                                                lsp_handle,
-                                            );
+                                            perform_action(Action::Redo, state, lsp_handle);
                                         }
                                     }
                                     _ => {}
