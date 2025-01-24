@@ -120,6 +120,10 @@ impl App {
                     self.state.update_view = true;
                 }
 
+                if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
+                    (async_result.callback)(async_result.result, &mut self.state);
+                }
+
                 if let Some(message) = self.lsp_handle.recv_message_sync() {
                     self.state.update_view = true;
                     match message {
