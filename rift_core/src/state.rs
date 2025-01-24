@@ -9,6 +9,7 @@ use crate::{
     },
     io::file_io::FolderEntry,
     lsp::types,
+    preferences::Preferences,
 };
 
 #[derive(Debug, Default)]
@@ -19,6 +20,8 @@ pub enum Mode {
 }
 
 pub struct EditorState {
+    pub rt: tokio::runtime::Runtime,
+    pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
     next_id: u32,
@@ -41,8 +44,10 @@ pub struct EditorState {
 }
 
 impl EditorState {
-    pub fn new() -> Self {
+    pub fn new(rt: tokio::runtime::Runtime) -> Self {
         Self {
+            rt,
+            preferences: Preferences::default(),
             buffers: HashMap::new(),
             next_id: 0,
             workspace_folder: std::path::absolute("/")
@@ -124,11 +129,5 @@ impl EditorState {
             self.buffers.get_mut(&id).unwrap(),
             self.instances.get_mut(&id).unwrap(),
         )
-    }
-}
-
-impl Default for EditorState {
-    fn default() -> Self {
-        Self::new()
     }
 }

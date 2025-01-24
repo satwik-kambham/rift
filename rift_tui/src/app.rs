@@ -19,7 +19,7 @@ use rift_core::{
         client::{start_lsp, LSPClientHandle},
         types,
     },
-    preferences::{Color, Preferences},
+    preferences::Color,
     state::{EditorState, Mode},
 };
 
@@ -31,10 +31,8 @@ pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
 
 pub struct App {
     pub state: EditorState,
-    pub preferences: Preferences,
     pub lsp_handle: LSPClientHandle,
     pub modal_list_state: widgets::ListState,
-    pub rt: tokio::runtime::Runtime,
     pub info_modal_active: bool,
     pub info_modal_content: String,
     pub info_modal_scroll: u16,
@@ -46,8 +44,8 @@ pub struct App {
 
 impl App {
     pub fn new(rt: tokio::runtime::Runtime, cli_args: cli::CLIArgs) -> Self {
-        let mut lsp_handle = rt.block_on(async { start_lsp().await.unwrap() });
-        let mut state = EditorState::default();
+        let mut state = EditorState::new(rt);
+        let mut lsp_handle = state.rt.block_on(async { start_lsp().await.unwrap() });
 
         if let Some(path) = cli_args.path {
             let mut path = path;
@@ -81,10 +79,8 @@ impl App {
 
         Self {
             state,
-            preferences: Preferences::default(),
             lsp_handle,
             modal_list_state: widgets::ListState::default(),
-            rt,
             info_modal_active: false,
             info_modal_content: "".into(),
             info_modal_scroll: 0,
@@ -96,12 +92,7 @@ impl App {
     }
 
     pub fn perform_action(&mut self, action: Action) {
-        perform_action(
-            action,
-            &mut self.state,
-            &mut self.preferences,
-            &mut self.lsp_handle,
-        );
+        perform_action(action, &mut self.state, &mut self.lsp_handle);
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
@@ -228,13 +219,11 @@ impl App {
                                     perform_action(
                                         Action::DeleteText(text_edit.range),
                                         &mut self.state,
-                                        &mut self.preferences,
                                         &mut self.lsp_handle,
                                     );
                                     perform_action(
                                         Action::InsertText(text_edit.text, text_edit.range.mark),
                                         &mut self.state,
-                                        &mut self.preferences,
                                         &mut self.lsp_handle,
                                     );
                                 }
@@ -252,15 +241,13 @@ impl App {
                             if notification.method == "textDocument/publishDiagnostics"
                                 && notification.params.is_some()
                             {
-                                let mut uri = std::path::absolute(
+                                let uri = std::path::absolute(
                                     notification.params.as_ref().unwrap()["uri"]
                                         .as_str()
                                         .unwrap()
                                         .strip_prefix("file:")
                                         .unwrap()
-                                        .trim_start_matches("\\")
-                                        .trim_start_matches("/")
-                                        .to_owned(),
+                                        .trim_start_matches("\\"),
                                 )
                                 .unwrap()
                                 .to_str()
@@ -357,58 +344,58 @@ impl App {
                                     Attribute::Highlight(highlight_type) => match highlight_type {
                                         rift_core::buffer::instance::HighlightType::None => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_none,
+                                                self.state.preferences.theme.highlight_none,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::White => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_white,
+                                                self.state.preferences.theme.highlight_white,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Red => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_red,
+                                                self.state.preferences.theme.highlight_red,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Orange => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_orange,
+                                                self.state.preferences.theme.highlight_orange,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Blue => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_blue,
+                                                self.state.preferences.theme.highlight_blue,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Green => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_green,
+                                                self.state.preferences.theme.highlight_green,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Purple => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_purple,
+                                                self.state.preferences.theme.highlight_purple,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Yellow => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_yellow,
+                                                self.state.preferences.theme.highlight_yellow,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Gray => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_gray,
+                                                self.state.preferences.theme.highlight_gray,
                                             ));
                                         }
                                         rift_core::buffer::instance::HighlightType::Turquoise => {
                                             style = style.fg(color_from_rgb(
-                                                self.preferences.theme.highlight_turquoise,
+                                                self.state.preferences.theme.highlight_turquoise,
                                             ));
                                         }
                                     },
                                     Attribute::Select => {
                                         style = style.bg(color_from_rgb(
-                                            self.preferences.theme.selection_bg,
+                                            self.state.preferences.theme.selection_bg,
                                         ));
                                     }
                                     Attribute::Cursor => {}
@@ -446,17 +433,17 @@ impl App {
                     )) {
                         if matches!(self.state.mode, Mode::Normal) {
                             cell.set_fg(color_from_rgb(
-                                self.preferences.theme.cursor_normal_mode_fg,
+                                self.state.preferences.theme.cursor_normal_mode_fg,
                             ));
                             cell.set_bg(color_from_rgb(
-                                self.preferences.theme.cursor_normal_mode_bg,
+                                self.state.preferences.theme.cursor_normal_mode_bg,
                             ));
                         } else {
                             cell.set_fg(color_from_rgb(
-                                self.preferences.theme.cursor_insert_mode_fg,
+                                self.state.preferences.theme.cursor_insert_mode_fg,
                             ));
                             cell.set_bg(color_from_rgb(
-                                self.preferences.theme.cursor_insert_mode_bg,
+                                self.state.preferences.theme.cursor_insert_mode_bg,
                             ));
                         }
                     }
@@ -474,7 +461,7 @@ impl App {
                                 text::Line::styled(
                                     gutter_value,
                                     Style::new().fg(color_from_rgb(
-                                        self.preferences.theme.gutter_text_current_line,
+                                        self.state.preferences.theme.gutter_text_current_line,
                                     )),
                                 )
                                 .alignment(ratatui::layout::Alignment::Right),
@@ -483,8 +470,9 @@ impl App {
                             gutter_lines.push(
                                 text::Line::styled(
                                     gutter_value,
-                                    Style::new()
-                                        .fg(color_from_rgb(self.preferences.theme.gutter_text)),
+                                    Style::new().fg(color_from_rgb(
+                                        self.state.preferences.theme.gutter_text,
+                                    )),
                                 )
                                 .alignment(ratatui::layout::Alignment::Right),
                             );
@@ -494,11 +482,11 @@ impl App {
 
                     // Render status line
                     let status_mode_style = Style::default()
-                        .fg(color_from_rgb(self.preferences.theme.status_bar_bg))
+                        .fg(color_from_rgb(self.state.preferences.theme.status_bar_bg))
                         .bg(color_from_rgb(if matches!(self.state.mode, Mode::Normal) {
-                            self.preferences.theme.status_bar_normal_mode_fg
+                            self.state.preferences.theme.status_bar_normal_mode_fg
                         } else {
-                            self.preferences.theme.status_bar_insert_mode_fg
+                            self.state.preferences.theme.status_bar_insert_mode_fg
                         }));
                     let status = text::Line::from(vec![
                         text::Span::styled(format!(" {:#?} ", self.state.mode), status_mode_style),
@@ -647,7 +635,6 @@ impl App {
                                     perform_action(
                                         Action::DeleteText(completion_item.edit.range),
                                         &mut self.state,
-                                        &mut self.preferences,
                                         &mut self.lsp_handle,
                                     );
                                     perform_action(
@@ -656,7 +643,6 @@ impl App {
                                             completion_item.edit.range.mark,
                                         ),
                                         &mut self.state,
-                                        &mut self.preferences,
                                         &mut self.lsp_handle,
                                     );
                                 }
@@ -955,7 +941,7 @@ impl App {
         if self.state.buffer_idx.is_some() {
             let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
             let mut extra_segments = vec![];
-            let mut path = buffer.file_path.as_ref().unwrap().clone();
+            let path = buffer.file_path.as_ref().unwrap().clone();
             #[cfg(target_os = "windows")]
             {
                 path = path.to_lowercase();
@@ -965,10 +951,8 @@ impl App {
                 if diagnostics.version != 0 && diagnostics.version == buffer.version {
                     for diagnostic in &diagnostics.diagnostics {
                         extra_segments.push(Range {
-                            start: buffer
-                                .byte_index_from_cursor(&diagnostic.range.mark, "\n".into()),
-                            end: buffer
-                                .byte_index_from_cursor(&diagnostic.range.cursor, "\n".into()),
+                            start: buffer.byte_index_from_cursor(&diagnostic.range.mark, "\n"),
+                            end: buffer.byte_index_from_cursor(&diagnostic.range.cursor, "\n"),
                             attributes: HashSet::from([Attribute::DiagnosticSeverity(
                                 diagnostic.severity.clone(),
                             )]),

@@ -10,7 +10,6 @@ use rift_core::{
         client::{start_lsp, LSPClientHandle},
         types,
     },
-    preferences::Preferences,
     state::{EditorState, Mode},
 };
 
@@ -25,10 +24,8 @@ use crate::{
 pub struct App {
     dispatcher: CommandDispatcher,
     state: EditorState,
-    preferences: Preferences,
     font_definitions: FontDefinitions,
     lsp_handle: LSPClientHandle,
-    rt: tokio::runtime::Runtime,
     info_modal: InfoModal,
     completion_menu: CompletionMenu,
     diagnostics_overlay: DiagnosticsOverlay,
@@ -37,12 +34,12 @@ pub struct App {
 
 impl App {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
-        let preferences = Preferences::default();
+        let state = EditorState::new(rt);
         let mut fonts = FontDefinitions::default();
         let editor_font = font_kit::source::SystemSource::new()
             .select_best_match(
                 &[font_kit::family_name::FamilyName::Title(
-                    preferences.editor_font_family.to_owned(),
+                    state.preferences.editor_font_family.to_owned(),
                 )],
                 &font_kit::properties::Properties::new(),
             )
@@ -50,7 +47,7 @@ impl App {
         let ui_font = font_kit::source::SystemSource::new()
             .select_best_match(
                 &[font_kit::family_name::FamilyName::Title(
-                    preferences.ui_font_family.to_owned(),
+                    state.preferences.ui_font_family.to_owned(),
                 )],
                 &font_kit::properties::Properties::new(),
             )
@@ -59,12 +56,12 @@ impl App {
             .families
             .get_mut(&egui::FontFamily::Monospace)
             .unwrap()
-            .insert(0, preferences.editor_font_family.to_owned());
+            .insert(0, state.preferences.editor_font_family.to_owned());
         fonts
             .families
             .get_mut(&egui::FontFamily::Proportional)
             .unwrap()
-            .insert(0, preferences.ui_font_family.to_owned());
+            .insert(0, state.preferences.ui_font_family.to_owned());
         match editor_font {
             font_kit::handle::Handle::Path { path, font_index } => {
                 let mut font_content = Vec::new();
@@ -73,7 +70,7 @@ impl App {
                     .read_to_end(&mut font_content)
                     .unwrap();
                 fonts.font_data.insert(
-                    preferences.editor_font_family.to_owned(),
+                    state.preferences.editor_font_family.to_owned(),
                     FontData {
                         font: std::borrow::Cow::Owned(font_content),
                         index: font_index,
@@ -83,7 +80,7 @@ impl App {
             }
             font_kit::handle::Handle::Memory { bytes, font_index } => {
                 fonts.font_data.insert(
-                    preferences.editor_font_family.to_owned(),
+                    state.preferences.editor_font_family.to_owned(),
                     FontData {
                         font: std::borrow::Cow::Owned((*bytes).clone()),
                         index: font_index,
@@ -100,7 +97,7 @@ impl App {
                     .read_to_end(&mut font_content)
                     .unwrap();
                 fonts.font_data.insert(
-                    preferences.ui_font_family.to_owned(),
+                    state.preferences.ui_font_family.to_owned(),
                     FontData {
                         font: std::borrow::Cow::Owned(font_content),
                         index: font_index,
@@ -110,7 +107,7 @@ impl App {
             }
             font_kit::handle::Handle::Memory { bytes, font_index } => {
                 fonts.font_data.insert(
-                    preferences.ui_font_family.to_owned(),
+                    state.preferences.ui_font_family.to_owned(),
                     FontData {
                         font: std::borrow::Cow::Owned((*bytes).clone()),
                         index: font_index,
@@ -120,16 +117,14 @@ impl App {
             }
         }
 
-        let lsp_handle = rt.block_on(async { start_lsp().await.unwrap() });
+        let lsp_handle = state.rt.block_on(async { start_lsp().await.unwrap() });
 
         Self {
             dispatcher: CommandDispatcher::default(),
-            state: EditorState::default(),
-            completion_menu: CompletionMenu::new(5, preferences.theme.selection_bg),
-            preferences,
+            completion_menu: CompletionMenu::new(5, state.preferences.theme.selection_bg),
+            state,
             font_definitions: fonts,
             lsp_handle,
-            rt,
             info_modal: InfoModal::default(),
             diagnostics_overlay: DiagnosticsOverlay::default(),
             editor_focused: true,
@@ -139,46 +134,46 @@ impl App {
     pub fn draw(&mut self, ctx: &egui::Context) {
         ctx.set_fonts(self.font_definitions.clone());
         ctx.style_mut(|style| {
-            style.visuals.override_text_color = Some(self.preferences.theme.ui_text.into());
+            style.visuals.override_text_color = Some(self.state.preferences.theme.ui_text.into());
             style.visuals.widgets = egui::style::Widgets {
                 noninteractive: egui::style::WidgetVisuals {
-                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
                     rounding: egui::Rounding::same(2.0),
-                    fg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_fg_stroke),
+                    fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
                 inactive: egui::style::WidgetVisuals {
-                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
                     rounding: egui::Rounding::same(2.0),
-                    fg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_fg_stroke),
+                    fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
                 hovered: egui::style::WidgetVisuals {
-                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
                     rounding: egui::Rounding::same(3.0),
-                    fg_stroke: egui::Stroke::new(1.5, self.preferences.theme.ui_fg_stroke),
+                    fg_stroke: egui::Stroke::new(1.5, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
                 active: egui::style::WidgetVisuals {
-                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
                     rounding: egui::Rounding::same(2.0),
-                    fg_stroke: egui::Stroke::new(2.0, self.preferences.theme.ui_fg_stroke),
+                    fg_stroke: egui::Stroke::new(2.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
                 open: egui::style::WidgetVisuals {
-                    bg_fill: self.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_bg_stroke),
+                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
                     rounding: egui::Rounding::same(2.0),
-                    fg_stroke: egui::Stroke::new(1.0, self.preferences.theme.ui_fg_stroke),
+                    fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
             };
@@ -190,7 +185,7 @@ impl App {
             .resizable(false)
             .show_separator_line(false)
             .frame(egui::Frame {
-                fill: self.preferences.theme.status_bar_bg.into(),
+                fill: self.state.preferences.theme.status_bar_bg.into(),
                 inner_margin: egui::Margin::symmetric(8.0, 8.0),
                 ..Default::default()
             })
@@ -203,51 +198,54 @@ impl App {
                 if self.state.buffer_idx.is_some() {
                     let (buffer, instance) =
                         self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    let file_path = buffer.file_path.clone();
+                    let modified = buffer.modified;
+                    let cursor = instance.cursor;
+
                     ui.horizontal(|ui| {
                         let mode = &self.state.mode;
                         match mode {
                             Mode::Normal => ui.label(
                                 RichText::new("NORMAL")
-                                    .color(self.preferences.theme.status_bar_normal_mode_fg),
+                                    .color(self.state.preferences.theme.status_bar_normal_mode_fg),
                             ),
                             Mode::Insert => ui.label(
                                 RichText::new("INSERT")
-                                    .color(self.preferences.theme.status_bar_insert_mode_fg),
+                                    .color(self.state.preferences.theme.status_bar_insert_mode_fg),
                             ),
                         };
                         ui.separator();
-                        ui.label(buffer.file_path.as_ref().unwrap());
+                        ui.label(file_path.as_ref().unwrap());
                         ui.separator();
-                        ui.label(format!(
-                            "{}:{}",
-                            instance.cursor.row + 1,
-                            instance.cursor.column + 1
-                        ));
+                        ui.label(format!("{}:{}", cursor.row + 1, cursor.column + 1));
                         ui.separator();
-                        ui.label(if buffer.modified { "U" } else { "" });
+                        ui.label(if modified { "U" } else { "" });
                         ui.separator();
                         if ui.button("+").clicked() {
-                            self.preferences.editor_font_size += 1;
+                            self.state.preferences.editor_font_size += 1;
                         };
-                        ui.label(format!("Font Size: {}", self.preferences.editor_font_size));
+                        ui.label(format!(
+                            "Font Size: {}",
+                            self.state.preferences.editor_font_size
+                        ));
                         if ui.button("-").clicked() {
-                            self.preferences.editor_font_size -= 1;
+                            self.state.preferences.editor_font_size -= 1;
                         };
                         ui.separator();
                         if ui
-                            .button(format!("Tab Size: {}", self.preferences.tab_width))
+                            .button(format!("Tab Size: {}", self.state.preferences.tab_width))
                             .clicked()
                         {
-                            if self.preferences.tab_width == 4 {
-                                self.preferences.tab_width = 2;
+                            if self.state.preferences.tab_width == 4 {
+                                self.state.preferences.tab_width = 2;
                             } else {
-                                self.preferences.tab_width = 4;
+                                self.state.preferences.tab_width = 4;
                             }
                         };
                         ui.separator();
                         if ui
                             .button(
-                                (if self.preferences.line_ending == "\n" {
+                                (if self.state.preferences.line_ending == "\n" {
                                     "lf"
                                 } else {
                                     "crlf"
@@ -256,10 +254,10 @@ impl App {
                             )
                             .clicked()
                         {
-                            if self.preferences.line_ending == "\n" {
-                                self.preferences.line_ending = "\r\n".to_string()
+                            if self.state.preferences.line_ending == "\n" {
+                                self.state.preferences.line_ending = "\r\n".to_string()
                             } else {
-                                self.preferences.line_ending = "\n".to_string();
+                                self.state.preferences.line_ending = "\n".to_string();
                             }
                         };
                         ui.separator();
@@ -270,14 +268,14 @@ impl App {
             .resizable(false)
             .show_separator_line(false)
             .frame(egui::Frame {
-                fill: self.preferences.theme.gutter_bg.into(),
-                inner_margin: egui::Margin::same(self.preferences.gutter_padding),
+                fill: self.state.preferences.theme.gutter_bg.into(),
+                inner_margin: egui::Margin::same(self.state.preferences.gutter_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
-                gutter_width = rect.width() + self.preferences.gutter_padding * 2.0;
+                gutter_width = rect.width() + self.state.preferences.gutter_padding * 2.0;
                 for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
                     let gutter_value = if gutter_line.wrapped {
                         ".".to_string()
@@ -287,36 +285,39 @@ impl App {
                     if idx == self.state.relative_cursor.row {
                         ui.label(
                             RichText::new(gutter_value)
-                                .font(FontId::monospace(self.preferences.editor_font_size as f32))
-                                .color(self.preferences.theme.gutter_text_current_line),
+                                .font(FontId::monospace(
+                                    self.state.preferences.editor_font_size as f32,
+                                ))
+                                .color(self.state.preferences.theme.gutter_text_current_line),
                         );
                     } else {
                         ui.label(
                             RichText::new(gutter_value)
-                                .font(FontId::monospace(self.preferences.editor_font_size as f32))
-                                .color(self.preferences.theme.gutter_text),
+                                .font(FontId::monospace(
+                                    self.state.preferences.editor_font_size as f32,
+                                ))
+                                .color(self.state.preferences.theme.gutter_text),
                         );
                     }
                 }
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {
-                fill: self.preferences.theme.editor_bg.into(),
-                inner_margin: egui::Margin::same(self.preferences.editor_padding),
+                fill: self.state.preferences.theme.editor_bg.into(),
+                inner_margin: egui::Margin::same(self.state.preferences.editor_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                let label_response = ui.label(
-                    RichText::new("x")
-                        .font(FontId::monospace(self.preferences.editor_font_size as f32)),
-                );
+                let label_response = ui.label(RichText::new("x").font(FontId::monospace(
+                    self.state.preferences.editor_font_size as f32,
+                )));
                 char_width = label_response.rect.width();
                 char_height = label_response.rect.height();
             });
         egui::CentralPanel::default()
             .frame(egui::Frame {
-                fill: self.preferences.theme.editor_bg.into(),
-                outer_margin: egui::Margin::same(self.preferences.editor_padding),
+                fill: self.state.preferences.theme.editor_bg.into(),
+                outer_margin: egui::Margin::same(self.state.preferences.editor_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -424,13 +425,11 @@ impl App {
                                     perform_action(
                                         Action::DeleteText(text_edit.range),
                                         &mut self.state,
-                                        &mut self.preferences,
                                         &mut self.lsp_handle,
                                     );
                                     perform_action(
                                         Action::InsertText(text_edit.text, text_edit.range.mark),
                                         &mut self.state,
-                                        &mut self.preferences,
                                         &mut self.lsp_handle,
                                     );
                                 }
@@ -448,15 +447,13 @@ impl App {
                             if notification.method == "textDocument/publishDiagnostics"
                                 && notification.params.is_some()
                             {
-                                let mut uri = std::path::absolute(
+                                let uri = std::path::absolute(
                                     notification.params.as_ref().unwrap()["uri"]
                                         .as_str()
                                         .unwrap()
                                         .strip_prefix("file:")
                                         .unwrap()
-                                        .trim_start_matches("\\")
-                                        .trim_start_matches("/")
-                                        .to_owned(),
+                                        .trim_start_matches("\\"),
                                 )
                                 .unwrap()
                                 .to_str()
@@ -550,7 +547,9 @@ impl App {
                     let mut job = LayoutJob::default();
                     for token in line {
                         let mut format = egui::TextFormat {
-                            font_id: FontId::monospace(self.preferences.editor_font_size as f32),
+                            font_id: FontId::monospace(
+                                self.state.preferences.editor_font_size as f32,
+                            ),
                             ..Default::default()
                         };
                         for attribute in &token.1 {
@@ -561,39 +560,40 @@ impl App {
                                 Attribute::Highlight(highlight_type) => {
                                     format.color = match highlight_type {
                                         HighlightType::None => {
-                                            self.preferences.theme.highlight_none.into()
+                                            self.state.preferences.theme.highlight_none.into()
                                         }
                                         HighlightType::White => {
-                                            self.preferences.theme.highlight_white.into()
+                                            self.state.preferences.theme.highlight_white.into()
                                         }
                                         HighlightType::Red => {
-                                            self.preferences.theme.highlight_red.into()
+                                            self.state.preferences.theme.highlight_red.into()
                                         }
                                         HighlightType::Orange => {
-                                            self.preferences.theme.highlight_orange.into()
+                                            self.state.preferences.theme.highlight_orange.into()
                                         }
                                         HighlightType::Blue => {
-                                            self.preferences.theme.highlight_blue.into()
+                                            self.state.preferences.theme.highlight_blue.into()
                                         }
                                         HighlightType::Green => {
-                                            self.preferences.theme.highlight_green.into()
+                                            self.state.preferences.theme.highlight_green.into()
                                         }
                                         HighlightType::Purple => {
-                                            self.preferences.theme.highlight_purple.into()
+                                            self.state.preferences.theme.highlight_purple.into()
                                         }
                                         HighlightType::Yellow => {
-                                            self.preferences.theme.highlight_yellow.into()
+                                            self.state.preferences.theme.highlight_yellow.into()
                                         }
                                         HighlightType::Gray => {
-                                            self.preferences.theme.highlight_gray.into()
+                                            self.state.preferences.theme.highlight_gray.into()
                                         }
                                         HighlightType::Turquoise => {
-                                            self.preferences.theme.highlight_turquoise.into()
+                                            self.state.preferences.theme.highlight_turquoise.into()
                                         }
                                     };
                                 }
                                 Attribute::Select => {
-                                    format.background = self.preferences.theme.selection_bg.into();
+                                    format.background =
+                                        self.state.preferences.theme.selection_bg.into();
                                 }
                                 Attribute::Cursor => {}
                                 Attribute::DiagnosticSeverity(severity) => {
@@ -601,16 +601,16 @@ impl App {
                                         1.0,
                                         match severity {
                                             types::DiagnosticSeverity::Error => {
-                                                self.preferences.theme.error
+                                                self.state.preferences.theme.error
                                             }
                                             types::DiagnosticSeverity::Warning => {
-                                                self.preferences.theme.warning
+                                                self.state.preferences.theme.warning
                                             }
                                             types::DiagnosticSeverity::Information => {
-                                                self.preferences.theme.information
+                                                self.state.preferences.theme.information
                                             }
                                             types::DiagnosticSeverity::Hint => {
-                                                self.preferences.theme.hint
+                                                self.state.preferences.theme.hint
                                             }
                                         },
                                     );
@@ -623,27 +623,20 @@ impl App {
                 }
 
                 if self.editor_focused {
-                    self.dispatcher.show(
-                        ui,
-                        &mut self.state,
-                        &mut self.preferences,
-                        &mut self.lsp_handle,
-                    );
+                    self.dispatcher
+                        .show(ui, &mut self.state, &mut self.lsp_handle);
                 }
             });
         self.editor_focused = self.info_modal.show(ctx);
         self.editor_focused = self.editor_focused
-            && self.completion_menu.show(
-                ctx,
-                &mut self.state,
-                &mut self.preferences,
-                &mut self.lsp_handle,
-            );
+            && self
+                .completion_menu
+                .show(ctx, &mut self.state, &mut self.lsp_handle);
         self.diagnostics_overlay.show(ctx);
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: Color32::TRANSPARENT,
-                outer_margin: egui::Margin::same(self.preferences.editor_padding),
+                outer_margin: egui::Margin::same(self.state.preferences.editor_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -652,27 +645,29 @@ impl App {
                         egui::Pos2 {
                             x: (self.state.relative_cursor.column as f32 * char_width)
                                 + gutter_width
-                                + self.preferences.editor_padding,
+                                + self.state.preferences.editor_padding,
                             y: (self.state.relative_cursor.row as f32 * char_height)
-                                + self.preferences.editor_padding,
+                                + self.state.preferences.editor_padding,
                         },
                         egui::Pos2 {
                             x: (self.state.relative_cursor.column as f32 * char_width)
                                 + gutter_width
                                 + char_width
-                                + self.preferences.editor_padding,
+                                + self.state.preferences.editor_padding,
                             y: (self.state.relative_cursor.row as f32 * char_height)
                                 + char_height
-                                + self.preferences.editor_padding,
+                                + self.state.preferences.editor_padding,
                         },
                     ),
                     Label::new(
                         RichText::new(" ")
-                            .font(FontId::monospace(self.preferences.editor_font_size as f32))
+                            .font(FontId::monospace(
+                                self.state.preferences.editor_font_size as f32,
+                            ))
                             .background_color(if matches!(self.state.mode, Mode::Normal) {
-                                self.preferences.theme.cursor_normal_mode_bg
+                                self.state.preferences.theme.cursor_normal_mode_bg
                             } else {
-                                self.preferences.theme.cursor_insert_mode_bg
+                                self.state.preferences.theme.cursor_insert_mode_bg
                             }),
                     ),
                 );
@@ -686,7 +681,7 @@ impl App {
                 .collapsible(false)
                 .title_bar(false)
                 .frame(egui::Frame {
-                    fill: self.preferences.theme.modal_bg.into(),
+                    fill: self.state.preferences.theme.modal_bg.into(),
                     ..Default::default()
                 })
                 .show(ctx, |ui| {
@@ -699,12 +694,12 @@ impl App {
                                         if self.state.modal_selection_idx.is_some()
                                             && idx == self.state.modal_selection_idx.unwrap()
                                         {
-                                            self.preferences.theme.modal_active
+                                            self.state.preferences.theme.modal_active
                                         } else {
-                                            self.preferences.theme.modal_text
+                                            self.state.preferences.theme.modal_text
                                         },
                                     )
-                                    .size(self.preferences.ui_font_size as f32),
+                                    .size(self.state.preferences.ui_font_size as f32),
                             );
                         }
                     });
@@ -720,7 +715,7 @@ impl App {
         if self.state.buffer_idx.is_some() {
             let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
             let mut extra_segments = vec![];
-            let mut path = buffer.file_path.as_ref().unwrap().clone();
+            let path = buffer.file_path.as_ref().unwrap().clone();
             #[cfg(target_os = "windows")]
             {
                 path = path.to_lowercase();
@@ -730,10 +725,8 @@ impl App {
                 if diagnostics.version != 0 && diagnostics.version == buffer.version {
                     for diagnostic in &diagnostics.diagnostics {
                         extra_segments.push(Range {
-                            start: buffer
-                                .byte_index_from_cursor(&diagnostic.range.mark, "\n".into()),
-                            end: buffer
-                                .byte_index_from_cursor(&diagnostic.range.cursor, "\n".into()),
+                            start: buffer.byte_index_from_cursor(&diagnostic.range.mark, "\n"),
+                            end: buffer.byte_index_from_cursor(&diagnostic.range.cursor, "\n"),
                             attributes: HashSet::from([Attribute::DiagnosticSeverity(
                                 diagnostic.severity.clone(),
                             )]),

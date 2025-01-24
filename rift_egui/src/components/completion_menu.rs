@@ -2,7 +2,7 @@ use egui::RichText;
 use rift_core::{
     actions::{perform_action, Action},
     lsp::{client::LSPClientHandle, types},
-    preferences::{Color, Preferences},
+    preferences::Color,
     state::EditorState,
 };
 
@@ -37,7 +37,6 @@ impl CompletionMenu {
         &mut self,
         ctx: &egui::Context,
         state: &mut EditorState,
-        preferences: &mut Preferences,
         lsp_handle: &mut LSPClientHandle,
     ) -> bool {
         if self.active {
@@ -66,7 +65,7 @@ impl CompletionMenu {
                             ui.label(item.label.clone());
                         }
                     }
-                    self.handle_input(ui, state, preferences, lsp_handle);
+                    self.handle_input(ui, state, lsp_handle);
                 });
             return false;
         }
@@ -77,7 +76,6 @@ impl CompletionMenu {
         &mut self,
         ui: &mut egui::Ui,
         state: &mut EditorState,
-        preferences: &mut Preferences,
         lsp_handle: &mut LSPClientHandle,
     ) {
         ui.input(|i| {
@@ -111,7 +109,6 @@ impl CompletionMenu {
                                 perform_action(
                                     Action::DeleteText(completion_item.edit.range),
                                     state,
-                                    preferences,
                                     lsp_handle,
                                 );
                                 perform_action(
@@ -120,7 +117,6 @@ impl CompletionMenu {
                                         completion_item.edit.range.mark,
                                     ),
                                     state,
-                                    preferences,
                                     lsp_handle,
                                 );
                                 self.active = false;
