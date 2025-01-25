@@ -121,7 +121,11 @@ impl App {
                 }
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    (async_result.callback)(async_result.result, &mut self.state);
+                    (async_result.callback)(
+                        async_result.result,
+                        &mut self.state,
+                        &mut self.lsp_handle,
+                    );
                 }
 
                 if let Some(message) = self.lsp_handle.recv_message_sync() {
@@ -771,6 +775,8 @@ impl App {
                                 self.perform_action(Action::EnterInsertMode);
                             } else if key.code == KeyCode::Char('f') {
                                 self.perform_action(Action::OpenFile);
+                            } else if key.code == KeyCode::Char('F') {
+                                rift_core::ai::ollama_fim(&mut self.state);
                             } else if key.code == KeyCode::Char('j') {
                                 self.perform_action(Action::MoveCursorDown);
                             } else if key.code == KeyCode::Char('J') {

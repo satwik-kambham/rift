@@ -21,11 +21,13 @@ impl CommandDispatcher {
                     state.update_view = true;
                     match event {
                         egui::Event::Text(text) => {
-                            perform_action(
-                                Action::InsertTextAtCursor(text.to_string()),
-                                state,
-                                lsp_handle,
-                            );
+                            if matches!(state.mode, Mode::Insert) {
+                                perform_action(
+                                    Action::InsertTextAtCursor(text.to_string()),
+                                    state,
+                                    lsp_handle,
+                                );
+                            }
                         }
                         egui::Event::Key {
                             key,
@@ -122,8 +124,12 @@ impl CommandDispatcher {
                                     }
                                     egui::Key::F => {
                                         if matches!(state.mode, Mode::Normal) {
-                                            perform_action(Action::OpenFile, state, lsp_handle);
-                                            return;
+                                            if modifiers.shift {
+                                                rift_core::ai::ollama_fim(state);
+                                            } else {
+                                                perform_action(Action::OpenFile, state, lsp_handle);
+                                                return;
+                                            }
                                         }
                                     }
                                     egui::Key::S => {
