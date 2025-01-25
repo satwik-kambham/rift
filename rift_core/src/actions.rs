@@ -65,13 +65,11 @@ pub enum Action {
 pub fn perform_action(action: Action, state: &mut EditorState, lsp_handle: &mut LSPClientHandle) {
     match action {
         Action::InsertTextAtCursor(text) => {
-            if matches!(state.mode, Mode::Insert) {
-                let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                let cursor = buffer.insert_text(&text, &instance.cursor, lsp_handle, true);
-                instance.cursor = cursor;
-                instance.selection.cursor = instance.cursor;
-                instance.selection.mark = instance.cursor;
-            }
+            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let cursor = buffer.insert_text(&text, &instance.cursor, lsp_handle, true);
+            instance.cursor = cursor;
+            instance.selection.cursor = instance.cursor;
+            instance.selection.mark = instance.cursor;
         }
         Action::InsertText(text, cursor) => {
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());

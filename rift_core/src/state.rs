@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 use copypasta::ClipboardContext;
+use tokio::sync::mpsc;
 
 use crate::{
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo},
         line_buffer::{HighlightedText, LineBuffer},
     },
+    concurrent::{AsyncHandle, AsyncResult},
     io::file_io::FolderEntry,
     lsp::types,
     preferences::Preferences,
@@ -21,6 +23,7 @@ pub enum Mode {
 
 pub struct EditorState {
     pub rt: tokio::runtime::Runtime,
+    pub async_handle: AsyncHandle,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
@@ -45,8 +48,10 @@ pub struct EditorState {
 
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
+        let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
         Self {
             rt,
+            async_handle: AsyncHandle { sender, receiver },
             preferences: Preferences::default(),
             buffers: HashMap::new(),
             next_id: 0,
