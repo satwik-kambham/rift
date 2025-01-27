@@ -455,7 +455,7 @@ impl App {
                             if notification.method == "textDocument/publishDiagnostics"
                                 && notification.params.is_some()
                             {
-                                let uri = std::path::absolute(
+                                let mut uri = std::path::absolute(
                                     notification.params.as_ref().unwrap()["uri"]
                                         .as_str()
                                         .unwrap()
@@ -723,7 +723,7 @@ impl App {
         if self.state.buffer_idx.is_some() {
             let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
             let mut extra_segments = vec![];
-            let path = buffer.file_path.as_ref().unwrap().clone();
+            let mut path = buffer.file_path.as_ref().unwrap().clone();
             #[cfg(target_os = "windows")]
             {
                 path = path.to_lowercase();
