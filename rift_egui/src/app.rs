@@ -650,10 +650,12 @@ impl App {
                 }
             });
         self.editor_focused = self.info_modal.show(ctx);
-        let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-        let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
-        self.editor_focused =
-            self.editor_focused && self.completion_menu.show(ctx, &mut self.state, lsp_handle);
+        if self.state.buffer_idx.is_some() {
+            let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+            let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
+            self.editor_focused =
+                self.editor_focused && self.completion_menu.show(ctx, &mut self.state, lsp_handle);
+        }
         self.diagnostics_overlay.show(ctx);
         egui::CentralPanel::default()
             .frame(egui::Frame {

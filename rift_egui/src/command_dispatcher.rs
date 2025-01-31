@@ -20,12 +20,15 @@ impl CommandDispatcher {
         &self,
         ui: &mut Ui,
         state: &mut EditorState,
-        // lsp_handle: &mut LSPClientHandle,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) {
         ui.input(|i| {
-            let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-            let lsp_handle = &mut lsp_handles.get_mut(&buffer.language);
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
             if !state.modal_open {
                 for event in &i.raw.events {
                     state.update_view = true;
