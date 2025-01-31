@@ -62,7 +62,11 @@ pub enum Action {
     PasteFromClipboard,
 }
 
-pub fn perform_action(action: Action, state: &mut EditorState, lsp_handle: &mut LSPClientHandle) {
+pub fn perform_action(
+    action: Action,
+    state: &mut EditorState,
+    lsp_handle: &mut Option<&mut LSPClientHandle>,
+) {
     match action {
         Action::InsertTextAtCursor(text) => {
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
@@ -224,15 +228,17 @@ pub fn perform_action(action: Action, state: &mut EditorState, lsp_handle: &mut 
         Action::FormatCurrentBuffer => {
             if matches!(state.mode, Mode::Normal) {
                 let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                lsp_handle
-                    .send_request_sync(
-                        "textDocument/formatting".to_string(),
-                        Some(LSPClientHandle::formatting_request(
-                            buffer.file_path.clone().unwrap(),
-                            state.preferences.tab_width,
-                        )),
-                    )
-                    .unwrap();
+                if let Some(lsp_handle) = lsp_handle {
+                    lsp_handle
+                        .send_request_sync(
+                            "textDocument/formatting".to_string(),
+                            Some(LSPClientHandle::formatting_request(
+                                buffer.file_path.clone().unwrap(),
+                                state.preferences.tab_width,
+                            )),
+                        )
+                        .unwrap();
+                }
             }
         }
         Action::MoveCursorDown => {
@@ -336,29 +342,33 @@ pub fn perform_action(action: Action, state: &mut EditorState, lsp_handle: &mut 
         Action::LSPHover => {
             if matches!(state.mode, Mode::Normal) {
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                lsp_handle
-                    .send_request_sync(
-                        "textDocument/hover".to_string(),
-                        Some(LSPClientHandle::hover_request(
-                            buffer.file_path.clone().unwrap(),
-                            instance.cursor,
-                        )),
-                    )
-                    .unwrap();
+                if let Some(lsp_handle) = lsp_handle {
+                    lsp_handle
+                        .send_request_sync(
+                            "textDocument/hover".to_string(),
+                            Some(LSPClientHandle::hover_request(
+                                buffer.file_path.clone().unwrap(),
+                                instance.cursor,
+                            )),
+                        )
+                        .unwrap();
+                }
             }
         }
         Action::LSPCompletion => {
             if matches!(state.mode, Mode::Normal) {
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-                lsp_handle
-                    .send_request_sync(
-                        "textDocument/completion".to_string(),
-                        Some(LSPClientHandle::completion_request(
-                            buffer.file_path.clone().unwrap(),
-                            instance.cursor,
-                        )),
-                    )
-                    .unwrap();
+                if let Some(lsp_handle) = lsp_handle {
+                    lsp_handle
+                        .send_request_sync(
+                            "textDocument/completion".to_string(),
+                            Some(LSPClientHandle::completion_request(
+                                buffer.file_path.clone().unwrap(),
+                                instance.cursor,
+                            )),
+                        )
+                        .unwrap();
+                }
             }
         }
         Action::DeletePreviousCharacter => {

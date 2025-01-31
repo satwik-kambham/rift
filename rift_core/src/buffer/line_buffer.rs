@@ -537,7 +537,7 @@ impl LineBuffer {
         &mut self,
         text: &str,
         cursor: &Cursor,
-        lsp_handle: &LSPClientHandle,
+        lsp_handle: &Option<&mut LSPClientHandle>,
         log: bool,
     ) -> Cursor {
         let updated_cursor = self.insert_text_no_log(text, cursor);
@@ -553,21 +553,23 @@ impl LineBuffer {
         }
         self.version += 1;
 
-        lsp_handle
-            .send_notification_sync(
-                "textDocument/didChange".to_string(),
-                Some(LSPClientHandle::did_change_text_document(
-                    self.file_path.clone().unwrap(),
-                    self.version,
-                    // Selection {
-                    //     cursor: *cursor,
-                    //     mark: *cursor,
-                    // },
-                    // text.to_string(),
-                    self.get_content("\n".to_owned()),
-                )),
-            )
-            .unwrap();
+        if let Some(lsp_handle) = lsp_handle {
+            lsp_handle
+                .send_notification_sync(
+                    "textDocument/didChange".to_string(),
+                    Some(LSPClientHandle::did_change_text_document(
+                        self.file_path.clone().unwrap(),
+                        self.version,
+                        // Selection {
+                        //     cursor: *cursor,
+                        //     mark: *cursor,
+                        // },
+                        // text.to_string(),
+                        self.get_content("\n".to_owned()),
+                    )),
+                )
+                .unwrap();
+        }
 
         updated_cursor
     }
@@ -622,7 +624,7 @@ impl LineBuffer {
     pub fn remove_text(
         &mut self,
         selection: &Selection,
-        lsp_handle: &LSPClientHandle,
+        lsp_handle: &Option<&mut LSPClientHandle>,
         log: bool,
     ) -> (String, Cursor) {
         let (text, cursor) = self.remove_text_no_log(selection);
@@ -639,24 +641,26 @@ impl LineBuffer {
         }
         self.version += 1;
 
-        lsp_handle
-            .send_notification_sync(
-                "textDocument/didChange".to_string(),
-                Some(LSPClientHandle::did_change_text_document(
-                    self.file_path.clone().unwrap(),
-                    self.version,
-                    // *selection,
-                    // "".to_string(),
-                    self.get_content("\n".to_owned()),
-                )),
-            )
-            .unwrap();
+        if let Some(lsp_handle) = lsp_handle {
+            lsp_handle
+                .send_notification_sync(
+                    "textDocument/didChange".to_string(),
+                    Some(LSPClientHandle::did_change_text_document(
+                        self.file_path.clone().unwrap(),
+                        self.version,
+                        // *selection,
+                        // "".to_string(),
+                        self.get_content("\n".to_owned()),
+                    )),
+                )
+                .unwrap();
+        }
 
         (text, cursor)
     }
 
     /// Undo
-    pub fn undo(&mut self, lsp_handle: &LSPClientHandle) -> Option<Cursor> {
+    pub fn undo(&mut self, lsp_handle: &Option<&mut LSPClientHandle>) -> Option<Cursor> {
         self.version += 1;
         if self.change_idx > 0 {
             self.change_idx -= 1;
@@ -691,7 +695,7 @@ impl LineBuffer {
     }
 
     /// Redo
-    pub fn redo(&mut self, lsp_handle: &LSPClientHandle) -> Option<Cursor> {
+    pub fn redo(&mut self, lsp_handle: &Option<&mut LSPClientHandle>) -> Option<Cursor> {
         self.version += 1;
         if self.change_idx < self.changes.len() {
             self.change_idx += 1;
@@ -736,7 +740,7 @@ impl LineBuffer {
         &mut self,
         selection: &Selection,
         tab_size: usize,
-        lsp_handle: &LSPClientHandle,
+        lsp_handle: &Option<&mut LSPClientHandle>,
     ) -> Selection {
         self.modified = true;
 
@@ -756,7 +760,7 @@ impl LineBuffer {
         &mut self,
         selection: &Selection,
         tab_size: usize,
-        lsp_handle: &LSPClientHandle,
+        lsp_handle: &Option<&mut LSPClientHandle>,
     ) -> Selection {
         self.modified = true;
 

@@ -11,5 +11,6 @@ pub struct AsyncHandle {
 
 pub struct AsyncResult {
     pub result: String,
-    pub callback: fn(String, state: &mut EditorState, lsp_handle: &mut LSPClientHandle),
+    pub callback:
+        fn(String, state: &mut EditorState, lsp_handle: &mut Option<&mut LSPClientHandle>),
 }

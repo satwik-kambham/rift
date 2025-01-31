@@ -25,7 +25,7 @@ impl CommandDispatcher {
     ) {
         ui.input(|i| {
             let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-            let lsp_handle = lsp_handles.get_mut(&buffer.language).unwrap();
+            let lsp_handle = &mut lsp_handles.get_mut(&buffer.language);
             if !state.modal_open {
                 for event in &i.raw.events {
                     state.update_view = true;
@@ -483,16 +483,20 @@ impl CommandDispatcher {
                                                     e,
                                                 ) = lsp_handles.entry(buffer.language)
                                                 {
-                                                    let mut lsp_handle = state.spawn_lsp();
-                                                    lsp_handle.init_lsp_sync(
-                                                        state.workspace_folder.clone(),
-                                                    );
-                                                    e.insert(lsp_handle);
+                                                    if let Some(mut lsp_handle) =
+                                                        state.spawn_lsp(buffer.language)
+                                                    {
+                                                        lsp_handle.init_lsp_sync(
+                                                            state.workspace_folder.clone(),
+                                                        );
+                                                        e.insert(lsp_handle);
+                                                    }
                                                 }
 
-                                                lsp_handles
-                                                    .get(&buffer.language)
-                                                    .unwrap()
+                                                if let Some(lsp_handle) =
+                                                    lsp_handles.get(&buffer.language)
+                                                {
+                                                    lsp_handle
                                                     .send_notification_sync(
                                                         "textDocument/didOpen".to_string(),
                                                         Some(
@@ -503,6 +507,7 @@ impl CommandDispatcher {
                                                         ),
                                                     )
                                                     .unwrap();
+                                                }
 
                                                 state.buffer_idx = Some(state.add_buffer(buffer));
                                                 state.modal_open = false;
