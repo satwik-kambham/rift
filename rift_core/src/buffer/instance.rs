@@ -76,6 +76,16 @@ pub struct GutterInfo {
     pub end_byte: usize,
 }
 
+/// File format / language
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum Language {
+    PlainText,
+    Rust,
+    Python,
+    Markdown,
+    TOML,
+}
+
 /// Types of highlighted tokens
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum HighlightType {

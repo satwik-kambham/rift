@@ -37,7 +37,7 @@ impl CompletionMenu {
         &mut self,
         ctx: &egui::Context,
         state: &mut EditorState,
-        lsp_handle: &mut LSPClientHandle,
+        lsp_handle: &mut Option<&mut LSPClientHandle>,
     ) -> bool {
         if self.active {
             egui::Window::new("completion_menu")
@@ -76,7 +76,7 @@ impl CompletionMenu {
         &mut self,
         ui: &mut egui::Ui,
         state: &mut EditorState,
-        lsp_handle: &mut LSPClientHandle,
+        lsp_handle: &mut Option<&mut LSPClientHandle>,
     ) {
         ui.input(|i| {
             for event in &i.raw.events {

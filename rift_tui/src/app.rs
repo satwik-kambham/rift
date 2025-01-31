@@ -1,4 +1,7 @@
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use ratatui::{
     crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers},
@@ -11,14 +14,11 @@ use ratatui::{
 use rift_core::{
     actions::{perform_action, Action},
     buffer::{
-        instance::{Attribute, Cursor, Range, Selection},
+        instance::{Attribute, Cursor, Language, Range, Selection},
         line_buffer::LineBuffer,
     },
     io::file_io,
-    lsp::{
-        client::{start_lsp, LSPClientHandle},
-        types,
-    },
+    lsp::{client::LSPClientHandle, types},
     preferences::Color,
     state::{EditorState, Mode},
 };
@@ -31,7 +31,7 @@ pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
 
 pub struct App {
     pub state: EditorState,
-    pub lsp_handle: LSPClientHandle,
+    pub lsp_handles: HashMap<Language, LSPClientHandle>,
     pub modal_list_state: widgets::ListState,
     pub info_modal_active: bool,
     pub info_modal_content: String,
@@ -45,7 +45,7 @@ pub struct App {
 impl App {
     pub fn new(rt: tokio::runtime::Runtime, cli_args: cli::CLIArgs) -> Self {
         let mut state = EditorState::new(rt);
-        let mut lsp_handle = state.rt.block_on(async { start_lsp().await.unwrap() });
+        let mut lsp_handles = HashMap::new();
 
         if let Some(path) = cli_args.path {
             let mut path = path;
@@ -54,32 +54,42 @@ impl App {
             }
             if path.is_dir() {
                 state.workspace_folder = path.into_os_string().into_string().unwrap();
-                lsp_handle.init_lsp_sync(state.workspace_folder.clone());
             } else {
                 state.workspace_folder = path.parent().unwrap().to_str().unwrap().to_string();
-                lsp_handle.init_lsp_sync(state.workspace_folder.clone());
                 let initial_text = file_io::read_file_content(path.to_str().unwrap()).unwrap();
                 let buffer = LineBuffer::new(
                     initial_text.clone(),
                     Some(path.to_str().unwrap().to_string()),
                 );
-                state.buffer_idx = Some(state.add_buffer(buffer));
 
-                lsp_handle
-                    .send_notification_sync(
-                        "textDocument/didOpen".to_string(),
-                        Some(LSPClientHandle::did_open_text_document(
-                            path.to_str().unwrap().to_string(),
-                            initial_text,
-                        )),
-                    )
-                    .unwrap();
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    lsp_handles.entry(buffer.language)
+                {
+                    if let Some(mut lsp_handle) = state.spawn_lsp(buffer.language) {
+                        lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+                        e.insert(lsp_handle);
+                    }
+                }
+
+                if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didOpen".to_string(),
+                            Some(LSPClientHandle::did_open_text_document(
+                                path.to_str().unwrap().to_string(),
+                                initial_text,
+                            )),
+                        )
+                        .unwrap();
+                }
+
+                state.buffer_idx = Some(state.add_buffer(buffer));
             }
         }
 
         Self {
             state,
-            lsp_handle,
+            lsp_handles,
             modal_list_state: widgets::ListState::default(),
             info_modal_active: false,
             info_modal_content: "".into(),
@@ -92,7 +102,13 @@ impl App {
     }
 
     pub fn perform_action(&mut self, action: Action) {
-        perform_action(action, &mut self.state, &mut self.lsp_handle);
+        if self.state.buffer_idx.is_some() {
+            let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+            let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
+            perform_action(action, &mut self.state, lsp_handle);
+        } else {
+            perform_action(action, &mut self.state, &mut None);
+        }
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
@@ -121,210 +137,230 @@ impl App {
                 }
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    (async_result.callback)(
-                        async_result.result,
-                        &mut self.state,
-                        &mut self.lsp_handle,
-                    );
+                    let (buffer, _instance) =
+                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
+                    (async_result.callback)(async_result.result, &mut self.state, lsp_handle);
                 }
 
-                if let Some(message) = self.lsp_handle.recv_message_sync() {
-                    self.state.update_view = true;
-                    match message {
-                        rift_core::lsp::client::IncomingMessage::Response(response) => {
-                            if response.error.is_some() {
-                                tracing::error!(
-                                    "---Error: Message Id: {}\n\n{:#?}---\n",
-                                    response.id,
-                                    response.error.unwrap()
-                                );
-                            } else if self.lsp_handle.id_method[&response.id]
-                                == "textDocument/hover"
-                                && response.result.is_some()
-                            {
-                                let message = response.result.unwrap()["contents"]["value"]
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string();
-                                self.info_modal_content = message;
-                                self.info_modal_active = true;
-                            } else if self.lsp_handle.id_method[&response.id]
-                                == "textDocument/completion"
-                                && response.result.is_some()
-                            {
-                                let items = response.result.unwrap()["items"]
-                                    .as_array()
-                                    .unwrap()
-                                    .clone();
-                                let mut completion_items = vec![];
-                                for item in items {
-                                    completion_items.push(types::CompletionItem {
-                                        label: item["label"].as_str().unwrap().to_owned(),
-                                        edit: types::TextEdit {
-                                            text: item["textEdit"]["newText"]
+                if self.state.buffer_idx.is_some() {
+                    let (buffer, _instance) =
+                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    if let Some(lsp_handle) = self.lsp_handles.get_mut(&buffer.language) {
+                        if let Some(message) = lsp_handle.recv_message_sync() {
+                            self.state.update_view = true;
+                            match message {
+                                rift_core::lsp::client::IncomingMessage::Response(response) => {
+                                    if response.error.is_some() {
+                                        tracing::error!(
+                                            "---Error: Message Id: {}\n\n{:#?}---\n",
+                                            response.id,
+                                            response.error.unwrap()
+                                        );
+                                    } else if lsp_handle.id_method[&response.id]
+                                        == "textDocument/hover"
+                                        && response.result.is_some()
+                                    {
+                                        let message = response.result.unwrap()["contents"]["value"]
+                                            .as_str()
+                                            .unwrap()
+                                            .to_string();
+                                        self.info_modal_content = message;
+                                        self.info_modal_active = true;
+                                    } else if lsp_handle.id_method[&response.id]
+                                        == "textDocument/completion"
+                                        && response.result.is_some()
+                                    {
+                                        let items = response.result.unwrap()["items"]
+                                            .as_array()
+                                            .unwrap()
+                                            .clone();
+                                        let mut completion_items = vec![];
+                                        for item in items {
+                                            completion_items.push(types::CompletionItem {
+                                                label: item["label"].as_str().unwrap().to_owned(),
+                                                edit: types::TextEdit {
+                                                    text: item["textEdit"]["newText"]
+                                                        .as_str()
+                                                        .unwrap()
+                                                        .to_owned(),
+                                                    range: Selection {
+                                                        cursor: Cursor {
+                                                            row: item["textEdit"]["range"]["end"]
+                                                                ["line"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                            column: item["textEdit"]["range"]["end"]
+                                                                ["character"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                        },
+                                                        mark: Cursor {
+                                                            row: item["textEdit"]["range"]["start"]
+                                                                ["line"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                            column: item["textEdit"]["range"]
+                                                                ["start"]["character"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                        },
+                                                    },
+                                                },
+                                            });
+                                        }
+                                        self.completion_menu_active = true;
+                                        self.completion_menu_items = completion_items;
+                                        self.completion_menu_idx = None;
+                                    } else if lsp_handle.id_method[&response.id]
+                                        == "textDocument/formatting"
+                                        && response.result.is_some()
+                                    {
+                                        let edits =
+                                            response.result.unwrap().as_array().unwrap().clone();
+                                        for edit in edits {
+                                            let text_edit = types::TextEdit {
+                                                text: edit["newText"].as_str().unwrap().to_owned(),
+                                                range: Selection {
+                                                    cursor: Cursor {
+                                                        row: edit["range"]["end"]["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: edit["range"]["end"]["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                    mark: Cursor {
+                                                        row: edit["range"]["start"]["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: edit["range"]["start"]["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                },
+                                            };
+                                            perform_action(
+                                                Action::DeleteText(text_edit.range),
+                                                &mut self.state,
+                                                &mut Some(lsp_handle),
+                                            );
+                                            perform_action(
+                                                Action::InsertText(
+                                                    text_edit.text,
+                                                    text_edit.range.mark,
+                                                ),
+                                                &mut self.state,
+                                                &mut Some(lsp_handle),
+                                            );
+                                        }
+                                    } else {
+                                        let message = format!(
+                                            "---Response to: {}({})\n\n{:#?}---\n",
+                                            lsp_handle.id_method[&response.id],
+                                            response.id,
+                                            response.result
+                                        );
+                                        tracing::info!("{}", message);
+                                    }
+                                }
+                                rift_core::lsp::client::IncomingMessage::Notification(
+                                    notification,
+                                ) => {
+                                    if notification.method == "textDocument/publishDiagnostics"
+                                        && notification.params.is_some()
+                                    {
+                                        let mut uri = std::path::absolute(
+                                            notification.params.as_ref().unwrap()["uri"]
                                                 .as_str()
                                                 .unwrap()
-                                                .to_owned(),
-                                            range: Selection {
-                                                cursor: Cursor {
-                                                    row: item["textEdit"]["range"]["end"]["line"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                    column: item["textEdit"]["range"]["end"]
-                                                        ["character"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                },
-                                                mark: Cursor {
-                                                    row: item["textEdit"]["range"]["start"]["line"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                    column: item["textEdit"]["range"]["start"]
-                                                        ["character"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                },
-                                            },
-                                        },
-                                    });
-                                }
-                                self.completion_menu_active = true;
-                                self.completion_menu_items = completion_items;
-                                self.completion_menu_idx = None;
-                            } else if self.lsp_handle.id_method[&response.id]
-                                == "textDocument/formatting"
-                                && response.result.is_some()
-                            {
-                                let edits = response.result.unwrap().as_array().unwrap().clone();
-                                for edit in edits {
-                                    let text_edit = types::TextEdit {
-                                        text: edit["newText"].as_str().unwrap().to_owned(),
-                                        range: Selection {
-                                            cursor: Cursor {
-                                                row: edit["range"]["end"]["line"].as_u64().unwrap()
-                                                    as usize,
-                                                column: edit["range"]["end"]["character"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                            },
-                                            mark: Cursor {
-                                                row: edit["range"]["start"]["line"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                                column: edit["range"]["start"]["character"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                            },
-                                        },
-                                    };
-                                    perform_action(
-                                        Action::DeleteText(text_edit.range),
-                                        &mut self.state,
-                                        &mut self.lsp_handle,
-                                    );
-                                    perform_action(
-                                        Action::InsertText(text_edit.text, text_edit.range.mark),
-                                        &mut self.state,
-                                        &mut self.lsp_handle,
-                                    );
-                                }
-                            } else {
-                                let message = format!(
-                                    "---Response to: {}({})\n\n{:#?}---\n",
-                                    self.lsp_handle.id_method[&response.id],
-                                    response.id,
-                                    response.result
-                                );
-                                tracing::info!("{}", message);
-                            }
-                        }
-                        rift_core::lsp::client::IncomingMessage::Notification(notification) => {
-                            if notification.method == "textDocument/publishDiagnostics"
-                                && notification.params.is_some()
-                            {
-                                let mut uri = std::path::absolute(
-                                    notification.params.as_ref().unwrap()["uri"]
-                                        .as_str()
+                                                .strip_prefix("file:")
+                                                .unwrap()
+                                                .trim_start_matches("\\"),
+                                        )
                                         .unwrap()
-                                        .strip_prefix("file:")
+                                        .to_str()
                                         .unwrap()
-                                        .trim_start_matches("\\"),
-                                )
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string();
-                                #[cfg(target_os = "windows")]
-                                {
-                                    uri = uri.to_lowercase();
-                                }
-
-                                let mut diagnostics = types::PublishDiagnostics {
-                                    uri,
-                                    version: notification.params.as_ref().unwrap()["version"]
-                                        .as_u64()
-                                        .unwrap_or(0)
-                                        as usize,
-                                    diagnostics: vec![],
-                                };
-
-                                for diagnostic in notification.params.as_ref().unwrap()
-                                    ["diagnostics"]
-                                    .as_array()
-                                    .unwrap()
-                                {
-                                    diagnostics.diagnostics.push(types::Diagnostic {
-                                        range: Selection {
-                                            cursor: Cursor {
-                                                row: diagnostic["range"]["end"]["line"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                                column: diagnostic["range"]["end"]["character"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                            },
-                                            mark: Cursor {
-                                                row: diagnostic["range"]["start"]["line"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                                column: diagnostic["range"]["start"]["character"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                            },
-                                        },
-                                        severity: match diagnostic["severity"].as_u64().unwrap_or(1)
+                                        .to_string();
+                                        #[cfg(target_os = "windows")]
                                         {
-                                            1 => types::DiagnosticSeverity::Error,
-                                            2 => types::DiagnosticSeverity::Warning,
-                                            3 => types::DiagnosticSeverity::Information,
-                                            4 => types::DiagnosticSeverity::Hint,
-                                            _ => types::DiagnosticSeverity::Error,
-                                        },
-                                        code: diagnostic["code"].to_string(),
-                                        source: diagnostic["source"].to_string(),
-                                        message: diagnostic["message"].to_string(),
-                                    });
+                                            uri = uri.to_lowercase();
+                                        }
+
+                                        let mut diagnostics = types::PublishDiagnostics {
+                                            uri,
+                                            version: notification.params.as_ref().unwrap()
+                                                ["version"]
+                                                .as_u64()
+                                                .unwrap_or(0)
+                                                as usize,
+                                            diagnostics: vec![],
+                                        };
+
+                                        for diagnostic in notification.params.as_ref().unwrap()
+                                            ["diagnostics"]
+                                            .as_array()
+                                            .unwrap()
+                                        {
+                                            diagnostics.diagnostics.push(types::Diagnostic {
+                                                range: Selection {
+                                                    cursor: Cursor {
+                                                        row: diagnostic["range"]["end"]["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: diagnostic["range"]["end"]
+                                                            ["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                    mark: Cursor {
+                                                        row: diagnostic["range"]["start"]["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: diagnostic["range"]["start"]
+                                                            ["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                },
+                                                severity: match diagnostic["severity"]
+                                                    .as_u64()
+                                                    .unwrap_or(1)
+                                                {
+                                                    1 => types::DiagnosticSeverity::Error,
+                                                    2 => types::DiagnosticSeverity::Warning,
+                                                    3 => types::DiagnosticSeverity::Information,
+                                                    4 => types::DiagnosticSeverity::Hint,
+                                                    _ => types::DiagnosticSeverity::Error,
+                                                },
+                                                code: diagnostic["code"].to_string(),
+                                                source: diagnostic["source"].to_string(),
+                                                message: diagnostic["message"].to_string(),
+                                            });
+                                        }
+                                        self.state
+                                            .diagnostics
+                                            .insert(diagnostics.uri.clone(), diagnostics);
+                                    } else {
+                                        let message = format!(
+                                            "---Notification: {}\n\n{:#?}---\n",
+                                            notification.method, notification.params
+                                        );
+                                        tracing::info!("{}", message);
+                                    }
                                 }
-                                self.state
-                                    .diagnostics
-                                    .insert(diagnostics.uri.clone(), diagnostics);
-                            } else {
-                                let message = format!(
-                                    "---Notification: {}\n\n{:#?}---\n",
-                                    notification.method, notification.params
-                                );
-                                tracing::info!("{}", message);
                             }
                         }
                     }
@@ -638,12 +674,15 @@ impl App {
                                     self.completion_menu_state.select(self.completion_menu_idx);
                                 }
                             } else if key.code == KeyCode::Enter {
+                                let (buffer, _instance) =
+                                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                                let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
                                 if let Some(idx) = self.completion_menu_idx {
                                     let completion_item = &self.completion_menu_items[idx];
                                     perform_action(
                                         Action::DeleteText(completion_item.edit.range),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                     perform_action(
                                         Action::InsertText(
@@ -651,7 +690,7 @@ impl App {
                                             completion_item.edit.range.mark,
                                         ),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                 }
                                 self.completion_menu_active = false;
@@ -716,6 +755,34 @@ impl App {
                                             initial_text.clone(),
                                             Some(path.clone()),
                                         );
+
+                                        if let std::collections::hash_map::Entry::Vacant(e) =
+                                            self.lsp_handles.entry(buffer.language)
+                                        {
+                                            if let Some(mut lsp_handle) =
+                                                self.state.spawn_lsp(buffer.language)
+                                            {
+                                                lsp_handle.init_lsp_sync(
+                                                    self.state.workspace_folder.clone(),
+                                                );
+                                                e.insert(lsp_handle);
+                                            }
+                                        }
+
+                                        if let Some(lsp_handle) =
+                                            self.lsp_handles.get(&buffer.language)
+                                        {
+                                            lsp_handle
+                                                .send_notification_sync(
+                                                    "textDocument/didOpen".to_string(),
+                                                    Some(LSPClientHandle::did_open_text_document(
+                                                        path.clone(),
+                                                        initial_text,
+                                                    )),
+                                                )
+                                                .unwrap();
+                                        }
+
                                         self.state.buffer_idx = Some(self.state.add_buffer(buffer));
                                         self.state.modal_open = false;
                                         self.state.modal_options = vec![];
@@ -723,23 +790,11 @@ impl App {
                                         self.state.modal_selection_idx = None;
                                         self.modal_list_state.select(None);
                                         self.state.modal_input = "".into();
-
-                                        self.lsp_handle
-                                            .send_notification_sync(
-                                                "textDocument/didOpen".to_string(),
-                                                Some(LSPClientHandle::did_open_text_document(
-                                                    path.clone(),
-                                                    initial_text,
-                                                )),
-                                            )
-                                            .unwrap();
                                     } else {
                                         self.state.modal_input = entry.path.clone();
 
                                         if key.modifiers.contains(KeyModifiers::ALT) {
                                             self.state.workspace_folder = entry.path.clone();
-                                            self.lsp_handle
-                                                .init_lsp_sync(self.state.workspace_folder.clone());
                                         }
 
                                         #[cfg(target_os = "windows")]

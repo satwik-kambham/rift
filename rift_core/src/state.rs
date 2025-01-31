@@ -5,12 +5,15 @@ use tokio::sync::mpsc;
 
 use crate::{
     buffer::{
-        instance::{BufferInstance, Cursor, GutterInfo},
+        instance::{BufferInstance, Cursor, GutterInfo, Language},
         line_buffer::{HighlightedText, LineBuffer},
     },
     concurrent::{AsyncHandle, AsyncResult},
     io::file_io::FolderEntry,
-    lsp::types,
+    lsp::{
+        client::{start_lsp, LSPClientHandle},
+        types,
+    },
     preferences::Preferences,
 };
 
@@ -134,5 +137,19 @@ impl EditorState {
             self.buffers.get_mut(&id).unwrap(),
             self.instances.get_mut(&id).unwrap(),
         )
+    }
+
+    pub fn spawn_lsp(&self, language: Language) -> Option<LSPClientHandle> {
+        let command: Option<(&str, &[&str])> = match language {
+            Language::Rust => Some(("rust-analyzer", &[])),
+            _ => None,
+        };
+        if let Some(command) = command {
+            return Some(
+                self.rt
+                    .block_on(async { start_lsp(command.0, command.1).await.unwrap() }),
+            );
+        }
+        None
     }
 }

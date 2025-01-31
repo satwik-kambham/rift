@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use egui::Ui;
 use rift_core::{
     actions::{perform_action, Action},
-    buffer::line_buffer::LineBuffer,
+    buffer::{instance::Language, line_buffer::LineBuffer},
     io::file_io,
     lsp::client::LSPClientHandle,
     state::{EditorState, Mode},
@@ -14,8 +16,16 @@ impl CommandDispatcher {
         Self {}
     }
 
-    pub fn show(&self, ui: &mut Ui, state: &mut EditorState, lsp_handle: &mut LSPClientHandle) {
+    pub fn show(
+        &self,
+        ui: &mut Ui,
+        state: &mut EditorState,
+        // lsp_handle: &mut LSPClientHandle,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    ) {
         ui.input(|i| {
+            let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+            let lsp_handle = &mut lsp_handles.get_mut(&buffer.language);
             if !state.modal_open {
                 for event in &i.raw.events {
                     state.update_view = true;
@@ -468,14 +478,25 @@ impl CommandDispatcher {
                                                     initial_text.clone(),
                                                     Some(path.clone()),
                                                 );
-                                                state.buffer_idx = Some(state.add_buffer(buffer));
-                                                state.modal_open = false;
-                                                state.modal_options = vec![];
-                                                state.modal_options_filtered = vec![];
-                                                state.modal_selection_idx = None;
-                                                state.modal_input = "".into();
 
-                                                lsp_handle
+                                                if let std::collections::hash_map::Entry::Vacant(
+                                                    e,
+                                                ) = lsp_handles.entry(buffer.language)
+                                                {
+                                                    if let Some(mut lsp_handle) =
+                                                        state.spawn_lsp(buffer.language)
+                                                    {
+                                                        lsp_handle.init_lsp_sync(
+                                                            state.workspace_folder.clone(),
+                                                        );
+                                                        e.insert(lsp_handle);
+                                                    }
+                                                }
+
+                                                if let Some(lsp_handle) =
+                                                    lsp_handles.get(&buffer.language)
+                                                {
+                                                    lsp_handle
                                                     .send_notification_sync(
                                                         "textDocument/didOpen".to_string(),
                                                         Some(
@@ -486,14 +507,19 @@ impl CommandDispatcher {
                                                         ),
                                                     )
                                                     .unwrap();
+                                                }
+
+                                                state.buffer_idx = Some(state.add_buffer(buffer));
+                                                state.modal_open = false;
+                                                state.modal_options = vec![];
+                                                state.modal_options_filtered = vec![];
+                                                state.modal_selection_idx = None;
+                                                state.modal_input = "".into();
                                             } else {
                                                 state.modal_input = entry.path.clone();
 
                                                 if modifiers.shift {
                                                     state.workspace_folder = entry.path.clone();
-                                                    lsp_handle.init_lsp_sync(
-                                                        state.workspace_folder.clone(),
-                                                    );
                                                 }
 
                                                 #[cfg(target_os = "windows")]
