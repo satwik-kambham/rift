@@ -102,9 +102,13 @@ impl App {
     }
 
     pub fn perform_action(&mut self, action: Action) {
-        let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-        let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
-        perform_action(action, &mut self.state, lsp_handle);
+        if self.state.buffer_idx.is_some() {
+            let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+            let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
+            perform_action(action, &mut self.state, lsp_handle);
+        } else {
+            perform_action(action, &mut self.state, &mut None);
+        }
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
@@ -139,216 +143,223 @@ impl App {
                     (async_result.callback)(async_result.result, &mut self.state, lsp_handle);
                 }
 
-                let (buffer, _instance) =
-                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                if let Some(lsp_handle) = self.lsp_handles.get_mut(&buffer.language) {
-                    if let Some(message) = lsp_handle.recv_message_sync() {
-                        self.state.update_view = true;
-                        match message {
-                            rift_core::lsp::client::IncomingMessage::Response(response) => {
-                                if response.error.is_some() {
-                                    tracing::error!(
-                                        "---Error: Message Id: {}\n\n{:#?}---\n",
-                                        response.id,
-                                        response.error.unwrap()
-                                    );
-                                } else if lsp_handle.id_method[&response.id] == "textDocument/hover"
-                                    && response.result.is_some()
-                                {
-                                    let message = response.result.unwrap()["contents"]["value"]
-                                        .as_str()
-                                        .unwrap()
-                                        .to_string();
-                                    self.info_modal_content = message;
-                                    self.info_modal_active = true;
-                                } else if lsp_handle.id_method[&response.id]
-                                    == "textDocument/completion"
-                                    && response.result.is_some()
-                                {
-                                    let items = response.result.unwrap()["items"]
-                                        .as_array()
-                                        .unwrap()
-                                        .clone();
-                                    let mut completion_items = vec![];
-                                    for item in items {
-                                        completion_items.push(types::CompletionItem {
-                                            label: item["label"].as_str().unwrap().to_owned(),
-                                            edit: types::TextEdit {
-                                                text: item["textEdit"]["newText"]
-                                                    .as_str()
-                                                    .unwrap()
-                                                    .to_owned(),
+                if self.state.buffer_idx.is_some() {
+                    let (buffer, _instance) =
+                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    if let Some(lsp_handle) = self.lsp_handles.get_mut(&buffer.language) {
+                        if let Some(message) = lsp_handle.recv_message_sync() {
+                            self.state.update_view = true;
+                            match message {
+                                rift_core::lsp::client::IncomingMessage::Response(response) => {
+                                    if response.error.is_some() {
+                                        tracing::error!(
+                                            "---Error: Message Id: {}\n\n{:#?}---\n",
+                                            response.id,
+                                            response.error.unwrap()
+                                        );
+                                    } else if lsp_handle.id_method[&response.id]
+                                        == "textDocument/hover"
+                                        && response.result.is_some()
+                                    {
+                                        let message = response.result.unwrap()["contents"]["value"]
+                                            .as_str()
+                                            .unwrap()
+                                            .to_string();
+                                        self.info_modal_content = message;
+                                        self.info_modal_active = true;
+                                    } else if lsp_handle.id_method[&response.id]
+                                        == "textDocument/completion"
+                                        && response.result.is_some()
+                                    {
+                                        let items = response.result.unwrap()["items"]
+                                            .as_array()
+                                            .unwrap()
+                                            .clone();
+                                        let mut completion_items = vec![];
+                                        for item in items {
+                                            completion_items.push(types::CompletionItem {
+                                                label: item["label"].as_str().unwrap().to_owned(),
+                                                edit: types::TextEdit {
+                                                    text: item["textEdit"]["newText"]
+                                                        .as_str()
+                                                        .unwrap()
+                                                        .to_owned(),
+                                                    range: Selection {
+                                                        cursor: Cursor {
+                                                            row: item["textEdit"]["range"]["end"]
+                                                                ["line"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                            column: item["textEdit"]["range"]["end"]
+                                                                ["character"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                        },
+                                                        mark: Cursor {
+                                                            row: item["textEdit"]["range"]["start"]
+                                                                ["line"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                            column: item["textEdit"]["range"]
+                                                                ["start"]["character"]
+                                                                .as_u64()
+                                                                .unwrap()
+                                                                as usize,
+                                                        },
+                                                    },
+                                                },
+                                            });
+                                        }
+                                        self.completion_menu_active = true;
+                                        self.completion_menu_items = completion_items;
+                                        self.completion_menu_idx = None;
+                                    } else if lsp_handle.id_method[&response.id]
+                                        == "textDocument/formatting"
+                                        && response.result.is_some()
+                                    {
+                                        let edits =
+                                            response.result.unwrap().as_array().unwrap().clone();
+                                        for edit in edits {
+                                            let text_edit = types::TextEdit {
+                                                text: edit["newText"].as_str().unwrap().to_owned(),
                                                 range: Selection {
                                                     cursor: Cursor {
-                                                        row: item["textEdit"]["range"]["end"]
-                                                            ["line"]
+                                                        row: edit["range"]["end"]["line"]
                                                             .as_u64()
                                                             .unwrap()
                                                             as usize,
-                                                        column: item["textEdit"]["range"]["end"]
+                                                        column: edit["range"]["end"]["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                    mark: Cursor {
+                                                        row: edit["range"]["start"]["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: edit["range"]["start"]["character"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                    },
+                                                },
+                                            };
+                                            perform_action(
+                                                Action::DeleteText(text_edit.range),
+                                                &mut self.state,
+                                                &mut Some(lsp_handle),
+                                            );
+                                            perform_action(
+                                                Action::InsertText(
+                                                    text_edit.text,
+                                                    text_edit.range.mark,
+                                                ),
+                                                &mut self.state,
+                                                &mut Some(lsp_handle),
+                                            );
+                                        }
+                                    } else {
+                                        let message = format!(
+                                            "---Response to: {}({})\n\n{:#?}---\n",
+                                            lsp_handle.id_method[&response.id],
+                                            response.id,
+                                            response.result
+                                        );
+                                        tracing::info!("{}", message);
+                                    }
+                                }
+                                rift_core::lsp::client::IncomingMessage::Notification(
+                                    notification,
+                                ) => {
+                                    if notification.method == "textDocument/publishDiagnostics"
+                                        && notification.params.is_some()
+                                    {
+                                        let mut uri = std::path::absolute(
+                                            notification.params.as_ref().unwrap()["uri"]
+                                                .as_str()
+                                                .unwrap()
+                                                .strip_prefix("file:")
+                                                .unwrap()
+                                                .trim_start_matches("\\"),
+                                        )
+                                        .unwrap()
+                                        .to_str()
+                                        .unwrap()
+                                        .to_string();
+                                        #[cfg(target_os = "windows")]
+                                        {
+                                            uri = uri.to_lowercase();
+                                        }
+
+                                        let mut diagnostics = types::PublishDiagnostics {
+                                            uri,
+                                            version: notification.params.as_ref().unwrap()
+                                                ["version"]
+                                                .as_u64()
+                                                .unwrap_or(0)
+                                                as usize,
+                                            diagnostics: vec![],
+                                        };
+
+                                        for diagnostic in notification.params.as_ref().unwrap()
+                                            ["diagnostics"]
+                                            .as_array()
+                                            .unwrap()
+                                        {
+                                            diagnostics.diagnostics.push(types::Diagnostic {
+                                                range: Selection {
+                                                    cursor: Cursor {
+                                                        row: diagnostic["range"]["end"]["line"]
+                                                            .as_u64()
+                                                            .unwrap()
+                                                            as usize,
+                                                        column: diagnostic["range"]["end"]
                                                             ["character"]
                                                             .as_u64()
                                                             .unwrap()
                                                             as usize,
                                                     },
                                                     mark: Cursor {
-                                                        row: item["textEdit"]["range"]["start"]
-                                                            ["line"]
+                                                        row: diagnostic["range"]["start"]["line"]
                                                             .as_u64()
                                                             .unwrap()
                                                             as usize,
-                                                        column: item["textEdit"]["range"]["start"]
+                                                        column: diagnostic["range"]["start"]
                                                             ["character"]
                                                             .as_u64()
                                                             .unwrap()
                                                             as usize,
                                                     },
                                                 },
-                                            },
-                                        });
-                                    }
-                                    self.completion_menu_active = true;
-                                    self.completion_menu_items = completion_items;
-                                    self.completion_menu_idx = None;
-                                } else if lsp_handle.id_method[&response.id]
-                                    == "textDocument/formatting"
-                                    && response.result.is_some()
-                                {
-                                    let edits =
-                                        response.result.unwrap().as_array().unwrap().clone();
-                                    for edit in edits {
-                                        let text_edit = types::TextEdit {
-                                            text: edit["newText"].as_str().unwrap().to_owned(),
-                                            range: Selection {
-                                                cursor: Cursor {
-                                                    row: edit["range"]["end"]["line"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                    column: edit["range"]["end"]["character"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
+                                                severity: match diagnostic["severity"]
+                                                    .as_u64()
+                                                    .unwrap_or(1)
+                                                {
+                                                    1 => types::DiagnosticSeverity::Error,
+                                                    2 => types::DiagnosticSeverity::Warning,
+                                                    3 => types::DiagnosticSeverity::Information,
+                                                    4 => types::DiagnosticSeverity::Hint,
+                                                    _ => types::DiagnosticSeverity::Error,
                                                 },
-                                                mark: Cursor {
-                                                    row: edit["range"]["start"]["line"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                    column: edit["range"]["start"]["character"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                },
-                                            },
-                                        };
-                                        perform_action(
-                                            Action::DeleteText(text_edit.range),
-                                            &mut self.state,
-                                            &mut Some(lsp_handle),
+                                                code: diagnostic["code"].to_string(),
+                                                source: diagnostic["source"].to_string(),
+                                                message: diagnostic["message"].to_string(),
+                                            });
+                                        }
+                                        self.state
+                                            .diagnostics
+                                            .insert(diagnostics.uri.clone(), diagnostics);
+                                    } else {
+                                        let message = format!(
+                                            "---Notification: {}\n\n{:#?}---\n",
+                                            notification.method, notification.params
                                         );
-                                        perform_action(
-                                            Action::InsertText(
-                                                text_edit.text,
-                                                text_edit.range.mark,
-                                            ),
-                                            &mut self.state,
-                                            &mut Some(lsp_handle),
-                                        );
+                                        tracing::info!("{}", message);
                                     }
-                                } else {
-                                    let message = format!(
-                                        "---Response to: {}({})\n\n{:#?}---\n",
-                                        lsp_handle.id_method[&response.id],
-                                        response.id,
-                                        response.result
-                                    );
-                                    tracing::info!("{}", message);
-                                }
-                            }
-                            rift_core::lsp::client::IncomingMessage::Notification(notification) => {
-                                if notification.method == "textDocument/publishDiagnostics"
-                                    && notification.params.is_some()
-                                {
-                                    let mut uri = std::path::absolute(
-                                        notification.params.as_ref().unwrap()["uri"]
-                                            .as_str()
-                                            .unwrap()
-                                            .strip_prefix("file:")
-                                            .unwrap()
-                                            .trim_start_matches("\\"),
-                                    )
-                                    .unwrap()
-                                    .to_str()
-                                    .unwrap()
-                                    .to_string();
-                                    #[cfg(target_os = "windows")]
-                                    {
-                                        uri = uri.to_lowercase();
-                                    }
-
-                                    let mut diagnostics = types::PublishDiagnostics {
-                                        uri,
-                                        version: notification.params.as_ref().unwrap()["version"]
-                                            .as_u64()
-                                            .unwrap_or(0)
-                                            as usize,
-                                        diagnostics: vec![],
-                                    };
-
-                                    for diagnostic in notification.params.as_ref().unwrap()
-                                        ["diagnostics"]
-                                        .as_array()
-                                        .unwrap()
-                                    {
-                                        diagnostics.diagnostics.push(types::Diagnostic {
-                                            range: Selection {
-                                                cursor: Cursor {
-                                                    row: diagnostic["range"]["end"]["line"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                    column: diagnostic["range"]["end"]["character"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                },
-                                                mark: Cursor {
-                                                    row: diagnostic["range"]["start"]["line"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                    column: diagnostic["range"]["start"]
-                                                        ["character"]
-                                                        .as_u64()
-                                                        .unwrap()
-                                                        as usize,
-                                                },
-                                            },
-                                            severity: match diagnostic["severity"]
-                                                .as_u64()
-                                                .unwrap_or(1)
-                                            {
-                                                1 => types::DiagnosticSeverity::Error,
-                                                2 => types::DiagnosticSeverity::Warning,
-                                                3 => types::DiagnosticSeverity::Information,
-                                                4 => types::DiagnosticSeverity::Hint,
-                                                _ => types::DiagnosticSeverity::Error,
-                                            },
-                                            code: diagnostic["code"].to_string(),
-                                            source: diagnostic["source"].to_string(),
-                                            message: diagnostic["message"].to_string(),
-                                        });
-                                    }
-                                    self.state
-                                        .diagnostics
-                                        .insert(diagnostics.uri.clone(), diagnostics);
-                                } else {
-                                    let message = format!(
-                                        "---Notification: {}\n\n{:#?}---\n",
-                                        notification.method, notification.params
-                                    );
-                                    tracing::info!("{}", message);
                                 }
                             }
                         }

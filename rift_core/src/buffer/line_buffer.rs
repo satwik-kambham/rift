@@ -11,19 +11,24 @@ use super::instance::{
     Attribute, Cursor, Edit, GutterInfo, HighlightType, Language, Range, Selection,
 };
 
+/// Tree sitter syntax highlight params
+pub struct TreeSitterParams {
+    pub language_config: HighlightConfiguration,
+    pub highlight_map: HashMap<String, HighlightType>,
+    pub highlight_names: Vec<String>,
+}
+
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
     pub file_path: Option<String>,
     pub lines: Vec<String>,
-    highlighter: Highlighter,
-    language_config: HighlightConfiguration,
-    highlight_map: HashMap<String, HighlightType>,
-    highlight_names: Vec<String>,
     pub modified: bool,
     pub changes: VecDeque<Edit>,
     pub change_idx: usize,
     pub version: usize,
     pub language: Language,
+    highlighter: Highlighter,
+    highlight_params: Option<TreeSitterParams>,
 }
 
 pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
@@ -85,26 +90,51 @@ impl LineBuffer {
             ("variable.builtin".into(), HighlightType::Orange),
             ("variable.parameter".into(), HighlightType::Red),
         ]);
-        let mut language_config = HighlightConfiguration::new(
-            tree_sitter_rust::LANGUAGE.into(),
-            "rust",
-            tree_sitter_rust::HIGHLIGHTS_QUERY,
-            tree_sitter_rust::INJECTIONS_QUERY,
-            "",
-        )
-        .unwrap();
         let highlight_names: Vec<String> =
             highlight_map.keys().map(|key| key.to_string()).collect();
-        language_config.configure(&highlight_names);
-        tracing::info!("Highlight Names: {:#?}", language_config.names());
+
+        let language_config = match language {
+            Language::Rust => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_rust::LANGUAGE.into(),
+                    "rust",
+                    tree_sitter_rust::HIGHLIGHTS_QUERY,
+                    tree_sitter_rust::INJECTIONS_QUERY,
+                    "",
+                )
+                .unwrap(),
+            ),
+            Language::Python => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_python::LANGUAGE.into(),
+                    "python",
+                    tree_sitter_python::HIGHLIGHTS_QUERY,
+                    "",
+                    "",
+                )
+                .unwrap(),
+            ),
+            _ => None,
+        };
+
+        let highlight_params = if let Some(mut language_config) = language_config {
+            language_config.configure(&highlight_names);
+            tracing::info!("Highlight Names: {:#?}", language_config.names());
+
+            Some(TreeSitterParams {
+                language_config,
+                highlight_map,
+                highlight_names,
+            })
+        } else {
+            None
+        };
 
         Self {
             file_path,
             lines,
             highlighter,
-            language_config,
-            highlight_map,
-            highlight_names,
+            highlight_params,
             modified: false,
             changes: VecDeque::new(),
             change_idx: 0,
@@ -342,31 +372,39 @@ impl LineBuffer {
         });
 
         // Highlight
-        let mut highlight_type = HighlightType::None;
-        let content = self.get_content("\n".into());
-        let highlights = self
-            .highlighter
-            .highlight(&self.language_config, content.as_bytes(), None, |_| None)
-            .unwrap();
+        if let Some(highlight_params) = &self.highlight_params {
+            let mut highlight_type = HighlightType::None;
+            let content = self.get_content("\n".into());
+            let highlights = self
+                .highlighter
+                .highlight(
+                    &highlight_params.language_config,
+                    content.as_bytes(),
+                    None,
+                    |_| None,
+                )
+                .unwrap();
 
-        for event in highlights {
-            match event.unwrap() {
-                HighlightEvent::Source { start, end } => {
-                    if end >= gutter_info.first().unwrap().start_byte
-                        && start <= gutter_info.last().unwrap().end_byte
-                    {
-                        segments.push(Range {
-                            start,
-                            end: end.saturating_sub(1),
-                            attributes: HashSet::from([Attribute::Highlight(highlight_type)]),
-                        });
+            for event in highlights {
+                match event.unwrap() {
+                    HighlightEvent::Source { start, end } => {
+                        if end >= gutter_info.first().unwrap().start_byte
+                            && start <= gutter_info.last().unwrap().end_byte
+                        {
+                            segments.push(Range {
+                                start,
+                                end: end.saturating_sub(1),
+                                attributes: HashSet::from([Attribute::Highlight(highlight_type)]),
+                            });
+                        }
                     }
-                }
-                HighlightEvent::HighlightStart(s) => {
-                    highlight_type = self.highlight_map[&self.highlight_names[s.0]];
-                }
-                HighlightEvent::HighlightEnd => {
-                    highlight_type = HighlightType::None;
+                    HighlightEvent::HighlightStart(s) => {
+                        highlight_type =
+                            highlight_params.highlight_map[&highlight_params.highlight_names[s.0]];
+                    }
+                    HighlightEvent::HighlightEnd => {
+                        highlight_type = HighlightType::None;
+                    }
                 }
             }
         }
