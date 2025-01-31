@@ -1,15 +1,16 @@
-use std::{collections::HashSet, fs::File, io::Read};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::Read,
+};
 
 use egui::{
     text::LayoutJob, Color32, FontData, FontDefinitions, FontId, FontTweak, Label, Rect, RichText,
 };
 use rift_core::{
     actions::{perform_action, Action},
-    buffer::instance::{Attribute, Cursor, HighlightType, Range, Selection},
-    lsp::{
-        client::{start_lsp, LSPClientHandle},
-        types,
-    },
+    buffer::instance::{Attribute, Cursor, HighlightType, Language, Range, Selection},
+    lsp::{client::LSPClientHandle, types},
     state::{EditorState, Mode},
 };
 
@@ -25,7 +26,7 @@ pub struct App {
     dispatcher: CommandDispatcher,
     state: EditorState,
     font_definitions: FontDefinitions,
-    lsp_handle: LSPClientHandle,
+    lsp_handles: HashMap<Language, LSPClientHandle>,
     info_modal: InfoModal,
     completion_menu: CompletionMenu,
     diagnostics_overlay: DiagnosticsOverlay,
@@ -117,14 +118,14 @@ impl App {
             }
         }
 
-        let lsp_handle = state.rt.block_on(async { start_lsp().await.unwrap() });
+        let lsp_handles = HashMap::new();
 
         Self {
             dispatcher: CommandDispatcher::default(),
             completion_menu: CompletionMenu::new(5, state.preferences.theme.selection_bg),
             state,
             font_definitions: fonts,
-            lsp_handle,
+            lsp_handles,
             info_modal: InfoModal::default(),
             diagnostics_overlay: DiagnosticsOverlay::default(),
             editor_focused: true,
@@ -327,14 +328,16 @@ impl App {
                 let max_characters = (rect.width() / char_width).floor() as usize;
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    (async_result.callback)(
-                        async_result.result,
-                        &mut self.state,
-                        &mut self.lsp_handle,
-                    );
+                    let (buffer, _instance) =
+                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    let lsp_handle = self.lsp_handles.get_mut(&buffer.language).unwrap();
+                    (async_result.callback)(async_result.result, &mut self.state, lsp_handle);
                 }
 
-                if let Some(message) = self.lsp_handle.recv_message_sync() {
+                let (buffer, _instance) =
+                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                let lsp_handle = self.lsp_handles.get_mut(&buffer.language).unwrap();
+                if let Some(message) = lsp_handle.recv_message_sync() {
                     match message {
                         rift_core::lsp::client::IncomingMessage::Response(response) => {
                             if response.error.is_some() {
@@ -343,8 +346,7 @@ impl App {
                                     response.id,
                                     response.error.unwrap()
                                 );
-                            } else if self.lsp_handle.id_method[&response.id]
-                                == "textDocument/hover"
+                            } else if lsp_handle.id_method[&response.id] == "textDocument/hover"
                                 && response.result.is_some()
                             {
                                 let message = response.result.unwrap()["contents"]["value"]
@@ -354,7 +356,7 @@ impl App {
                                 self.info_modal.info = message;
                                 self.info_modal.active = true;
                                 self.editor_focused = false;
-                            } else if self.lsp_handle.id_method[&response.id]
+                            } else if lsp_handle.id_method[&response.id]
                                 == "textDocument/completion"
                                 && response.result.is_some()
                             {
@@ -401,7 +403,7 @@ impl App {
                                 self.completion_menu.set_items(completion_items);
                                 self.completion_menu.active = true;
                                 self.editor_focused = false;
-                            } else if self.lsp_handle.id_method[&response.id]
+                            } else if lsp_handle.id_method[&response.id]
                                 == "textDocument/formatting"
                                 && response.result.is_some()
                             {
@@ -433,18 +435,18 @@ impl App {
                                     perform_action(
                                         Action::DeleteText(text_edit.range),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                     perform_action(
                                         Action::InsertText(text_edit.text, text_edit.range.mark),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                 }
                             } else {
                                 let message = format!(
                                     "---Response to: {}({})\n\n{:#?}---\n",
-                                    self.lsp_handle.id_method[&response.id],
+                                    lsp_handle.id_method[&response.id],
                                     response.id,
                                     response.result
                                 );
@@ -632,14 +634,14 @@ impl App {
 
                 if self.editor_focused {
                     self.dispatcher
-                        .show(ui, &mut self.state, &mut self.lsp_handle);
+                        .show(ui, &mut self.state, &mut self.lsp_handles);
                 }
             });
         self.editor_focused = self.info_modal.show(ctx);
-        self.editor_focused = self.editor_focused
-            && self
-                .completion_menu
-                .show(ctx, &mut self.state, &mut self.lsp_handle);
+        let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+        let lsp_handle = self.lsp_handles.get_mut(&buffer.language).unwrap();
+        self.editor_focused =
+            self.editor_focused && self.completion_menu.show(ctx, &mut self.state, lsp_handle);
         self.diagnostics_overlay.show(ctx);
         egui::CentralPanel::default()
             .frame(egui::Frame {

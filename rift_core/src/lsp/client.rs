@@ -57,8 +57,8 @@ pub struct LSPClientHandle {
 }
 
 /// Starts lsp
-pub async fn start_lsp() -> Result<LSPClientHandle> {
-    let mut command = Command::new("rust-analyzer");
+pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> {
+    let mut command = Command::new(program);
 
     #[cfg(target_os = "windows")]
     {
@@ -67,6 +67,7 @@ pub async fn start_lsp() -> Result<LSPClientHandle> {
     }
 
     let mut child = command
+        .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

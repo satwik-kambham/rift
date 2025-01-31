@@ -1,4 +1,7 @@
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use ratatui::{
     crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers},
@@ -11,14 +14,11 @@ use ratatui::{
 use rift_core::{
     actions::{perform_action, Action},
     buffer::{
-        instance::{Attribute, Cursor, Range, Selection},
+        instance::{Attribute, Cursor, Language, Range, Selection},
         line_buffer::LineBuffer,
     },
     io::file_io,
-    lsp::{
-        client::{start_lsp, LSPClientHandle},
-        types,
-    },
+    lsp::{client::LSPClientHandle, types},
     preferences::Color,
     state::{EditorState, Mode},
 };
@@ -31,7 +31,7 @@ pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
 
 pub struct App {
     pub state: EditorState,
-    pub lsp_handle: LSPClientHandle,
+    pub lsp_handles: HashMap<Language, LSPClientHandle>,
     pub modal_list_state: widgets::ListState,
     pub info_modal_active: bool,
     pub info_modal_content: String,
@@ -45,7 +45,7 @@ pub struct App {
 impl App {
     pub fn new(rt: tokio::runtime::Runtime, cli_args: cli::CLIArgs) -> Self {
         let mut state = EditorState::new(rt);
-        let mut lsp_handle = state.rt.block_on(async { start_lsp().await.unwrap() });
+        let mut lsp_handles = HashMap::new();
 
         if let Some(path) = cli_args.path {
             let mut path = path;
@@ -54,18 +54,25 @@ impl App {
             }
             if path.is_dir() {
                 state.workspace_folder = path.into_os_string().into_string().unwrap();
-                lsp_handle.init_lsp_sync(state.workspace_folder.clone());
             } else {
                 state.workspace_folder = path.parent().unwrap().to_str().unwrap().to_string();
-                lsp_handle.init_lsp_sync(state.workspace_folder.clone());
                 let initial_text = file_io::read_file_content(path.to_str().unwrap()).unwrap();
                 let buffer = LineBuffer::new(
                     initial_text.clone(),
                     Some(path.to_str().unwrap().to_string()),
                 );
-                state.buffer_idx = Some(state.add_buffer(buffer));
 
-                lsp_handle
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    lsp_handles.entry(buffer.language)
+                {
+                    let mut lsp_handle = state.spawn_lsp();
+                    lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+                    e.insert(lsp_handle);
+                }
+
+                lsp_handles
+                    .get(&buffer.language)
+                    .unwrap()
                     .send_notification_sync(
                         "textDocument/didOpen".to_string(),
                         Some(LSPClientHandle::did_open_text_document(
@@ -74,12 +81,14 @@ impl App {
                         )),
                     )
                     .unwrap();
+
+                state.buffer_idx = Some(state.add_buffer(buffer));
             }
         }
 
         Self {
             state,
-            lsp_handle,
+            lsp_handles,
             modal_list_state: widgets::ListState::default(),
             info_modal_active: false,
             info_modal_content: "".into(),
@@ -92,7 +101,9 @@ impl App {
     }
 
     pub fn perform_action(&mut self, action: Action) {
-        perform_action(action, &mut self.state, &mut self.lsp_handle);
+        let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+        let lsp_handle = self.lsp_handles.get_mut(&buffer.language).unwrap();
+        perform_action(action, &mut self.state, lsp_handle);
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
@@ -120,15 +131,14 @@ impl App {
                     self.state.update_view = true;
                 }
 
+                let (buffer, _instance) =
+                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                let lsp_handle = self.lsp_handles.get_mut(&buffer.language).unwrap();
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    (async_result.callback)(
-                        async_result.result,
-                        &mut self.state,
-                        &mut self.lsp_handle,
-                    );
+                    (async_result.callback)(async_result.result, &mut self.state, lsp_handle);
                 }
 
-                if let Some(message) = self.lsp_handle.recv_message_sync() {
+                if let Some(message) = lsp_handle.recv_message_sync() {
                     self.state.update_view = true;
                     match message {
                         rift_core::lsp::client::IncomingMessage::Response(response) => {
@@ -138,8 +148,7 @@ impl App {
                                     response.id,
                                     response.error.unwrap()
                                 );
-                            } else if self.lsp_handle.id_method[&response.id]
-                                == "textDocument/hover"
+                            } else if lsp_handle.id_method[&response.id] == "textDocument/hover"
                                 && response.result.is_some()
                             {
                                 let message = response.result.unwrap()["contents"]["value"]
@@ -148,7 +157,7 @@ impl App {
                                     .to_string();
                                 self.info_modal_content = message;
                                 self.info_modal_active = true;
-                            } else if self.lsp_handle.id_method[&response.id]
+                            } else if lsp_handle.id_method[&response.id]
                                 == "textDocument/completion"
                                 && response.result.is_some()
                             {
@@ -195,7 +204,7 @@ impl App {
                                 self.completion_menu_active = true;
                                 self.completion_menu_items = completion_items;
                                 self.completion_menu_idx = None;
-                            } else if self.lsp_handle.id_method[&response.id]
+                            } else if lsp_handle.id_method[&response.id]
                                 == "textDocument/formatting"
                                 && response.result.is_some()
                             {
@@ -227,18 +236,18 @@ impl App {
                                     perform_action(
                                         Action::DeleteText(text_edit.range),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                     perform_action(
                                         Action::InsertText(text_edit.text, text_edit.range.mark),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                 }
                             } else {
                                 let message = format!(
                                     "---Response to: {}({})\n\n{:#?}---\n",
-                                    self.lsp_handle.id_method[&response.id],
+                                    lsp_handle.id_method[&response.id],
                                     response.id,
                                     response.result
                                 );
@@ -638,12 +647,16 @@ impl App {
                                     self.completion_menu_state.select(self.completion_menu_idx);
                                 }
                             } else if key.code == KeyCode::Enter {
+                                let (buffer, _instance) =
+                                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                                let lsp_handle =
+                                    self.lsp_handles.get_mut(&buffer.language).unwrap();
                                 if let Some(idx) = self.completion_menu_idx {
                                     let completion_item = &self.completion_menu_items[idx];
                                     perform_action(
                                         Action::DeleteText(completion_item.edit.range),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                     perform_action(
                                         Action::InsertText(
@@ -651,7 +664,7 @@ impl App {
                                             completion_item.edit.range.mark,
                                         ),
                                         &mut self.state,
-                                        &mut self.lsp_handle,
+                                        lsp_handle,
                                     );
                                 }
                                 self.completion_menu_active = false;
@@ -716,15 +729,19 @@ impl App {
                                             initial_text.clone(),
                                             Some(path.clone()),
                                         );
-                                        self.state.buffer_idx = Some(self.state.add_buffer(buffer));
-                                        self.state.modal_open = false;
-                                        self.state.modal_options = vec![];
-                                        self.state.modal_options_filtered = vec![];
-                                        self.state.modal_selection_idx = None;
-                                        self.modal_list_state.select(None);
-                                        self.state.modal_input = "".into();
 
-                                        self.lsp_handle
+                                        if let std::collections::hash_map::Entry::Vacant(e) =
+                                            self.lsp_handles.entry(buffer.language)
+                                        {
+                                            let mut lsp_handle = self.state.spawn_lsp();
+                                            lsp_handle
+                                                .init_lsp_sync(self.state.workspace_folder.clone());
+                                            e.insert(lsp_handle);
+                                        }
+
+                                        self.lsp_handles
+                                            .get(&buffer.language)
+                                            .unwrap()
                                             .send_notification_sync(
                                                 "textDocument/didOpen".to_string(),
                                                 Some(LSPClientHandle::did_open_text_document(
@@ -733,13 +750,19 @@ impl App {
                                                 )),
                                             )
                                             .unwrap();
+
+                                        self.state.buffer_idx = Some(self.state.add_buffer(buffer));
+                                        self.state.modal_open = false;
+                                        self.state.modal_options = vec![];
+                                        self.state.modal_options_filtered = vec![];
+                                        self.state.modal_selection_idx = None;
+                                        self.modal_list_state.select(None);
+                                        self.state.modal_input = "".into();
                                     } else {
                                         self.state.modal_input = entry.path.clone();
 
                                         if key.modifiers.contains(KeyModifiers::ALT) {
                                             self.state.workspace_folder = entry.path.clone();
-                                            self.lsp_handle
-                                                .init_lsp_sync(self.state.workspace_folder.clone());
                                         }
 
                                         #[cfg(target_os = "windows")]

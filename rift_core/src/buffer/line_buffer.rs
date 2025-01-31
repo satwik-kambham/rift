@@ -7,7 +7,9 @@ use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter}
 
 use crate::lsp::client::LSPClientHandle;
 
-use super::instance::{Attribute, Cursor, Edit, GutterInfo, HighlightType, Range, Selection};
+use super::instance::{
+    Attribute, Cursor, Edit, GutterInfo, HighlightType, Language, Range, Selection,
+};
 
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
@@ -21,6 +23,7 @@ pub struct LineBuffer {
     pub changes: VecDeque<Edit>,
     pub change_idx: usize,
     pub version: usize,
+    pub language: Language,
 }
 
 pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
@@ -43,6 +46,20 @@ impl LineBuffer {
             // The buffer is empty
             lines.push("".into());
         }
+
+        let language = match &file_path {
+            Some(path) => match std::path::Path::new(&path).extension() {
+                Some(extension) => match extension.to_str().unwrap() {
+                    "rs" => Language::Rust,
+                    "py" => Language::Python,
+                    "md" => Language::Markdown,
+                    "toml" => Language::TOML,
+                    _ => Language::PlainText,
+                },
+                None => Language::PlainText,
+            },
+            None => Language::PlainText,
+        };
 
         // Syntax highlighter
         let highlighter = Highlighter::new();
@@ -92,6 +109,7 @@ impl LineBuffer {
             changes: VecDeque::new(),
             change_idx: 0,
             version: 1,
+            language,
         }
     }
 

@@ -10,7 +10,10 @@ use crate::{
     },
     concurrent::{AsyncHandle, AsyncResult},
     io::file_io::FolderEntry,
-    lsp::types,
+    lsp::{
+        client::{start_lsp, LSPClientHandle},
+        types,
+    },
     preferences::Preferences,
 };
 
@@ -134,5 +137,10 @@ impl EditorState {
             self.buffers.get_mut(&id).unwrap(),
             self.instances.get_mut(&id).unwrap(),
         )
+    }
+
+    pub fn spawn_lsp(&self) -> LSPClientHandle {
+        self.rt
+            .block_on(async { start_lsp("rust-analyzer", &[]).await.unwrap() })
     }
 }
