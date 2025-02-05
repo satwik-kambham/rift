@@ -153,3 +153,124 @@ impl EditorState {
         None
     }
 }
+
+type ModalOnInput = fn(
+    &String,
+    &Vec<String>,
+    state: &mut EditorState,
+    lsp_handle: &mut Option<&mut LSPClientHandle>,
+) -> Vec<String>;
+
+type ModalOnSelect =
+    fn(String, state: &mut EditorState, lsp_handle: &mut Option<&mut LSPClientHandle>);
+
+pub struct Modal {
+    pub open: bool,
+    pub input: String,
+    pub options: Vec<String>,
+    pub selection: Option<usize>,
+    pub on_input: Option<ModalOnInput>,
+    pub on_select: Option<ModalOnSelect>,
+}
+
+impl Modal {
+    pub fn new() -> Self {
+        Self {
+            open: false,
+            input: String::new(),
+            options: vec![],
+            selection: None,
+            on_input: None,
+            on_select: None,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.input = String::new();
+        self.options = vec![];
+        self.selection = None;
+        self.on_input = None;
+        self.on_select = None;
+    }
+
+    pub fn set_modal_on_input(&mut self, on_input: ModalOnInput) {
+        self.on_input = Some(on_input);
+    }
+
+    pub fn set_modal_on_select(&mut self, on_select: ModalOnSelect) {
+        self.on_select = Some(on_select);
+    }
+
+    pub fn set_input(
+        &mut self,
+        input: String,
+        state: &mut EditorState,
+        lsp_handle: &mut Option<&mut LSPClientHandle>,
+    ) {
+        self.input = input;
+        if let Some(on_input) = self.on_input {
+            self.options = on_input(&self.input, &self.options, state, lsp_handle);
+        }
+
+        if !self.options.is_empty() {
+            self.selection = Some(0);
+        } else {
+            self.selection = None;
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.open = true;
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+        self.clear();
+    }
+
+    pub fn select(
+        &mut self,
+        state: &mut EditorState,
+        lsp_handle: &mut Option<&mut LSPClientHandle>,
+    ) {
+        if let Some(on_select) = self.on_select {
+            if let Some(selection) = self.selection {
+                on_select(
+                    self.options.get(selection).unwrap().to_string(),
+                    state,
+                    lsp_handle,
+                );
+            }
+        }
+    }
+
+    pub fn select_next(&mut self) {
+        if !self.options.is_empty() {
+            if self.selection.is_none() {
+                self.selection = Some(0);
+            } else if self.selection.unwrap() < self.options.len() - 1 {
+                self.selection = Some(self.selection.unwrap() + 1);
+            } else {
+                self.selection = Some(0);
+            }
+        }
+    }
+
+    pub fn select_prev(&mut self) {
+        if !self.options.is_empty() {
+            if self.selection.is_none() {
+                self.selection = Some(self.options.len() - 1);
+            } else if self.selection.unwrap() > 0 {
+                self.selection = Some(self.selection.unwrap() - 1);
+            } else {
+                self.selection = Some(self.options.len() - 1);
+            }
+        }
+    }
+}
+
+impl Default for Modal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
