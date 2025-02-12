@@ -1,7 +1,12 @@
+use std::path;
+
 use copypasta::ClipboardProvider;
 
 use crate::{
-    buffer::instance::{Cursor, Selection},
+    buffer::{
+        instance::{Cursor, Selection},
+        line_buffer::LineBuffer,
+    },
     io::file_io,
     lsp::client::LSPClientHandle,
     state::{EditorState, Mode},
@@ -217,12 +222,77 @@ pub fn perform_action(
         Action::ExtendSelectTillStartOfWord => {}
         Action::OpenFile => {
             if matches!(state.mode, Mode::Normal) {
-                state.modal_open = true;
-                state.modal_options =
-                    file_io::get_directory_entries(&state.workspace_folder).unwrap();
-                state.modal_options_filtered = state.modal_options.clone();
-                state.modal_selection_idx = None;
-                state.modal_input = state.workspace_folder.clone();
+                state.modal.open();
+                state.modal.options = file_io::get_directory_entries(&state.workspace_folder)
+                    .unwrap()
+                    .iter()
+                    .map(|entry| entry.name.clone())
+                    .collect();
+                state.modal.input = state.workspace_folder.clone();
+                state
+                    .modal
+                    .set_modal_on_input(|input, state, _lsp_handles| {
+                        file_io::get_directory_entries(&state.workspace_folder)
+                            .unwrap()
+                            .iter()
+                            .filter(|entry| entry.path.starts_with(input))
+                            .map(|entry| entry.name.clone())
+                            .collect()
+                    });
+                state.modal.set_modal_on_select(
+                    |input, selection, alt_select, state, lsp_handles| {
+                        let mut path = path::PathBuf::from(input);
+                        path.push(selection);
+                        let path_str = path.to_str().unwrap().to_owned();
+                        if path.is_dir() {
+                            if alt_select {
+                                state.workspace_folder = path_str.clone();
+                            }
+
+                            // state.modal.input = path_str.clone();
+                            // #[cfg(target_os = "windows")]
+                            // {
+                            //     state.modal.input.push('\\');
+                            // }
+
+                            // #[cfg(any(target_os = "linux", target_os = "macos"))]
+                            // {
+                            //     state.modal.input.push('/');
+                            // }
+
+                            // state.modal_options =
+                            //     file_io::get_directory_entries(&entry.path).unwrap();
+                        } else {
+                            let initial_text = file_io::read_file_content(&path_str).unwrap();
+                            let buffer =
+                                LineBuffer::new(initial_text.clone(), Some(path_str.clone()));
+
+                            if let std::collections::hash_map::Entry::Vacant(e) =
+                                lsp_handles.entry(buffer.language)
+                            {
+                                if let Some(mut lsp_handle) = state.spawn_lsp(buffer.language) {
+                                    lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+                                    e.insert(lsp_handle);
+                                }
+                            }
+
+                            if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
+                                lsp_handle
+                                    .send_notification_sync(
+                                        "textDocument/didOpen".to_string(),
+                                        Some(LSPClientHandle::did_open_text_document(
+                                            path_str.clone(),
+                                            initial_text,
+                                        )),
+                                    )
+                                    .unwrap();
+                            }
+
+                            state.buffer_idx = Some(state.add_buffer(buffer));
+                            state.modal.close();
+                        }
+                    },
+                );
             }
         }
         Action::FormatCurrentBuffer => {

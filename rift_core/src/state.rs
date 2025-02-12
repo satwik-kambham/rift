@@ -158,13 +158,17 @@ impl EditorState {
 
 type ModalOnInput = fn(
     &String,
-    &Vec<String>,
     state: &mut EditorState,
-    lsp_handle: &mut Option<&mut LSPClientHandle>,
+    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) -> Vec<String>;
 
-type ModalOnSelect =
-    fn(String, state: &mut EditorState, lsp_handle: &mut Option<&mut LSPClientHandle>);
+type ModalOnSelect = fn(
+    String,
+    String,
+    bool,
+    state: &mut EditorState,
+    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+);
 
 pub struct Modal {
     pub open: bool,
@@ -207,11 +211,11 @@ impl Modal {
         &mut self,
         input: String,
         state: &mut EditorState,
-        lsp_handle: &mut Option<&mut LSPClientHandle>,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) {
         self.input = input;
         if let Some(on_input) = self.on_input {
-            self.options = on_input(&self.input, &self.options, state, lsp_handle);
+            self.options = on_input(&self.input, state, lsp_handles);
         }
 
         if !self.options.is_empty() {
@@ -223,6 +227,7 @@ impl Modal {
 
     pub fn open(&mut self) {
         self.open = true;
+        self.clear();
     }
 
     pub fn close(&mut self) {
@@ -232,15 +237,18 @@ impl Modal {
 
     pub fn select(
         &mut self,
+        alt_select: bool,
         state: &mut EditorState,
-        lsp_handle: &mut Option<&mut LSPClientHandle>,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) {
         if let Some(on_select) = self.on_select {
             if let Some(selection) = self.selection {
                 on_select(
+                    self.input.clone(),
                     self.options.get(selection).unwrap().to_string(),
+                    alt_select,
                     state,
-                    lsp_handle,
+                    lsp_handles,
                 );
             }
         }
