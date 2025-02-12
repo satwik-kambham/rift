@@ -566,7 +566,7 @@ impl App {
                 }
 
                 // Render Modal
-                if self.state.modal_open {
+                if self.state.modal.open {
                     let popup_area = Rect {
                         x: 4,
                         y: 2,
@@ -582,14 +582,15 @@ impl App {
                     .split(modal_block.inner(popup_area));
                     let modal_list = self
                         .state
-                        .modal_options_filtered
+                        .modal
+                        .options
                         .iter()
-                        .map(|entry| entry.name.clone())
+                        .cloned()
                         .collect::<widgets::List>()
                         .highlight_symbol(">>");
                     frame.render_widget(widgets::Clear, popup_area);
                     frame.render_widget(modal_block, popup_area);
-                    frame.render_widget(&self.state.modal_input, modal_layout[0]);
+                    frame.render_widget(&self.state.modal.input, modal_layout[0]);
                     frame.render_stateful_widget(
                         modal_list,
                         modal_layout[2],
@@ -698,7 +699,7 @@ impl App {
                                 self.completion_menu_idx = None;
                                 self.completion_menu_state.select(None);
                             }
-                        } else if self.state.modal_open {
+                        } else if self.state.modal.open {
                             if let KeyCode::Char(char) = key.code {
                                 self.state.modal_input.push(char);
                                 self.state.modal_options_filtered = self
