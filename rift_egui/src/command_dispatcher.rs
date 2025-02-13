@@ -144,6 +144,11 @@ impl CommandDispatcher {
                                             }
                                         }
                                     }
+                                    egui::Key::B => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            perform_action(Action::SwitchBuffer, state, lsp_handle);
+                                        }
+                                    }
                                     egui::Key::S => {
                                         if modifiers.shift {
                                             perform_action(

@@ -35,6 +35,7 @@ pub enum Action {
     SelectTillStartOfWord,
     ExtendSelectTillStartOfWord,
     OpenFile,
+    SwitchBuffer,
     FormatCurrentBuffer,
     MoveCursorDown,
     MoveCursorUp,
@@ -297,6 +298,36 @@ pub fn perform_action(
                             state.buffer_idx = Some(state.add_buffer(buffer));
                             state.modal.close();
                         }
+                    },
+                );
+            }
+        }
+        Action::SwitchBuffer => {
+            if matches!(state.mode, Mode::Normal) {
+                state.modal.open();
+                state.modal.options = state
+                    .buffers
+                    .iter()
+                    .map(|(idx, buffer)| (buffer.file_path.clone().unwrap(), idx.to_string()))
+                    .collect();
+                state
+                    .modal
+                    .set_modal_on_input(|input, state, _lsp_handles| {
+                        state
+                            .buffers
+                            .iter()
+                            .filter(|(_idx, buffer)| {
+                                buffer.file_path.clone().unwrap().contains(input)
+                            })
+                            .map(|(idx, buffer)| {
+                                (buffer.file_path.clone().unwrap(), idx.to_string())
+                            })
+                            .collect()
+                    });
+                state.modal.set_modal_on_select(
+                    |_input, selection, _alt_select, state, _lsp_handles| {
+                        state.buffer_idx = Some(selection.1.parse().unwrap());
+                        state.modal.close();
                     },
                 );
             }

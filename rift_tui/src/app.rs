@@ -820,7 +820,8 @@ impl App {
                             } else if key.code == KeyCode::Char('W') {
                                 self.perform_action(Action::ExtendSelectTillEndOfWord);
                             } else if key.code == KeyCode::Char('b') {
-                                self.perform_action(Action::SelectTillStartOfWord);
+                                self.perform_action(Action::SwitchBuffer);
+                                // self.perform_action(Action::SelectTillStartOfWord);
                             } else if key.code == KeyCode::Char('B') {
                                 self.perform_action(Action::ExtendSelectTillStartOfWord);
                             } else if key.code == KeyCode::Char('a') {
