@@ -32,6 +32,7 @@ pub struct EditorState {
     pub instances: HashMap<u32, BufferInstance>,
     next_id: u32,
     pub workspace_folder: String,
+    pub current_folder: String,
     pub visible_lines: usize,
     pub max_characters: usize,
     pub mode: Mode,
@@ -41,11 +42,6 @@ pub struct EditorState {
     pub relative_cursor: Cursor,
     pub buffer_idx: Option<u32>,
     pub modal: Modal,
-    pub modal_open: bool,
-    pub modal_options: Vec<FolderEntry>,
-    pub modal_options_filtered: Vec<FolderEntry>,
-    pub modal_selection_idx: Option<usize>,
-    pub modal_input: String,
     pub clipboard_ctx: ClipboardContext,
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
 }
@@ -53,17 +49,19 @@ pub struct EditorState {
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
+        let initial_folder = std::path::absolute("/")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
         Self {
             rt,
             async_handle: AsyncHandle { sender, receiver },
             preferences: Preferences::default(),
             buffers: HashMap::new(),
             next_id: 0,
-            workspace_folder: std::path::absolute("/")
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_owned(),
+            workspace_folder: initial_folder.clone(),
+            current_folder: initial_folder,
             visible_lines: 0,
             max_characters: 0,
             mode: Mode::Normal,
@@ -72,11 +70,6 @@ impl EditorState {
             gutter_info: vec![],
             buffer_idx: None,
             modal: Modal::default(),
-            modal_open: false,
-            modal_options: vec![],
-            modal_options_filtered: vec![],
-            modal_selection_idx: None,
-            modal_input: "".to_string(),
             relative_cursor: Cursor { row: 0, column: 0 },
             update_view: true,
             clipboard_ctx: ClipboardContext::new().unwrap(),
@@ -160,11 +153,11 @@ type ModalOnInput = fn(
     &String,
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) -> Vec<String>;
+) -> Vec<(String, String)>;
 
 type ModalOnSelect = fn(
     String,
-    String,
+    &(String, String),
     bool,
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
@@ -173,7 +166,7 @@ type ModalOnSelect = fn(
 pub struct Modal {
     pub open: bool,
     pub input: String,
-    pub options: Vec<String>,
+    pub options: Vec<(String, String)>,
     pub selection: Option<usize>,
     pub on_input: Option<ModalOnInput>,
     pub on_select: Option<ModalOnSelect>,
@@ -207,16 +200,8 @@ impl Modal {
         self.on_select = Some(on_select);
     }
 
-    pub fn set_input(
-        &mut self,
-        input: String,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ) {
+    pub fn set_input(&mut self, input: String) {
         self.input = input;
-        if let Some(on_input) = self.on_input {
-            self.options = on_input(&self.input, state, lsp_handles);
-        }
 
         if !self.options.is_empty() {
             self.selection = Some(0);
@@ -233,25 +218,6 @@ impl Modal {
     pub fn close(&mut self) {
         self.open = false;
         self.clear();
-    }
-
-    pub fn select(
-        &mut self,
-        alt_select: bool,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ) {
-        if let Some(on_select) = self.on_select {
-            if let Some(selection) = self.selection {
-                on_select(
-                    self.input.clone(),
-                    self.options.get(selection).unwrap().to_string(),
-                    alt_select,
-                    state,
-                    lsp_handles,
-                );
-            }
-        }
     }
 
     pub fn select_next(&mut self) {

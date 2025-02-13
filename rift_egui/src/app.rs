@@ -703,7 +703,7 @@ impl App {
                     ),
                 );
             });
-        if self.state.modal_open {
+        if self.state.modal.open {
             egui::Window::new("modal")
                 .movable(false)
                 .order(egui::Order::Foreground)
@@ -716,14 +716,14 @@ impl App {
                     ..Default::default()
                 })
                 .show(ctx, |ui| {
-                    ui.label(&self.state.modal_input);
+                    ui.label(&self.state.modal.input);
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        for (idx, entry) in self.state.modal_options_filtered.iter().enumerate() {
+                        for (idx, entry) in self.state.modal.options.iter().enumerate() {
                             ui.label(
-                                RichText::new(&entry.name)
+                                RichText::new(&entry.0)
                                     .color(
-                                        if self.state.modal_selection_idx.is_some()
-                                            && idx == self.state.modal_selection_idx.unwrap()
+                                        if self.state.modal.selection.is_some()
+                                            && idx == self.state.modal.selection.unwrap()
                                         {
                                             self.state.preferences.theme.modal_active
                                         } else {

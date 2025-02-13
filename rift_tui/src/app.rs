@@ -585,7 +585,7 @@ impl App {
                         .modal
                         .options
                         .iter()
-                        .cloned()
+                        .map(|option| option.0.clone())
                         .collect::<widgets::List>()
                         .highlight_symbol(">>");
                     frame.render_widget(widgets::Clear, popup_area);
@@ -701,128 +701,50 @@ impl App {
                             }
                         } else if self.state.modal.open {
                             if let KeyCode::Char(char) = key.code {
-                                self.state.modal_input.push(char);
-                                self.state.modal_options_filtered = self
-                                    .state
-                                    .modal_options
-                                    .iter()
-                                    .filter(|entry| entry.path.starts_with(&self.state.modal_input))
-                                    .cloned()
-                                    .collect();
-                            } else if key.code == KeyCode::Tab {
-                                if !self.state.modal_options_filtered.is_empty() {
-                                    if self.state.modal_selection_idx.is_none() {
-                                        self.state.modal_selection_idx = Some(0);
-                                        self.modal_list_state.select(Some(0));
-                                    } else {
-                                        self.state.modal_selection_idx =
-                                            Some(self.state.modal_selection_idx.unwrap() + 1);
-                                        self.modal_list_state
-                                            .select(Some(self.state.modal_selection_idx.unwrap()));
-                                        if self.state.modal_selection_idx.unwrap()
-                                            >= self.state.modal_options_filtered.len()
-                                        {
-                                            self.state.modal_selection_idx = Some(0);
-                                            self.modal_list_state.select(Some(0));
-                                        }
-                                    }
-
-                                    self.state.modal_input = self.state.modal_options_filtered
-                                        [self.state.modal_selection_idx.unwrap()]
-                                    .path
-                                    .clone();
-                                } else {
-                                    self.state.modal_selection_idx = None;
-                                    self.modal_list_state.select(None);
+                                let mut input = self.state.modal.input.clone();
+                                input.push(char);
+                                self.state.modal.set_input(input.clone());
+                                if let Some(on_input) = self.state.modal.on_input {
+                                    self.state.modal.options =
+                                        on_input(&input, &mut self.state, &mut self.lsp_handles);
                                 }
-                            } else if key.code == KeyCode::Backspace {
-                                self.state.modal_input.pop();
-                                self.state.modal_options_filtered = self
-                                    .state
-                                    .modal_options
-                                    .iter()
-                                    .filter(|entry| entry.path.starts_with(&self.state.modal_input))
-                                    .cloned()
-                                    .collect();
-                            } else if key.code == KeyCode::Enter {
-                                if self.state.modal_selection_idx.is_some() {
-                                    let entry = &self.state.modal_options_filtered
-                                        [self.state.modal_selection_idx.unwrap()];
-                                    if !entry.is_dir {
-                                        let path = entry.path.clone();
-                                        let initial_text =
-                                            file_io::read_file_content(&path).unwrap();
-                                        let buffer = LineBuffer::new(
-                                            initial_text.clone(),
-                                            Some(path.clone()),
-                                        );
-
-                                        if let std::collections::hash_map::Entry::Vacant(e) =
-                                            self.lsp_handles.entry(buffer.language)
-                                        {
-                                            if let Some(mut lsp_handle) =
-                                                self.state.spawn_lsp(buffer.language)
-                                            {
-                                                lsp_handle.init_lsp_sync(
-                                                    self.state.workspace_folder.clone(),
-                                                );
-                                                e.insert(lsp_handle);
-                                            }
-                                        }
-
-                                        if let Some(lsp_handle) =
-                                            self.lsp_handles.get(&buffer.language)
-                                        {
-                                            lsp_handle
-                                                .send_notification_sync(
-                                                    "textDocument/didOpen".to_string(),
-                                                    Some(LSPClientHandle::did_open_text_document(
-                                                        path.clone(),
-                                                        initial_text,
-                                                    )),
-                                                )
-                                                .unwrap();
-                                        }
-
-                                        self.state.buffer_idx = Some(self.state.add_buffer(buffer));
-                                        self.state.modal_open = false;
-                                        self.state.modal_options = vec![];
-                                        self.state.modal_options_filtered = vec![];
-                                        self.state.modal_selection_idx = None;
-                                        self.modal_list_state.select(None);
-                                        self.state.modal_input = "".into();
-                                    } else {
-                                        self.state.modal_input = entry.path.clone();
-
-                                        if key.modifiers.contains(KeyModifiers::ALT) {
-                                            self.state.workspace_folder = entry.path.clone();
-                                        }
-
-                                        #[cfg(target_os = "windows")]
-                                        {
-                                            self.state.modal_input.push('\\');
-                                        }
-
-                                        #[cfg(any(target_os = "linux", target_os = "macos"))]
-                                        {
-                                            self.state.modal_input.push('/');
-                                        }
-
-                                        self.state.modal_options =
-                                            file_io::get_directory_entries(&entry.path).unwrap();
-                                        self.state.modal_options_filtered =
-                                            self.state.modal_options.clone();
-                                        self.state.modal_selection_idx = None;
-                                        self.modal_list_state.select(None);
-                                    }
-                                }
-                            } else if key.code == KeyCode::Esc {
-                                self.state.modal_open = false;
-                                self.state.modal_options = vec![];
-                                self.state.modal_options_filtered = vec![];
-                                self.state.modal_selection_idx = None;
                                 self.modal_list_state.select(None);
-                                self.state.modal_input = "".into();
+                            } else if key.code == KeyCode::Tab {
+                                self.state.modal.select_next();
+                                self.modal_list_state.select(self.state.modal.selection);
+                            } else if key.code == KeyCode::Backspace {
+                                let mut input = self.state.modal.input.clone();
+                                input.pop();
+                                self.state.modal.set_input(input.clone());
+                                if let Some(on_input) = self.state.modal.on_input {
+                                    self.state.modal.options =
+                                        on_input(&input, &mut self.state, &mut self.lsp_handles);
+                                }
+                                self.modal_list_state.select(None);
+                            } else if key.code == KeyCode::Enter {
+                                if let Some(on_select) = self.state.modal.on_select {
+                                    if let Some(selection) = self.state.modal.selection {
+                                        let alt = key.modifiers.contains(KeyModifiers::ALT);
+                                        let options = self
+                                            .state
+                                            .modal
+                                            .options
+                                            .get(selection)
+                                            .unwrap()
+                                            .clone();
+                                        on_select(
+                                            self.state.modal.input.clone(),
+                                            &options,
+                                            alt,
+                                            &mut self.state,
+                                            &mut self.lsp_handles,
+                                        );
+                                    }
+                                }
+                                self.modal_list_state.select(None);
+                            } else if key.code == KeyCode::Esc {
+                                self.state.modal.close();
+                                self.modal_list_state.select(None);
                             }
                         } else if matches!(self.state.mode, Mode::Normal) {
                             if key.code == KeyCode::Char('q') {

@@ -223,45 +223,51 @@ pub fn perform_action(
         Action::OpenFile => {
             if matches!(state.mode, Mode::Normal) {
                 state.modal.open();
+                state.current_folder = state.workspace_folder.clone();
                 state.modal.options = file_io::get_directory_entries(&state.workspace_folder)
                     .unwrap()
                     .iter()
-                    .map(|entry| entry.name.clone())
+                    .map(|entry| (entry.name.clone(), entry.path.clone()))
                     .collect();
                 state.modal.input = state.workspace_folder.clone();
                 state
                     .modal
                     .set_modal_on_input(|input, state, _lsp_handles| {
-                        file_io::get_directory_entries(&state.workspace_folder)
+                        file_io::get_directory_entries(&state.current_folder)
                             .unwrap()
                             .iter()
                             .filter(|entry| entry.path.starts_with(input))
-                            .map(|entry| entry.name.clone())
+                            .map(|entry| (entry.name.clone(), entry.path.clone()))
                             .collect()
                     });
                 state.modal.set_modal_on_select(
-                    |input, selection, alt_select, state, lsp_handles| {
-                        let mut path = path::PathBuf::from(input);
-                        path.push(selection);
+                    |_input, selection, alt_select, state, lsp_handles| {
+                        let path = path::PathBuf::from(selection.1.clone());
                         let path_str = path.to_str().unwrap().to_owned();
                         if path.is_dir() {
+                            state.current_folder = path_str.clone();
                             if alt_select {
                                 state.workspace_folder = path_str.clone();
                             }
 
-                            // state.modal.input = path_str.clone();
-                            // #[cfg(target_os = "windows")]
-                            // {
-                            //     state.modal.input.push('\\');
-                            // }
+                            state.modal.input = path_str.clone();
+                            #[cfg(target_os = "windows")]
+                            {
+                                state.modal.input.push('\\');
+                            }
 
-                            // #[cfg(any(target_os = "linux", target_os = "macos"))]
-                            // {
-                            //     state.modal.input.push('/');
-                            // }
+                            #[cfg(any(target_os = "linux", target_os = "macos"))]
+                            {
+                                state.modal.input.push('/');
+                            }
 
-                            // state.modal_options =
-                            //     file_io::get_directory_entries(&entry.path).unwrap();
+                            state.modal.options = file_io::get_directory_entries(&path_str)
+                                .unwrap()
+                                .iter()
+                                .filter(|entry| entry.path.starts_with(&path_str))
+                                .map(|entry| (entry.name.clone(), entry.path.clone()))
+                                .collect();
+                            state.modal.selection = None;
                         } else {
                             let initial_text = file_io::read_file_content(&path_str).unwrap();
                             let buffer =
