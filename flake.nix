@@ -43,6 +43,10 @@
           xorg.libXrandr
           xorg.libXi
           xorg.libX11
+
+          fzf
+          ripgrep
+          fd
         ];
       in
       {

@@ -7,6 +7,7 @@ use crate::{
         instance::{Cursor, Selection},
         line_buffer::LineBuffer,
     },
+    concurrent::cli::{run_piped_commands, ProgramArgs},
     io::file_io,
     lsp::client::LSPClientHandle,
     state::{EditorState, Mode},
@@ -66,6 +67,7 @@ pub enum Action {
     CutToClipboard,
     PasteFromRegister,
     PasteFromClipboard,
+    FuzzyFindFile(bool),
 }
 
 pub fn perform_action(
@@ -568,6 +570,51 @@ pub fn perform_action(
             instance.cursor = cursor;
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
+        }
+        Action::FuzzyFindFile(respect_ignore) => {
+            run_piped_commands(
+                vec![
+                    ProgramArgs {
+                        program: "fd".into(),
+                        args: vec![
+                            "--type".to_string(),
+                            "f".to_string(),
+                            "--strip-cwd-prefix".to_string(),
+                            "--full-path".to_string(),
+                            state.workspace_folder.clone(),
+                        ],
+                    },
+                    ProgramArgs {
+                        program: "fzf".into(),
+                        args: vec!["-f".to_string(), "".to_string()],
+                    },
+                ],
+                |result, state, _lsp_handle| {
+                    let results: Vec<&str> = result.trim().lines().collect();
+                    state.modal.open();
+                    state.modal.options = results
+                        .iter()
+                        .map(|path| (path.to_string(), path.to_string()))
+                        .collect();
+                    // state
+                    //     .modal
+                    //     .set_modal_on_input(|input, state, _lsp_handles| {
+                    //         results
+                    //             .iter()
+                    //             .filter(|path| path.contains(input))
+                    //             .map(|path| (path.to_string(), path.to_string()))
+                    //             .collect()
+                    //     });
+                    state.modal.set_modal_on_select(
+                        |_input, selection, _alt_select, state, _lsp_handles| {
+                            // state.buffer_idx = Some(selection.1.parse().unwrap());
+                            state.modal.close();
+                        },
+                    );
+                },
+                &state.rt,
+                state.async_handle.sender.clone(),
+            );
         }
     }
 }

@@ -9,7 +9,6 @@ use crate::{
         line_buffer::{HighlightedText, LineBuffer},
     },
     concurrent::{AsyncHandle, AsyncResult},
-    io::file_io::FolderEntry,
     lsp::{
         client::{start_lsp, LSPClientHandle},
         types,

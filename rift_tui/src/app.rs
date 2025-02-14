@@ -754,7 +754,8 @@ impl App {
                             } else if key.code == KeyCode::Char('f') {
                                 self.perform_action(Action::OpenFile);
                             } else if key.code == KeyCode::Char('F') {
-                                rift_core::ai::ollama_fim(&mut self.state);
+                                // rift_core::ai::ollama_fim(&mut self.state);
+                                self.perform_action(Action::FuzzyFindFile(true));
                             } else if key.code == KeyCode::Char('j') {
                                 self.perform_action(Action::MoveCursorDown);
                             } else if key.code == KeyCode::Char('J') {
