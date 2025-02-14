@@ -1,10 +1,10 @@
-use std::path;
+use std::{collections::HashMap, path};
 
 use copypasta::ClipboardProvider;
 
 use crate::{
     buffer::{
-        instance::{Cursor, Selection},
+        instance::{Cursor, Language, Selection},
         line_buffer::LineBuffer,
     },
     concurrent::cli::{run_piped_commands, ProgramArgs},
@@ -35,6 +35,7 @@ pub enum Action {
     ExtendSelectTillEndOfWord,
     SelectTillStartOfWord,
     ExtendSelectTillStartOfWord,
+    CreateBufferFromFile(String),
     OpenFile,
     SwitchBuffer,
     FormatCurrentBuffer,
@@ -73,10 +74,16 @@ pub enum Action {
 pub fn perform_action(
     action: Action,
     state: &mut EditorState,
-    lsp_handle: &mut Option<&mut LSPClientHandle>,
+    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
     match action {
         Action::InsertTextAtCursor(text) => {
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             let cursor = buffer.insert_text(&text, &instance.cursor, lsp_handle, true);
             instance.cursor = cursor;
@@ -84,6 +91,12 @@ pub fn perform_action(
             instance.selection.mark = instance.cursor;
         }
         Action::InsertText(text, cursor) => {
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             let _cursor = buffer.insert_text(&text, &cursor, lsp_handle, true);
             instance.cursor = Cursor { row: 0, column: 0 };
@@ -92,6 +105,12 @@ pub fn perform_action(
             instance.column_level = instance.cursor.column;
         }
         Action::DeleteText(selection) => {
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             let (_text, _cursor) = buffer.remove_text(&selection, lsp_handle, true);
             instance.cursor = Cursor { row: 0, column: 0 };
@@ -101,6 +120,12 @@ pub fn perform_action(
         }
         Action::InsertNewLineAtCursor => {
             if matches!(state.mode, Mode::Insert) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.cursor = instance.selection.cursor;
                 let indent_size = buffer.get_indentation_level(instance.cursor.row);
@@ -124,6 +149,12 @@ pub fn perform_action(
         }
         Action::AddNewLineBelowAndEnterInsertMode => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 state.mode = Mode::Insert;
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.cursor = instance.selection.cursor;
@@ -142,6 +173,12 @@ pub fn perform_action(
         Action::InsertAfterSelection => {}
         Action::AddIndent => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let tab_width = state.preferences.tab_width;
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.selection =
@@ -152,6 +189,12 @@ pub fn perform_action(
         }
         Action::RemoveIndent => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let tab_width = state.preferences.tab_width;
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.selection =
@@ -223,6 +266,43 @@ pub fn perform_action(
         }
         Action::SelectTillStartOfWord => {}
         Action::ExtendSelectTillStartOfWord => {}
+        Action::CreateBufferFromFile(path) => {
+            if let Some(idx) = state.buffers.iter().find_map(|(idx, buffer)| {
+                if buffer.file_path.clone().unwrap_or_default() == path {
+                    Some(idx)
+                } else {
+                    None
+                }
+            }) {
+                state.buffer_idx = Some(*idx);
+            } else {
+                let initial_text = file_io::read_file_content(&path).unwrap();
+                let buffer = LineBuffer::new(initial_text.clone(), Some(path.clone()));
+
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    lsp_handles.entry(buffer.language)
+                {
+                    if let Some(mut lsp_handle) = state.spawn_lsp(buffer.language) {
+                        lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+                        e.insert(lsp_handle);
+                    }
+                }
+
+                if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didOpen".to_string(),
+                            Some(LSPClientHandle::did_open_text_document(
+                                path.clone(),
+                                initial_text,
+                            )),
+                        )
+                        .unwrap();
+                }
+
+                state.buffer_idx = Some(state.add_buffer(buffer));
+            };
+        }
         Action::OpenFile => {
             if matches!(state.mode, Mode::Normal) {
                 state.modal.open();
@@ -236,12 +316,12 @@ pub fn perform_action(
                 state
                     .modal
                     .set_modal_on_input(|input, state, _lsp_handles| {
-                        file_io::get_directory_entries(&state.current_folder)
+                        state.modal.options = file_io::get_directory_entries(&state.current_folder)
                             .unwrap()
                             .iter()
                             .filter(|entry| entry.path.starts_with(input))
                             .map(|entry| (entry.name.clone(), entry.path.clone()))
-                            .collect()
+                            .collect();
                     });
                 state.modal.set_modal_on_select(
                     |_input, selection, alt_select, state, lsp_handles| {
@@ -272,32 +352,11 @@ pub fn perform_action(
                                 .collect();
                             state.modal.selection = None;
                         } else {
-                            let initial_text = file_io::read_file_content(&path_str).unwrap();
-                            let buffer =
-                                LineBuffer::new(initial_text.clone(), Some(path_str.clone()));
-
-                            if let std::collections::hash_map::Entry::Vacant(e) =
-                                lsp_handles.entry(buffer.language)
-                            {
-                                if let Some(mut lsp_handle) = state.spawn_lsp(buffer.language) {
-                                    lsp_handle.init_lsp_sync(state.workspace_folder.clone());
-                                    e.insert(lsp_handle);
-                                }
-                            }
-
-                            if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
-                                lsp_handle
-                                    .send_notification_sync(
-                                        "textDocument/didOpen".to_string(),
-                                        Some(LSPClientHandle::did_open_text_document(
-                                            path_str.clone(),
-                                            initial_text,
-                                        )),
-                                    )
-                                    .unwrap();
-                            }
-
-                            state.buffer_idx = Some(state.add_buffer(buffer));
+                            perform_action(
+                                Action::CreateBufferFromFile(path_str),
+                                state,
+                                lsp_handles,
+                            );
                             state.modal.close();
                         }
                     },
@@ -315,7 +374,7 @@ pub fn perform_action(
                 state
                     .modal
                     .set_modal_on_input(|input, state, _lsp_handles| {
-                        state
+                        state.modal.options = state
                             .buffers
                             .iter()
                             .filter(|(_idx, buffer)| {
@@ -324,7 +383,7 @@ pub fn perform_action(
                             .map(|(idx, buffer)| {
                                 (buffer.file_path.clone().unwrap(), idx.to_string())
                             })
-                            .collect()
+                            .collect();
                     });
                 state.modal.set_modal_on_select(
                     |_input, selection, _alt_select, state, _lsp_handles| {
@@ -336,6 +395,12 @@ pub fn perform_action(
         }
         Action::FormatCurrentBuffer => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 if let Some(lsp_handle) = lsp_handle {
                     lsp_handle
@@ -450,6 +515,12 @@ pub fn perform_action(
         }
         Action::LSPHover => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 if let Some(lsp_handle) = lsp_handle {
                     lsp_handle
@@ -466,6 +537,12 @@ pub fn perform_action(
         }
         Action::LSPCompletion => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 if let Some(lsp_handle) = lsp_handle {
                     lsp_handle
@@ -482,6 +559,12 @@ pub fn perform_action(
         }
         Action::DeletePreviousCharacter => {
             if matches!(state.mode, Mode::Insert) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -496,6 +579,12 @@ pub fn perform_action(
         }
         Action::DeleteNextCharacter => {
             if matches!(state.mode, Mode::Insert) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
@@ -510,6 +599,12 @@ pub fn perform_action(
         }
         Action::DeleteSelection => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 let (_text, cursor) = buffer.remove_text(&instance.selection, lsp_handle, true);
                 instance.cursor = cursor;
@@ -520,6 +615,12 @@ pub fn perform_action(
         }
         Action::Undo => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 if let Some(cursor) = buffer.undo(lsp_handle) {
                     instance.cursor = cursor;
@@ -531,6 +632,12 @@ pub fn perform_action(
         }
         Action::Redo => {
             if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 if let Some(cursor) = buffer.redo(lsp_handle) {
                     instance.cursor = cursor;
@@ -542,6 +649,12 @@ pub fn perform_action(
         }
         Action::AddTab => {
             if matches!(state.mode, Mode::Insert) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
                 let tab_width = state.preferences.tab_width;
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 let cursor =
@@ -564,6 +677,12 @@ pub fn perform_action(
         Action::CutToClipboard => {}
         Action::PasteFromRegister => {}
         Action::PasteFromClipboard => {
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
             let content = state.clipboard_ctx.get_contents().unwrap();
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
@@ -596,18 +715,48 @@ pub fn perform_action(
                         .iter()
                         .map(|path| (path.to_string(), path.to_string()))
                         .collect();
-                    // state
-                    //     .modal
-                    //     .set_modal_on_input(|input, state, _lsp_handles| {
-                    //         results
-                    //             .iter()
-                    //             .filter(|path| path.contains(input))
-                    //             .map(|path| (path.to_string(), path.to_string()))
-                    //             .collect()
-                    //     });
+                    state
+                        .modal
+                        .set_modal_on_input(|input, state, _lsp_handles| {
+                            run_piped_commands(
+                                vec![
+                                    ProgramArgs {
+                                        program: "fd".into(),
+                                        args: vec![
+                                            "--type".to_string(),
+                                            "f".to_string(),
+                                            "--strip-cwd-prefix".to_string(),
+                                            "--full-path".to_string(),
+                                            state.workspace_folder.clone(),
+                                        ],
+                                    },
+                                    ProgramArgs {
+                                        program: "fzf".into(),
+                                        args: vec!["-f".to_string(), input.to_string()],
+                                    },
+                                ],
+                                |result, state, _lsp_handle| {
+                                    let results: Vec<&str> = result.trim().lines().collect();
+                                    state.modal.options = results
+                                        .iter()
+                                        .map(|path| (path.to_string(), path.to_string()))
+                                        .collect();
+                                },
+                                &state.rt,
+                                state.async_handle.sender.clone(),
+                            );
+                        });
                     state.modal.set_modal_on_select(
-                        |_input, selection, _alt_select, state, _lsp_handles| {
-                            // state.buffer_idx = Some(selection.1.parse().unwrap());
+                        |_input, selection, _alt_select, state, lsp_handles| {
+                            let mut path = path::PathBuf::from(selection.0.clone());
+                            if path.is_relative() {
+                                path = std::path::absolute(path).unwrap();
+                            }
+                            perform_action(
+                                Action::CreateBufferFromFile(path.to_str().unwrap().to_string()),
+                                state,
+                                lsp_handles,
+                            );
                             state.modal.close();
                         },
                     );

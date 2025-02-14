@@ -148,11 +148,8 @@ impl EditorState {
     }
 }
 
-type ModalOnInput = fn(
-    &String,
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) -> Vec<(String, String)>;
+type ModalOnInput =
+    fn(&String, state: &mut EditorState, lsp_handles: &mut HashMap<Language, LSPClientHandle>);
 
 type ModalOnSelect = fn(
     String,

@@ -102,13 +102,7 @@ impl App {
     }
 
     pub fn perform_action(&mut self, action: Action) {
-        if self.state.buffer_idx.is_some() {
-            let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-            let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
-            perform_action(action, &mut self.state, lsp_handle);
-        } else {
-            perform_action(action, &mut self.state, &mut None);
-        }
+        perform_action(action, &mut self.state, &mut self.lsp_handles);
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
@@ -137,10 +131,11 @@ impl App {
                 }
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    let (buffer, _instance) =
-                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                    let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
-                    (async_result.callback)(async_result.result, &mut self.state, lsp_handle);
+                    (async_result.callback)(
+                        async_result.result,
+                        &mut self.state,
+                        &mut self.lsp_handles,
+                    );
                 }
 
                 if self.state.buffer_idx.is_some() {
@@ -251,7 +246,7 @@ impl App {
                                             perform_action(
                                                 Action::DeleteText(text_edit.range),
                                                 &mut self.state,
-                                                &mut Some(lsp_handle),
+                                                &mut self.lsp_handles,
                                             );
                                             perform_action(
                                                 Action::InsertText(
@@ -259,7 +254,7 @@ impl App {
                                                     text_edit.range.mark,
                                                 ),
                                                 &mut self.state,
-                                                &mut Some(lsp_handle),
+                                                &mut self.lsp_handles,
                                             );
                                         }
                                     } else {
@@ -675,15 +670,12 @@ impl App {
                                     self.completion_menu_state.select(self.completion_menu_idx);
                                 }
                             } else if key.code == KeyCode::Enter {
-                                let (buffer, _instance) =
-                                    self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                                let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
                                 if let Some(idx) = self.completion_menu_idx {
                                     let completion_item = &self.completion_menu_items[idx];
                                     perform_action(
                                         Action::DeleteText(completion_item.edit.range),
                                         &mut self.state,
-                                        lsp_handle,
+                                        &mut self.lsp_handles,
                                     );
                                     perform_action(
                                         Action::InsertText(
@@ -691,7 +683,7 @@ impl App {
                                             completion_item.edit.range.mark,
                                         ),
                                         &mut self.state,
-                                        lsp_handle,
+                                        &mut self.lsp_handles,
                                     );
                                 }
                                 self.completion_menu_active = false;
@@ -705,8 +697,7 @@ impl App {
                                 input.push(char);
                                 self.state.modal.set_input(input.clone());
                                 if let Some(on_input) = self.state.modal.on_input {
-                                    self.state.modal.options =
-                                        on_input(&input, &mut self.state, &mut self.lsp_handles);
+                                    on_input(&input, &mut self.state, &mut self.lsp_handles);
                                 }
                                 self.modal_list_state.select(None);
                             } else if key.code == KeyCode::Tab {
@@ -717,8 +708,7 @@ impl App {
                                 input.pop();
                                 self.state.modal.set_input(input.clone());
                                 if let Some(on_input) = self.state.modal.on_input {
-                                    self.state.modal.options =
-                                        on_input(&input, &mut self.state, &mut self.lsp_handles);
+                                    on_input(&input, &mut self.state, &mut self.lsp_handles);
                                 }
                                 self.modal_list_state.select(None);
                             } else if key.code == KeyCode::Enter {

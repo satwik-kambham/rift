@@ -328,10 +328,11 @@ impl App {
                 let max_characters = (rect.width() / char_width).floor() as usize;
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    let (buffer, _instance) =
-                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                    let mut lsp_handle = self.lsp_handles.get_mut(&buffer.language);
-                    (async_result.callback)(async_result.result, &mut self.state, &mut lsp_handle);
+                    (async_result.callback)(
+                        async_result.result,
+                        &mut self.state,
+                        &mut self.lsp_handles,
+                    );
                 }
 
                 if self.state.buffer_idx.is_some() {
@@ -442,7 +443,7 @@ impl App {
                                             perform_action(
                                                 Action::DeleteText(text_edit.range),
                                                 &mut self.state,
-                                                &mut Some(lsp_handle),
+                                                &mut self.lsp_handles,
                                             );
                                             perform_action(
                                                 Action::InsertText(
@@ -450,7 +451,7 @@ impl App {
                                                     text_edit.range.mark,
                                                 ),
                                                 &mut self.state,
-                                                &mut Some(lsp_handle),
+                                                &mut self.lsp_handles,
                                             );
                                         }
                                     } else {
@@ -658,10 +659,10 @@ impl App {
             });
         self.editor_focused = self.info_modal.show(ctx);
         if self.state.buffer_idx.is_some() {
-            let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-            let lsp_handle = &mut self.lsp_handles.get_mut(&buffer.language);
-            self.editor_focused =
-                self.editor_focused && self.completion_menu.show(ctx, &mut self.state, lsp_handle);
+            self.editor_focused = self.editor_focused
+                && self
+                    .completion_menu
+                    .show(ctx, &mut self.state, &mut self.lsp_handles);
         }
         self.diagnostics_overlay.show(ctx);
         egui::CentralPanel::default()

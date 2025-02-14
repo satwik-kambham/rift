@@ -1,12 +1,18 @@
+use std::collections::HashMap;
+
 use tokio::sync::mpsc::Sender;
 
-use crate::{lsp::client::LSPClientHandle, state::EditorState};
+use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
 
 use super::AsyncResult;
 
 pub fn get_request(
     url: String,
-    callback: fn(String, state: &mut EditorState, lsp_handle: &mut Option<&mut LSPClientHandle>),
+    callback: fn(
+        String,
+        state: &mut EditorState,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    ),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
@@ -26,7 +32,11 @@ pub fn get_request(
 pub fn post_request(
     url: String,
     body: String,
-    callback: fn(String, state: &mut EditorState, lsp_handle: &mut Option<&mut LSPClientHandle>),
+    callback: fn(
+        String,
+        state: &mut EditorState,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    ),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {

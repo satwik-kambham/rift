@@ -1,8 +1,8 @@
-use std::process::Stdio;
+use std::{collections::HashMap, process::Stdio};
 
 use tokio::{io::AsyncWriteExt, process::Command, sync::mpsc::Sender};
 
-use crate::{lsp::client::LSPClientHandle, state::EditorState};
+use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
 
 use super::AsyncResult;
 
@@ -14,7 +14,11 @@ pub struct ProgramArgs {
 
 pub fn run_command(
     program_args: ProgramArgs,
-    callback: fn(String, state: &mut EditorState, lsp_handle: &mut Option<&mut LSPClientHandle>),
+    callback: fn(
+        String,
+        state: &mut EditorState,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    ),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
@@ -34,7 +38,11 @@ pub fn run_command(
 
 pub fn run_piped_commands(
     program_args: Vec<ProgramArgs>,
-    callback: fn(String, state: &mut EditorState, lsp_handle: &mut Option<&mut LSPClientHandle>),
+    callback: fn(
+        String,
+        state: &mut EditorState,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    ),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {

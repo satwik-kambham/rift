@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use egui::RichText;
 use rift_core::{
     actions::{perform_action, Action},
+    buffer::instance::Language,
     lsp::{client::LSPClientHandle, types},
     preferences::Color,
     state::EditorState,
@@ -37,7 +40,7 @@ impl CompletionMenu {
         &mut self,
         ctx: &egui::Context,
         state: &mut EditorState,
-        lsp_handle: &mut Option<&mut LSPClientHandle>,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) -> bool {
         if self.active {
             egui::Window::new("completion_menu")
@@ -65,7 +68,7 @@ impl CompletionMenu {
                             ui.label(item.label.clone());
                         }
                     }
-                    self.handle_input(ui, state, lsp_handle);
+                    self.handle_input(ui, state, lsp_handles);
                 });
             return false;
         }
@@ -76,7 +79,7 @@ impl CompletionMenu {
         &mut self,
         ui: &mut egui::Ui,
         state: &mut EditorState,
-        lsp_handle: &mut Option<&mut LSPClientHandle>,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) {
         ui.input(|i| {
             for event in &i.raw.events {
@@ -109,7 +112,7 @@ impl CompletionMenu {
                                 perform_action(
                                     Action::DeleteText(completion_item.edit.range),
                                     state,
-                                    lsp_handle,
+                                    lsp_handles,
                                 );
                                 perform_action(
                                     Action::InsertText(
@@ -117,7 +120,7 @@ impl CompletionMenu {
                                         completion_item.edit.range.mark,
                                     ),
                                     state,
-                                    lsp_handle,
+                                    lsp_handles,
                                 );
                                 self.active = false;
                             }
