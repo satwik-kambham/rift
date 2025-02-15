@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use egui::Ui;
 use rift_core::{
     actions::{perform_action, Action},
-    buffer::{instance::Language, line_buffer::LineBuffer},
-    io::file_io,
+    buffer::instance::Language,
     lsp::client::LSPClientHandle,
     state::{EditorState, Mode},
 };
@@ -23,13 +22,7 @@ impl CommandDispatcher {
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) {
         ui.input(|i| {
-            let lsp_handle = if state.buffer_idx.is_some() {
-                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-                &mut lsp_handles.get_mut(&buffer.language)
-            } else {
-                &mut None
-            };
-            if !state.modal_open {
+            if !state.modal.open {
                 for event in &i.raw.events {
                     state.update_view = true;
                     match event {
@@ -38,7 +31,7 @@ impl CommandDispatcher {
                                 perform_action(
                                     Action::InsertTextAtCursor(text.to_string()),
                                     state,
-                                    lsp_handle,
+                                    lsp_handles,
                                 );
                             }
                         }
@@ -52,14 +45,14 @@ impl CommandDispatcher {
                             if *pressed {
                                 match key {
                                     egui::Key::Escape => {
-                                        perform_action(Action::QuitInsertMode, state, lsp_handle);
+                                        perform_action(Action::QuitInsertMode, state, lsp_handles);
                                     }
                                     egui::Key::I => {
                                         if matches!(state.mode, Mode::Normal) {
                                             perform_action(
                                                 Action::EnterInsertMode,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                             return;
                                         }
@@ -69,30 +62,34 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::AddNewLineBelowAndEnterInsertMode,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                             return;
                                         }
                                     }
                                     egui::Key::Comma => {
                                         if modifiers.shift {
-                                            perform_action(Action::RemoveIndent, state, lsp_handle);
+                                            perform_action(
+                                                Action::RemoveIndent,
+                                                state,
+                                                lsp_handles,
+                                            );
                                         } else {
                                             perform_action(
                                                 Action::CyclePreviousBuffer,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
                                     egui::Key::Period => {
                                         if modifiers.shift {
-                                            perform_action(Action::AddIndent, state, lsp_handle);
+                                            perform_action(Action::AddIndent, state, lsp_handles);
                                         } else {
                                             perform_action(
                                                 Action::CycleNextBuffer,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -101,7 +98,7 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::CloseCurrentBuffer,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -110,13 +107,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::SelectAndExtentCurrentLine,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::SelectCurrentLine,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -125,24 +122,51 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendSelectTillEndOfWord,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::SelectTillEndOfWord,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
                                     egui::Key::F => {
                                         if matches!(state.mode, Mode::Normal) {
                                             if modifiers.shift {
-                                                rift_core::ai::ollama_fim(state);
+                                                // rift_core::ai::ollama_fim(state);
+                                                perform_action(
+                                                    Action::FuzzyFindFile(true),
+                                                    state,
+                                                    lsp_handles,
+                                                );
                                             } else {
-                                                perform_action(Action::OpenFile, state, lsp_handle);
+                                                perform_action(
+                                                    Action::OpenFile,
+                                                    state,
+                                                    lsp_handles,
+                                                );
                                                 return;
                                             }
+                                        }
+                                    }
+                                    egui::Key::Backslash => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            perform_action(
+                                                Action::SearchWorkspace,
+                                                state,
+                                                lsp_handles,
+                                            );
+                                        }
+                                    }
+                                    egui::Key::B => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            perform_action(
+                                                Action::SwitchBuffer,
+                                                state,
+                                                lsp_handles,
+                                            );
                                         }
                                     }
                                     egui::Key::S => {
@@ -150,13 +174,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::SaveCurrentBuffer,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::FormatCurrentBuffer,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -165,13 +189,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorDown,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorDown,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -180,10 +204,14 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorUp,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
-                                            perform_action(Action::MoveCursorUp, state, lsp_handle);
+                                            perform_action(
+                                                Action::MoveCursorUp,
+                                                state,
+                                                lsp_handles,
+                                            );
                                         }
                                     }
                                     egui::Key::ArrowLeft => {
@@ -191,13 +219,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorLeft,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorLeft,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -206,13 +234,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorRight,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorRight,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -221,13 +249,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorLineStart,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorLineStart,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -236,13 +264,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::ExtendCursorLineEnd,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::MoveCursorLineEnd,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -251,13 +279,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::GoToBufferStart,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::GoToBufferEnd,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -266,13 +294,13 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::CopyToRegister,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::CopyToClipboard,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -281,18 +309,18 @@ impl CommandDispatcher {
                                             perform_action(
                                                 Action::PasteFromRegister,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         } else {
                                             perform_action(
                                                 Action::PasteFromClipboard,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
                                     egui::Key::Semicolon => {
-                                        perform_action(Action::Unselect, state, lsp_handle);
+                                        perform_action(Action::Unselect, state, lsp_handles);
                                     }
                                     egui::Key::J => {
                                         if matches!(state.mode, Mode::Normal) {
@@ -300,13 +328,13 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorDown,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorDown,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             }
                                         }
@@ -317,13 +345,13 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorUp,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorUp,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             }
                                         }
@@ -334,13 +362,13 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorLeft,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorLeft,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             }
                                         }
@@ -351,25 +379,25 @@ impl CommandDispatcher {
                                                 perform_action(
                                                     Action::ExtendCursorRight,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             } else {
                                                 perform_action(
                                                     Action::MoveCursorRight,
                                                     state,
-                                                    lsp_handle,
+                                                    lsp_handles,
                                                 );
                                             }
                                         }
                                     }
                                     egui::Key::Z => {
                                         if !modifiers.shift {
-                                            perform_action(Action::LSPHover, state, lsp_handle);
+                                            perform_action(Action::LSPHover, state, lsp_handles);
                                         } else {
                                             perform_action(
                                                 Action::LSPCompletion,
                                                 state,
-                                                lsp_handle,
+                                                lsp_handles,
                                             );
                                         }
                                     }
@@ -377,34 +405,34 @@ impl CommandDispatcher {
                                         perform_action(
                                             Action::DeletePreviousCharacter,
                                             state,
-                                            lsp_handle,
+                                            lsp_handles,
                                         );
                                     }
                                     egui::Key::Delete => {
                                         perform_action(
                                             Action::DeleteNextCharacter,
                                             state,
-                                            lsp_handle,
+                                            lsp_handles,
                                         );
                                     }
                                     egui::Key::D => {
-                                        perform_action(Action::DeleteSelection, state, lsp_handle);
+                                        perform_action(Action::DeleteSelection, state, lsp_handles);
                                     }
                                     egui::Key::Enter => {
                                         perform_action(
                                             Action::InsertNewLineAtCursor,
                                             state,
-                                            lsp_handle,
+                                            lsp_handles,
                                         );
                                     }
                                     egui::Key::Tab => {
-                                        perform_action(Action::AddTab, state, lsp_handle);
+                                        perform_action(Action::AddTab, state, lsp_handles);
                                     }
                                     egui::Key::U => {
                                         if !modifiers.shift {
-                                            perform_action(Action::Undo, state, lsp_handle);
+                                            perform_action(Action::Undo, state, lsp_handles);
                                         } else {
-                                            perform_action(Action::Redo, state, lsp_handle);
+                                            perform_action(Action::Redo, state, lsp_handles);
                                         }
                                     }
                                     _ => {}
@@ -419,13 +447,12 @@ impl CommandDispatcher {
                     state.update_view = true;
                     match event {
                         egui::Event::Text(text) => {
-                            state.modal_input.push_str(text);
-                            state.modal_options_filtered = state
-                                .modal_options
-                                .iter()
-                                .filter(|entry| entry.path.starts_with(&state.modal_input))
-                                .cloned()
-                                .collect();
+                            let mut input = state.modal.input.clone();
+                            input.push_str(text);
+                            state.modal.set_input(input.clone());
+                            if let Some(on_input) = state.modal.on_input {
+                                on_input(&input, state, lsp_handles);
+                            }
                         }
                         egui::Event::Key {
                             key,
@@ -437,122 +464,38 @@ impl CommandDispatcher {
                             if *pressed {
                                 match key {
                                     egui::Key::Tab => {
-                                        if !state.modal_options_filtered.is_empty() {
-                                            if state.modal_selection_idx.is_none() {
-                                                state.modal_selection_idx = Some(0);
-                                            } else {
-                                                state.modal_selection_idx =
-                                                    Some(state.modal_selection_idx.unwrap() + 1);
-                                                if state.modal_selection_idx.unwrap()
-                                                    >= state.modal_options_filtered.len()
-                                                {
-                                                    state.modal_selection_idx = Some(0);
-                                                }
-                                            }
-
-                                            state.modal_input = state.modal_options_filtered
-                                                [state.modal_selection_idx.unwrap()]
-                                            .path
-                                            .clone();
-                                        } else {
-                                            state.modal_selection_idx = None;
-                                        }
+                                        state.modal.select_next();
                                     }
                                     egui::Key::Backspace => {
-                                        state.modal_input.pop();
-                                        state.modal_options_filtered = state
-                                            .modal_options
-                                            .iter()
-                                            .filter(|entry| {
-                                                entry.path.starts_with(&state.modal_input)
-                                            })
-                                            .cloned()
-                                            .collect();
+                                        let mut input = state.modal.input.clone();
+                                        input.pop();
+                                        state.modal.set_input(input.clone());
+                                        if let Some(on_input) = state.modal.on_input {
+                                            on_input(&input, state, lsp_handles);
+                                        }
                                     }
                                     egui::Key::Enter => {
-                                        if state.modal_selection_idx.is_some() {
-                                            let entry = &state.modal_options_filtered
-                                                [state.modal_selection_idx.unwrap()];
-                                            if !entry.is_dir {
-                                                let path = entry.path.clone();
-                                                let initial_text =
-                                                    file_io::read_file_content(&path).unwrap();
-                                                let buffer = LineBuffer::new(
-                                                    initial_text.clone(),
-                                                    Some(path.clone()),
+                                        if let Some(on_select) = state.modal.on_select {
+                                            if let Some(selection) = state.modal.selection {
+                                                let alt = modifiers.shift;
+                                                let options = state
+                                                    .modal
+                                                    .options
+                                                    .get(selection)
+                                                    .unwrap()
+                                                    .clone();
+                                                on_select(
+                                                    state.modal.input.clone(),
+                                                    &options,
+                                                    alt,
+                                                    state,
+                                                    lsp_handles,
                                                 );
-
-                                                if let std::collections::hash_map::Entry::Vacant(
-                                                    e,
-                                                ) = lsp_handles.entry(buffer.language)
-                                                {
-                                                    if let Some(mut lsp_handle) =
-                                                        state.spawn_lsp(buffer.language)
-                                                    {
-                                                        lsp_handle.init_lsp_sync(
-                                                            state.workspace_folder.clone(),
-                                                        );
-                                                        e.insert(lsp_handle);
-                                                    }
-                                                }
-
-                                                if let Some(lsp_handle) =
-                                                    lsp_handles.get(&buffer.language)
-                                                {
-                                                    lsp_handle
-                                                    .send_notification_sync(
-                                                        "textDocument/didOpen".to_string(),
-                                                        Some(
-                                                            LSPClientHandle::did_open_text_document(
-                                                                path.clone(),
-                                                                initial_text,
-                                                            ),
-                                                        ),
-                                                    )
-                                                    .unwrap();
-                                                }
-
-                                                state.buffer_idx = Some(state.add_buffer(buffer));
-                                                state.modal_open = false;
-                                                state.modal_options = vec![];
-                                                state.modal_options_filtered = vec![];
-                                                state.modal_selection_idx = None;
-                                                state.modal_input = "".into();
-                                            } else {
-                                                state.modal_input = entry.path.clone();
-
-                                                if modifiers.shift {
-                                                    state.workspace_folder = entry.path.clone();
-                                                }
-
-                                                #[cfg(target_os = "windows")]
-                                                {
-                                                    state.modal_input.push('\\');
-                                                }
-
-                                                #[cfg(any(
-                                                    target_os = "linux",
-                                                    target_os = "macos"
-                                                ))]
-                                                {
-                                                    state.modal_input.push('/');
-                                                }
-
-                                                state.modal_options =
-                                                    file_io::get_directory_entries(&entry.path)
-                                                        .unwrap();
-                                                state.modal_options_filtered =
-                                                    state.modal_options.clone();
-                                                state.modal_selection_idx = None;
                                             }
                                         }
                                     }
                                     egui::Key::Escape => {
-                                        state.modal_open = false;
-                                        state.modal_options = vec![];
-                                        state.modal_options_filtered = vec![];
-                                        state.modal_selection_idx = None;
-                                        state.modal_input = "".into();
+                                        state.modal.close();
                                     }
                                     _ => {}
                                 }

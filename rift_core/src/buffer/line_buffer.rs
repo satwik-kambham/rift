@@ -837,6 +837,7 @@ impl LineBuffer {
         let mut updated_selection = *selection;
         if selection.mark.column == 0
             && selection.cursor.column == self.get_line_length(selection.cursor.row)
+            && selection.cursor.row < self.get_num_lines() - 1
         {
             updated_selection.cursor.row += 1;
         }
