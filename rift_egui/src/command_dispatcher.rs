@@ -135,7 +135,12 @@ impl CommandDispatcher {
                                     egui::Key::F => {
                                         if matches!(state.mode, Mode::Normal) {
                                             if modifiers.shift {
-                                                rift_core::ai::ollama_fim(state);
+                                                // rift_core::ai::ollama_fim(state);
+                                                perform_action(
+                                                    Action::FuzzyFindFile(true),
+                                                    state,
+                                                    lsp_handles,
+                                                );
                                             } else {
                                                 perform_action(
                                                     Action::OpenFile,
@@ -144,6 +149,15 @@ impl CommandDispatcher {
                                                 );
                                                 return;
                                             }
+                                        }
+                                    }
+                                    egui::Key::Backslash => {
+                                        if matches!(state.mode, Mode::Normal) {
+                                            perform_action(
+                                                Action::SearchWorkspace,
+                                                state,
+                                                lsp_handles,
+                                            );
                                         }
                                     }
                                     egui::Key::B => {
