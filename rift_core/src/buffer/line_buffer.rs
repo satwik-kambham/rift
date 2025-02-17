@@ -230,6 +230,7 @@ impl LineBuffer {
         eol_sequence: String,
         mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
+        let max_characters = max_characters - 1;
         let mut segments = vec![];
         segments.append(&mut extra_segments);
 
@@ -422,15 +423,18 @@ impl LineBuffer {
 
         for line_info in &gutter_info {
             while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {
-                highlighted_line.push((
-                    self.lines[line_info.start.row][segment.start - line_info.start_byte
-                        + line_info.start.column
-                        ..(segment.end - line_info.start_byte + 1 + line_info.start.column).min(
-                            line_info.end_byte - line_info.start_byte - 1 + line_info.start.column,
-                        )]
-                        .to_string(),
-                    segment.attributes.clone(),
-                ));
+                let mut buffer_segment = self.lines[line_info.start.row][segment.start
+                    - line_info.start_byte
+                    + line_info.start.column
+                    ..(segment.end - line_info.start_byte + 1 + line_info.start.column).min(
+                        line_info.end_byte - line_info.start_byte - 1 + line_info.start.column,
+                    )]
+                    .to_string();
+                if segment.attributes.contains(&Attribute::Cursor) && buffer_segment.is_empty() {
+                    buffer_segment.push(' ');
+                }
+                let attributes = segment.attributes.clone();
+                highlighted_line.push((buffer_segment, attributes));
                 if segment.end == line_info.end_byte - 1 {
                     lines.push(highlighted_line);
                     highlighted_line = vec![];

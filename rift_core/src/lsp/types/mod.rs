@@ -56,12 +56,12 @@ pub struct PublishDiagnostics {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum DiagnosticSeverity {
-    Error,
-    Warning,
-    Information,
     Hint,
+    Information,
+    Warning,
+    Error,
 }
 
 #[derive(Debug)]

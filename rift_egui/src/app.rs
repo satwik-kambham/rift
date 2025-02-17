@@ -4,9 +4,7 @@ use std::{
     io::Read,
 };
 
-use egui::{
-    text::LayoutJob, Color32, FontData, FontDefinitions, FontId, FontTweak, Label, Rect, RichText,
-};
+use egui::{text::LayoutJob, FontData, FontDefinitions, FontId, FontTweak, RichText};
 use rift_core::{
     actions::{perform_action, Action},
     buffer::instance::{Attribute, Cursor, HighlightType, Language, Range, Selection},
@@ -582,7 +580,9 @@ impl App {
                             ),
                             ..Default::default()
                         };
-                        for attribute in &token.1 {
+                        let mut attributes: Vec<&Attribute> = token.1.iter().collect();
+                        attributes.sort();
+                        for attribute in attributes {
                             match attribute {
                                 Attribute::None => {}
                                 Attribute::Visible => {}
@@ -625,7 +625,18 @@ impl App {
                                     format.background =
                                         self.state.preferences.theme.selection_bg.into();
                                 }
-                                Attribute::Cursor => {}
+                                Attribute::Cursor => {
+                                    format.color = if matches!(self.state.mode, Mode::Normal) {
+                                        self.state.preferences.theme.cursor_normal_mode_fg.into()
+                                    } else {
+                                        self.state.preferences.theme.cursor_insert_mode_fg.into()
+                                    };
+                                    format.background = if matches!(self.state.mode, Mode::Normal) {
+                                        self.state.preferences.theme.cursor_normal_mode_bg.into()
+                                    } else {
+                                        self.state.preferences.theme.cursor_insert_mode_bg.into()
+                                    };
+                                }
                                 Attribute::DiagnosticSeverity(severity) => {
                                     format.underline = egui::Stroke::new(
                                         1.0,
@@ -665,45 +676,45 @@ impl App {
                     .show(ctx, &mut self.state, &mut self.lsp_handles);
         }
         self.diagnostics_overlay.show(ctx);
-        egui::CentralPanel::default()
-            .frame(egui::Frame {
-                fill: Color32::TRANSPARENT,
-                outer_margin: egui::Margin::same(self.state.preferences.editor_padding),
-                ..Default::default()
-            })
-            .show(ctx, |ui| {
-                ui.put(
-                    Rect::from_two_pos(
-                        egui::Pos2 {
-                            x: (self.state.relative_cursor.column as f32 * char_width)
-                                + gutter_width
-                                + self.state.preferences.editor_padding,
-                            y: (self.state.relative_cursor.row as f32 * char_height)
-                                + self.state.preferences.editor_padding,
-                        },
-                        egui::Pos2 {
-                            x: (self.state.relative_cursor.column as f32 * char_width)
-                                + gutter_width
-                                + char_width
-                                + self.state.preferences.editor_padding,
-                            y: (self.state.relative_cursor.row as f32 * char_height)
-                                + char_height
-                                + self.state.preferences.editor_padding,
-                        },
-                    ),
-                    Label::new(
-                        RichText::new(" ")
-                            .font(FontId::monospace(
-                                self.state.preferences.editor_font_size as f32,
-                            ))
-                            .background_color(if matches!(self.state.mode, Mode::Normal) {
-                                self.state.preferences.theme.cursor_normal_mode_bg
-                            } else {
-                                self.state.preferences.theme.cursor_insert_mode_bg
-                            }),
-                    ),
-                );
-            });
+        // egui::CentralPanel::default()
+        //     .frame(egui::Frame {
+        //         fill: Color32::TRANSPARENT,
+        //         outer_margin: egui::Margin::same(self.state.preferences.editor_padding),
+        //         ..Default::default()
+        //     })
+        //     .show(ctx, |ui| {
+        //         ui.put(
+        //             Rect::from_two_pos(
+        //                 egui::Pos2 {
+        //                     x: (self.state.relative_cursor.column as f32 * char_width)
+        //                         + gutter_width
+        //                         + self.state.preferences.editor_padding,
+        //                     y: (self.state.relative_cursor.row as f32 * char_height)
+        //                         + self.state.preferences.editor_padding,
+        //                 },
+        //                 egui::Pos2 {
+        //                     x: (self.state.relative_cursor.column as f32 * char_width)
+        //                         + gutter_width
+        //                         + char_width
+        //                         + self.state.preferences.editor_padding,
+        //                     y: (self.state.relative_cursor.row as f32 * char_height)
+        //                         + char_height
+        //                         + self.state.preferences.editor_padding,
+        //                 },
+        //             ),
+        //             Label::new(
+        //                 RichText::new(" ")
+        //                     .font(FontId::monospace(
+        //                         self.state.preferences.editor_font_size as f32,
+        //                     ))
+        //                     .background_color(if matches!(self.state.mode, Mode::Normal) {
+        //                         self.state.preferences.theme.cursor_normal_mode_bg
+        //                     } else {
+        //                         self.state.preferences.theme.cursor_insert_mode_bg
+        //                     }),
+        //             ),
+        //         );
+        //     });
         if self.state.modal.open {
             egui::Window::new("modal")
                 .movable(false)

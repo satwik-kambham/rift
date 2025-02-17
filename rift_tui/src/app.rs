@@ -377,7 +377,9 @@ impl App {
                         let mut line_widget = vec![];
                         for token in line {
                             let mut style = Style::new();
-                            for attribute in &token.1 {
+                            let mut attributes: Vec<&Attribute> = token.1.iter().collect();
+                            attributes.sort();
+                            for attribute in attributes {
                                 match attribute {
                                     Attribute::None => {}
                                     Attribute::Visible => {}
@@ -439,7 +441,23 @@ impl App {
                                             self.state.preferences.theme.selection_bg,
                                         ));
                                     }
-                                    Attribute::Cursor => {}
+                                    Attribute::Cursor => {
+                                        if matches!(self.state.mode, Mode::Normal) {
+                                            style = style.fg(color_from_rgb(
+                                                self.state.preferences.theme.cursor_normal_mode_fg,
+                                            ));
+                                            style = style.bg(color_from_rgb(
+                                                self.state.preferences.theme.cursor_normal_mode_bg,
+                                            ));
+                                        } else {
+                                            style = style.fg(color_from_rgb(
+                                                self.state.preferences.theme.cursor_insert_mode_fg,
+                                            ));
+                                            style = style.bg(color_from_rgb(
+                                                self.state.preferences.theme.cursor_insert_mode_bg,
+                                            ));
+                                        }
+                                    }
                                     Attribute::DiagnosticSeverity(severity) => {
                                         style = style.add_modifier(Modifier::UNDERLINED);
                                         // .underline_color(color_from_rgb(match severity {
@@ -467,27 +485,27 @@ impl App {
                     frame.render_widget(text::Text::from(lines), h_layout[1]);
 
                     // Render cursor
-                    let buf = frame.buffer_mut();
-                    if let Some(cell) = buf.cell_mut((
-                        self.state.relative_cursor.column as u16 + h_layout[1].x,
-                        self.state.relative_cursor.row as u16 + h_layout[1].y,
-                    )) {
-                        if matches!(self.state.mode, Mode::Normal) {
-                            cell.set_fg(color_from_rgb(
-                                self.state.preferences.theme.cursor_normal_mode_fg,
-                            ));
-                            cell.set_bg(color_from_rgb(
-                                self.state.preferences.theme.cursor_normal_mode_bg,
-                            ));
-                        } else {
-                            cell.set_fg(color_from_rgb(
-                                self.state.preferences.theme.cursor_insert_mode_fg,
-                            ));
-                            cell.set_bg(color_from_rgb(
-                                self.state.preferences.theme.cursor_insert_mode_bg,
-                            ));
-                        }
-                    }
+                    // let buf = frame.buffer_mut();
+                    // if let Some(cell) = buf.cell_mut((
+                    //     self.state.relative_cursor.column as u16 + h_layout[1].x,
+                    //     self.state.relative_cursor.row as u16 + h_layout[1].y,
+                    // )) {
+                    //     if matches!(self.state.mode, Mode::Normal) {
+                    //         cell.set_fg(color_from_rgb(
+                    //             self.state.preferences.theme.cursor_normal_mode_fg,
+                    //         ));
+                    //         cell.set_bg(color_from_rgb(
+                    //             self.state.preferences.theme.cursor_normal_mode_bg,
+                    //         ));
+                    //     } else {
+                    //         cell.set_fg(color_from_rgb(
+                    //             self.state.preferences.theme.cursor_insert_mode_fg,
+                    //         ));
+                    //         cell.set_bg(color_from_rgb(
+                    //             self.state.preferences.theme.cursor_insert_mode_bg,
+                    //         ));
+                    //     }
+                    // }
 
                     // Render gutter
                     let mut gutter_lines = vec![];

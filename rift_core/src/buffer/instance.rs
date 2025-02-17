@@ -87,7 +87,9 @@ pub enum Language {
 }
 
 /// Types of highlighted tokens
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord,
+)]
 pub enum HighlightType {
     None,
     White,
@@ -101,15 +103,15 @@ pub enum HighlightType {
     Turquoise,
 }
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Attribute {
     None,
     Visible,
-    Underline,
     Highlight(HighlightType),
+    Underline,
+    DiagnosticSeverity(types::DiagnosticSeverity),
     Select,
     Cursor,
-    DiagnosticSeverity(types::DiagnosticSeverity),
 }
 
 /// Struct representating a position in the buffer
