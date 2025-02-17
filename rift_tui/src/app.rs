@@ -40,6 +40,7 @@ pub struct App {
     pub completion_menu_items: Vec<types::CompletionItem>,
     pub completion_menu_idx: Option<usize>,
     pub completion_menu_state: widgets::ListState,
+    pub diagnostics_overlay: String,
 }
 
 impl App {
@@ -98,6 +99,7 @@ impl App {
             completion_menu_items: vec![],
             completion_menu_idx: None,
             completion_menu_state: widgets::ListState::default(),
+            diagnostics_overlay: String::new(),
         }
     }
 
@@ -560,6 +562,20 @@ impl App {
                     frame.render_widget(status, v_layout[1]);
                 }
 
+                // Render diagnostics overlay
+                if !self.diagnostics_overlay.is_empty() {
+                    let area = Rect {
+                        x: frame.area().width * 7 / 8 - 4,
+                        y: 2,
+                        width: frame.area().width / 8,
+                        height: frame.area().height - 4,
+                    };
+                    let diagnostics_info =
+                        widgets::Paragraph::new(self.diagnostics_overlay.clone())
+                            .wrap(widgets::Wrap { trim: false });
+                    frame.render_widget(diagnostics_info, area);
+                }
+
                 // Render Modal
                 if self.state.modal.open {
                     let popup_area = Rect {
@@ -921,7 +937,7 @@ impl App {
         max_characters: usize,
     ) -> rift_core::buffer::instance::Cursor {
         if self.state.buffer_idx.is_some() {
-            let (buffer, _instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+            let (buffer, instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
             let mut extra_segments = vec![];
             let mut path = buffer.file_path.as_ref().unwrap().clone();
             #[cfg(target_os = "windows")]
@@ -930,8 +946,18 @@ impl App {
             }
 
             if let Some(diagnostics) = self.state.diagnostics.get(&path) {
+                let mut diagnostic_info = String::new();
                 if diagnostics.version != 0 && diagnostics.version == buffer.version {
                     for diagnostic in &diagnostics.diagnostics {
+                        if instance.cursor >= diagnostic.range.mark
+                            && instance.cursor <= diagnostic.range.cursor
+                        {
+                            diagnostic_info.push_str(&format!(
+                                "{} {} {}\n",
+                                diagnostic.source, diagnostic.code, diagnostic.message
+                            ));
+                        }
+
                         extra_segments.push(Range {
                             start: buffer.byte_index_from_cursor(&diagnostic.range.mark, "\n"),
                             end: buffer.byte_index_from_cursor(&diagnostic.range.cursor, "\n"),
@@ -941,6 +967,7 @@ impl App {
                         });
                     }
                 }
+                self.diagnostics_overlay = diagnostic_info;
             }
             let (buffer, instance) = self
                 .state
