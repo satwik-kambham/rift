@@ -52,12 +52,12 @@ impl Default for Preferences {
             line_ending,
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),
-            editor_font_size: 26,
+            editor_font_size: 16,
             ui_font_family: "Monaspace Neon".into(),
-            ui_font_size: 18,
+            ui_font_size: 16,
             line_height: 1.5,
-            gutter_padding: 8.0,
-            editor_padding: 8.0,
+            gutter_padding: 4.0,
+            editor_padding: 4.0,
         }
     }
 }
