@@ -416,7 +416,19 @@ impl CommandDispatcher {
                                         );
                                     }
                                     egui::Key::D => {
-                                        perform_action(Action::DeleteSelection, state, lsp_handles);
+                                        if !modifiers.shift {
+                                            perform_action(
+                                                Action::DeleteSelection,
+                                                state,
+                                                lsp_handles,
+                                            );
+                                        } else {
+                                            perform_action(
+                                                Action::WorkspaceDiagnostics,
+                                                state,
+                                                lsp_handles,
+                                            );
+                                        }
                                     }
                                     egui::Key::Enter => {
                                         perform_action(

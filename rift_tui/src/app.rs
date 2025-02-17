@@ -836,6 +836,8 @@ impl App {
                                 self.perform_action(Action::AddNewLineBelowAndEnterInsertMode);
                             } else if key.code == KeyCode::Char('d') {
                                 self.perform_action(Action::DeleteSelection);
+                            } else if key.code == KeyCode::Char('D') {
+                                self.perform_action(Action::WorkspaceDiagnostics);
                             } else if key.code == KeyCode::Char('x') {
                                 self.perform_action(Action::SelectCurrentLine);
                             } else if key.code == KeyCode::Char('X') {

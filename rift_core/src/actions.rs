@@ -71,6 +71,7 @@ pub enum Action {
     PasteFromClipboard,
     FuzzyFindFile(bool),
     SearchWorkspace,
+    WorkspaceDiagnostics,
 }
 
 pub fn perform_action(
@@ -858,6 +859,78 @@ pub fn perform_action(
                             mark: Cursor {
                                 row: row.try_into().unwrap(),
                                 column: start.try_into().unwrap(),
+                            },
+                        }),
+                        state,
+                        lsp_handles,
+                    );
+                    state.modal.close();
+                },
+            );
+        }
+        Action::WorkspaceDiagnostics => {
+            state.modal.open();
+            let mut workspace_diagnostics: Vec<(String, String)> = vec![];
+            for (file_path, diagnostics) in &state.diagnostics {
+                for (idx, diagnostic) in diagnostics.diagnostics.iter().enumerate() {
+                    workspace_diagnostics.push((
+                        diagnostic.message.clone(),
+                        serde_json::to_string(&serde_json::json!({
+                            "file_path": file_path,
+                            "idx": idx,
+                        }))
+                        .unwrap(),
+                    ));
+                }
+            }
+            state.modal.options = workspace_diagnostics;
+            state
+                .modal
+                .set_modal_on_input(|input, state, _lsp_handles| {
+                    let mut workspace_diagnostics: Vec<(String, String)> = vec![];
+                    for (file_path, diagnostics) in &state.diagnostics {
+                        for (idx, diagnostic) in diagnostics.diagnostics.iter().enumerate() {
+                            if diagnostic.message.contains(input) {
+                                workspace_diagnostics.push((
+                                    diagnostic.message.clone(),
+                                    serde_json::to_string(&serde_json::json!({
+                                        "file_path": file_path,
+                                        "idx": idx,
+                                    }))
+                                    .unwrap(),
+                                ));
+                            }
+                        }
+                    }
+                    state.modal.options = workspace_diagnostics;
+                });
+            state.modal.set_modal_on_select(
+                |_input, selection, _alt_select, state, lsp_handles| {
+                    let selection: serde_json::Value = serde_json::from_str(&selection.1).unwrap();
+                    let mut file_path = selection["file_path"].as_str().unwrap().to_string();
+                    #[cfg(target_os = "windows")]
+                    {
+                        file_path = file_path.to_lowercase();
+                    }
+                    let diagnostic_idx: usize =
+                        selection["idx"].as_u64().unwrap().try_into().unwrap();
+
+                    perform_action(
+                        Action::CreateBufferFromFile(file_path.clone()),
+                        state,
+                        lsp_handles,
+                    );
+                    let diagnostics = state.diagnostics.get(&file_path).unwrap();
+                    let diagnostic = &diagnostics.diagnostics[diagnostic_idx];
+                    perform_action(
+                        Action::Select(Selection {
+                            cursor: Cursor {
+                                row: diagnostic.range.cursor.row,
+                                column: diagnostic.range.cursor.column,
+                            },
+                            mark: Cursor {
+                                row: diagnostic.range.mark.row,
+                                column: diagnostic.range.mark.column,
                             },
                         }),
                         state,
