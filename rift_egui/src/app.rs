@@ -12,7 +12,7 @@ use rift_core::{
 use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
-        completion_menu::CompletionMenu, diagnostics_overlay::DiagnosticsOverlay,
+        completion_menu::CompletionMenu, diagnostics_overlay::show_diagnostics_overlay,
         info_modal::InfoModal,
     },
     fonts::load_fonts,
@@ -25,7 +25,6 @@ pub struct App {
     lsp_handles: HashMap<Language, LSPClientHandle>,
     info_modal: InfoModal,
     completion_menu: CompletionMenu,
-    diagnostics_overlay: DiagnosticsOverlay,
     editor_focused: bool,
 }
 
@@ -44,7 +43,6 @@ impl App {
             font_definitions,
             lsp_handles,
             info_modal: InfoModal::default(),
-            diagnostics_overlay: DiagnosticsOverlay::default(),
             editor_focused: true,
         }
     }
@@ -473,7 +471,7 @@ impl App {
                                             notification.method, notification.params
                                         );
                                         tracing::info!("{}", message);
-                                        self.diagnostics_overlay.info = message;
+                                        self.state.diagnostics_overlay.content = message;
                                     }
                                 }
                             }
@@ -599,7 +597,11 @@ impl App {
                     .completion_menu
                     .show(ctx, &mut self.state, &mut self.lsp_handles);
         }
-        self.diagnostics_overlay.show(ctx);
+
+        if self.state.diagnostics_overlay.should_render() {
+            show_diagnostics_overlay(ctx, &self.state);
+        }
+
         // egui::CentralPanel::default()
         //     .frame(egui::Frame {
         //         fill: Color32::TRANSPARENT,
@@ -711,7 +713,7 @@ impl App {
                         });
                     }
                 }
-                self.diagnostics_overlay.info = diagnostic_info;
+                self.state.diagnostics_overlay.content = diagnostic_info;
             }
             let (buffer, instance) = self
                 .state

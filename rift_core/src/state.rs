@@ -43,6 +43,7 @@ pub struct EditorState {
     pub clipboard_ctx: ClipboardContext,
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
     pub modal: Modal,
+    pub diagnostics_overlay: DiagnosticsOverlay,
 }
 
 impl EditorState {
@@ -73,6 +74,7 @@ impl EditorState {
             update_view: true,
             clipboard_ctx: ClipboardContext::new().unwrap(),
             diagnostics: HashMap::new(),
+            diagnostics_overlay: DiagnosticsOverlay::default(),
         }
     }
 
@@ -242,6 +244,28 @@ impl Modal {
 }
 
 impl Default for Modal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct DiagnosticsOverlay {
+    pub content: String,
+}
+
+impl DiagnosticsOverlay {
+    pub fn new() -> Self {
+        Self {
+            content: String::new(),
+        }
+    }
+
+    pub fn should_render(&self) -> bool {
+        !self.content.is_empty()
+    }
+}
+
+impl Default for DiagnosticsOverlay {
     fn default() -> Self {
         Self::new()
     }

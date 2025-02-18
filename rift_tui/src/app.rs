@@ -35,7 +35,6 @@ pub struct App {
     pub completion_menu_items: Vec<types::CompletionItem>,
     pub completion_menu_idx: Option<usize>,
     pub completion_menu_state: widgets::ListState,
-    pub diagnostics_overlay: String,
 }
 
 impl App {
@@ -56,7 +55,6 @@ impl App {
             completion_menu_items: vec![],
             completion_menu_idx: None,
             completion_menu_state: widgets::ListState::default(),
-            diagnostics_overlay: String::new(),
         }
     }
 
@@ -538,7 +536,7 @@ impl App {
                 }
 
                 // Render diagnostics overlay
-                if !self.diagnostics_overlay.is_empty() {
+                if self.state.diagnostics_overlay.should_render() {
                     let area = Rect {
                         x: frame.area().width * 7 / 8 - 4,
                         y: 2,
@@ -546,7 +544,7 @@ impl App {
                         height: frame.area().height - 4,
                     };
                     let diagnostics_info =
-                        widgets::Paragraph::new(self.diagnostics_overlay.clone())
+                        widgets::Paragraph::new(self.state.diagnostics_overlay.content.clone())
                             .wrap(widgets::Wrap { trim: false });
                     frame.render_widget(diagnostics_info, area);
                 }
@@ -944,7 +942,7 @@ impl App {
                         });
                     }
                 }
-                self.diagnostics_overlay = diagnostic_info;
+                self.state.diagnostics_overlay.content = diagnostic_info;
             }
             let (buffer, instance) = self
                 .state
