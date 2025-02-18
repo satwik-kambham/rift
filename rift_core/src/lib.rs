@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod ai;
 pub mod buffer;
+pub mod cli;
 pub mod concurrent;
 pub mod io;
 pub mod lsp;

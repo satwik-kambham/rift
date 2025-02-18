@@ -1,13 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    io::Read,
-};
+use std::collections::{HashMap, HashSet};
 
-use egui::{text::LayoutJob, FontData, FontDefinitions, FontId, FontTweak, RichText};
+use egui::{text::LayoutJob, FontDefinitions, FontId, RichText};
 use rift_core::{
     actions::{perform_action, Action},
     buffer::instance::{Attribute, Cursor, HighlightType, Language, Range, Selection},
+    cli::{process_cli_args, CLIArgs},
     lsp::{client::LSPClientHandle, types},
     state::{EditorState, Mode},
 };
@@ -18,6 +15,7 @@ use crate::{
         completion_menu::CompletionMenu, diagnostics_overlay::DiagnosticsOverlay,
         info_modal::InfoModal,
     },
+    fonts::load_fonts,
 };
 
 pub struct App {
@@ -32,97 +30,18 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(rt: tokio::runtime::Runtime) -> Self {
-        let state = EditorState::new(rt);
-        let mut fonts = FontDefinitions::default();
-        let editor_font = font_kit::source::SystemSource::new()
-            .select_best_match(
-                &[font_kit::family_name::FamilyName::Title(
-                    state.preferences.editor_font_family.to_owned(),
-                )],
-                &font_kit::properties::Properties::new(),
-            )
-            .unwrap();
-        let ui_font = font_kit::source::SystemSource::new()
-            .select_best_match(
-                &[font_kit::family_name::FamilyName::Title(
-                    state.preferences.ui_font_family.to_owned(),
-                )],
-                &font_kit::properties::Properties::new(),
-            )
-            .unwrap();
-        fonts
-            .families
-            .get_mut(&egui::FontFamily::Monospace)
-            .unwrap()
-            .insert(0, state.preferences.editor_font_family.to_owned());
-        fonts
-            .families
-            .get_mut(&egui::FontFamily::Proportional)
-            .unwrap()
-            .insert(0, state.preferences.ui_font_family.to_owned());
-        match editor_font {
-            font_kit::handle::Handle::Path { path, font_index } => {
-                let mut font_content = Vec::new();
-                File::open(path)
-                    .unwrap()
-                    .read_to_end(&mut font_content)
-                    .unwrap();
-                fonts.font_data.insert(
-                    state.preferences.editor_font_family.to_owned(),
-                    FontData {
-                        font: std::borrow::Cow::Owned(font_content),
-                        index: font_index,
-                        tweak: FontTweak::default(),
-                    },
-                );
-            }
-            font_kit::handle::Handle::Memory { bytes, font_index } => {
-                fonts.font_data.insert(
-                    state.preferences.editor_font_family.to_owned(),
-                    FontData {
-                        font: std::borrow::Cow::Owned((*bytes).clone()),
-                        index: font_index,
-                        tweak: FontTweak::default(),
-                    },
-                );
-            }
-        }
-        match ui_font {
-            font_kit::handle::Handle::Path { path, font_index } => {
-                let mut font_content = Vec::new();
-                File::open(path)
-                    .unwrap()
-                    .read_to_end(&mut font_content)
-                    .unwrap();
-                fonts.font_data.insert(
-                    state.preferences.ui_font_family.to_owned(),
-                    FontData {
-                        font: std::borrow::Cow::Owned(font_content),
-                        index: font_index,
-                        tweak: FontTweak::default(),
-                    },
-                );
-            }
-            font_kit::handle::Handle::Memory { bytes, font_index } => {
-                fonts.font_data.insert(
-                    state.preferences.ui_font_family.to_owned(),
-                    FontData {
-                        font: std::borrow::Cow::Owned((*bytes).clone()),
-                        index: font_index,
-                        tweak: FontTweak::default(),
-                    },
-                );
-            }
-        }
+    pub fn new(rt: tokio::runtime::Runtime, cli_args: CLIArgs) -> Self {
+        let mut state = EditorState::new(rt);
+        let mut lsp_handles = HashMap::new();
 
-        let lsp_handles = HashMap::new();
+        process_cli_args(cli_args, &mut state, &mut lsp_handles);
+        let font_definitions = load_fonts(&mut state);
 
         Self {
             dispatcher: CommandDispatcher::default(),
             completion_menu: CompletionMenu::new(5, state.preferences.theme.selection_bg),
             state,
-            font_definitions: fonts,
+            font_definitions,
             lsp_handles,
             info_modal: InfoModal::default(),
             diagnostics_overlay: DiagnosticsOverlay::default(),
@@ -177,9 +96,11 @@ impl App {
                 },
             };
         });
+
         let mut char_height = 0.0;
         let mut char_width = 0.0;
         let mut gutter_width = 0.0;
+
         egui::TopBottomPanel::bottom("status_line")
             .resizable(false)
             .show_separator_line(false)
@@ -263,6 +184,7 @@ impl App {
                     });
                 }
             });
+
         egui::SidePanel::left("gutter")
             .resizable(false)
             .show_separator_line(false)
@@ -300,6 +222,7 @@ impl App {
                     }
                 }
             });
+
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.editor_bg.into(),
@@ -313,6 +236,7 @@ impl App {
                 char_width = label_response.rect.width();
                 char_height = label_response.rect.height();
             });
+
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.editor_bg.into(),
@@ -715,6 +639,7 @@ impl App {
         //             ),
         //         );
         //     });
+
         if self.state.modal.open {
             egui::Window::new("modal")
                 .movable(false)

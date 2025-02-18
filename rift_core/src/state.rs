@@ -40,9 +40,9 @@ pub struct EditorState {
     pub gutter_info: Vec<GutterInfo>,
     pub relative_cursor: Cursor,
     pub buffer_idx: Option<u32>,
-    pub modal: Modal,
     pub clipboard_ctx: ClipboardContext,
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
+    pub modal: Modal,
 }
 
 impl EditorState {

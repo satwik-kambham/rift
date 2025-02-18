@@ -19,3 +19,4 @@ anyhow = "1.0"
 tracing = "0.1.41"
 copypasta = "0.10.1"
 reqwest = { version = "0.12", features = ["json"] }
+clap = { version = "4.5.23", features = ["derive"] }

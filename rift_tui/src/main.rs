@@ -1,7 +1,7 @@
 use clap::Parser;
+use rift_core::cli::CLIArgs;
 
 pub mod app;
-pub mod cli;
 
 fn main() -> anyhow::Result<()> {
     let file_appender = tracing_appender::rolling::never("logs", "rift.log");
@@ -10,7 +10,7 @@ fn main() -> anyhow::Result<()> {
         .with_ansi(false)
         .with_level(true)
         .init();
-    let cli_args = cli::CLIArgs::parse();
+    let cli_args = CLIArgs::parse();
     let mut terminal = ratatui::init();
     terminal.clear()?;
     let rt = tokio::runtime::Builder::new_multi_thread()

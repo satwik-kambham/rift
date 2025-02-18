@@ -3059,6 +3059,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cc",
+ "clap",
  "copypasta",
  "ecolor",
  "reqwest",
@@ -3077,6 +3078,7 @@ name = "rift_egui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "eframe",
  "egui",
  "font-kit",
