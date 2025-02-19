@@ -37,13 +37,13 @@ pub struct NotificationMessage {
     pub params: Option<Value>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompletionItem {
     pub label: String,
     pub edit: TextEdit,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextEdit {
     pub text: String,
     pub range: Selection,

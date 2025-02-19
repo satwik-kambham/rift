@@ -17,7 +17,7 @@ use rift_core::{
     cli::{process_cli_args, CLIArgs},
     lsp::{client::LSPClientHandle, types},
     preferences::Color,
-    state::{EditorState, Mode},
+    state::{CompletionMenu, EditorState, Mode},
 };
 
 pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
@@ -28,12 +28,7 @@ pub struct App {
     pub state: EditorState,
     pub lsp_handles: HashMap<Language, LSPClientHandle>,
     pub modal_list_state: widgets::ListState,
-    pub info_modal_active: bool,
-    pub info_modal_content: String,
     pub info_modal_scroll: u16,
-    pub completion_menu_active: bool,
-    pub completion_menu_items: Vec<types::CompletionItem>,
-    pub completion_menu_idx: Option<usize>,
     pub completion_menu_state: widgets::ListState,
 }
 
@@ -48,12 +43,7 @@ impl App {
             state,
             lsp_handles,
             modal_list_state: widgets::ListState::default(),
-            info_modal_active: false,
-            info_modal_content: "".into(),
             info_modal_scroll: 0,
-            completion_menu_active: false,
-            completion_menu_items: vec![],
-            completion_menu_idx: None,
             completion_menu_state: widgets::ListState::default(),
         }
     }
@@ -117,8 +107,7 @@ impl App {
                                             .as_str()
                                             .unwrap()
                                             .to_string();
-                                        self.info_modal_content = message;
-                                        self.info_modal_active = true;
+                                        self.state.info_modal.open(message);
                                     } else if lsp_handle.id_method[&response.id]
                                         == "textDocument/completion"
                                         && response.result.is_some()
@@ -165,9 +154,7 @@ impl App {
                                                 },
                                             });
                                         }
-                                        self.completion_menu_active = true;
-                                        self.completion_menu_items = completion_items;
-                                        self.completion_menu_idx = None;
+                                        self.state.completion_menu.open(completion_items);
                                     } else if lsp_handle.id_method[&response.id]
                                         == "textDocument/formatting"
                                         && response.result.is_some()
@@ -583,7 +570,7 @@ impl App {
                 }
 
                 // Render Completion Items
-                if self.completion_menu_active {
+                if self.state.completion_menu.active {
                     let popup_area = Rect {
                         x: 4,
                         y: 2,
@@ -592,7 +579,9 @@ impl App {
                     };
                     let completion_block = widgets::Block::default().borders(widgets::Borders::ALL);
                     let completion_list = self
-                        .completion_menu_items
+                        .state
+                        .completion_menu
+                        .items
                         .iter()
                         .map(|item| item.label.clone())
                         .collect::<widgets::List>()
@@ -607,7 +596,7 @@ impl App {
                 }
 
                 // Render Info Modal
-                if self.info_modal_active {
+                if self.state.info_modal.active {
                     let popup_area = Rect {
                         x: 4,
                         y: 2,
@@ -615,7 +604,7 @@ impl App {
                         height: frame.area().height - 4,
                     };
                     let info_modal_block = widgets::Block::default().borders(widgets::Borders::ALL);
-                    let content = widgets::Paragraph::new(&*self.info_modal_content)
+                    let content = widgets::Paragraph::new(&*self.state.info_modal.content)
                         .block(info_modal_block)
                         .wrap(widgets::Wrap { trim: false })
                         .scroll((self.info_modal_scroll, 0));
@@ -629,55 +618,29 @@ impl App {
                 if let event::Event::Key(key) = event::read()? {
                     self.state.update_view = true;
                     if key.kind == KeyEventKind::Press {
-                        if self.info_modal_active {
+                        if self.state.info_modal.active {
                             if key.code == KeyCode::Esc {
-                                self.info_modal_active = false;
+                                self.state.info_modal.close();
                             } else if key.code == KeyCode::Up {
                                 self.info_modal_scroll = self.info_modal_scroll.saturating_sub(1);
                             } else if key.code == KeyCode::Down {
                                 self.info_modal_scroll = self.info_modal_scroll.saturating_add(1);
                             }
-                        } else if self.completion_menu_active {
+                        } else if self.state.completion_menu.active {
                             if key.code == KeyCode::Esc {
-                                self.completion_menu_active = false;
-                                self.completion_menu_items = vec![];
-                                self.completion_menu_idx = None;
+                                self.state.completion_menu.close();
                                 self.completion_menu_state.select(None);
                             } else if key.code == KeyCode::Tab {
-                                if !self.completion_menu_items.is_empty() {
-                                    if self.completion_menu_idx.is_none() {
-                                        self.completion_menu_idx = Some(0);
-                                    } else {
-                                        self.completion_menu_idx =
-                                            Some(self.completion_menu_idx.unwrap() + 1);
-                                        if self.completion_menu_idx.unwrap()
-                                            >= self.completion_menu_items.len()
-                                        {
-                                            self.completion_menu_idx = Some(0);
-                                        }
-                                    }
-                                    self.completion_menu_state.select(self.completion_menu_idx);
-                                }
+                                self.state.completion_menu.select_next();
+                                self.completion_menu_state
+                                    .select(self.state.completion_menu.selection);
                             } else if key.code == KeyCode::Enter {
-                                if let Some(idx) = self.completion_menu_idx {
-                                    let completion_item = &self.completion_menu_items[idx];
-                                    perform_action(
-                                        Action::DeleteText(completion_item.edit.range),
-                                        &mut self.state,
-                                        &mut self.lsp_handles,
-                                    );
-                                    perform_action(
-                                        Action::InsertText(
-                                            completion_item.edit.text.clone(),
-                                            completion_item.edit.range.mark,
-                                        ),
-                                        &mut self.state,
-                                        &mut self.lsp_handles,
-                                    );
-                                }
-                                self.completion_menu_active = false;
-                                self.completion_menu_items = vec![];
-                                self.completion_menu_idx = None;
+                                let completion_item = self.state.completion_menu.select();
+                                CompletionMenu::on_select(
+                                    completion_item,
+                                    &mut self.state,
+                                    &mut self.lsp_handles,
+                                );
                                 self.completion_menu_state.select(None);
                             }
                         } else if self.state.modal.open {

@@ -4,6 +4,7 @@ use copypasta::ClipboardContext;
 use tokio::sync::mpsc;
 
 use crate::{
+    actions::{perform_action, Action},
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
         line_buffer::{HighlightedText, LineBuffer},
@@ -44,6 +45,8 @@ pub struct EditorState {
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
     pub modal: Modal,
     pub diagnostics_overlay: DiagnosticsOverlay,
+    pub info_modal: InfoModal,
+    pub completion_menu: CompletionMenu,
 }
 
 impl EditorState {
@@ -75,6 +78,8 @@ impl EditorState {
             clipboard_ctx: ClipboardContext::new().unwrap(),
             diagnostics: HashMap::new(),
             diagnostics_overlay: DiagnosticsOverlay::default(),
+            info_modal: InfoModal::default(),
+            completion_menu: CompletionMenu::new(5),
         }
     }
 
@@ -268,5 +273,113 @@ impl DiagnosticsOverlay {
 impl Default for DiagnosticsOverlay {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct InfoModal {
+    pub active: bool,
+    pub content: String,
+}
+
+impl InfoModal {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            content: String::new(),
+        }
+    }
+
+    pub fn open(&mut self, content: String) {
+        self.content = content;
+        self.active = true;
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+    }
+}
+
+impl Default for InfoModal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct CompletionMenu {
+    pub active: bool,
+    pub items: Vec<types::CompletionItem>,
+    pub start: usize,
+    pub selection: Option<usize>,
+    pub max_items: usize,
+}
+
+impl CompletionMenu {
+    pub fn new(max_items: usize) -> Self {
+        Self {
+            active: false,
+            items: vec![],
+            start: 0,
+            selection: None,
+            max_items,
+        }
+    }
+
+    pub fn open(&mut self, items: Vec<types::CompletionItem>) {
+        self.active = true;
+        self.items = items;
+        self.start = 0;
+        self.selection = None;
+    }
+
+    pub fn select_next(&mut self) {
+        if !self.items.is_empty() {
+            self.selection = if let Some(idx) = self.selection {
+                if idx < self.items.len() - 1 {
+                    self.start += 1;
+                    Some(idx + 1)
+                } else {
+                    self.start = 0;
+                    Some(0)
+                }
+            } else {
+                self.start = 0;
+                Some(0)
+            };
+        }
+    }
+
+    pub fn select(&mut self) -> Option<types::CompletionItem> {
+        if let Some(idx) = self.selection {
+            self.close();
+            return Some(self.items[idx].clone());
+        }
+        self.close();
+        None
+    }
+
+    pub fn on_select(
+        completion_item: Option<types::CompletionItem>,
+        state: &mut EditorState,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    ) {
+        if let Some(completion_item) = completion_item {
+            perform_action(
+                Action::DeleteText(completion_item.edit.range),
+                state,
+                lsp_handles,
+            );
+            perform_action(
+                Action::InsertText(
+                    completion_item.edit.text.clone(),
+                    completion_item.edit.range.mark,
+                ),
+                state,
+                lsp_handles,
+            );
+        }
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
     }
 }

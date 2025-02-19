@@ -1,18 +1,14 @@
-pub struct InfoModal {
-    pub info: String,
-    pub active: bool,
-}
+use rift_core::state::EditorState;
 
-impl InfoModal {
+pub struct InfoModalWidget {}
+
+impl InfoModalWidget {
     pub fn new() -> Self {
-        Self {
-            info: "".to_string(),
-            active: false,
-        }
+        Self {}
     }
 
-    pub fn show(&mut self, ctx: &egui::Context) -> bool {
-        if self.active {
+    pub fn show(&self, ctx: &egui::Context, state: &mut EditorState) {
+        if state.info_modal.active {
             egui::Window::new("info_modal")
                 .movable(false)
                 .interactable(true)
@@ -23,15 +19,13 @@ impl InfoModal {
                 .title_bar(false)
                 .vscroll(true)
                 .show(ctx, |ui| {
-                    ui.label(&self.info);
-                    self.handle_input(ui);
+                    ui.label(&state.info_modal.content);
+                    self.handle_input(ui, state);
                 });
-            return false;
         }
-        true
     }
 
-    pub fn handle_input(&mut self, ui: &mut egui::Ui) {
+    pub fn handle_input(&self, ui: &mut egui::Ui, state: &mut EditorState) {
         ui.input(|i| {
             for event in &i.raw.events {
                 if let egui::Event::Key {
@@ -45,7 +39,7 @@ impl InfoModal {
                     if *pressed {
                         match key {
                             egui::Key::Escape => {
-                                self.active = false;
+                                state.info_modal.close();
                             }
                             _ => {}
                         }
@@ -56,7 +50,7 @@ impl InfoModal {
     }
 }
 
-impl Default for InfoModal {
+impl Default for InfoModalWidget {
     fn default() -> Self {
         Self::new()
     }

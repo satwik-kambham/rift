@@ -12,8 +12,8 @@ use rift_core::{
 use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
-        completion_menu::CompletionMenu, diagnostics_overlay::show_diagnostics_overlay,
-        info_modal::InfoModal,
+        completion_menu::CompletionMenuWidget, diagnostics_overlay::show_diagnostics_overlay,
+        info_modal::InfoModalWidget,
     },
     fonts::load_fonts,
 };
@@ -23,9 +23,8 @@ pub struct App {
     state: EditorState,
     font_definitions: FontDefinitions,
     lsp_handles: HashMap<Language, LSPClientHandle>,
-    info_modal: InfoModal,
-    completion_menu: CompletionMenu,
-    editor_focused: bool,
+    info_modal: InfoModalWidget,
+    completion_menu: CompletionMenuWidget,
 }
 
 impl App {
@@ -38,12 +37,11 @@ impl App {
 
         Self {
             dispatcher: CommandDispatcher::default(),
-            completion_menu: CompletionMenu::new(5, state.preferences.theme.selection_bg),
+            completion_menu: CompletionMenuWidget::new(state.preferences.theme.selection_bg),
             state,
             font_definitions,
             lsp_handles,
-            info_modal: InfoModal::default(),
-            editor_focused: true,
+            info_modal: InfoModalWidget::default(),
         }
     }
 
@@ -276,9 +274,7 @@ impl App {
                                             .as_str()
                                             .unwrap()
                                             .to_string();
-                                        self.info_modal.info = message;
-                                        self.info_modal.active = true;
-                                        self.editor_focused = false;
+                                        self.state.info_modal.open(message);
                                     } else if lsp_handle.id_method[&response.id]
                                         == "textDocument/completion"
                                         && response.result.is_some()
@@ -325,9 +321,7 @@ impl App {
                                                 },
                                             });
                                         }
-                                        self.completion_menu.set_items(completion_items);
-                                        self.completion_menu.active = true;
-                                        self.editor_focused = false;
+                                        self.state.completion_menu.open(completion_items);
                                     } else if lsp_handle.id_method[&response.id]
                                         == "textDocument/formatting"
                                         && response.result.is_some()
@@ -585,18 +579,15 @@ impl App {
                     ui.label(job);
                 }
 
-                if self.editor_focused {
+                if !self.state.info_modal.active {
                     self.dispatcher
                         .show(ui, &mut self.state, &mut self.lsp_handles);
                 }
             });
-        self.editor_focused = self.info_modal.show(ctx);
-        if self.state.buffer_idx.is_some() {
-            self.editor_focused = self.editor_focused
-                && self
-                    .completion_menu
-                    .show(ctx, &mut self.state, &mut self.lsp_handles);
-        }
+
+        self.info_modal.show(ctx, &mut self.state);
+        self.completion_menu
+            .show(ctx, &mut self.state, &mut self.lsp_handles);
 
         if self.state.diagnostics_overlay.should_render() {
             show_diagnostics_overlay(ctx, &self.state);
