@@ -19,16 +19,35 @@ impl CompletionMenuWidget {
 
     pub fn show(
         &self,
+        char_width: f32,
+        char_height: f32,
+        gutter_width: f32,
+        visible_lines: usize,
         ctx: &egui::Context,
         state: &mut EditorState,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) -> bool {
         if state.completion_menu.active {
+            let offset = egui::Pos2 {
+                x: (state.relative_cursor.column as f32 * char_width)
+                    + gutter_width
+                    + char_width
+                    + state.preferences.editor_padding,
+                y: (state.relative_cursor.row as f32 * char_height)
+                    + char_height
+                    + state.preferences.editor_padding,
+            };
+            let pivot = if visible_lines - 7 < state.relative_cursor.row {
+                egui::Align2::LEFT_BOTTOM
+            } else {
+                egui::Align2::LEFT_TOP
+            };
             egui::Window::new("completion_menu")
                 .movable(false)
                 .interactable(true)
                 .order(egui::Order::Tooltip)
-                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .fixed_pos(offset)
+                .pivot(pivot)
                 .collapsible(false)
                 .title_bar(false)
                 .auto_sized()

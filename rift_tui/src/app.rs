@@ -353,13 +353,19 @@ impl App {
 
                 // Render Completion Items
                 if self.state.completion_menu.active {
-                    let popup_area = Rect {
-                        x: 4,
-                        y: 2,
-                        width: frame.area().width - 8,
-                        height: frame.area().height - 4,
+                    let offset = if visible_lines - self.state.completion_menu.max_items - 1
+                        < self.state.relative_cursor.row
+                    {
+                        self.state.completion_menu.max_items as u16
+                    } else {
+                        0
                     };
-                    let completion_block = widgets::Block::default().borders(widgets::Borders::ALL);
+                    let popup_area = Rect {
+                        x: self.state.relative_cursor.column as u16 + h_layout[1].x + 1,
+                        y: self.state.relative_cursor.row as u16 + h_layout[1].y + 1 - offset,
+                        width: 20,
+                        height: self.state.completion_menu.max_items as u16,
+                    };
                     let completion_list = self
                         .state
                         .completion_menu
@@ -367,7 +373,6 @@ impl App {
                         .iter()
                         .map(|item| item.label.clone())
                         .collect::<widgets::List>()
-                        .block(completion_block)
                         .highlight_symbol(">>");
                     frame.render_widget(widgets::Clear, popup_area);
                     frame.render_stateful_widget(
