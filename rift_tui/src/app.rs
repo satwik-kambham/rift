@@ -606,6 +606,10 @@ impl App {
                                 self.perform_action(Action::CycleNextBuffer);
                             } else if key.code == KeyCode::Char('/') {
                                 self.perform_action(Action::SearchWorkspace);
+                            } else if key.code == KeyCode::Char(';') {
+                                self.perform_action(Action::Unselect);
+                            } else if key.code == KeyCode::Char(':') {
+                                self.perform_action(Action::OpenCommandDispatcher);
                             } else if key.code == KeyCode::Char('z') {
                                 self.perform_action(Action::LSPHover);
                             } else if key.code == KeyCode::Char('Z') {

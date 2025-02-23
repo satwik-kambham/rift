@@ -323,6 +323,13 @@ impl CommandDispatcher {
                                     egui::Key::Semicolon => {
                                         perform_action(Action::Unselect, state, lsp_handles);
                                     }
+                                    egui::Key::Colon => {
+                                        perform_action(
+                                            Action::OpenCommandDispatcher,
+                                            state,
+                                            lsp_handles,
+                                        );
+                                    }
                                     egui::Key::J => {
                                         if matches!(state.mode, Mode::Normal) {
                                             if modifiers.shift {

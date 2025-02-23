@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::lsp::types;
 
 /// Struct representating a position in the buffer
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub struct Cursor {
     pub row: usize,
     pub column: usize,
@@ -28,7 +28,7 @@ impl PartialOrd for Cursor {
 /// Struct representing a selection where mark is the fixed point / start point
 /// of the selection and cursor is the current cursor location which can be
 /// moved to update the selection
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub struct Selection {
     pub cursor: Cursor,
     pub mark: Cursor,
