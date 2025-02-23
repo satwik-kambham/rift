@@ -116,6 +116,18 @@ pub fn handle_lsp_messages(
                                     lsp_handles,
                                 );
                             }
+                        } else if lsp_handle.id_method[&response.id] == "textDocument/signatureHelp"
+                            && response.result.is_some()
+                        {
+                            let label = response.result.unwrap()["signatures"]
+                                .as_array()
+                                .unwrap()
+                                .first()
+                                .unwrap()["label"]
+                                .as_str()
+                                .unwrap()
+                                .to_string();
+                            state.signature_information.content = label;
                         } else {
                             let message = format!(
                                 "---Response to: {}({})\n\n{:#?}---\n",

@@ -12,7 +12,7 @@ use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
         completion_menu::CompletionMenuWidget, diagnostics_overlay::show_diagnostics_overlay,
-        info_modal::InfoModalWidget,
+        info_modal::InfoModalWidget, signature_information::show_signature_information,
     },
     fonts::load_fonts,
 };
@@ -45,6 +45,7 @@ impl App {
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
+        ctx.request_repaint_after_secs(1.0);
         ctx.set_fonts(self.font_definitions.clone());
         ctx.style_mut(|style| {
             style.visuals.override_text_color = Some(self.state.preferences.theme.ui_text.into());
@@ -381,6 +382,10 @@ impl App {
 
         if self.state.diagnostics_overlay.should_render() {
             show_diagnostics_overlay(ctx, &self.state);
+        }
+
+        if self.state.signature_information.should_render() && self.state.relative_cursor.row > 1 {
+            show_signature_information(char_width, char_height, gutter_width, ctx, &self.state);
         }
 
         // egui::CentralPanel::default()

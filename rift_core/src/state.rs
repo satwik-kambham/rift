@@ -47,6 +47,7 @@ pub struct EditorState {
     pub diagnostics_overlay: DiagnosticsOverlay,
     pub info_modal: InfoModal,
     pub completion_menu: CompletionMenu,
+    pub signature_information: SignatureInformation,
 }
 
 impl EditorState {
@@ -80,6 +81,7 @@ impl EditorState {
             diagnostics_overlay: DiagnosticsOverlay::default(),
             info_modal: InfoModal::default(),
             completion_menu: CompletionMenu::new(5),
+            signature_information: SignatureInformation::default(),
         }
     }
 
@@ -271,6 +273,28 @@ impl DiagnosticsOverlay {
 }
 
 impl Default for DiagnosticsOverlay {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct SignatureInformation {
+    pub content: String,
+}
+
+impl SignatureInformation {
+    pub fn new() -> Self {
+        Self {
+            content: String::new(),
+        }
+    }
+
+    pub fn should_render(&self) -> bool {
+        !self.content.is_empty()
+    }
+}
+
+impl Default for SignatureInformation {
     fn default() -> Self {
         Self::new()
     }

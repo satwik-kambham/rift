@@ -292,7 +292,12 @@ impl LSPClientHandle {
                     },
                     "hover": {
                         "contentFormat": ["plaintext"],
-                    }
+                    },
+                    "signatureHelp": {
+                        "signatureInformation": {
+                            "documentationFormat": ["plaintext"],
+                        },
+                    },
                 }
             }
         })
@@ -401,6 +406,20 @@ impl LSPClientHandle {
     /// Completion Request
     /// method: 'textDocument/completion'
     pub fn completion_request(document_path: String, cursor: Cursor) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+            },
+            "position": {
+                "line": cursor.row,
+                "character": cursor.column,
+            },
+        })
+    }
+
+    /// Completion Request
+    /// method: 'textDocument/signatureHelp'
+    pub fn signature_help_request(document_path: String, cursor: Cursor) -> Value {
         json!({
             "textDocument": {
                 "uri": format!("file:///{}", document_path),

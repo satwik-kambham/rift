@@ -46,6 +46,7 @@ impl CommandDispatcher {
                                 match key {
                                     egui::Key::Escape => {
                                         perform_action(Action::QuitInsertMode, state, lsp_handles);
+                                        state.signature_information.content = String::new();
                                     }
                                     egui::Key::I => {
                                         if matches!(state.mode, Mode::Normal) {
@@ -394,6 +395,11 @@ impl CommandDispatcher {
                                         if !modifiers.shift {
                                             perform_action(Action::LSPHover, state, lsp_handles);
                                         } else {
+                                            perform_action(
+                                                Action::LSPSignatureHelp,
+                                                state,
+                                                lsp_handles,
+                                            );
                                             perform_action(
                                                 Action::LSPCompletion,
                                                 state,

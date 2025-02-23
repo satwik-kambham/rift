@@ -57,6 +57,7 @@ pub enum Action {
     Unselect,
     LSPHover,
     LSPCompletion,
+    LSPSignatureHelp,
     DeletePreviousCharacter,
     DeleteNextCharacter,
     DeleteSelection,
@@ -558,6 +559,28 @@ pub fn perform_action(
                         .send_request_sync(
                             "textDocument/completion".to_string(),
                             Some(LSPClientHandle::completion_request(
+                                buffer.file_path.clone().unwrap(),
+                                instance.cursor,
+                            )),
+                        )
+                        .unwrap();
+                }
+            }
+        }
+        Action::LSPSignatureHelp => {
+            if matches!(state.mode, Mode::Normal) {
+                let lsp_handle = if state.buffer_idx.is_some() {
+                    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                    &mut lsp_handles.get_mut(&buffer.language)
+                } else {
+                    &mut None
+                };
+                let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                if let Some(lsp_handle) = lsp_handle {
+                    lsp_handle
+                        .send_request_sync(
+                            "textDocument/signatureHelp".to_string(),
+                            Some(LSPClientHandle::signature_help_request(
                                 buffer.file_path.clone().unwrap(),
                                 instance.cursor,
                             )),

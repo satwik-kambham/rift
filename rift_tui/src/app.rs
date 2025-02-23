@@ -318,6 +318,28 @@ impl App {
                     frame.render_widget(diagnostics_info, area);
                 }
 
+                // Render signature information
+                if self.state.signature_information.should_render()
+                    && self.state.relative_cursor.row > 1
+                {
+                    let popup_area = Rect {
+                        x: self.state.relative_cursor.column as u16 + h_layout[1].x + 1,
+                        y: self.state.relative_cursor.row as u16 + h_layout[1].y - 1,
+                        width: self
+                            .state
+                            .signature_information
+                            .content
+                            .len()
+                            .min(max_characters.min(self.state.relative_cursor.column) - 1)
+                            as u16,
+                        height: 1,
+                    };
+                    let signature_information =
+                        widgets::Paragraph::new(self.state.signature_information.content.clone());
+                    frame.render_widget(widgets::Clear, popup_area);
+                    frame.render_widget(signature_information, popup_area);
+                }
+
                 // Render Modal
                 if self.state.modal.open {
                     let popup_area = Rect {
@@ -587,6 +609,7 @@ impl App {
                             } else if key.code == KeyCode::Char('z') {
                                 self.perform_action(Action::LSPHover);
                             } else if key.code == KeyCode::Char('Z') {
+                                self.perform_action(Action::LSPSignatureHelp);
                                 self.perform_action(Action::LSPCompletion);
                             } else if key.code == KeyCode::Char('y') {
                                 self.perform_action(Action::CopyToRegister);
@@ -600,6 +623,7 @@ impl App {
                         } else if matches!(self.state.mode, Mode::Insert) {
                             if key.code == KeyCode::Esc {
                                 self.perform_action(Action::QuitInsertMode);
+                                self.state.signature_information.content = String::new();
                             } else if let KeyCode::Char(c) = key.code {
                                 self.perform_action(Action::InsertTextAtCursor(c.into()));
                             } else if key.code == KeyCode::Enter {
