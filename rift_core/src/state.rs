@@ -148,10 +148,14 @@ impl EditorState {
             _ => None,
         };
         if let Some(command) = command {
-            return Some(
-                self.rt
-                    .block_on(async { start_lsp(command.0, command.1).await.unwrap() }),
-            );
+            if which::which(command.0).is_ok() {
+                return Some(
+                    self.rt
+                        .block_on(async { start_lsp(command.0, command.1).await.unwrap() }),
+                );
+            } else {
+                return None;
+            }
         }
         None
     }
