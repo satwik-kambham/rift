@@ -11,6 +11,33 @@ use crate::{
 pub mod client;
 pub mod types;
 
+pub fn parse_uri(uri: String) -> String {
+    let mut uri = std::path::absolute(uri.strip_prefix("file:").unwrap().trim_start_matches("\\"))
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    #[cfg(target_os = "windows")]
+    {
+        uri = uri.to_lowercase();
+    }
+    uri
+}
+
+pub fn parse_range(range: &serde_json::Value) -> Selection {
+    Selection {
+        cursor: Cursor {
+            row: range["end"]["line"].as_u64().unwrap() as usize,
+            column: range["end"]["character"].as_u64().unwrap() as usize,
+        },
+        mark: Cursor {
+            row: range["start"]["line"].as_u64().unwrap() as usize,
+            column: range["start"]["character"].as_u64().unwrap() as usize,
+        },
+    }
+}
+
 pub fn handle_lsp_messages(
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
@@ -51,30 +78,7 @@ pub fn handle_lsp_messages(
                                             .as_str()
                                             .unwrap()
                                             .to_owned(),
-                                        range: Selection {
-                                            cursor: Cursor {
-                                                row: item["textEdit"]["range"]["end"]["line"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                                column: item["textEdit"]["range"]["end"]
-                                                    ["character"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                            },
-                                            mark: Cursor {
-                                                row: item["textEdit"]["range"]["start"]["line"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                                column: item["textEdit"]["range"]["start"]
-                                                    ["character"]
-                                                    .as_u64()
-                                                    .unwrap()
-                                                    as usize,
-                                            },
-                                        },
+                                        range: parse_range(&item["textEdit"]["range"]),
                                     },
                                 });
                             }
@@ -86,24 +90,7 @@ pub fn handle_lsp_messages(
                             for edit in edits {
                                 let text_edit = types::TextEdit {
                                     text: edit["newText"].as_str().unwrap().to_owned(),
-                                    range: Selection {
-                                        cursor: Cursor {
-                                            row: edit["range"]["end"]["line"].as_u64().unwrap()
-                                                as usize,
-                                            column: edit["range"]["end"]["character"]
-                                                .as_u64()
-                                                .unwrap()
-                                                as usize,
-                                        },
-                                        mark: Cursor {
-                                            row: edit["range"]["start"]["line"].as_u64().unwrap()
-                                                as usize,
-                                            column: edit["range"]["start"]["character"]
-                                                .as_u64()
-                                                .unwrap()
-                                                as usize,
-                                        },
-                                    },
+                                    range: parse_range(&edit["range"]),
                                 };
                                 perform_action(
                                     Action::DeleteText(text_edit.range),
@@ -128,6 +115,43 @@ pub fn handle_lsp_messages(
                                 .unwrap()
                                 .to_string();
                             state.signature_information.content = label;
+                        } else if lsp_handle.id_method[&response.id] == "textDocument/definition"
+                            && response.result.is_some()
+                        {
+                            if response.result.as_ref().unwrap().is_array() {
+                                let mut locations = vec![];
+                                for location in response.result.unwrap().as_array().unwrap() {
+                                    let uri =
+                                        parse_uri(location["uri"].as_str().unwrap().to_string());
+                                    let range = parse_range(&location["range"]);
+                                    locations.push((uri, range));
+                                }
+                                perform_action(
+                                    Action::LocationModal(locations),
+                                    state,
+                                    lsp_handles,
+                                );
+                            } else {
+                                let location = response.result.unwrap();
+                                let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
+                                let range = parse_range(&location["range"]);
+                                perform_action(
+                                    Action::CreateBufferFromFile(uri),
+                                    state,
+                                    lsp_handles,
+                                );
+                                perform_action(Action::Select(range), state, lsp_handles);
+                            }
+                        } else if lsp_handle.id_method[&response.id] == "textDocument/references"
+                            && response.result.is_some()
+                        {
+                            let mut locations = vec![];
+                            for location in response.result.unwrap().as_array().unwrap() {
+                                let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
+                                let range = parse_range(&location["range"]);
+                                locations.push((uri, range));
+                            }
+                            perform_action(Action::LocationModal(locations), state, lsp_handles);
                         } else {
                             let message = format!(
                                 "---Response to: {}({})\n\n{:#?}---\n",
@@ -140,22 +164,12 @@ pub fn handle_lsp_messages(
                         if notification.method == "textDocument/publishDiagnostics"
                             && notification.params.is_some()
                         {
-                            let mut uri = std::path::absolute(
+                            let uri = parse_uri(
                                 notification.params.as_ref().unwrap()["uri"]
                                     .as_str()
                                     .unwrap()
-                                    .strip_prefix("file:")
-                                    .unwrap()
-                                    .trim_start_matches("\\"),
-                            )
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
-                            .to_string();
-                            #[cfg(target_os = "windows")]
-                            {
-                                uri = uri.to_lowercase();
-                            }
+                                    .to_string(),
+                            );
 
                             let mut diagnostics = types::PublishDiagnostics {
                                 uri,
@@ -170,28 +184,7 @@ pub fn handle_lsp_messages(
                                 .unwrap()
                             {
                                 diagnostics.diagnostics.push(types::Diagnostic {
-                                    range: Selection {
-                                        cursor: Cursor {
-                                            row: diagnostic["range"]["end"]["line"]
-                                                .as_u64()
-                                                .unwrap()
-                                                as usize,
-                                            column: diagnostic["range"]["end"]["character"]
-                                                .as_u64()
-                                                .unwrap()
-                                                as usize,
-                                        },
-                                        mark: Cursor {
-                                            row: diagnostic["range"]["start"]["line"]
-                                                .as_u64()
-                                                .unwrap()
-                                                as usize,
-                                            column: diagnostic["range"]["start"]["character"]
-                                                .as_u64()
-                                                .unwrap()
-                                                as usize,
-                                        },
-                                    },
+                                    range: parse_range(&diagnostic["range"]),
                                     severity: match diagnostic["severity"].as_u64().unwrap_or(1) {
                                         1 => types::DiagnosticSeverity::Error,
                                         2 => types::DiagnosticSeverity::Warning,

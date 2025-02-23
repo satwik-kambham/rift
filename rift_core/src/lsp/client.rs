@@ -431,6 +431,37 @@ impl LSPClientHandle {
         })
     }
 
+    /// Completion Request
+    /// method: 'textDocument/definition'
+    pub fn go_to_definition_request(document_path: String, cursor: Cursor) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+            },
+            "position": {
+                "line": cursor.row,
+                "character": cursor.column,
+            },
+        })
+    }
+
+    /// Completion Request
+    /// method: 'textDocument/references'
+    pub fn go_to_references_request(document_path: String, cursor: Cursor) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
+            },
+            "position": {
+                "line": cursor.row,
+                "character": cursor.column,
+            },
+            "context": {
+                "includeDeclaration": true,
+            },
+        })
+    }
+
     /// Formatting Request
     /// method: 'textDocument/formatting'
     pub fn formatting_request(document_path: String, tab_size: usize) -> Value {
