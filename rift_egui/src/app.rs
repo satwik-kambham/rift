@@ -13,7 +13,8 @@ use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
         completion_menu::CompletionMenuWidget, diagnostics_overlay::show_diagnostics_overlay,
-        info_modal::InfoModalWidget, signature_information::show_signature_information,
+        info_modal::InfoModalWidget, menu_bar::show_menu_bar,
+        signature_information::show_signature_information, status_line::show_status_line,
     },
     fonts::load_fonts,
 };
@@ -46,6 +47,10 @@ impl App {
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
+        if self.state.quit {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+
         ctx.request_repaint_after_secs(1.0);
         ctx.set_fonts(self.font_definitions.clone());
         ctx.style_mut(|style| {
@@ -100,89 +105,8 @@ impl App {
         let mut visible_lines = 0;
         let mut max_characters = 0;
 
-        egui::TopBottomPanel::bottom("status_line")
-            .resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame {
-                fill: self.state.preferences.theme.status_bar_bg.into(),
-                inner_margin: egui::Margin::symmetric(8.0, 8.0),
-                ..Default::default()
-            })
-            .show(ctx, |ui| {
-                ui.memory_mut(|mem| {
-                    if let Some(id) = mem.focused() {
-                        mem.surrender_focus(id);
-                    }
-                });
-                if self.state.buffer_idx.is_some() {
-                    let (buffer, instance) =
-                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-                    let file_path = buffer.file_path.clone();
-                    let modified = buffer.modified;
-                    let cursor = instance.cursor;
-
-                    ui.horizontal(|ui| {
-                        let mode = &self.state.mode;
-                        match mode {
-                            Mode::Normal => ui.label(
-                                RichText::new("NORMAL")
-                                    .color(self.state.preferences.theme.status_bar_normal_mode_fg),
-                            ),
-                            Mode::Insert => ui.label(
-                                RichText::new("INSERT")
-                                    .color(self.state.preferences.theme.status_bar_insert_mode_fg),
-                            ),
-                        };
-                        ui.separator();
-                        ui.label(file_path.as_ref().unwrap());
-                        ui.separator();
-                        ui.label(format!("{}:{}", cursor.row + 1, cursor.column + 1));
-                        ui.separator();
-                        ui.label(if modified { "U" } else { "" });
-                        ui.separator();
-                        if ui.button("+").clicked() {
-                            self.state.preferences.editor_font_size += 1;
-                        };
-                        ui.label(format!(
-                            "Font Size: {}",
-                            self.state.preferences.editor_font_size
-                        ));
-                        if ui.button("-").clicked() {
-                            self.state.preferences.editor_font_size -= 1;
-                        };
-                        ui.separator();
-                        if ui
-                            .button(format!("Tab Size: {}", self.state.preferences.tab_width))
-                            .clicked()
-                        {
-                            if self.state.preferences.tab_width == 4 {
-                                self.state.preferences.tab_width = 2;
-                            } else {
-                                self.state.preferences.tab_width = 4;
-                            }
-                        };
-                        ui.separator();
-                        if ui
-                            .button(
-                                (if self.state.preferences.line_ending == "\n" {
-                                    "lf"
-                                } else {
-                                    "crlf"
-                                })
-                                .to_string(),
-                            )
-                            .clicked()
-                        {
-                            if self.state.preferences.line_ending == "\n" {
-                                self.state.preferences.line_ending = "\r\n".to_string()
-                            } else {
-                                self.state.preferences.line_ending = "\n".to_string();
-                            }
-                        };
-                        ui.separator();
-                    });
-                }
-            });
+        show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
+        show_status_line(ctx, &mut self.state);
 
         egui::SidePanel::left("gutter")
             .resizable(false)

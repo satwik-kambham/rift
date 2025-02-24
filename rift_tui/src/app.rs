@@ -51,7 +51,7 @@ impl App {
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
-        loop {
+        while !self.state.quit {
             terminal.draw(|frame| {
                 // Layout
                 let v_layout = Layout::default()
@@ -249,14 +249,13 @@ impl App {
                     let status = text::Line::from(vec![
                         text::Span::styled(format!(" {:#?} ", self.state.mode), status_mode_style),
                         format!(
-                            " {}({:?}) ",
+                            " {} ",
                             self.state
                                 .get_buffer_by_id(self.state.buffer_idx.unwrap())
                                 .0
                                 .file_path
                                 .as_ref()
                                 .unwrap(),
-                            self.state.buffer_idx
                         )
                         .into(),
                         format!(
@@ -273,6 +272,20 @@ impl App {
                                 .cursor
                                 .column
                                 + 1,
+                        )
+                        .into(),
+                        format!(
+                            " {} ",
+                            if self
+                                .state
+                                .get_buffer_by_id(self.state.buffer_idx.unwrap())
+                                .0
+                                .modified
+                            {
+                                "U"
+                            } else {
+                                ""
+                            },
                         )
                         .into(),
                     ]);
@@ -474,7 +487,7 @@ impl App {
                             }
                         } else if matches!(self.state.mode, Mode::Normal) {
                             if key.code == KeyCode::Char('q') {
-                                return Ok(());
+                                self.perform_action(Action::Quit);
                             } else if key.code == KeyCode::Char('i') {
                                 self.perform_action(Action::EnterInsertMode);
                             } else if key.code == KeyCode::Char('f') {
@@ -657,5 +670,6 @@ impl App {
                 }
             }
         }
+        Ok(())
     }
 }

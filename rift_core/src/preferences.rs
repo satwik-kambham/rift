@@ -48,7 +48,7 @@ impl Default for Preferences {
         };
 
         Self {
-            theme: Theme::catppuccin_mocha(),
+            theme: Theme::kanagawa(),
             line_ending,
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),

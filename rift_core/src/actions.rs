@@ -18,6 +18,7 @@ use crate::{
 #[derive(Debug, EnumIter, EnumMessage, EnumString, VariantNames)]
 #[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum Action {
+    Quit,
     InsertTextAtCursor(String),
     InsertText(String, Cursor),
     DeleteText(Selection),
@@ -88,6 +89,9 @@ pub fn perform_action(
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
     match action {
+        Action::Quit => {
+            state.quit = true;
+        }
         Action::InsertTextAtCursor(text) => {
             let lsp_handle = if state.buffer_idx.is_some() {
                 let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());

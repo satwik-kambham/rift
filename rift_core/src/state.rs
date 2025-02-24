@@ -25,6 +25,7 @@ pub enum Mode {
 }
 
 pub struct EditorState {
+    pub quit: bool,
     pub rt: tokio::runtime::Runtime,
     pub async_handle: AsyncHandle,
     pub preferences: Preferences,
@@ -59,6 +60,7 @@ impl EditorState {
             .unwrap()
             .to_owned();
         Self {
+            quit: false,
             rt,
             async_handle: AsyncHandle { sender, receiver },
             preferences: Preferences::default(),
