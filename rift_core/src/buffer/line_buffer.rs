@@ -149,6 +149,13 @@ impl LineBuffer {
         self.lines.join(&eol_sequence)
     }
 
+    /// Get a portion text buffer content as a string
+    /// with the desired EOL sequence
+    pub fn get_content_range(&self, start: usize, end: usize, eol_sequence: String) -> String {
+        let range = self.lines.get(start..end + 1).unwrap();
+        range.join(&eol_sequence)
+    }
+
     /// Get selection as string
     pub fn get_selection(&self, selection: &Selection) -> String {
         let mut content = String::new();
@@ -375,7 +382,11 @@ impl LineBuffer {
         // Highlight
         if let Some(highlight_params) = &self.highlight_params {
             let mut highlight_type = HighlightType::None;
-            let content = self.get_content("\n".into());
+            let content = self.get_content_range(
+                gutter_info.first().unwrap().start.row,
+                gutter_info.last().unwrap().start.row,
+                "\n".into(),
+            );
             let highlights = self
                 .highlighter
                 .highlight(
@@ -389,6 +400,8 @@ impl LineBuffer {
             for event in highlights {
                 match event.unwrap() {
                     HighlightEvent::Source { start, end } => {
+                        let start = start + gutter_info.first().unwrap().start_byte;
+                        let end = end + gutter_info.first().unwrap().start_byte;
                         if end >= gutter_info.first().unwrap().start_byte
                             && start <= gutter_info.last().unwrap().end_byte
                         {
