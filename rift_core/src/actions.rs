@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path, str::FromStr};
 
 use copypasta::ClipboardProvider;
-use strum::{IntoEnumIterator, VariantNames};
+use strum::VariantNames;
 use strum_macros::{EnumIter, EnumMessage, EnumString, VariantNames};
 
 use crate::{

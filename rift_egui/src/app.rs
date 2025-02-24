@@ -1,10 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use egui::{text::LayoutJob, FontDefinitions, FontId, RichText};
 use rift_core::{
-    buffer::instance::{Attribute, HighlightType, Language, Range},
+    buffer::instance::{Attribute, HighlightType, Language},
     cli::{process_cli_args, CLIArgs},
     lsp::{client::LSPClientHandle, handle_lsp_messages, types},
+    rendering::update_visible_lines,
     state::{EditorState, Mode},
 };
 
@@ -267,7 +268,7 @@ impl App {
 
                 if self.state.update_view {
                     self.state.relative_cursor =
-                        self.update_visible_lines(visible_lines, max_characters);
+                        update_visible_lines(&mut self.state, visible_lines, max_characters);
                     self.state.update_view = false;
                 }
 
@@ -388,46 +389,6 @@ impl App {
             show_signature_information(char_width, char_height, gutter_width, ctx, &self.state);
         }
 
-        // egui::CentralPanel::default()
-        //     .frame(egui::Frame {
-        //         fill: Color32::TRANSPARENT,
-        //         outer_margin: egui::Margin::same(self.state.preferences.editor_padding),
-        //         ..Default::default()
-        //     })
-        //     .show(ctx, |ui| {
-        //         ui.put(
-        //             Rect::from_two_pos(
-        //                 egui::Pos2 {
-        //                     x: (self.state.relative_cursor.column as f32 * char_width)
-        //                         + gutter_width
-        //                         + self.state.preferences.editor_padding,
-        //                     y: (self.state.relative_cursor.row as f32 * char_height)
-        //                         + self.state.preferences.editor_padding,
-        //                 },
-        //                 egui::Pos2 {
-        //                     x: (self.state.relative_cursor.column as f32 * char_width)
-        //                         + gutter_width
-        //                         + char_width
-        //                         + self.state.preferences.editor_padding,
-        //                     y: (self.state.relative_cursor.row as f32 * char_height)
-        //                         + char_height
-        //                         + self.state.preferences.editor_padding,
-        //                 },
-        //             ),
-        //             Label::new(
-        //                 RichText::new(" ")
-        //                     .font(FontId::monospace(
-        //                         self.state.preferences.editor_font_size as f32,
-        //                     ))
-        //                     .background_color(if matches!(self.state.mode, Mode::Normal) {
-        //                         self.state.preferences.theme.cursor_normal_mode_bg
-        //                     } else {
-        //                         self.state.preferences.theme.cursor_insert_mode_bg
-        //                     }),
-        //             ),
-        //         );
-        //     });
-
         if self.state.modal.open {
             egui::Window::new("modal")
                 .movable(false)
@@ -461,62 +422,5 @@ impl App {
                     });
                 });
         }
-    }
-
-    pub fn update_visible_lines(
-        &mut self,
-        visible_lines: usize,
-        max_characters: usize,
-    ) -> rift_core::buffer::instance::Cursor {
-        if self.state.buffer_idx.is_some() {
-            let (buffer, instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-            let mut extra_segments = vec![];
-            let mut path = buffer.file_path.as_ref().unwrap().clone();
-            #[cfg(target_os = "windows")]
-            {
-                path = path.to_lowercase();
-            }
-
-            if let Some(diagnostics) = self.state.diagnostics.get(&path) {
-                let mut diagnostic_info = String::new();
-                if diagnostics.version != 0 && diagnostics.version == buffer.version {
-                    for diagnostic in &diagnostics.diagnostics {
-                        if instance.cursor >= diagnostic.range.mark
-                            && instance.cursor <= diagnostic.range.cursor
-                        {
-                            diagnostic_info.push_str(&format!(
-                                "{} {} {}\n",
-                                diagnostic.source, diagnostic.code, diagnostic.message
-                            ));
-                        }
-
-                        extra_segments.push(Range {
-                            start: buffer.byte_index_from_cursor(&diagnostic.range.mark, "\n"),
-                            end: buffer.byte_index_from_cursor(&diagnostic.range.cursor, "\n"),
-                            attributes: HashSet::from([Attribute::DiagnosticSeverity(
-                                diagnostic.severity.clone(),
-                            )]),
-                        });
-                    }
-                }
-                self.state.diagnostics_overlay.content = diagnostic_info;
-            }
-            let (buffer, instance) = self
-                .state
-                .get_buffer_by_id_mut(self.state.buffer_idx.unwrap());
-            let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
-                &mut instance.scroll,
-                &instance.cursor,
-                &instance.selection,
-                visible_lines,
-                max_characters,
-                "\n".into(),
-                extra_segments,
-            );
-            self.state.highlighted_text = lines;
-            self.state.gutter_info = gutter_info;
-            return relative_cursor;
-        }
-        rift_core::buffer::instance::Cursor { row: 0, column: 0 }
     }
 }

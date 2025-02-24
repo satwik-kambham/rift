@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::{collections::HashMap, time::Duration};
 
 use ratatui::{
     crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers},
@@ -13,10 +10,11 @@ use ratatui::{
 };
 use rift_core::{
     actions::{perform_action, Action},
-    buffer::instance::{Attribute, Language, Range},
+    buffer::instance::{Attribute, Language},
     cli::{process_cli_args, CLIArgs},
     lsp::{client::LSPClientHandle, handle_lsp_messages},
     preferences::Color,
+    rendering::update_visible_lines,
     state::{CompletionMenu, EditorState, Mode},
 };
 
@@ -91,7 +89,7 @@ impl App {
                     // Compute view if updated
                     if self.state.update_view {
                         self.state.relative_cursor =
-                            self.update_visible_lines(visible_lines, max_characters);
+                            update_visible_lines(&mut self.state, visible_lines, max_characters);
                         self.state.update_view = false;
                     }
 
@@ -207,29 +205,6 @@ impl App {
                     }
 
                     frame.render_widget(text::Text::from(lines), h_layout[1]);
-
-                    // Render cursor
-                    // let buf = frame.buffer_mut();
-                    // if let Some(cell) = buf.cell_mut((
-                    //     self.state.relative_cursor.column as u16 + h_layout[1].x,
-                    //     self.state.relative_cursor.row as u16 + h_layout[1].y,
-                    // )) {
-                    //     if matches!(self.state.mode, Mode::Normal) {
-                    //         cell.set_fg(color_from_rgb(
-                    //             self.state.preferences.theme.cursor_normal_mode_fg,
-                    //         ));
-                    //         cell.set_bg(color_from_rgb(
-                    //             self.state.preferences.theme.cursor_normal_mode_bg,
-                    //         ));
-                    //     } else {
-                    //         cell.set_fg(color_from_rgb(
-                    //             self.state.preferences.theme.cursor_insert_mode_fg,
-                    //         ));
-                    //         cell.set_bg(color_from_rgb(
-                    //             self.state.preferences.theme.cursor_insert_mode_bg,
-                    //         ));
-                    //     }
-                    // }
 
                     // Render gutter
                     let mut gutter_lines = vec![];
@@ -682,62 +657,5 @@ impl App {
                 }
             }
         }
-    }
-
-    pub fn update_visible_lines(
-        &mut self,
-        visible_lines: usize,
-        max_characters: usize,
-    ) -> rift_core::buffer::instance::Cursor {
-        if self.state.buffer_idx.is_some() {
-            let (buffer, instance) = self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
-            let mut extra_segments = vec![];
-            let mut path = buffer.file_path.as_ref().unwrap().clone();
-            #[cfg(target_os = "windows")]
-            {
-                path = path.to_lowercase();
-            }
-
-            if let Some(diagnostics) = self.state.diagnostics.get(&path) {
-                let mut diagnostic_info = String::new();
-                if diagnostics.version != 0 && diagnostics.version == buffer.version {
-                    for diagnostic in &diagnostics.diagnostics {
-                        if instance.cursor >= diagnostic.range.mark
-                            && instance.cursor <= diagnostic.range.cursor
-                        {
-                            diagnostic_info.push_str(&format!(
-                                "{} {} {}\n",
-                                diagnostic.source, diagnostic.code, diagnostic.message
-                            ));
-                        }
-
-                        extra_segments.push(Range {
-                            start: buffer.byte_index_from_cursor(&diagnostic.range.mark, "\n"),
-                            end: buffer.byte_index_from_cursor(&diagnostic.range.cursor, "\n"),
-                            attributes: HashSet::from([Attribute::DiagnosticSeverity(
-                                diagnostic.severity.clone(),
-                            )]),
-                        });
-                    }
-                }
-                self.state.diagnostics_overlay.content = diagnostic_info;
-            }
-            let (buffer, instance) = self
-                .state
-                .get_buffer_by_id_mut(self.state.buffer_idx.unwrap());
-            let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
-                &mut instance.scroll,
-                &instance.cursor,
-                &instance.selection,
-                visible_lines,
-                max_characters,
-                "\n".into(),
-                extra_segments,
-            );
-            self.state.highlighted_text = lines;
-            self.state.gutter_info = gutter_info;
-            return relative_cursor;
-        }
-        rift_core::buffer::instance::Cursor { row: 0, column: 0 }
     }
 }
