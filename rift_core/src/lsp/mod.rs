@@ -87,7 +87,7 @@ pub fn handle_lsp_messages(
                             && response.result.is_some()
                         {
                             let edits = response.result.unwrap().as_array().unwrap().clone();
-                            for edit in edits {
+                            for edit in edits.iter().rev() {
                                 let text_edit = types::TextEdit {
                                     text: edit["newText"].as_str().unwrap().to_owned(),
                                     range: parse_range(&edit["range"]),

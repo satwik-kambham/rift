@@ -12,6 +12,7 @@ pub struct FolderEntry {
     pub is_dir: bool,
     pub name: String,
     pub extension: String,
+    pub children: Option<Vec<FolderEntry>>,
 }
 
 impl PartialOrd for FolderEntry {
@@ -130,6 +131,7 @@ pub fn get_directory_entries(path: &str) -> Result<Vec<FolderEntry>> {
                 .to_str()
                 .unwrap()
                 .to_string(),
+            children: None,
         });
     }
     entries.sort();

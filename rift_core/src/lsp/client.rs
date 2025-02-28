@@ -315,7 +315,7 @@ impl LSPClientHandle {
         loop {
             if let Some(response) = self.recv_message().await {
                 if let IncomingMessage::Response(message) = response {
-                    tracing::info!("{:#?}", message);
+                    // tracing::info!("{:#?}", message);
                     self.send_notification("initialized".to_string(), None)
                         .await
                         .unwrap();
@@ -337,7 +337,7 @@ impl LSPClientHandle {
         loop {
             if let Some(response) = self.recv_message_sync() {
                 if let IncomingMessage::Response(message) = response {
-                    tracing::info!("{:#?}", message);
+                    // tracing::info!("{:#?}", message);
                     self.send_notification_sync("initialized".to_string(), None)
                         .unwrap();
                 }
