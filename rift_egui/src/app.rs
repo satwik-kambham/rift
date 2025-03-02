@@ -13,7 +13,7 @@ use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
         completion_menu::CompletionMenuWidget, diagnostics_overlay::show_diagnostics_overlay,
-        info_modal::InfoModalWidget, menu_bar::show_menu_bar,
+        file_explorer::FileExplorer, info_modal::InfoModalWidget, menu_bar::show_menu_bar,
         signature_information::show_signature_information, status_line::show_status_line,
     },
     fonts::load_fonts,
@@ -26,6 +26,7 @@ pub struct App {
     lsp_handles: HashMap<Language, LSPClientHandle>,
     info_modal: InfoModalWidget,
     completion_menu: CompletionMenuWidget,
+    file_explorer: FileExplorer,
 }
 
 impl App {
@@ -43,15 +44,20 @@ impl App {
             font_definitions,
             lsp_handles,
             info_modal: InfoModalWidget::default(),
+            file_explorer: FileExplorer::new(),
         }
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
+        // Quit command
         if self.state.quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
 
+        // Repaint every second
         ctx.request_repaint_after_secs(1.0);
+
+        // Set fonts and global style
         ctx.set_fonts(self.font_definitions.clone());
         ctx.style_mut(|style| {
             style.visuals.override_text_color = Some(self.state.preferences.theme.ui_text.into());
@@ -108,8 +114,12 @@ impl App {
         show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
         show_status_line(ctx, &mut self.state);
 
+        gutter_width += self
+            .file_explorer
+            .show(ctx, &mut self.state, &mut self.lsp_handles);
+
         egui::SidePanel::left("gutter")
-            .resizable(false)
+            .resizable(true)
             .show_separator_line(false)
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.gutter_bg.into(),
@@ -119,7 +129,7 @@ impl App {
             .show(ctx, |ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
-                gutter_width = rect.width() + self.state.preferences.gutter_padding * 2.0;
+                gutter_width += rect.width() + self.state.preferences.gutter_padding * 2.0;
                 for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
                     let gutter_value = if gutter_line.wrapped {
                         ".".to_string()
@@ -146,6 +156,7 @@ impl App {
                 }
             });
 
+        // Calculate character width and height
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.editor_bg.into(),
@@ -160,6 +171,7 @@ impl App {
                 char_height = label_response.rect.height();
             });
 
+        // Render editor
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.editor_bg.into(),
@@ -172,6 +184,7 @@ impl App {
                 visible_lines = (rect.height() / char_height).floor() as usize;
                 max_characters = (rect.width() / char_width).floor() as usize;
 
+                // Run async callbacks
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
                     (async_result.callback)(
                         async_result.result,
@@ -180,8 +193,10 @@ impl App {
                     );
                 }
 
+                // Handle lsp messages
                 handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
 
+                // Update on resize
                 if visible_lines != self.state.visible_lines
                     || max_characters != self.state.max_characters
                 {
@@ -190,12 +205,14 @@ impl App {
                     self.state.update_view = true;
                 }
 
+                // Update rendered lines
                 if self.state.update_view {
                     self.state.relative_cursor =
                         update_visible_lines(&mut self.state, visible_lines, max_characters);
                     self.state.update_view = false;
                 }
 
+                // Render buffer
                 for line in &self.state.highlighted_text {
                     let mut job = LayoutJob::default();
                     for token in line {
@@ -288,13 +305,20 @@ impl App {
                     ui.label(job);
                 }
 
+                // Handle keyboard events
                 if !self.state.info_modal.active {
                     self.dispatcher
                         .show(ui, &mut self.state, &mut self.lsp_handles);
                 }
             });
 
+        // Render modals and other widgets
         self.info_modal.show(ctx, &mut self.state);
+
+        if self.state.diagnostics_overlay.should_render() {
+            show_diagnostics_overlay(ctx, &self.state);
+        }
+
         self.completion_menu.show(
             char_width,
             char_height,
@@ -304,10 +328,6 @@ impl App {
             &mut self.state,
             &mut self.lsp_handles,
         );
-
-        if self.state.diagnostics_overlay.should_render() {
-            show_diagnostics_overlay(ctx, &self.state);
-        }
 
         if self.state.signature_information.should_render() && self.state.relative_cursor.row > 1 {
             show_signature_information(char_width, char_height, gutter_width, ctx, &self.state);
