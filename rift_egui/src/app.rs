@@ -107,15 +107,13 @@ impl App {
 
         let mut char_height = 0.0;
         let mut char_width = 0.0;
-        let mut gutter_width = 0.0;
         let mut visible_lines = 0;
         let mut max_characters = 0;
 
         show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
         show_status_line(ctx, &mut self.state);
 
-        gutter_width += self
-            .file_explorer
+        self.file_explorer
             .show(ctx, &mut self.state, &mut self.lsp_handles);
 
         egui::SidePanel::left("gutter")
@@ -128,8 +126,7 @@ impl App {
             })
             .show(ctx, |ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
-                let rect = ui.max_rect();
-                gutter_width += rect.width() + self.state.preferences.gutter_padding * 2.0;
+
                 for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
                     let gutter_value = if gutter_line.wrapped {
                         ".".to_string()
@@ -181,6 +178,7 @@ impl App {
             .show(ctx, |ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
+                let top_left = rect.left_top();
                 visible_lines = (rect.height() / char_height).floor() as usize;
                 max_characters = (rect.width() / char_width).floor() as usize;
 
@@ -310,6 +308,22 @@ impl App {
                     self.dispatcher
                         .show(ui, &mut self.state, &mut self.lsp_handles);
                 }
+
+                self.completion_menu.show(
+                    char_width,
+                    char_height,
+                    top_left,
+                    visible_lines,
+                    ctx,
+                    &mut self.state,
+                    &mut self.lsp_handles,
+                );
+
+                if self.state.signature_information.should_render()
+                    && self.state.relative_cursor.row > 1
+                {
+                    show_signature_information(char_width, char_height, top_left, ctx, &self.state);
+                }
             });
 
         // Render modals and other widgets
@@ -319,25 +333,11 @@ impl App {
             show_diagnostics_overlay(ctx, &self.state);
         }
 
-        self.completion_menu.show(
-            char_width,
-            char_height,
-            gutter_width,
-            visible_lines,
-            ctx,
-            &mut self.state,
-            &mut self.lsp_handles,
-        );
-
-        if self.state.signature_information.should_render() && self.state.relative_cursor.row > 1 {
-            show_signature_information(char_width, char_height, gutter_width, ctx, &self.state);
-        }
-
         if self.state.modal.open {
             egui::Window::new("modal")
                 .movable(false)
                 .order(egui::Order::Foreground)
-                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -20.0))
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
                 .resizable(false)
                 .collapsible(false)
                 .title_bar(false)

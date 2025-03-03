@@ -21,7 +21,7 @@ impl CompletionMenuWidget {
         &self,
         char_width: f32,
         char_height: f32,
-        gutter_width: f32,
+        top_left: egui::Pos2,
         visible_lines: usize,
         ctx: &egui::Context,
         state: &mut EditorState,
@@ -30,10 +30,11 @@ impl CompletionMenuWidget {
         if state.completion_menu.active {
             let offset = egui::Pos2 {
                 x: (state.relative_cursor.column as f32 * char_width)
-                    + gutter_width
+                    + top_left.x
                     + char_width
                     + state.preferences.editor_padding,
                 y: (state.relative_cursor.row as f32 * char_height)
+                    + top_left.y
                     + char_height
                     + state.preferences.editor_padding,
             };

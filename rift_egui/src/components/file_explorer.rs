@@ -90,9 +90,7 @@ impl FileExplorer {
         ctx: &egui::Context,
         state: &mut EditorState,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ) -> f32 {
-        let mut size = 0.0;
-
+    ) {
         if state.workspace_folder != self.workspace_folder {
             self.workspace_folder = state.workspace_folder.clone();
             self.update_entries(None, true);
@@ -101,12 +99,9 @@ impl FileExplorer {
         egui::SidePanel::left("file_explorer")
             .resizable(true)
             .show(ctx, |ui| {
-                let rect = ui.max_rect();
-                size = rect.right();
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.render(self.entries.clone(), 0, ui, state, lsp_handles);
                 });
             });
-        size
     }
 }
