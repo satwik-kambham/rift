@@ -1050,30 +1050,32 @@ pub fn perform_action(
             );
         }
         Action::OpenCommandDispatcher => {
-            state.modal.open();
-            let mut actions: Vec<(String, String)> = vec![];
-            for action in Action::VARIANTS {
-                actions.push((action.to_string(), action.to_string()));
-            }
-            state.modal.options = actions;
-            state
-                .modal
-                .set_modal_on_input(|input, state, _lsp_handles| {
-                    let mut actions: Vec<(String, String)> = vec![];
-                    for action in Action::VARIANTS {
-                        if action.contains(input) {
-                            actions.push((action.to_string(), action.to_string()));
+            if matches!(state.mode, Mode::Normal) {
+                state.modal.open();
+                let mut actions: Vec<(String, String)> = vec![];
+                for action in Action::VARIANTS {
+                    actions.push((action.to_string(), action.to_string()));
+                }
+                state.modal.options = actions;
+                state
+                    .modal
+                    .set_modal_on_input(|input, state, _lsp_handles| {
+                        let mut actions: Vec<(String, String)> = vec![];
+                        for action in Action::VARIANTS {
+                            if action.contains(input) {
+                                actions.push((action.to_string(), action.to_string()));
+                            }
                         }
-                    }
-                    state.modal.options = actions;
-                });
-            state.modal.set_modal_on_select(
-                |_input, selection, _alt_select, state, lsp_handles| {
-                    state.modal.close();
-                    let action = Action::from_str(&selection.1).unwrap();
-                    perform_action(action, state, lsp_handles);
-                },
-            );
+                        state.modal.options = actions;
+                    });
+                state.modal.set_modal_on_select(
+                    |_input, selection, _alt_select, state, lsp_handles| {
+                        state.modal.close();
+                        let action = Action::from_str(&selection.1).unwrap();
+                        perform_action(action, state, lsp_handles);
+                    },
+                );
+            }
         }
     }
 }
