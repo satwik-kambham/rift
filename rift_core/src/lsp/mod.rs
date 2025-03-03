@@ -43,7 +43,7 @@ pub fn handle_lsp_messages(
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
     if state.buffer_idx.is_some() {
-        let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+        let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
         if let Some(lsp_handle) = lsp_handles.get_mut(&buffer.language) {
             if let Some(message) = lsp_handle.recv_message_sync() {
                 match message {
@@ -71,16 +71,19 @@ pub fn handle_lsp_messages(
                                 .clone();
                             let mut completion_items = vec![];
                             for item in items {
-                                completion_items.push(types::CompletionItem {
-                                    label: item["label"].as_str().unwrap().to_owned(),
-                                    edit: types::TextEdit {
-                                        text: item["textEdit"]["newText"]
-                                            .as_str()
-                                            .unwrap()
-                                            .to_owned(),
-                                        range: parse_range(&item["textEdit"]["range"]),
-                                    },
-                                });
+                                let label = item["label"].as_str().unwrap().to_owned();
+                                if label.contains(&buffer.get_word_under_cursor(&instance.cursor)) {
+                                    completion_items.push(types::CompletionItem {
+                                        label,
+                                        edit: types::TextEdit {
+                                            text: item["textEdit"]["newText"]
+                                                .as_str()
+                                                .unwrap()
+                                                .to_owned(),
+                                            range: parse_range(&item["textEdit"]["range"]),
+                                        },
+                                    });
+                                }
                             }
                             state.completion_menu.open(completion_items);
                         } else if lsp_handle.id_method[&response.id] == "textDocument/formatting"
