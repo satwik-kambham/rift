@@ -341,10 +341,6 @@ impl App {
                 .resizable(false)
                 .collapsible(false)
                 .title_bar(false)
-                .frame(egui::Frame {
-                    fill: self.state.preferences.theme.modal_bg.into(),
-                    ..Default::default()
-                })
                 .show(ctx, |ui| {
                     ui.label(&self.state.modal.input);
                     egui::ScrollArea::vertical().show(ui, |ui| {

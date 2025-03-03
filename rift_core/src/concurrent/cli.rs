@@ -22,6 +22,10 @@ pub fn run_command(
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
+    if which::which(&program_args.program).is_err() {
+        return;
+    }
+
     rt.spawn(async move {
         let result = String::from_utf8(
             Command::new(program_args.program)
@@ -46,6 +50,12 @@ pub fn run_piped_commands(
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
+    for program in &program_args {
+        if which::which(&program.program).is_err() {
+            return;
+        }
+    }
+
     rt.spawn(async move {
         let mut previous_result: Option<Vec<u8>> = None;
 

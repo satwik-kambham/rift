@@ -54,7 +54,7 @@ impl Default for Preferences {
             editor_font_family: "Monaspace Neon".into(),
             editor_font_size: 16,
             ui_font_family: "Monaspace Neon".into(),
-            ui_font_size: 16,
+            ui_font_size: 14,
             line_height: 1.5,
             gutter_padding: 4.0,
             editor_padding: 4.0,
