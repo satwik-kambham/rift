@@ -113,8 +113,8 @@ pub fn perform_action(
                 &mut None
             };
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            let _cursor = buffer.insert_text(&text, &cursor, lsp_handle, true);
-            instance.cursor = Cursor { row: 0, column: 0 };
+            let cursor = buffer.insert_text(&text, &cursor, lsp_handle, true);
+            instance.cursor = cursor;
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
             instance.column_level = instance.cursor.column;
@@ -127,8 +127,8 @@ pub fn perform_action(
                 &mut None
             };
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            let (_text, _cursor) = buffer.remove_text(&selection, lsp_handle, true);
-            instance.cursor = Cursor { row: 0, column: 0 };
+            let (_text, cursor) = buffer.remove_text(&selection, lsp_handle, true);
+            instance.cursor = cursor;
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
             instance.column_level = instance.cursor.column;
