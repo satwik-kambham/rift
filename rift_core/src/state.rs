@@ -147,6 +147,7 @@ impl EditorState {
     pub fn spawn_lsp(&self, language: Language) -> Option<LSPClientHandle> {
         let command: Option<(&str, &[&str])> = match language {
             Language::Rust => Some(("rust-analyzer", &[])),
+            Language::Python => Some(("pylsp", &[])),
             _ => None,
         };
         if let Some(command) = command {

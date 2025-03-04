@@ -71,16 +71,23 @@ impl LineBuffer {
         let highlight_map: HashMap<String, HighlightType> = HashMap::from([
             ("attribute".into(), HighlightType::Red),
             ("constant".into(), HighlightType::Red),
+            ("constant.builtin".into(), HighlightType::Turquoise),
             ("function.builtin".into(), HighlightType::Purple),
             ("function".into(), HighlightType::Blue),
+            ("function.method".into(), HighlightType::Blue),
+            ("function.macro".into(), HighlightType::Turquoise),
             ("keyword".into(), HighlightType::Purple),
+            ("label".into(), HighlightType::Red),
             ("operator".into(), HighlightType::Purple),
             ("property".into(), HighlightType::Yellow),
-            ("punctuation".into(), HighlightType::White),
+            ("punctuation".into(), HighlightType::Purple),
             ("punctuation.bracket".into(), HighlightType::Orange),
             ("punctuation.delimiter".into(), HighlightType::Orange),
+            ("punctuation.special".into(), HighlightType::Purple),
             ("string".into(), HighlightType::Green),
             ("string.special".into(), HighlightType::Orange),
+            ("string.escape".into(), HighlightType::Turquoise),
+            ("escape".into(), HighlightType::Turquoise),
             ("comment".into(), HighlightType::Gray),
             ("comment.documentation".into(), HighlightType::Gray),
             ("tag".into(), HighlightType::Turquoise),
@@ -89,6 +96,13 @@ impl LineBuffer {
             ("variable".into(), HighlightType::Red),
             ("variable.builtin".into(), HighlightType::Orange),
             ("variable.parameter".into(), HighlightType::Red),
+            ("text.title".into(), HighlightType::Orange),
+            ("text.uri".into(), HighlightType::Blue),
+            ("text.reference".into(), HighlightType::Turquoise),
+            ("text.literal".into(), HighlightType::Gray),
+            ("constructor".into(), HighlightType::Turquoise),
+            ("number".into(), HighlightType::Blue),
+            ("embedded".into(), HighlightType::Purple),
         ]);
         let highlight_names: Vec<String> =
             highlight_map.keys().map(|key| key.to_string()).collect();
@@ -114,12 +128,26 @@ impl LineBuffer {
                 )
                 .unwrap(),
             ),
+            Language::Markdown => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_md::LANGUAGE.into(),
+                    "md",
+                    tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
+                    tree_sitter_md::INJECTION_QUERY_BLOCK,
+                    "",
+                )
+                .unwrap(),
+            ),
             _ => None,
         };
 
         let highlight_params = if let Some(mut language_config) = language_config {
             language_config.configure(&highlight_names);
-            // tracing::info!("Highlight Names: {:#?}", language_config.names());
+            tracing::info!(
+                "Highlight Names: {:#?} {:#?}",
+                language,
+                language_config.names()
+            );
 
             Some(TreeSitterParams {
                 language_config,
