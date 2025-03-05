@@ -21,3 +21,40 @@ TUI Frontend:
 - Modal Editing
 - Tree sitter syntax highlighting
 - LSP Integration
+
+## Build instructions
+
+1. Install rust
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+Proceed with standard installation.
+Additionally add `rust-analyzer` as a component if desired:
+```
+rustup component add rust-analyzer
+```
+
+2. Install egui dependencies on linux
+
+Debian based distros:
+```
+sudo apt install build-essential pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libssl-dev libfontconfig-dev
+```
+
+Fedora:
+```
+dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel
+```
+
+3. Install optional application depencies
+
+- ripgrep
+- fzf
+- fd
+
+4. Build application
+
+```
+cargo b -r
+```
