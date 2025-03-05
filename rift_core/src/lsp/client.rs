@@ -337,7 +337,7 @@ impl LSPClientHandle {
         loop {
             if let Some(response) = self.recv_message_sync() {
                 if let IncomingMessage::Response(message) = response {
-                    // tracing::info!("{:#?}", message);
+                    tracing::info!("{:#?}", message);
                     self.send_notification_sync("initialized".to_string(), None)
                         .unwrap();
                 }
@@ -348,13 +348,27 @@ impl LSPClientHandle {
 
     /// DidOpenTextDocument Notification
     /// method: 'textDocument/didOpen'
-    pub fn did_open_text_document(document_path: String, document_content: String) -> Value {
+    pub fn did_open_text_document(
+        document_path: String,
+        language_id: String,
+        document_content: String,
+    ) -> Value {
         json!({
             "textDocument": {
                 "uri": format!("file:///{}", document_path),
-                "languageId": "rust",
+                "languageId": language_id,
                 "version": 1,
                 "text": document_content,
+            }
+        })
+    }
+
+    /// DidSaveTextDocument Notification
+    /// method: 'textDocument/didSave'
+    pub fn did_save_text_document(document_path: String) -> Value {
+        json!({
+            "textDocument": {
+                "uri": format!("file:///{}", document_path),
             }
         })
     }

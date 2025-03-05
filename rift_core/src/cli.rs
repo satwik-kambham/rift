@@ -44,11 +44,19 @@ pub fn process_cli_args(
             }
 
             if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
+                let language_id = match buffer.language {
+                    Language::Python => "python",
+                    Language::Rust => "rust",
+                    Language::Markdown => "markdown",
+                    _ => "",
+                };
+
                 lsp_handle
                     .send_notification_sync(
                         "textDocument/didOpen".to_string(),
                         Some(LSPClientHandle::did_open_text_document(
                             path.to_str().unwrap().to_string(),
+                            language_id.to_string(),
                             initial_text,
                         )),
                     )

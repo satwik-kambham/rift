@@ -243,6 +243,15 @@ pub fn perform_action(
                     buffer.get_content(line_ending.to_string()),
                 )
                 .unwrap();
+
+                if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didSave".to_string(),
+                            Some(LSPClientHandle::did_save_text_document(buffer.file_path.clone().unwrap())),
+                        )
+                        .unwrap();
+                }
             }
         }
         Action::Select(selection) => {
@@ -310,11 +319,18 @@ pub fn perform_action(
                 }
 
                 if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
+                    let language_id = match buffer.language {
+                        Language::Python => "python",
+                        Language::Rust => "rust",
+                        Language::Markdown => "markdown",
+                        _ => "",
+                    };
                     lsp_handle
                         .send_notification_sync(
                             "textDocument/didOpen".to_string(),
                             Some(LSPClientHandle::did_open_text_document(
                                 path.clone(),
+                                language_id.to_string(),
                                 initial_text,
                             )),
                         )
