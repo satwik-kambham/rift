@@ -29,7 +29,7 @@ pub fn ollama_fim(state: &mut EditorState) {
     let (prefix, suffix) = content.split_at(byte_idx);
 
     let request = OllamaGenerate {
-        model: "qwen2.5-coder:1.5b".into(),
+        model: "qwen2.5-coder:0.5b".into(),
         prompt: generate_qwen_fim_prompt(prefix, suffix),
         template: "".into(),
         system: "".into(),

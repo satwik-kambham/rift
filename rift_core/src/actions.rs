@@ -5,6 +5,7 @@ use strum::VariantNames;
 use strum_macros::{EnumIter, EnumMessage, EnumString, VariantNames};
 
 use crate::{
+    ai,
     buffer::{
         instance::{Cursor, Language, Selection},
         line_buffer::LineBuffer,
@@ -81,6 +82,7 @@ pub enum Action {
     WorkspaceDiagnostics,
     LocationModal(Vec<(String, Selection)>),
     OpenCommandDispatcher,
+    FIMCompletion,
 }
 
 pub fn perform_action(
@@ -248,7 +250,9 @@ pub fn perform_action(
                     lsp_handle
                         .send_notification_sync(
                             "textDocument/didSave".to_string(),
-                            Some(LSPClientHandle::did_save_text_document(buffer.file_path.clone().unwrap())),
+                            Some(LSPClientHandle::did_save_text_document(
+                                buffer.file_path.clone().unwrap(),
+                            )),
                         )
                         .unwrap();
                 }
@@ -1092,6 +1096,9 @@ pub fn perform_action(
                     },
                 );
             }
+        }
+        Action::FIMCompletion => {
+            ai::ollama_fim(state);
         }
     }
 }
