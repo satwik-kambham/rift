@@ -12,16 +12,15 @@ pub mod client;
 pub mod types;
 
 pub fn parse_uri(uri: String) -> String {
-    let mut uri = std::path::absolute(uri.strip_prefix("file:").unwrap().trim_start_matches("\\"))
+    let uri = std::path::absolute(uri.strip_prefix("file:").unwrap().trim_start_matches("\\"))
         .unwrap()
         .to_str()
         .unwrap()
         .to_string();
 
     #[cfg(target_os = "windows")]
-    {
-        uri = uri.to_lowercase();
-    }
+    let uri = uri.to_lowercase();
+
     uri
 }
 

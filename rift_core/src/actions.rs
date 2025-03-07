@@ -16,7 +16,7 @@ use crate::{
     state::{EditorState, Mode},
 };
 
-#[derive(Debug, EnumIter, EnumMessage, EnumString, VariantNames)]
+#[derive(Debug, Clone, EnumIter, EnumMessage, EnumString, VariantNames)]
 #[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum Action {
     Quit,
@@ -36,7 +36,7 @@ pub enum Action {
     SaveCurrentBuffer,
     Select(Selection),
     SelectCurrentLine,
-    SelectAndExtentCurrentLine,
+    SelectAndExtendCurrentLine,
     SelectTillEndOfWord,
     ExtendSelectTillEndOfWord,
     SelectTillStartOfWord,
@@ -163,6 +163,7 @@ pub fn perform_action(
         }
         Action::QuitInsertMode => {
             state.mode = Mode::Normal;
+            state.signature_information.content = String::new();
         }
         Action::AddNewLineBelowAndEnterInsertMode => {
             if matches!(state.mode, Mode::Normal) {
@@ -273,7 +274,7 @@ pub fn perform_action(
                 instance.column_level = instance.cursor.column;
             }
         }
-        Action::SelectAndExtentCurrentLine => {
+        Action::SelectAndExtendCurrentLine => {
             if matches!(state.mode, Mode::Normal) {
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 instance.selection = buffer.select_line(&instance.selection);
@@ -1005,11 +1006,11 @@ pub fn perform_action(
             state.modal.set_modal_on_select(
                 |_input, selection, _alt_select, state, lsp_handles| {
                     let selection: serde_json::Value = serde_json::from_str(&selection.1).unwrap();
-                    let mut file_path = selection["file_path"].as_str().unwrap().to_string();
+                    let file_path = selection["file_path"].as_str().unwrap().to_string();
+
                     #[cfg(target_os = "windows")]
-                    {
-                        file_path = file_path.to_lowercase();
-                    }
+                    let file_path = file_path.to_lowercase();
+
                     let diagnostic_idx: usize =
                         selection["idx"].as_u64().unwrap().try_into().unwrap();
 

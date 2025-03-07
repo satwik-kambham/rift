@@ -10,6 +10,7 @@ use crate::{
         line_buffer::{HighlightedText, LineBuffer},
     },
     concurrent::{AsyncHandle, AsyncResult},
+    keybinds::KeybindHandler,
     lsp::{
         client::{start_lsp, LSPClientHandle},
         types,
@@ -17,7 +18,7 @@ use crate::{
     preferences::Preferences,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
 pub enum Mode {
     #[default]
     Normal,
@@ -49,6 +50,7 @@ pub struct EditorState {
     pub info_modal: InfoModal,
     pub completion_menu: CompletionMenu,
     pub signature_information: SignatureInformation,
+    pub keybind_handler: KeybindHandler,
 }
 
 impl EditorState {
@@ -84,6 +86,7 @@ impl EditorState {
             info_modal: InfoModal::default(),
             completion_menu: CompletionMenu::new(5),
             signature_information: SignatureInformation::default(),
+            keybind_handler: KeybindHandler::default(),
         }
     }
 

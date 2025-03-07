@@ -41,6 +41,8 @@ pub fn show_status_line(ctx: &egui::Context, state: &mut EditorState) {
                     ui.separator();
                     ui.label(if modified { "U" } else { "" });
                     ui.separator();
+                    ui.label(&state.keybind_handler.running_sequence);
+                    ui.separator();
                 });
             }
         });

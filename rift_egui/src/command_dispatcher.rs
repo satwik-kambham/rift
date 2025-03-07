@@ -1,12 +1,19 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use egui::Ui;
 use rift_core::{
-    actions::{perform_action, Action},
-    buffer::instance::Language,
-    lsp::client::LSPClientHandle,
-    state::{EditorState, Mode},
+    actions::perform_action, buffer::instance::Language, lsp::client::LSPClientHandle,
+    state::EditorState,
 };
+
+/// Util method that functions as ternary operator
+fn upper<'a>(shift: bool, base: &'a str, modified: &'a str) -> &'a str {
+    if shift {
+        modified
+    } else {
+        base
+    }
+}
 
 pub struct CommandDispatcher {}
 
@@ -25,446 +32,116 @@ impl CommandDispatcher {
             if !state.modal.open {
                 for event in &i.raw.events {
                     state.update_view = true;
-                    match event {
-                        egui::Event::Text(text) => {
-                            if matches!(state.mode, Mode::Insert) {
-                                perform_action(
-                                    Action::InsertTextAtCursor(text.to_string()),
-                                    state,
-                                    lsp_handles,
-                                );
+                    if let egui::Event::Key {
+                        key,
+                        physical_key: _,
+                        pressed,
+                        repeat: _,
+                        modifiers,
+                    } = event
+                    {
+                        if *pressed {
+                            let key = match key {
+                                egui::Key::ArrowDown => "Down",
+                                egui::Key::ArrowLeft => "Left",
+                                egui::Key::ArrowRight => "Right",
+                                egui::Key::ArrowUp => "Up",
+                                egui::Key::Escape => "Escape",
+                                egui::Key::Tab => "Tab",
+                                egui::Key::Backspace => "Backspace",
+                                egui::Key::Enter => "Enter",
+                                egui::Key::Space => "Space",
+                                egui::Key::Insert => "Insert",
+                                egui::Key::Delete => "Delete",
+                                egui::Key::Home => "Home",
+                                egui::Key::End => "End",
+                                egui::Key::PageUp => "PageUp",
+                                egui::Key::PageDown => "PageDown",
+                                egui::Key::Copy => "Copy",
+                                egui::Key::Cut => "Cut",
+                                egui::Key::Paste => "Paste",
+                                egui::Key::Semicolon => ";",
+                                egui::Key::Colon => ":",
+                                egui::Key::Slash => "/",
+                                egui::Key::Questionmark => "?",
+                                egui::Key::Backslash => "\\",
+                                egui::Key::Pipe => "|",
+                                egui::Key::Plus => "+",
+                                egui::Key::Equals => "=",
+                                egui::Key::OpenBracket => upper(modifiers.shift, "[", "{"),
+                                egui::Key::CloseBracket => upper(modifiers.shift, "]", "}"),
+                                egui::Key::Backtick => upper(modifiers.shift, "`", "~"),
+                                egui::Key::Minus => upper(modifiers.shift, "-", "_"),
+                                egui::Key::Period => upper(modifiers.shift, ".", ">"),
+                                egui::Key::Comma => upper(modifiers.shift, ",", "<"),
+                                egui::Key::Quote => upper(modifiers.shift, "'", "\""),
+                                egui::Key::Num1 => upper(modifiers.shift, "1", "!"),
+                                egui::Key::Num2 => upper(modifiers.shift, "2", "@"),
+                                egui::Key::Num3 => upper(modifiers.shift, "3", "#"),
+                                egui::Key::Num4 => upper(modifiers.shift, "4", "$"),
+                                egui::Key::Num5 => upper(modifiers.shift, "5", "%"),
+                                egui::Key::Num6 => upper(modifiers.shift, "6", "^"),
+                                egui::Key::Num7 => upper(modifiers.shift, "7", "&"),
+                                egui::Key::Num8 => upper(modifiers.shift, "8", "*"),
+                                egui::Key::Num9 => upper(modifiers.shift, "9", "("),
+                                egui::Key::Num0 => upper(modifiers.shift, "0", ")"),
+                                egui::Key::A => upper(modifiers.shift, "a", "A"),
+                                egui::Key::B => upper(modifiers.shift, "b", "B"),
+                                egui::Key::C => upper(modifiers.shift, "c", "C"),
+                                egui::Key::D => upper(modifiers.shift, "d", "D"),
+                                egui::Key::E => upper(modifiers.shift, "e", "E"),
+                                egui::Key::F => upper(modifiers.shift, "f", "F"),
+                                egui::Key::G => upper(modifiers.shift, "g", "G"),
+                                egui::Key::H => upper(modifiers.shift, "h", "H"),
+                                egui::Key::I => upper(modifiers.shift, "i", "I"),
+                                egui::Key::J => upper(modifiers.shift, "j", "J"),
+                                egui::Key::K => upper(modifiers.shift, "k", "K"),
+                                egui::Key::L => upper(modifiers.shift, "l", "L"),
+                                egui::Key::M => upper(modifiers.shift, "m", "M"),
+                                egui::Key::N => upper(modifiers.shift, "n", "N"),
+                                egui::Key::O => upper(modifiers.shift, "o", "O"),
+                                egui::Key::P => upper(modifiers.shift, "p", "P"),
+                                egui::Key::Q => upper(modifiers.shift, "q", "Q"),
+                                egui::Key::R => upper(modifiers.shift, "r", "R"),
+                                egui::Key::S => upper(modifiers.shift, "s", "S"),
+                                egui::Key::T => upper(modifiers.shift, "t", "T"),
+                                egui::Key::U => upper(modifiers.shift, "u", "U"),
+                                egui::Key::V => upper(modifiers.shift, "v", "V"),
+                                egui::Key::W => upper(modifiers.shift, "w", "W"),
+                                egui::Key::X => upper(modifiers.shift, "x", "X"),
+                                egui::Key::Y => upper(modifiers.shift, "y", "Y"),
+                                egui::Key::Z => upper(modifiers.shift, "z", "Z"),
+                                egui::Key::F1 => "F1",
+                                egui::Key::F2 => "F2",
+                                egui::Key::F3 => "F3",
+                                egui::Key::F4 => "F4",
+                                egui::Key::F5 => "F5",
+                                egui::Key::F6 => "F6",
+                                egui::Key::F7 => "F7",
+                                egui::Key::F8 => "F8",
+                                egui::Key::F9 => "F9",
+                                egui::Key::F10 => "F10",
+                                egui::Key::F11 => "F11",
+                                egui::Key::F12 => "F12",
+                                _ => "",
+                            };
+                            let mut modifiers_set = HashSet::new();
+                            if modifiers.alt {
+                                modifiers_set.insert("m".to_string());
+                            } else if modifiers.ctrl {
+                                modifiers_set.insert("c".to_string());
+                            } else if modifiers.shift {
+                                modifiers_set.insert("s".to_string());
+                            }
+
+                            if let Some(action) = state.keybind_handler.handle_input(
+                                state.mode.clone(),
+                                key.to_string(),
+                                modifiers_set,
+                            ) {
+                                perform_action(action, state, lsp_handles);
                             }
                         }
-                        egui::Event::Key {
-                            key,
-                            physical_key: _,
-                            pressed,
-                            repeat: _,
-                            modifiers,
-                        } => {
-                            if *pressed {
-                                match key {
-                                    egui::Key::Escape => {
-                                        perform_action(Action::QuitInsertMode, state, lsp_handles);
-                                        state.signature_information.content = String::new();
-                                    }
-                                    egui::Key::I => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            perform_action(
-                                                Action::EnterInsertMode,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                            return;
-                                        }
-                                    }
-                                    egui::Key::O => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            perform_action(
-                                                Action::AddNewLineBelowAndEnterInsertMode,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                            return;
-                                        }
-                                    }
-                                    egui::Key::Comma => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::RemoveIndent,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::CyclePreviousBuffer,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::Period => {
-                                        if modifiers.shift {
-                                            perform_action(Action::AddIndent, state, lsp_handles);
-                                        } else {
-                                            perform_action(
-                                                Action::CycleNextBuffer,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::Slash => {
-                                        if modifiers.ctrl {
-                                            perform_action(
-                                                Action::CloseCurrentBuffer,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::X => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::SelectAndExtentCurrentLine,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::SelectCurrentLine,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::W => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::ExtendSelectTillEndOfWord,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::SelectTillEndOfWord,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::F => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            if modifiers.shift {
-                                                // rift_core::ai::ollama_fim(state);
-                                                perform_action(
-                                                    Action::FuzzyFindFile(true),
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            } else {
-                                                perform_action(
-                                                    Action::OpenFile,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                                return;
-                                            }
-                                        }
-                                    }
-                                    egui::Key::Backslash => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            perform_action(
-                                                Action::SearchWorkspace,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::B => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            perform_action(
-                                                Action::SwitchBuffer,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::S => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::SaveCurrentBuffer,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::FormatCurrentBuffer,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::ArrowDown => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::ExtendCursorDown,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::MoveCursorDown,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::ArrowUp => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::ExtendCursorUp,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::MoveCursorUp,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::ArrowLeft => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::ExtendCursorLeft,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::MoveCursorLeft,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::ArrowRight => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::ExtendCursorRight,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::MoveCursorRight,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::Home => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::ExtendCursorLineStart,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::MoveCursorLineStart,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::End => {
-                                        if modifiers.shift {
-                                            perform_action(
-                                                Action::ExtendCursorLineEnd,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::MoveCursorLineEnd,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::G => {
-                                        if !modifiers.shift {
-                                            perform_action(
-                                                Action::GoToBufferStart,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::GoToBufferEnd,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::Y => {
-                                        if !modifiers.shift {
-                                            perform_action(
-                                                Action::CopyToRegister,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::CopyToClipboard,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::P => {
-                                        if !modifiers.shift {
-                                            perform_action(
-                                                Action::PasteFromRegister,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::PasteFromClipboard,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::Semicolon => {
-                                        perform_action(Action::Unselect, state, lsp_handles);
-                                    }
-                                    egui::Key::Colon => {
-                                        perform_action(
-                                            Action::OpenCommandDispatcher,
-                                            state,
-                                            lsp_handles,
-                                        );
-                                    }
-                                    egui::Key::J => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            if modifiers.shift {
-                                                perform_action(
-                                                    Action::ExtendCursorDown,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            } else {
-                                                perform_action(
-                                                    Action::MoveCursorDown,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            }
-                                        }
-                                    }
-                                    egui::Key::K => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            if modifiers.shift {
-                                                perform_action(
-                                                    Action::ExtendCursorUp,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            } else {
-                                                perform_action(
-                                                    Action::MoveCursorUp,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            }
-                                        }
-                                    }
-                                    egui::Key::H => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            if modifiers.shift {
-                                                perform_action(
-                                                    Action::ExtendCursorLeft,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            } else {
-                                                perform_action(
-                                                    Action::MoveCursorLeft,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            }
-                                        }
-                                    }
-                                    egui::Key::L => {
-                                        if matches!(state.mode, Mode::Normal) {
-                                            if modifiers.shift {
-                                                perform_action(
-                                                    Action::ExtendCursorRight,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            } else {
-                                                perform_action(
-                                                    Action::MoveCursorRight,
-                                                    state,
-                                                    lsp_handles,
-                                                );
-                                            }
-                                        }
-                                    }
-                                    egui::Key::Z => {
-                                        if !modifiers.shift {
-                                            perform_action(Action::LSPHover, state, lsp_handles);
-                                        } else {
-                                            perform_action(
-                                                Action::LSPSignatureHelp,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                            perform_action(
-                                                Action::LSPCompletion,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::Backspace => {
-                                        perform_action(
-                                            Action::DeletePreviousCharacter,
-                                            state,
-                                            lsp_handles,
-                                        );
-                                    }
-                                    egui::Key::Delete => {
-                                        perform_action(
-                                            Action::DeleteNextCharacter,
-                                            state,
-                                            lsp_handles,
-                                        );
-                                    }
-                                    egui::Key::D => {
-                                        if !modifiers.shift {
-                                            perform_action(
-                                                Action::DeleteSelection,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        } else {
-                                            perform_action(
-                                                Action::WorkspaceDiagnostics,
-                                                state,
-                                                lsp_handles,
-                                            );
-                                        }
-                                    }
-                                    egui::Key::Enter => {
-                                        perform_action(
-                                            Action::InsertNewLineAtCursor,
-                                            state,
-                                            lsp_handles,
-                                        );
-                                    }
-                                    egui::Key::Tab => {
-                                        perform_action(Action::AddTab, state, lsp_handles);
-                                    }
-                                    egui::Key::U => {
-                                        if !modifiers.shift {
-                                            perform_action(Action::Undo, state, lsp_handles);
-                                        } else {
-                                            perform_action(Action::Redo, state, lsp_handles);
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        }
-                        _ => {}
                     }
                 }
             } else {

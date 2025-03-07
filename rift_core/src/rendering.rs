@@ -13,11 +13,10 @@ pub fn update_visible_lines(
     if state.buffer_idx.is_some() {
         let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
         let mut extra_segments = vec![];
-        let mut path = buffer.file_path.as_ref().unwrap().clone();
+        let path = buffer.file_path.as_ref().unwrap().clone();
+
         #[cfg(target_os = "windows")]
-        {
-            path = path.to_lowercase();
-        }
+        let path = path.to_lowercase();
 
         if let Some(diagnostics) = state.diagnostics.get(&path) {
             let mut diagnostic_info = String::new();
