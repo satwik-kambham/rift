@@ -105,3 +105,9 @@ impl FileExplorer {
             });
     }
 }
+
+impl Default for FileExplorer {
+    fn default() -> Self {
+        Self::new()
+    }
+}

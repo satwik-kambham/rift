@@ -74,7 +74,8 @@ impl KeybindHandler {
             if modifiers.contains("m") {
                 input.insert(0, 'm');
             }
-            if modifiers.contains("s") {
+            if modifiers.contains("s") && !"<>?:\"{}|~!@#$%^&*()_+".chars().any(|c| key.contains(c))
+            {
                 input.insert(0, 's');
             }
         }
@@ -94,7 +95,10 @@ impl KeybindHandler {
             self.running_sequence = "".to_string();
             Some(keybind.action.clone())
         } else if self.keybinds.iter().any(|keybind| {
-            keybind.mode.contains(&mode) && keybind.sequence.starts_with(&self.running_sequence)
+            keybind.mode.contains(&mode)
+                && keybind
+                    .sequence
+                    .starts_with(&(self.running_sequence.clone() + " "))
         }) {
             return None;
         } else if matches!(mode, Mode::Insert) && key.is_ascii() && key.len() == 1 {
@@ -128,6 +132,7 @@ impl Default for KeybindHandler {
             "extend-cursor-line-end all s-end",
             "delete-previous-character ins backspace",
             "delete-next-character ins delete",
+            "insert-space ins space",
             "add-tab ins tab",
             "open-file nor space f",
             "fuzzy-find-file nor space s-f",
@@ -155,13 +160,13 @@ impl Default for KeybindHandler {
             "save-current-buffer nor s-s",
             "undo nor u",
             "redo nor s-u",
-            "add-indent nor s->",
-            "remove-indent nor s-<",
+            "add-indent nor >",
+            "remove-indent nor <",
             "cycle-previous-buffer nor ,",
             "cycle-next-buffer nor .",
             "search-workspace nor /",
             "unselect nor ;",
-            "open-command-dispatcher nor s-:",
+            "open-command-dispatcher nor :",
             "lsp-hover nor z",
             "lsp-completion nor s-z",
             "copy-to-register nor y",

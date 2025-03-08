@@ -102,6 +102,7 @@ pub struct Theme {
     pub hint: Color,
 }
 
+#[allow(dead_code)]
 impl Theme {
     fn catppuccin_mocha() -> Self {
         Self {

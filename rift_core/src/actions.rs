@@ -21,6 +21,7 @@ use crate::{
 pub enum Action {
     Quit,
     InsertTextAtCursor(String),
+    InsertSpace,
     InsertText(String, Cursor),
     DeleteText(Selection),
     InsertNewLineAtCursor,
@@ -106,6 +107,13 @@ pub fn perform_action(
             instance.cursor = cursor;
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
+        }
+        Action::InsertSpace => {
+            perform_action(
+                Action::InsertTextAtCursor(" ".to_string()),
+                state,
+                lsp_handles,
+            );
         }
         Action::InsertText(text, cursor) => {
             let lsp_handle = if state.buffer_idx.is_some() {
@@ -798,7 +806,7 @@ pub fn perform_action(
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
         }
-        Action::FuzzyFindFile(respect_ignore) => {
+        Action::FuzzyFindFile(_respect_ignore) => {
             run_piped_commands(
                 vec![
                     ProgramArgs {

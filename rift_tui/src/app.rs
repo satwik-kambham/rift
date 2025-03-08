@@ -183,7 +183,7 @@ impl App {
                                             ));
                                         }
                                     }
-                                    Attribute::DiagnosticSeverity(severity) => {
+                                    Attribute::DiagnosticSeverity(_severity) => {
                                         style = style.add_modifier(Modifier::UNDERLINED);
                                         // .underline_color(color_from_rgb(match severity {
                                         //     types::DiagnosticSeverity::Error => {

@@ -36,13 +36,8 @@ impl InfoModalWidget {
                     modifiers: _,
                 } = event
                 {
-                    if *pressed {
-                        match key {
-                            egui::Key::Escape => {
-                                state.info_modal.close();
-                            }
-                            _ => {}
-                        }
+                    if *pressed && key == &egui::Key::Escape {
+                        state.info_modal.close();
                     }
                 }
             }
