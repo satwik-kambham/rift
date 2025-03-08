@@ -49,6 +49,7 @@ impl App {
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
+        egui_extras::install_image_loaders(ctx);
         // Quit command
         if self.state.quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);

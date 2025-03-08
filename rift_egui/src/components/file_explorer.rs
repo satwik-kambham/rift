@@ -62,9 +62,13 @@ impl FileExplorer {
         for entry in entries.clone().iter() {
             if entry.is_dir {
                 if entry.children.is_some() {
-                    if ui.label(" ".repeat(spacing) + &entry.name).clicked() {
-                        self.update_entries(Some(entry.path.clone()), true);
-                    }
+                    ui.horizontal(|ui| {
+                        ui.label(" ".repeat(spacing));
+                        ui.image(egui::include_image!("../../../assets/Folder.svg"));
+                        if ui.label(&entry.name).clicked() {
+                            self.update_entries(Some(entry.path.clone()), true);
+                        }
+                    });
                     self.render(
                         entry.children.clone().unwrap(),
                         spacing + 1,
@@ -72,15 +76,27 @@ impl FileExplorer {
                         state,
                         lsp_handles,
                     );
-                } else if ui.label(" ".repeat(spacing) + &entry.name).clicked() {
-                    self.update_entries(Some(entry.path.clone()), false);
+                } else {
+                    ui.horizontal(|ui| {
+                        ui.label(" ".repeat(spacing));
+                        ui.image(egui::include_image!("../../../assets/Folder.svg"));
+                        if ui.label(&entry.name).clicked() {
+                            self.update_entries(Some(entry.path.clone()), false);
+                        }
+                    });
                 }
-            } else if ui.label(" ".repeat(spacing) + &entry.name).clicked() {
-                perform_action(
-                    Action::CreateBufferFromFile(entry.path.clone()),
-                    state,
-                    lsp_handles,
-                );
+            } else {
+                ui.horizontal(|ui| {
+                    ui.label(" ".repeat(spacing));
+                    ui.image(egui::include_image!("../../../assets/FileText.svg"));
+                    if ui.label(&entry.name).clicked() {
+                        perform_action(
+                            Action::CreateBufferFromFile(entry.path.clone()),
+                            state,
+                            lsp_handles,
+                        );
+                    }
+                });
             }
         }
     }
