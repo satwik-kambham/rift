@@ -40,7 +40,10 @@ impl CommandDispatcher {
                         modifiers,
                     } = event
                     {
-                        if *pressed {
+                        if *pressed
+                            && !(state.completion_menu.active
+                                && matches!(key, egui::Key::Tab | egui::Key::Enter))
+                        {
                             let key = match key {
                                 egui::Key::ArrowDown => "Down",
                                 egui::Key::ArrowLeft => "Left",

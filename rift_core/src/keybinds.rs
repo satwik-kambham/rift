@@ -69,7 +69,8 @@ impl KeybindHandler {
     ) -> Option<Action> {
         let mut input = key.clone().to_lowercase();
         if !modifiers.is_empty() {
-            if !(modifiers.contains("s") && "<>?:\"{}|~!@#$%^&*()_+".chars().any(|c| key.contains(c)))
+            if !(modifiers.contains("s")
+                && "<>?:\"{}|~!@#$%^&*()_+".chars().any(|c| key.contains(c)))
             {
                 input.insert(0, '-');
             }
@@ -108,7 +109,11 @@ impl KeybindHandler {
             return None;
         } else if matches!(mode, Mode::Insert) && key.is_ascii() && key.len() == 1 {
             self.running_sequence = "".to_string();
-            return Some(Action::InsertTextAtCursor(key));
+            if key.chars().all(|c| c.is_ascii_alphabetic()) {
+                return Some(Action::InsertTextAtCursorAndTriggerCompletion(key));
+            } else {
+                return Some(Action::InsertTextAtCursor(key));
+            }
         } else {
             self.running_sequence = "".to_string();
             return None;
