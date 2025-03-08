@@ -84,6 +84,7 @@ pub enum Action {
     LocationModal(Vec<(String, Selection)>),
     OpenCommandDispatcher,
     FIMCompletion,
+    KeybindHelp,
 }
 
 pub fn perform_action(
@@ -1108,6 +1109,16 @@ pub fn perform_action(
         }
         Action::FIMCompletion => {
             ai::ollama_fim(state);
+        }
+        Action::KeybindHelp => {
+            let help_content = state
+                .keybind_handler
+                .keybinds
+                .iter()
+                .map(|keybind| keybind.definition.clone())
+                .collect::<Vec<_>>()
+                .join("\n");
+            state.info_modal.open(help_content);
         }
     }
 }

@@ -123,6 +123,11 @@ pub fn show_menu_bar(
                         }
                     };
                 });
+                ui.menu_button("Help", |ui| {
+                    if ui.button("Keybind Help").clicked() {
+                        perform_action(Action::KeybindHelp, state, lsp_handles);
+                    }
+                });
             });
         });
 }

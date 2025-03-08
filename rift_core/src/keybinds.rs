@@ -15,16 +15,17 @@ use std::str::FromStr;
 ///
 /// Modifier - C (Control), M (Alt), S (Shift)
 pub struct Keybind {
-    action: Action,
-    mode: HashSet<Mode>,
-    sequence: String,
+    pub action: Action,
+    pub mode: HashSet<Mode>,
+    pub sequence: String,
+    pub definition: String,
 }
 
 impl Keybind {
     pub fn from_definition(definition: &str) -> Self {
-        let definition = definition.to_lowercase();
-        let (action_id, definition) = definition.split_once(" ").unwrap();
-        let (mode, sequence) = definition.split_once(" ").unwrap();
+        let parsed_definition = definition.to_lowercase();
+        let (action_id, parsed_definition) = parsed_definition.split_once(" ").unwrap();
+        let (mode, sequence) = parsed_definition.split_once(" ").unwrap();
 
         let action = Action::from_str(action_id).expect(action_id);
 
@@ -39,6 +40,7 @@ impl Keybind {
             action,
             mode,
             sequence: sequence.to_string(),
+            definition: definition.to_string(),
         }
     }
 }
@@ -67,7 +69,10 @@ impl KeybindHandler {
     ) -> Option<Action> {
         let mut input = key.clone().to_lowercase();
         if !modifiers.is_empty() {
-            input.insert(0, '-');
+            if !(modifiers.contains("s") && "<>?:\"{}|~!@#$%^&*()_+".chars().any(|c| key.contains(c)))
+            {
+                input.insert(0, '-');
+            }
             if modifiers.contains("c") {
                 input.insert(0, 'c');
             }
@@ -136,6 +141,7 @@ impl Default for KeybindHandler {
             "add-tab ins tab",
             "open-file nor space f",
             "fuzzy-find-file nor space s-f",
+            "switch-buffer nor space b",
             "move-cursor-down nor j",
             "extend-cursor-down nor s-j",
             "move-cursor-up nor k",
@@ -173,6 +179,7 @@ impl Default for KeybindHandler {
             "copy-to-clipboard nor s-y",
             "paste-from-register nor p",
             "paste-from-clipboard nor s-p",
+            "keybind-help nor ?",
         ])
     }
 }
