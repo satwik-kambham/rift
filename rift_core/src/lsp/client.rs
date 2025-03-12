@@ -128,8 +128,14 @@ pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> 
         let mut header = String::new();
         while let Ok(bytes_read) = reader.read_line(&mut header).await {
             if bytes_read > 0 {
-                // Read empty line
-                reader.read_line(&mut String::new()).await.unwrap();
+                // Read content type if present
+                let mut content_type = String::new();
+                reader.read_line(&mut content_type).await.unwrap();
+
+                // Read empty line if content type is present
+                if content_type.starts_with("Content-Type") {
+                    reader.read_line(&mut String::new()).await.unwrap();
+                }
 
                 // Parse content length from header
                 let content_length = header.strip_prefix("Content-Length: ").unwrap();
