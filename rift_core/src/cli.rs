@@ -51,16 +51,22 @@ pub fn process_cli_args(
                     _ => "",
                 };
 
-                lsp_handle
-                    .send_notification_sync(
-                        "textDocument/didOpen".to_string(),
-                        Some(LSPClientHandle::did_open_text_document(
-                            path.to_str().unwrap().to_string(),
-                            language_id.to_string(),
-                            initial_text,
-                        )),
-                    )
-                    .unwrap();
+                if lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
+                    || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
+                        .as_bool()
+                        .unwrap_or(false)
+                {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didOpen".to_string(),
+                            Some(LSPClientHandle::did_open_text_document(
+                                path.to_str().unwrap().to_string(),
+                                language_id.to_string(),
+                                initial_text,
+                            )),
+                        )
+                        .unwrap();
+                }
             }
 
             state.buffer_idx = Some(state.add_buffer(buffer));

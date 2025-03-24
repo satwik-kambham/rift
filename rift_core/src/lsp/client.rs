@@ -11,7 +11,7 @@ use tokio::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
-use crate::buffer::instance::Cursor;
+use crate::buffer::instance::{Cursor, Selection};
 
 use super::types;
 
@@ -54,6 +54,7 @@ pub struct LSPClientHandle {
     pub pending_id: usize,
     pub pending_requests: HashMap<usize, IncomingMessage>,
     pub id_method: HashMap<usize, String>,
+    pub initialize_capabilities: Value,
 }
 
 /// Starts lsp
@@ -181,6 +182,7 @@ pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> 
         pending_id: 0,
         pending_requests: HashMap::new(),
         id_method: HashMap::new(),
+        initialize_capabilities: Value::Null,
     })
 }
 
@@ -290,10 +292,14 @@ impl LSPClientHandle {
             "rootUri": format!("file:///{}", workspace_folder),
             "capabilities": {
                 "textDocument": {
+                    "synchronization": {
+                        "didSave": true,
+                    },
                     "completion": {
                         "completionItem": {
+                            "snippetSupport": false,
                             "documentationFormat": ["plaintext"],
-                            // "insertReplaceSupport": false,
+                            // "insertReplaceSupport": true,
                         },
                     },
                     "hover": {
@@ -303,6 +309,10 @@ impl LSPClientHandle {
                         "signatureInformation": {
                             "documentationFormat": ["plaintext"],
                         },
+                    },
+                    "publishDiagnostics": {
+                        "versionSupport": true,
+                        "dataSupport": true,
                     },
                 }
             }
@@ -322,6 +332,7 @@ impl LSPClientHandle {
             if let Some(response) = self.recv_message().await {
                 if let IncomingMessage::Response(message) = response {
                     tracing::info!("{:#?}", message);
+                    self.initialize_capabilities = message.result.unwrap()["capabilities"].clone();
                     self.send_notification("initialized".to_string(), None)
                         .await
                         .unwrap();
@@ -344,6 +355,7 @@ impl LSPClientHandle {
             if let Some(response) = self.recv_message_sync() {
                 if let IncomingMessage::Response(message) = response {
                     tracing::info!("{:#?}", message);
+                    self.initialize_capabilities = message.result.unwrap()["capabilities"].clone();
                     self.send_notification_sync("initialized".to_string(), None)
                         .unwrap();
                 }
@@ -384,28 +396,37 @@ impl LSPClientHandle {
     pub fn did_change_text_document(
         document_path: String,
         document_version: usize,
-        // range: Selection,
+        range: Option<Selection>,
         text: String,
     ) -> Value {
-        // let (start, end) = range.in_order();
+        let content_changes = if let Some(range) = range {
+            let (start, end) = range.in_order();
+
+            json!({
+                "range": {
+                    "start": {
+                        "line": start.row,
+                        "character": start.column,
+                    },
+                    "end": {
+                        "line": end.row,
+                        "character": end.column,
+                    },
+                },
+                "text": text,
+            })
+        } else {
+            json!({
+                "text": text,
+            })
+        };
+
         json!({
             "textDocument": {
                 "uri": format!("file:///{}", document_path),
                 "version": document_version,
             },
-            "contentChanges": [{
-                // "range": {
-                //     "start": {
-                //         "line": start.row,
-                //         "character": start.column,
-                //     },
-                //     "end": {
-                //         "line": end.row,
-                //         "character": end.column,
-                //     },
-                // },
-                "text": text,
-            }],
+            "contentChanges": [content_changes],
         })
     }
 

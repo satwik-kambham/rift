@@ -64,24 +64,55 @@ pub fn handle_lsp_messages(
                         } else if lsp_handle.id_method[&response.id] == "textDocument/completion"
                             && response.result.is_some()
                         {
-                            let items = response.result.unwrap()["items"]
-                                .as_array()
-                                .unwrap()
-                                .clone();
+                            let items = if response.result.as_ref().unwrap()["items"].is_array() {
+                                response.result.unwrap()["items"]
+                                    .as_array()
+                                    .unwrap()
+                                    .clone()
+                            } else {
+                                response.result.unwrap().as_array().unwrap().clone()
+                            };
                             let mut completion_items = vec![];
                             for item in items {
                                 let label = item["label"].as_str().unwrap().to_owned();
                                 if label.contains(&buffer.get_word_under_cursor(&instance.cursor)) {
-                                    completion_items.push(types::CompletionItem {
-                                        label,
-                                        edit: types::TextEdit {
-                                            text: item["textEdit"]["newText"]
-                                                .as_str()
-                                                .unwrap()
-                                                .to_owned(),
-                                            range: parse_range(&item["textEdit"]["range"]),
-                                        },
-                                    });
+                                    if item["textEdit"].is_object() {
+                                        completion_items.push(types::CompletionItem {
+                                            label,
+                                            edit: types::TextEdit {
+                                                text: item["textEdit"]["newText"]
+                                                    .as_str()
+                                                    .unwrap()
+                                                    .to_owned(),
+                                                range: parse_range(&item["textEdit"]["range"]),
+                                            },
+                                        });
+                                    } else if item["insertText"].is_string() {
+                                        completion_items.push(types::CompletionItem {
+                                            label,
+                                            edit: types::TextEdit {
+                                                text: item["insertText"]
+                                                    .as_str()
+                                                    .unwrap()
+                                                    .to_owned(),
+                                                range: Selection {
+                                                    cursor: instance.cursor,
+                                                    mark: instance.cursor,
+                                                },
+                                            },
+                                        });
+                                    } else {
+                                        completion_items.push(types::CompletionItem {
+                                            label,
+                                            edit: types::TextEdit {
+                                                text: item["label"].as_str().unwrap().to_owned(),
+                                                range: Selection {
+                                                    cursor: instance.cursor,
+                                                    mark: instance.cursor,
+                                                },
+                                            },
+                                        });
+                                    }
                                 }
                             }
                             state.completion_menu.open(completion_items);

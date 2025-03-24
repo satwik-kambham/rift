@@ -122,6 +122,10 @@ pub fn show_menu_bar(
                             state.preferences.line_ending = "\n".to_string();
                         }
                     };
+                    ui.checkbox(
+                        &mut state.preferences.trigger_completion_on_type,
+                        "Trigger Completions",
+                    );
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.button("Keybind Help").clicked() {

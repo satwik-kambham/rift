@@ -473,27 +473,6 @@ impl App {
                                 self.modal_list_state.select(None);
                             }
                         } else {
-                            if self.state.completion_menu.active {
-                                if key.code == KeyCode::Esc {
-                                    self.state.completion_menu.close();
-                                    self.completion_menu_state.select(None);
-                                    self.state.signature_information.content = String::new();
-                                } else if key.code == KeyCode::Tab {
-                                    self.state.completion_menu.select_next();
-                                    self.completion_menu_state
-                                        .select(self.state.completion_menu.selection);
-                                } else if key.code == KeyCode::Enter {
-                                    let completion_item = self.state.completion_menu.select();
-                                    CompletionMenu::on_select(
-                                        completion_item,
-                                        &mut self.state,
-                                        &mut self.lsp_handles,
-                                    );
-                                    self.completion_menu_state.select(None);
-                                    self.state.signature_information.content = String::new();
-                                }
-                            }
-
                             if !(self.state.completion_menu.active
                                 && (key.code == KeyCode::Tab || key.code == KeyCode::Enter))
                             {
@@ -553,6 +532,27 @@ impl App {
                                     modifiers_set,
                                 ) {
                                     perform_action(action, &mut self.state, &mut self.lsp_handles);
+                                }
+                            }
+
+                            if self.state.completion_menu.active {
+                                if key.code == KeyCode::Esc {
+                                    self.state.completion_menu.close();
+                                    self.completion_menu_state.select(None);
+                                    self.state.signature_information.content = String::new();
+                                } else if key.code == KeyCode::Tab {
+                                    self.state.completion_menu.select_next();
+                                    self.completion_menu_state
+                                        .select(self.state.completion_menu.selection);
+                                } else if key.code == KeyCode::Enter {
+                                    let completion_item = self.state.completion_menu.select();
+                                    CompletionMenu::on_select(
+                                        completion_item,
+                                        &mut self.state,
+                                        &mut self.lsp_handles,
+                                    );
+                                    self.completion_menu_state.select(None);
+                                    self.state.signature_information.content = String::new();
                                 }
                             }
                         }

@@ -112,8 +112,10 @@ pub fn perform_action(
         }
         Action::InsertTextAtCursorAndTriggerCompletion(text) => {
             perform_action(Action::InsertTextAtCursor(text), state, lsp_handles);
-            perform_action(Action::LSPCompletion, state, lsp_handles);
-            perform_action(Action::LSPSignatureHelp, state, lsp_handles);
+            if state.preferences.trigger_completion_on_type {
+                perform_action(Action::LSPCompletion, state, lsp_handles);
+                perform_action(Action::LSPSignatureHelp, state, lsp_handles);
+            }
         }
         Action::InsertSpace => {
             perform_action(
@@ -324,16 +326,23 @@ pub fn perform_action(
                         Language::Markdown => "markdown",
                         _ => "",
                     };
-                    lsp_handle
-                        .send_notification_sync(
-                            "textDocument/didOpen".to_string(),
-                            Some(LSPClientHandle::did_open_text_document(
-                                path.clone(),
-                                language_id.to_string(),
-                                initial_text,
-                            )),
-                        )
-                        .unwrap();
+
+                    if lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
+                        || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
+                            .as_bool()
+                            .unwrap_or(false)
+                    {
+                        lsp_handle
+                            .send_notification_sync(
+                                "textDocument/didOpen".to_string(),
+                                Some(LSPClientHandle::did_open_text_document(
+                                    path.clone(),
+                                    language_id.to_string(),
+                                    initial_text,
+                                )),
+                            )
+                            .unwrap();
+                    }
                 }
 
                 state.buffer_idx = Some(state.add_buffer(buffer));

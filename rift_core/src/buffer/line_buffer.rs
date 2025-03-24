@@ -637,21 +637,48 @@ impl LineBuffer {
         self.version += 1;
 
         if let Some(lsp_handle) = lsp_handle {
-            lsp_handle
-                .send_notification_sync(
-                    "textDocument/didChange".to_string(),
-                    Some(LSPClientHandle::did_change_text_document(
-                        self.file_path.clone().unwrap(),
-                        self.version,
-                        // Selection {
-                        //     cursor: *cursor,
-                        //     mark: *cursor,
-                        // },
-                        // text.to_string(),
-                        self.get_content("\n".to_owned()),
-                    )),
-                )
-                .unwrap();
+            let sync_kind = if lsp_handle.initialize_capabilities["textDocumentSync"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]
+                    .as_u64()
+                    .unwrap()
+            } else if lsp_handle.initialize_capabilities["textDocumentSync"]["change"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]["change"]
+                    .as_u64()
+                    .unwrap()
+            } else {
+                0
+            };
+
+            if sync_kind != 0 {
+                if sync_kind == 1 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                None,
+                                self.get_content("\n".to_owned()),
+                            )),
+                        )
+                        .unwrap();
+                } else if sync_kind == 2 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                Some(Selection {
+                                    cursor: *cursor,
+                                    mark: *cursor,
+                                }),
+                                text.to_string(),
+                            )),
+                        )
+                        .unwrap();
+                }
+            }
         }
 
         updated_cursor
@@ -725,18 +752,45 @@ impl LineBuffer {
         self.version += 1;
 
         if let Some(lsp_handle) = lsp_handle {
-            lsp_handle
-                .send_notification_sync(
-                    "textDocument/didChange".to_string(),
-                    Some(LSPClientHandle::did_change_text_document(
-                        self.file_path.clone().unwrap(),
-                        self.version,
-                        // *selection,
-                        // "".to_string(),
-                        self.get_content("\n".to_owned()),
-                    )),
-                )
-                .unwrap();
+            let sync_kind = if lsp_handle.initialize_capabilities["textDocumentSync"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]
+                    .as_u64()
+                    .unwrap()
+            } else if lsp_handle.initialize_capabilities["textDocumentSync"]["change"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]["change"]
+                    .as_u64()
+                    .unwrap()
+            } else {
+                0
+            };
+
+            if sync_kind != 0 {
+                if sync_kind == 1 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                None,
+                                self.get_content("\n".to_owned()),
+                            )),
+                        )
+                        .unwrap();
+                } else if sync_kind == 2 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                Some(*selection),
+                                "".to_string(),
+                            )),
+                        )
+                        .unwrap();
+                }
+            }
         }
 
         (text, cursor)

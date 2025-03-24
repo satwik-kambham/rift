@@ -37,6 +37,7 @@ pub struct Preferences {
     pub line_height: f32,
     pub gutter_padding: f32,
     pub editor_padding: f32,
+    pub trigger_completion_on_type: bool,
 }
 
 impl Default for Preferences {
@@ -58,6 +59,7 @@ impl Default for Preferences {
             line_height: 1.5,
             gutter_padding: 4.0,
             editor_padding: 4.0,
+            trigger_completion_on_type: false,
         }
     }
 }
