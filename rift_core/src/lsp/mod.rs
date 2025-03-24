@@ -58,7 +58,7 @@ pub fn handle_lsp_messages(
                         {
                             let message = response.result.unwrap()["contents"]["value"]
                                 .as_str()
-                                .unwrap()
+                                .unwrap_or_default()
                                 .to_string();
                             state.info_modal.open(message);
                         } else if lsp_handle.id_method[&response.id] == "textDocument/completion"
@@ -95,10 +95,8 @@ pub fn handle_lsp_messages(
                                                     .as_str()
                                                     .unwrap()
                                                     .to_owned(),
-                                                range: Selection {
-                                                    cursor: instance.cursor,
-                                                    mark: instance.cursor,
-                                                },
+                                                range: buffer
+                                                    .get_word_range_under_cursor(&instance.cursor),
                                             },
                                         });
                                     } else {
@@ -139,15 +137,21 @@ pub fn handle_lsp_messages(
                         } else if lsp_handle.id_method[&response.id] == "textDocument/signatureHelp"
                             && response.result.is_some()
                         {
-                            let label = response.result.unwrap()["signatures"]
+                            if !response.result.as_ref().unwrap()["signatures"]
                                 .as_array()
                                 .unwrap()
-                                .first()
-                                .unwrap()["label"]
-                                .as_str()
-                                .unwrap()
-                                .to_string();
-                            state.signature_information.content = label;
+                                .is_empty()
+                            {
+                                let label = response.result.unwrap()["signatures"]
+                                    .as_array()
+                                    .unwrap()
+                                    .first()
+                                    .unwrap()["label"]
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string();
+                                state.signature_information.content = label;
+                            }
                         } else if lsp_handle.id_method[&response.id] == "textDocument/definition"
                             && response.result.is_some()
                         {

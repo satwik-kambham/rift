@@ -971,6 +971,23 @@ impl LineBuffer {
         }
         line[start..cursor.column].to_string()
     }
+
+    /// Get range of word under cursor truncated at the cursor's position
+    pub fn get_word_range_under_cursor(&self, cursor: &Cursor) -> Selection {
+        let line = &self.lines[cursor.row];
+        let mut start = cursor.column;
+        while start > 0 && line.chars().nth(start - 1).unwrap().is_alphanumeric() {
+            start -= 1;
+        }
+        let start = Cursor {
+            row: cursor.row,
+            column: start,
+        };
+        Selection {
+            cursor: *cursor,
+            mark: start,
+        }
+    }
 }
 
 #[cfg(test)]

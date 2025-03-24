@@ -118,7 +118,7 @@ impl App {
             .show(ctx, &mut self.state, &mut self.lsp_handles);
 
         egui::SidePanel::left("gutter")
-            .resizable(true)
+            .resizable(false)
             .show_separator_line(false)
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.gutter_bg.into(),

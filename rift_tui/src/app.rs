@@ -30,7 +30,6 @@ pub struct App {
     pub lsp_handles: HashMap<Language, LSPClientHandle>,
     pub modal_list_state: widgets::ListState,
     pub info_modal_scroll: u16,
-    pub completion_menu_state: widgets::ListState,
 }
 
 impl App {
@@ -45,7 +44,6 @@ impl App {
             lsp_handles,
             modal_list_state: widgets::ListState::default(),
             info_modal_scroll: 0,
-            completion_menu_state: widgets::ListState::default(),
         }
     }
 
@@ -389,11 +387,9 @@ impl App {
                         .collect::<widgets::List>()
                         .highlight_symbol(">>");
                     frame.render_widget(widgets::Clear, popup_area);
-                    frame.render_stateful_widget(
-                        completion_list,
-                        popup_area,
-                        &mut self.completion_menu_state,
-                    );
+                    let mut list_state = widgets::ListState::default();
+                    list_state.select(self.state.completion_menu.selection);
+                    frame.render_stateful_widget(completion_list, popup_area, &mut list_state);
                 }
 
                 // Render Info Modal
@@ -538,12 +534,9 @@ impl App {
                             if self.state.completion_menu.active {
                                 if key.code == KeyCode::Esc {
                                     self.state.completion_menu.close();
-                                    self.completion_menu_state.select(None);
                                     self.state.signature_information.content = String::new();
                                 } else if key.code == KeyCode::Tab {
                                     self.state.completion_menu.select_next();
-                                    self.completion_menu_state
-                                        .select(self.state.completion_menu.selection);
                                 } else if key.code == KeyCode::Enter {
                                     let completion_item = self.state.completion_menu.select();
                                     CompletionMenu::on_select(
@@ -551,7 +544,6 @@ impl App {
                                         &mut self.state,
                                         &mut self.lsp_handles,
                                     );
-                                    self.completion_menu_state.select(None);
                                     self.state.signature_information.content = String::new();
                                 }
                             }

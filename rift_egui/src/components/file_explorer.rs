@@ -112,13 +112,15 @@ impl FileExplorer {
             self.update_entries(None, true);
         }
 
-        egui::SidePanel::left("file_explorer")
-            .resizable(true)
-            .show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    self.render(self.entries.clone(), 0, ui, state, lsp_handles);
+        if state.preferences.show_file_explorer {
+            egui::SidePanel::left("file_explorer")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        self.render(self.entries.clone(), 0, ui, state, lsp_handles);
+                    });
                 });
-            });
+        }
     }
 }
 

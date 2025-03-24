@@ -109,6 +109,10 @@ pub fn perform_action(
             instance.cursor = cursor;
             instance.selection.cursor = instance.cursor;
             instance.selection.mark = instance.cursor;
+
+            // Dismiss LSP Completion and LSP Signature Help
+            state.completion_menu.close();
+            state.signature_information.content = String::new();
         }
         Action::InsertTextAtCursorAndTriggerCompletion(text) => {
             perform_action(Action::InsertTextAtCursor(text), state, lsp_handles);
