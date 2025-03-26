@@ -1089,7 +1089,7 @@ dependencies = [
 [[package]]
 name = "ecolor"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "bytemuck",
  "emath",
@@ -1098,7 +1098,7 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1133,7 +1133,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1148,7 +1148,7 @@ dependencies = [
 [[package]]
 name = "egui-wgpu"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1167,7 +1167,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "accesskit_winit",
  "ahash",
@@ -1186,7 +1186,7 @@ dependencies = [
 [[package]]
 name = "egui_extras"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "ahash",
  "egui",
@@ -1200,7 +1200,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1223,7 +1223,7 @@ checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 [[package]]
 name = "emath"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "bytemuck",
 ]
@@ -1293,7 +1293,7 @@ checksum = "c7f84e12ccf0a7ddc17a6c41c93326024c42920d7ee630d04950e6926645c0fe"
 [[package]]
 name = "epaint"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -1310,7 +1310,7 @@ dependencies = [
 [[package]]
 name = "epaint_default_fonts"
 version = "0.31.1"
-source = "git+https://github.com/satwik-kambham/egui.git?branch=master#dbf5039442d32e4d8a9a830b7699e541eac471ce"
+source = "git+https://github.com/satwik-kambham/egui.git?branch=master#015285e025c65cde88728013e158d44cb945edb4"
 
 [[package]]
 name = "equivalent"
