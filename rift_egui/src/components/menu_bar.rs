@@ -17,15 +17,10 @@ pub fn show_menu_bar(
         .show_separator_line(true)
         .frame(egui::Frame {
             fill: state.preferences.theme.status_bar_bg.into(),
-            inner_margin: egui::Margin::same(4.0),
+            inner_margin: egui::Margin::same(4),
             ..Default::default()
         })
         .show(ctx, |ui| {
-            ui.memory_mut(|mem| {
-                if let Some(id) = mem.focused() {
-                    mem.surrender_focus(id);
-                }
-            });
             ui.horizontal(|ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open File / Folder").clicked() {

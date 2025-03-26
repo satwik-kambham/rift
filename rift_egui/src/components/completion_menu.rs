@@ -32,11 +32,11 @@ impl CompletionMenuWidget {
                 x: (state.relative_cursor.column as f32 * char_width)
                     + top_left.x
                     + char_width
-                    + state.preferences.editor_padding,
+                    + state.preferences.editor_padding as f32,
                 y: (state.relative_cursor.row as f32 * char_height)
                     + top_left.y
                     + char_height
-                    + state.preferences.editor_padding,
+                    + state.preferences.editor_padding as f32,
             };
             let pivot = if visible_lines - 7 < state.relative_cursor.row {
                 egui::Align2::LEFT_BOTTOM

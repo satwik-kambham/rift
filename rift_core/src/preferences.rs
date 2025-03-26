@@ -35,8 +35,8 @@ pub struct Preferences {
     pub editor_font_size: usize,
     pub ui_font_size: usize,
     pub line_height: f32,
-    pub gutter_padding: f32,
-    pub editor_padding: f32,
+    pub gutter_padding: i8,
+    pub editor_padding: i8,
     pub trigger_completion_on_type: bool,
     pub show_file_explorer: bool,
 }
@@ -58,8 +58,8 @@ impl Default for Preferences {
             ui_font_family: "Monaspace Neon".into(),
             ui_font_size: 14,
             line_height: 1.5,
-            gutter_padding: 4.0,
-            editor_padding: 4.0,
+            gutter_padding: 4,
+            editor_padding: 4,
             trigger_completion_on_type: true,
             show_file_explorer: true,
         }

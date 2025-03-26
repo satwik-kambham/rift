@@ -27,21 +27,21 @@ pub fn load_fonts(state: &mut EditorState) -> FontDefinitions {
                     .unwrap();
                 fonts.font_data.insert(
                     state.preferences.editor_font_family.to_owned(),
-                    FontData {
+                    std::sync::Arc::new(FontData {
                         font: std::borrow::Cow::Owned(font_content),
                         index: font_index,
                         tweak: FontTweak::default(),
-                    },
+                    }),
                 );
             }
             font_kit::handle::Handle::Memory { bytes, font_index } => {
                 fonts.font_data.insert(
                     state.preferences.editor_font_family.to_owned(),
-                    FontData {
+                    std::sync::Arc::new(FontData {
                         font: std::borrow::Cow::Owned((*bytes).clone()),
                         index: font_index,
                         tweak: FontTweak::default(),
-                    },
+                    }),
                 );
             }
         }
@@ -68,21 +68,21 @@ pub fn load_fonts(state: &mut EditorState) -> FontDefinitions {
                     .unwrap();
                 fonts.font_data.insert(
                     state.preferences.ui_font_family.to_owned(),
-                    FontData {
+                    std::sync::Arc::new(FontData {
                         font: std::borrow::Cow::Owned(font_content),
                         index: font_index,
                         tweak: FontTweak::default(),
-                    },
+                    }),
                 );
             }
             font_kit::handle::Handle::Memory { bytes, font_index } => {
                 fonts.font_data.insert(
                     state.preferences.ui_font_family.to_owned(),
-                    FontData {
+                    std::sync::Arc::new(FontData {
                         font: std::borrow::Cow::Owned((*bytes).clone()),
                         index: font_index,
                         tweak: FontTweak::default(),
-                    },
+                    }),
                 );
             }
         }

@@ -7,15 +7,10 @@ pub fn show_status_line(ctx: &egui::Context, state: &mut EditorState) {
         .show_separator_line(false)
         .frame(egui::Frame {
             fill: state.preferences.theme.status_bar_bg.into(),
-            inner_margin: egui::Margin::symmetric(8.0, 8.0),
+            inner_margin: egui::Margin::symmetric(8, 8),
             ..Default::default()
         })
         .show(ctx, |ui| {
-            ui.memory_mut(|mem| {
-                if let Some(id) = mem.focused() {
-                    mem.surrender_focus(id);
-                }
-            });
             if state.buffer_idx.is_some() {
                 let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
                 let file_path = buffer.file_path.clone();

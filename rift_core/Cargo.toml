@@ -14,7 +14,7 @@ tree-sitter-highlight = "0.23.0"
 tree-sitter-python = "0.23.2"
 tree-sitter-rust = "0.23.0"
 tree-sitter-md = "0.3.2"
-ecolor = "0.29.1"
+ecolor = "0.31.1"
 tokio = { version = "1.41.0", features = ["full"] }
 anyhow = "1.0"
 tracing = "0.1.41"

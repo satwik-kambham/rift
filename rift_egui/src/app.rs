@@ -12,8 +12,9 @@ use rift_core::{
 use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
-        completion_menu::CompletionMenuWidget, diagnostics_overlay::show_diagnostics_overlay,
-        file_explorer::FileExplorer, info_modal::InfoModalWidget, menu_bar::show_menu_bar,
+        ai_panel::AIPanel, completion_menu::CompletionMenuWidget,
+        diagnostics_overlay::show_diagnostics_overlay, file_explorer::FileExplorer,
+        info_modal::InfoModalWidget, menu_bar::show_menu_bar,
         signature_information::show_signature_information, status_line::show_status_line,
     },
     fonts::load_fonts,
@@ -27,6 +28,7 @@ pub struct App {
     info_modal: InfoModalWidget,
     completion_menu: CompletionMenuWidget,
     file_explorer: FileExplorer,
+    ai_panel: AIPanel,
 }
 
 impl App {
@@ -45,6 +47,7 @@ impl App {
             lsp_handles,
             info_modal: InfoModalWidget::default(),
             file_explorer: FileExplorer::new(),
+            ai_panel: AIPanel::default(),
         }
     }
 
@@ -67,7 +70,7 @@ impl App {
                     bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
                     weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
                     bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    rounding: egui::Rounding::same(2.0),
+                    corner_radius: egui::CornerRadius::same(2),
                     fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
@@ -75,7 +78,7 @@ impl App {
                     bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
                     weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
                     bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    rounding: egui::Rounding::same(2.0),
+                    corner_radius: egui::CornerRadius::same(2),
                     fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
@@ -83,7 +86,7 @@ impl App {
                     bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
                     weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
                     bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    rounding: egui::Rounding::same(3.0),
+                    corner_radius: egui::CornerRadius::same(3),
                     fg_stroke: egui::Stroke::new(1.5, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
@@ -91,7 +94,7 @@ impl App {
                     bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
                     weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
                     bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    rounding: egui::Rounding::same(2.0),
+                    corner_radius: egui::CornerRadius::same(2),
                     fg_stroke: egui::Stroke::new(2.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
@@ -99,7 +102,7 @@ impl App {
                     bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
                     weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
                     bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    rounding: egui::Rounding::same(2.0),
+                    corner_radius: egui::CornerRadius::same(2),
                     fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
                     expansion: 0.0,
                 },
@@ -110,6 +113,9 @@ impl App {
         let mut char_width = 0.0;
         let mut visible_lines = 0;
         let mut max_characters = 0;
+
+        self.ai_panel
+            .show(ctx, &mut self.state, &mut self.lsp_handles);
 
         show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
         show_status_line(ctx, &mut self.state);
@@ -305,7 +311,7 @@ impl App {
                 }
 
                 // Handle keyboard events
-                if !self.state.info_modal.active {
+                if !(self.state.info_modal.active || ctx.wants_keyboard_input()) {
                     self.dispatcher
                         .show(ui, &mut self.state, &mut self.lsp_handles);
                 }

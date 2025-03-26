@@ -1,3 +1,4 @@
+pub mod ai_panel;
 pub mod completion_menu;
 pub mod diagnostics_overlay;
 pub mod file_explorer;
