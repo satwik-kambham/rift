@@ -64,7 +64,7 @@ impl FileExplorer {
                 if entry.children.is_some() {
                     ui.horizontal(|ui| {
                         ui.label(" ".repeat(spacing));
-                        ui.image(egui::include_image!("../../../assets/Folder.svg"));
+                        ui.image(egui::include_image!("../../../../assets/Folder.svg"));
                         if ui.label(&entry.name).clicked() {
                             self.update_entries(Some(entry.path.clone()), true);
                         }
@@ -79,7 +79,7 @@ impl FileExplorer {
                 } else {
                     ui.horizontal(|ui| {
                         ui.label(" ".repeat(spacing));
-                        ui.image(egui::include_image!("../../../assets/Folder.svg"));
+                        ui.image(egui::include_image!("../../../../assets/Folder.svg"));
                         if ui.label(&entry.name).clicked() {
                             self.update_entries(Some(entry.path.clone()), false);
                         }
@@ -88,7 +88,7 @@ impl FileExplorer {
             } else {
                 ui.horizontal(|ui| {
                     ui.label(" ".repeat(spacing));
-                    ui.image(egui::include_image!("../../../assets/FileText.svg"));
+                    ui.image(egui::include_image!("../../../../assets/FileText.svg"));
                     if ui.label(&entry.name).clicked() {
                         perform_action(
                             Action::CreateBufferFromFile(entry.path.clone()),

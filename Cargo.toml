@@ -2,7 +2,7 @@
 resolver = "2"
 
 members = [
-  "rift_core",
-  "rift_tui",
-  "rift_egui",
+  "crates/rift_core",
+  "crates/rift_tui",
+  "crates/rift_egui",
 ]
