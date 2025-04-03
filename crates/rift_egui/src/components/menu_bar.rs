@@ -125,6 +125,7 @@ pub fn show_menu_bar(
                         &mut state.preferences.show_file_explorer,
                         "Show File Explorer",
                     );
+                    ui.checkbox(&mut state.preferences.show_ai_panel, "Show AI Panel");
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.button("Keybind Help").clicked() {
