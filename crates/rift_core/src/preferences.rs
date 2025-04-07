@@ -1,7 +1,7 @@
 use crate::themes;
 
 /// Color representation (values between 0 and 255)
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -68,8 +68,9 @@ impl Default for Preferences {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Theme {
+    pub name: String,
     pub editor_bg: Color,
     pub selection_bg: Color,
     pub ui_border: Color,
@@ -110,8 +111,9 @@ pub struct Theme {
 
 #[allow(dead_code)]
 impl Theme {
-    fn catppuccin_mocha() -> Self {
+    pub fn catppuccin_mocha() -> Self {
         Self {
+            name: "Catppuccin Mocha".into(),
             editor_bg: themes::catppuccin_mocha::BASE,
             selection_bg: themes::catppuccin_mocha::SURFACE2,
             ui_border: themes::catppuccin_mocha::CRUST,
@@ -151,8 +153,9 @@ impl Theme {
         }
     }
 
-    fn onedark() -> Self {
+    pub fn onedark() -> Self {
         Self {
+            name: "One Dark".into(),
             editor_bg: themes::onedark::SYNTAX_BG,
             selection_bg: themes::onedark::SYNTAX_SELECTION,
             ui_border: themes::onedark::UI_BORDER,
@@ -192,8 +195,9 @@ impl Theme {
         }
     }
 
-    fn kanagawa() -> Self {
+    pub fn kanagawa() -> Self {
         Self {
+            name: "Kanagawa".into(),
             editor_bg: themes::kanagawa::BLACK3,
             selection_bg: themes::kanagawa::BLACK5,
             ui_border: themes::kanagawa::BLACK0,

@@ -41,7 +41,7 @@ impl App {
 
         Self {
             dispatcher: CommandDispatcher::default(),
-            completion_menu: CompletionMenuWidget::new(state.preferences.theme.selection_bg),
+            completion_menu: CompletionMenuWidget::new(),
             state,
             font_definitions,
             lsp_handles,

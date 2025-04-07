@@ -4,6 +4,7 @@ use rift_core::{
     actions::{perform_action, Action},
     buffer::instance::Language,
     lsp::client::LSPClientHandle,
+    preferences,
     state::EditorState,
 };
 
@@ -81,6 +82,25 @@ pub fn show_menu_bar(
                     }
                 });
                 ui.menu_button("Preferences", |ui| {
+                    // egui::ComboBox::from_label("Theme")
+                    //     .selected_text(&state.preferences.theme.name)
+                    //     .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut state.preferences.theme,
+                        preferences::Theme::kanagawa(),
+                        "Kanagawa",
+                    );
+                    ui.selectable_value(
+                        &mut state.preferences.theme,
+                        preferences::Theme::onedark(),
+                        "One Dark",
+                    );
+                    ui.selectable_value(
+                        &mut state.preferences.theme,
+                        preferences::Theme::catppuccin_mocha(),
+                        "Catppuccin Mocha",
+                    );
+                    // });
                     ui.horizontal(|ui| {
                         if ui.button("+").clicked() {
                             state.preferences.editor_font_size += 1;

@@ -4,17 +4,14 @@ use egui::RichText;
 use rift_core::{
     buffer::instance::Language,
     lsp::client::LSPClientHandle,
-    preferences::Color,
     state::{CompletionMenu, EditorState},
 };
 
-pub struct CompletionMenuWidget {
-    pub selection_color: Color,
-}
+pub struct CompletionMenuWidget {}
 
 impl CompletionMenuWidget {
-    pub fn new(selection_color: Color) -> Self {
-        Self { selection_color }
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub fn show(
@@ -69,7 +66,7 @@ impl CompletionMenuWidget {
                         {
                             ui.label(
                                 RichText::new(item.label.clone())
-                                    .background_color(self.selection_color),
+                                    .background_color(state.preferences.theme.selection_bg),
                             );
                         } else {
                             ui.label(item.label.clone());
