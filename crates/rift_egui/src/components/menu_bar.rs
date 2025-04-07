@@ -82,9 +82,11 @@ pub fn show_menu_bar(
                     }
                 });
                 ui.menu_button("Preferences", |ui| {
-                    // egui::ComboBox::from_label("Theme")
-                    //     .selected_text(&state.preferences.theme.name)
-                    //     .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut state.preferences.theme,
+                        preferences::Theme::catppuccin_kanagawa(),
+                        "Catppuccin Kanagawa",
+                    );
                     ui.selectable_value(
                         &mut state.preferences.theme,
                         preferences::Theme::kanagawa(),
@@ -100,7 +102,6 @@ pub fn show_menu_bar(
                         preferences::Theme::catppuccin_mocha(),
                         "Catppuccin Mocha",
                     );
-                    // });
                     ui.horizontal(|ui| {
                         if ui.button("+").clicked() {
                             state.preferences.editor_font_size += 1;

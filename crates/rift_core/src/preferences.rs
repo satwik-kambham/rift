@@ -51,7 +51,7 @@ impl Default for Preferences {
         };
 
         Self {
-            theme: Theme::kanagawa(),
+            theme: Theme::catppuccin_kanagawa(),
             line_ending,
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),
@@ -234,6 +234,47 @@ impl Theme {
             warning: themes::kanagawa::ORANGE1,
             information: themes::kanagawa::TEAL,
             hint: themes::kanagawa::BLUE,
+        }
+    }
+    pub fn catppuccin_kanagawa() -> Self {
+        Self {
+            name: "Catppuccin Kanagawa".into(),
+            editor_bg: themes::kanagawa::BLACK3,
+            selection_bg: themes::kanagawa::BLACK5,
+            ui_border: themes::kanagawa::BLACK0,
+            cursor_normal_mode_fg: themes::catppuccin_mocha::BASE,
+            cursor_insert_mode_fg: themes::catppuccin_mocha::BASE,
+            cursor_normal_mode_bg: themes::catppuccin_mocha::MAUVE,
+            cursor_insert_mode_bg: themes::catppuccin_mocha::GREEN,
+            status_bar_bg: themes::kanagawa::BLACK0,
+            status_bar_normal_mode_fg: themes::catppuccin_mocha::MAUVE,
+            status_bar_insert_mode_fg: themes::catppuccin_mocha::GREEN,
+            gutter_bg: themes::kanagawa::BLACK3,
+            gutter_text: themes::catppuccin_mocha::SUBTEXT0,
+            gutter_text_current_line: themes::catppuccin_mocha::MAUVE,
+            highlight_none: themes::catppuccin_mocha::TEXT,
+            highlight_white: themes::catppuccin_mocha::TEXT,
+            highlight_red: themes::catppuccin_mocha::RED,
+            highlight_orange: themes::catppuccin_mocha::PEACH,
+            highlight_blue: themes::catppuccin_mocha::BLUE,
+            highlight_green: themes::catppuccin_mocha::GREEN,
+            highlight_purple: themes::catppuccin_mocha::MAUVE,
+            highlight_yellow: themes::catppuccin_mocha::YELLOW,
+            highlight_gray: themes::catppuccin_mocha::OVERLAY0,
+            highlight_turquoise: themes::catppuccin_mocha::TEAL,
+            modal_bg: themes::kanagawa::BLACK0,
+            modal_text: themes::catppuccin_mocha::TEXT,
+            modal_active: themes::catppuccin_mocha::SUBTEXT0,
+            modal_primary: themes::catppuccin_mocha::MAUVE,
+            ui_text: themes::catppuccin_mocha::TEXT,
+            ui_bg_fill: themes::kanagawa::BLACK3,
+            ui_weak_bg_fill: themes::kanagawa::BLACK1,
+            ui_bg_stroke: themes::kanagawa::BLACK1,
+            ui_fg_stroke: themes::kanagawa::GRAY2,
+            error: themes::catppuccin_mocha::RED,
+            warning: themes::catppuccin_mocha::MAROON,
+            information: themes::catppuccin_mocha::YELLOW,
+            hint: themes::catppuccin_mocha::BLUE,
         }
     }
 }
