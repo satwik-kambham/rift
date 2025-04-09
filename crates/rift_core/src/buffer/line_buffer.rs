@@ -275,10 +275,10 @@ impl LineBuffer {
         let mut range_end = range_start + visible_lines + 3;
 
         if cursor < scroll {
-            range_start = cursor.row.saturating_sub(3);
+            range_start = cursor.row;
             range_end = range_start + visible_lines;
         } else if cursor.row >= scroll.row + visible_lines {
-            range_end = cursor.row + 3;
+            range_end = cursor.row + 1;
             range_start = range_end.saturating_sub(visible_lines);
         }
 
@@ -371,16 +371,16 @@ impl LineBuffer {
         // Update range of lines that need to be rendered
         // taking line wrap into account
         if cursor < scroll {
-            range_start = cursor_idx.saturating_sub(3);
+            range_start = cursor_idx.saturating_sub(1);
             range_end = range_start + visible_lines;
         } else if cursor.row >= scroll.row + visible_lines {
-            range_end = cursor_idx + 3;
+            range_end = cursor_idx + 1;
             range_start = range_end.saturating_sub(visible_lines);
         } else {
             range_start = 0;
             range_end = visible_lines;
             if cursor_idx >= visible_lines {
-                range_end = cursor_idx + 3;
+                range_end = cursor_idx + 1;
                 range_start = range_end.saturating_sub(visible_lines);
             }
         }
