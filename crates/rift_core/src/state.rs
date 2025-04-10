@@ -362,10 +362,12 @@ impl CompletionMenu {
     }
 
     pub fn open(&mut self, items: Vec<types::CompletionItem>) {
-        self.active = true;
-        self.items = items;
-        self.start = 0;
-        self.selection = None;
+        if !items.is_empty() {
+            self.active = true;
+            self.items = items;
+            self.start = 0;
+            self.selection = None;
+        }
     }
 
     pub fn select_next(&mut self) {

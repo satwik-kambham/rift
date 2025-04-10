@@ -311,21 +311,28 @@ impl App {
                 // Render signature information
                 if self.state.signature_information.should_render()
                     && self.state.relative_cursor.row > 1
+                    && self.state.relative_cursor.row < self.state.visible_lines - 1
                 {
                     let popup_area = Rect {
                         x: self.state.relative_cursor.column as u16 + h_layout[1].x + 1,
                         y: self.state.relative_cursor.row as u16 + h_layout[1].y - 1,
-                        width: self
-                            .state
-                            .signature_information
-                            .content
-                            .len()
-                            .min(max_characters.min(self.state.relative_cursor.column) - 1)
-                            as u16,
+                        width: (self.state.signature_information.content.len() as u16).min(
+                            frame.area().width
+                                - self.state.relative_cursor.column as u16
+                                - h_layout[1].x
+                                - 3,
+                        ),
                         height: 1,
                     };
+                    let signature_block = widgets::Block::default().style(
+                        Style::new()
+                            .bg(color_from_rgb(self.state.preferences.theme.modal_bg))
+                            .fg(color_from_rgb(self.state.preferences.theme.modal_text)),
+                    );
+
                     let signature_information =
-                        widgets::Paragraph::new(self.state.signature_information.content.clone());
+                        widgets::Paragraph::new(self.state.signature_information.content.clone())
+                            .block(signature_block);
                     frame.render_widget(widgets::Clear, popup_area);
                     frame.render_widget(signature_information, popup_area);
                 }
@@ -338,7 +345,18 @@ impl App {
                         width: frame.area().width - 8,
                         height: frame.area().height - 4,
                     };
-                    let modal_block = widgets::Block::default().borders(widgets::Borders::ALL);
+                    let modal_block = widgets::Block::default()
+                        .borders(widgets::Borders::ALL)
+                        .border_style(
+                            Style::new()
+                                .fg(color_from_rgb(self.state.preferences.theme.ui_bg_stroke)),
+                        )
+                        .style(
+                            Style::new()
+                                .bg(color_from_rgb(self.state.preferences.theme.modal_bg))
+                                .fg(color_from_rgb(self.state.preferences.theme.modal_text)),
+                        );
+
                     let modal_layout = Layout::vertical([
                         Constraint::Length(1),
                         Constraint::Length(1),
@@ -352,7 +370,12 @@ impl App {
                         .iter()
                         .map(|option| option.0.clone())
                         .collect::<widgets::List>()
-                        .highlight_symbol(">>");
+                        .highlight_spacing(widgets::HighlightSpacing::Always)
+                        .highlight_symbol(" > ")
+                        .highlight_style(
+                            Style::new()
+                                .fg(color_from_rgb(self.state.preferences.theme.modal_primary)),
+                        );
                     frame.render_widget(widgets::Clear, popup_area);
                     frame.render_widget(modal_block, popup_area);
                     frame.render_widget(&self.state.modal.input, modal_layout[0]);
@@ -365,7 +388,7 @@ impl App {
 
                 // Render Completion Items
                 if self.state.completion_menu.active {
-                    let offset = if visible_lines - self.state.completion_menu.max_items - 1
+                    let offset_y = if visible_lines - self.state.completion_menu.max_items - 1
                         < self.state.relative_cursor.row
                     {
                         self.state.completion_menu.max_items as u16
@@ -373,11 +396,18 @@ impl App {
                         0
                     };
                     let popup_area = Rect {
-                        x: self.state.relative_cursor.column as u16 + h_layout[1].x + 1,
-                        y: self.state.relative_cursor.row as u16 + h_layout[1].y + 1 - offset,
-                        width: 20,
+                        x: (self.state.relative_cursor.column as u16 + h_layout[1].x + 1)
+                            .min(frame.area().width - 35),
+                        y: self.state.relative_cursor.row as u16 + h_layout[1].y + 1 - offset_y,
+                        width: 30,
                         height: self.state.completion_menu.max_items as u16,
                     };
+                    let completion_list_block = widgets::Block::default().style(
+                        Style::new()
+                            .bg(color_from_rgb(self.state.preferences.theme.modal_bg))
+                            .fg(color_from_rgb(self.state.preferences.theme.modal_text)),
+                    );
+
                     let completion_list = self
                         .state
                         .completion_menu
@@ -385,7 +415,11 @@ impl App {
                         .iter()
                         .map(|item| item.label.clone())
                         .collect::<widgets::List>()
-                        .highlight_symbol(">>");
+                        .highlight_style(
+                            Style::new()
+                                .fg(color_from_rgb(self.state.preferences.theme.modal_primary)),
+                        )
+                        .block(completion_list_block);
                     frame.render_widget(widgets::Clear, popup_area);
                     let mut list_state = widgets::ListState::default();
                     list_state.select(self.state.completion_menu.selection);
@@ -400,7 +434,17 @@ impl App {
                         width: frame.area().width - 8,
                         height: frame.area().height - 4,
                     };
-                    let info_modal_block = widgets::Block::default().borders(widgets::Borders::ALL);
+                    let info_modal_block = widgets::Block::default()
+                        .borders(widgets::Borders::ALL)
+                        .border_style(
+                            Style::new()
+                                .fg(color_from_rgb(self.state.preferences.theme.ui_bg_stroke)),
+                        )
+                        .style(
+                            Style::new()
+                                .bg(color_from_rgb(self.state.preferences.theme.modal_bg))
+                                .fg(color_from_rgb(self.state.preferences.theme.modal_text)),
+                        );
                     let content = widgets::Paragraph::new(&*self.state.info_modal.content)
                         .block(info_modal_block)
                         .wrap(widgets::Wrap { trim: false })
@@ -418,6 +462,7 @@ impl App {
                         if self.state.info_modal.active {
                             if key.code == KeyCode::Esc {
                                 self.state.info_modal.close();
+                                self.info_modal_scroll = 0;
                             } else if key.code == KeyCode::Up {
                                 self.info_modal_scroll = self.info_modal_scroll.saturating_sub(1);
                             } else if key.code == KeyCode::Down {
