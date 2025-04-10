@@ -4,7 +4,9 @@ use rift_core::cli::CLIArgs;
 pub mod app;
 
 fn main() -> anyhow::Result<()> {
-    let file_appender = tracing_appender::rolling::never("logs", "rift.log");
+    let mut tmp_dir = std::env::temp_dir();
+    tmp_dir.push("rift_logs");
+    let file_appender = tracing_appender::rolling::never(tmp_dir, "rift.log");
     tracing_subscriber::fmt()
         .with_writer(file_appender)
         .with_ansi(false)
