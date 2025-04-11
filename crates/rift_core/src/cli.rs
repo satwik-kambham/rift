@@ -22,9 +22,7 @@ pub fn process_cli_args(
 ) {
     if let Some(path) = cli_args.path {
         let mut path = path;
-        if path.is_relative() {
-            path = std::path::absolute(path).unwrap();
-        }
+        path = path.canonicalize().unwrap();
         if path.is_dir() {
             state.workspace_folder = path.into_os_string().into_string().unwrap();
         } else {
