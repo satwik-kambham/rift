@@ -71,7 +71,7 @@ impl FileExplorer {
                             self.update_entries(Some(entry.path.clone()), true);
                         }
                         Popup::context_menu(&response).show(|ui| {
-                            file_context_menu(ui, state, lsp_handles);
+                            file_context_menu(entry, ui, state, lsp_handles);
                         });
                     });
                     self.render(
@@ -90,7 +90,7 @@ impl FileExplorer {
                             self.update_entries(Some(entry.path.clone()), false);
                         }
                         Popup::context_menu(&response).show(|ui| {
-                            file_context_menu(ui, state, lsp_handles);
+                            file_context_menu(entry, ui, state, lsp_handles);
                         });
                     });
                 }
@@ -107,7 +107,7 @@ impl FileExplorer {
                         );
                     }
                     Popup::context_menu(&response).show(|ui| {
-                        file_context_menu(ui, state, lsp_handles);
+                        file_context_menu(entry, ui, state, lsp_handles);
                     });
                 });
             }
@@ -144,6 +144,7 @@ impl Default for FileExplorer {
 }
 
 pub fn file_context_menu(
+    entry: &FolderEntry,
     ui: &mut egui::Ui,
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
@@ -153,4 +154,9 @@ pub fn file_context_menu(
     if ui.button("Rename").clicked() {}
     if ui.button("Move").clicked() {}
     if ui.button("Delete").clicked() {}
+    if entry.is_dir {
+        if ui.button("Set as Workspace Folder").clicked() {
+            state.workspace_folder = entry.path.clone();
+        }
+    }
 }
