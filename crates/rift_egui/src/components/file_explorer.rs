@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use egui::{Label, Popup, Sense};
 use rift_core::{
     actions::{perform_action, Action},
     buffer::instance::Language,
@@ -65,9 +66,13 @@ impl FileExplorer {
                     ui.horizontal(|ui| {
                         ui.label(" ".repeat(spacing));
                         ui.image(egui::include_image!("../../../../assets/Folder.svg"));
-                        if ui.label(&entry.name).clicked() {
+                        let response = ui.add(Label::new(&entry.name).sense(Sense::click()));
+                        if response.clicked() {
                             self.update_entries(Some(entry.path.clone()), true);
                         }
+                        Popup::context_menu(&response).show(|ui| {
+                            file_context_menu(ui, state, lsp_handles);
+                        });
                     });
                     self.render(
                         entry.children.clone().unwrap(),
@@ -80,22 +85,30 @@ impl FileExplorer {
                     ui.horizontal(|ui| {
                         ui.label(" ".repeat(spacing));
                         ui.image(egui::include_image!("../../../../assets/Folder.svg"));
-                        if ui.label(&entry.name).clicked() {
+                        let response = ui.add(Label::new(&entry.name).sense(Sense::click()));
+                        if response.clicked() {
                             self.update_entries(Some(entry.path.clone()), false);
                         }
+                        Popup::context_menu(&response).show(|ui| {
+                            file_context_menu(ui, state, lsp_handles);
+                        });
                     });
                 }
             } else {
                 ui.horizontal(|ui| {
                     ui.label(" ".repeat(spacing));
                     ui.image(egui::include_image!("../../../../assets/FileText.svg"));
-                    if ui.label(&entry.name).clicked() {
+                    let response = ui.add(Label::new(&entry.name).sense(Sense::click()));
+                    if response.clicked() {
                         perform_action(
                             Action::CreateBufferFromFile(entry.path.clone()),
                             state,
                             lsp_handles,
                         );
                     }
+                    Popup::context_menu(&response).show(|ui| {
+                        file_context_menu(ui, state, lsp_handles);
+                    });
                 });
             }
         }
@@ -128,4 +141,16 @@ impl Default for FileExplorer {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn file_context_menu(
+    ui: &mut egui::Ui,
+    state: &mut EditorState,
+    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+) {
+    if ui.button("Create File").clicked() {}
+    if ui.button("Create Folder").clicked() {}
+    if ui.button("Rename").clicked() {}
+    if ui.button("Move").clicked() {}
+    if ui.button("Delete").clicked() {}
 }

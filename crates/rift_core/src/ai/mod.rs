@@ -32,7 +32,7 @@ pub struct AIState {
 impl Default for GenerateState {
     fn default() -> Self {
         Self {
-            model_name: "qwen2.5-coder:0.5b".into(),
+            model_name: "qwen2.5-coder:0.5b-base".into(),
             url: "http://localhost:11434/api/generate".into(),
             prompts: HashMap::from([(
                 "fim".into(),

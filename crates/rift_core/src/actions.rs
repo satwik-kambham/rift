@@ -28,6 +28,7 @@ pub enum Action {
     InsertNewLineAtCursor,
     EnterInsertMode,
     QuitInsertMode,
+    DeleteSelectionAndEnterInsertMode,
     AddNewLineBelowAndEnterInsertMode,
     InsertAfterSelection,
     AddIndent,
@@ -86,6 +87,8 @@ pub enum Action {
     OpenCommandDispatcher,
     FIMCompletion,
     KeybindHelp,
+    IncreaseFontSize,
+    DecreaseFontSize,
 }
 
 pub fn perform_action(
@@ -183,6 +186,12 @@ pub fn perform_action(
         Action::QuitInsertMode => {
             state.mode = Mode::Normal;
             state.signature_information.content = String::new();
+        }
+        Action::DeleteSelectionAndEnterInsertMode => {
+            if matches!(state.mode, Mode::Normal) {
+                perform_action(Action::DeleteSelection, state, lsp_handles);
+                perform_action(Action::EnterInsertMode, state, lsp_handles);
+            }
         }
         Action::AddNewLineBelowAndEnterInsertMode => {
             if matches!(state.mode, Mode::Normal) {
@@ -1077,6 +1086,12 @@ pub fn perform_action(
                 .collect::<Vec<_>>()
                 .join("\n");
             state.info_modal.open(help_content);
+        }
+        Action::IncreaseFontSize => {
+            state.preferences.editor_font_size += 1;
+        }
+        Action::DecreaseFontSize => {
+            state.preferences.editor_font_size -= 1;
         }
     }
 }
