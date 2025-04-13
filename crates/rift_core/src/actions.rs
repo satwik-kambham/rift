@@ -89,6 +89,8 @@ pub enum Action {
     KeybindHelp,
     IncreaseFontSize,
     DecreaseFontSize,
+    ScrollDown,
+    ScrollUp,
 }
 
 pub fn perform_action(
@@ -1092,6 +1094,14 @@ pub fn perform_action(
         }
         Action::DecreaseFontSize => {
             state.preferences.editor_font_size -= 1;
+        }
+        Action::ScrollUp => {
+            let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            instance.scroll.row = instance.scroll.row.saturating_sub(1);
+        }
+        Action::ScrollDown => {
+            let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            instance.scroll.row = instance.scroll.row.saturating_add(1);
         }
     }
 }

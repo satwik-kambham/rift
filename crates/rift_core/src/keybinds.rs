@@ -130,6 +130,8 @@ impl Default for KeybindHandler {
             "insert-new-line-at-cursor ins enter",
             "increase-font-size nor +",
             "decrease-font-size nor -",
+            "scroll-up nor c-home",
+            "scroll-down nor c-end",
             "move-cursor-down all down",
             "extend-cursor-down all s-down",
             "move-cursor-up all up",
