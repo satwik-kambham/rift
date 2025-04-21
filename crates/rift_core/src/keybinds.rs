@@ -126,7 +126,7 @@ impl Default for KeybindHandler {
         Self::new(vec![
             "quit nor space q",
             "enter-insert-mode nor i",
-            "quit-insert-mode ins escape",
+            "quit-insert-mode all escape",
             "insert-new-line-at-cursor ins enter",
             "increase-font-size nor +",
             "decrease-font-size nor -",

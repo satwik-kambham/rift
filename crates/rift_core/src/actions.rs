@@ -754,10 +754,28 @@ pub fn perform_action(
         Action::CopyToRegister => {}
         Action::CopyToClipboard => {
             let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-            state
-                .clipboard_ctx
-                .set_contents(buffer.get_selection(&instance.selection))
-                .unwrap();
+
+            // Use wl-copy if available on wayland for better compatibility
+            if std::env::var_os("WAYLAND_DISPLAY").is_some() && which::which("wl-copy").is_ok() {
+                run_command(
+                    ProgramArgs {
+                        program: "wl-copy".into(),
+                        args: vec![
+                            "--type".to_string(),
+                            "text/plain".to_string(),
+                            buffer.get_selection(&instance.selection),
+                        ],
+                    },
+                    |_result, _state, _lsp_handle| {},
+                    &state.rt,
+                    state.async_handle.sender.clone(),
+                );
+            } else {
+                state
+                    .clipboard_ctx
+                    .set_contents(buffer.get_selection(&instance.selection))
+                    .unwrap();
+            }
         }
         Action::CutToRegister => {}
         Action::CutToClipboard => {}
@@ -769,12 +787,42 @@ pub fn perform_action(
             } else {
                 &mut None
             };
-            let content = state.clipboard_ctx.get_contents().unwrap();
-            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
-            instance.cursor = cursor;
-            instance.selection.cursor = instance.cursor;
-            instance.selection.mark = instance.cursor;
+
+            // Use wl-paste if available on wayland for better compatibility
+            if std::env::var_os("WAYLAND_DISPLAY").is_some() && which::which("wl-paste").is_ok() {
+                run_command(
+                    ProgramArgs {
+                        program: "wl-paste".into(),
+                        args: vec!["--no-newline".to_string()],
+                    },
+                    |result, state, lsp_handles| {
+                        let lsp_handle = if state.buffer_idx.is_some() {
+                            let (buffer, _instance) =
+                                state.get_buffer_by_id(state.buffer_idx.unwrap());
+                            &mut lsp_handles.get_mut(&buffer.language)
+                        } else {
+                            &mut None
+                        };
+
+                        let (buffer, instance) =
+                            state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                        let cursor =
+                            buffer.insert_text(&result, &instance.cursor, lsp_handle, true);
+                        instance.cursor = cursor;
+                        instance.selection.cursor = instance.cursor;
+                        instance.selection.mark = instance.cursor;
+                    },
+                    &state.rt,
+                    state.async_handle.sender.clone(),
+                );
+            } else {
+                let content = state.clipboard_ctx.get_contents().unwrap();
+                let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+                let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
+                instance.cursor = cursor;
+                instance.selection.cursor = instance.cursor;
+                instance.selection.mark = instance.cursor;
+            }
         }
         Action::FuzzyFindFile(_respect_ignore) => {
             run_piped_commands(
@@ -794,7 +842,7 @@ pub fn perform_action(
                         args: vec!["-f".to_string(), "".to_string()],
                     },
                 ],
-                |result, state, _lsp_handle| {
+                |result, state, _lsp_handles| {
                     let results: Vec<&str> = result.trim().lines().collect();
                     state.modal.open();
                     state.modal.options = results
