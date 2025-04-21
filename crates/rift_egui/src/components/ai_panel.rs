@@ -68,7 +68,7 @@ impl AIPanel {
                                         .ai_state
                                         .generate_state
                                         .prompts
-                                        .get_mut("fim")
+                                        .get_mut("file_fim")
                                         .unwrap(),
                                 );
                             });

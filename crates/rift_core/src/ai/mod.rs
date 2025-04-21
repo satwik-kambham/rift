@@ -34,10 +34,16 @@ impl Default for GenerateState {
         Self {
             model_name: "qwen2.5-coder:0.5b-base".into(),
             url: "http://localhost:11434/api/generate".into(),
-            prompts: HashMap::from([(
-                "fim".into(),
-                "{input}<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>".into(),
-            )]),
+            prompts: HashMap::from([
+                (
+                    "file_fim".into(),
+                    "{input}<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>".into(),
+                ),
+                (
+                    "repo_fim".into(),
+                    "{input}<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>".into(),
+                ),
+            ]),
             input: String::new(),
             output: String::new(),
             seed: 42,
@@ -86,7 +92,7 @@ pub fn ollama_fim(state: &mut EditorState) {
     let byte_idx = buffer.byte_index_from_cursor(&instance.cursor, "\n");
     let (prefix, suffix) = content.split_at(byte_idx);
 
-    let prompt_fmt = state.ai_state.generate_state.prompts["fim"].clone();
+    let prompt_fmt = state.ai_state.generate_state.prompts["file_fim"].clone();
     let prompt = formatter(
         prompt_fmt,
         HashMap::from([
@@ -150,9 +156,16 @@ pub struct OllamaChat {
 }
 
 pub fn ollama_chat(state: &mut EditorState) {
+    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+
+    let prompt = formatter(
+        state.ai_state.chat_state.input.clone(),
+        HashMap::from([("source".into(), buffer.get_content("\n".to_string()))]),
+    );
+
     state.ai_state.chat_state.history.push(OllamaChatMessage {
         role: "user".into(),
-        content: state.ai_state.chat_state.input.clone(),
+        content: prompt,
     });
     let request = OllamaChat {
         model: state.ai_state.chat_state.model_name.clone(),
