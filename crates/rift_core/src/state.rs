@@ -32,6 +32,7 @@ pub struct EditorState {
     pub rt: tokio::runtime::Runtime,
     pub async_handle: AsyncHandle,
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
+    pub file_watcher: RecommendedWatcher,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
