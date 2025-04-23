@@ -119,15 +119,11 @@ impl EditorState {
         {
             *idx
         } else {
-            // Watch the file path if it exists before inserting the buffer
             if let Some(path_str) = &buffer.file_path {
                 let path = Path::new(path_str);
-                if path.exists() {
-                    // Use expect for now, consider proper error handling later
-                    self.file_watcher
-                        .watch(path, RecursiveMode::NonRecursive)
-                        .expect("Failed to watch file path");
-                }
+                self.file_watcher
+                    .watch(path, RecursiveMode::NonRecursive)
+                    .expect("Failed to watch file path");
             }
             self.buffers.insert(self.next_id, buffer);
             self.instances

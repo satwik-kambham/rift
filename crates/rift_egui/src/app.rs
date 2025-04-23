@@ -8,7 +8,6 @@ use rift_core::{
     rendering::update_visible_lines,
     state::{EditorState, Mode},
 };
-use tracing::{debug, error};
 
 use crate::{
     command_dispatcher::CommandDispatcher,
@@ -203,11 +202,10 @@ impl App {
                 if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
                     match file_event_result {
                         Ok(event) => {
-                            debug!("Received file event: {:?}", event);
-                            // TODO: Handle the file event (e.g., reload buffer)
+                            tracing::info!("Received file event: {:?}", event);
                         }
                         Err(e) => {
-                            error!("Error receiving file event: {:?}", e);
+                            tracing::error!("Error receiving file event: {:?}", e);
                         }
                     }
                 }
