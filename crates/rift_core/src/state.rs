@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use copypasta::ClipboardContext;
-// Add this import for tokio's mpsc
 use tokio::sync::mpsc;
-// Add these imports for notify types
 use notify::{Event, Result as NotifyResult};
 
 use crate::{
@@ -33,7 +31,6 @@ pub struct EditorState {
     pub quit: bool,
     pub rt: tokio::runtime::Runtime,
     pub async_handle: AsyncHandle,
-    // Add the receiver field for file events
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
@@ -63,11 +60,7 @@ pub struct EditorState {
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
-        // Create the file event channel
         let (_file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
-        // Note: _file_event_sender is created here but not stored in the state.
-        // It will need to be passed to the file watcher initialization logic later.
-        // Prefixing with _ to avoid unused variable warning for now.
 
         let initial_folder = std::path::absolute("/")
             .unwrap()
@@ -78,7 +71,6 @@ impl EditorState {
             quit: false,
             rt,
             async_handle: AsyncHandle { sender, receiver },
-            // Store the receiver in the state
             file_event_receiver,
             preferences: Preferences::default(),
             buffers: HashMap::new(),
