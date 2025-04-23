@@ -20,6 +20,7 @@ use rift_core::{
     rendering::update_visible_lines,
     state::{CompletionMenu, EditorState, Mode},
 };
+use tracing::{debug, error};
 
 pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
     ratatui::style::Color::Rgb(c.r, c.g, c.b)

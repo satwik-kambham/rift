@@ -8,6 +8,7 @@ use rift_core::{
     rendering::update_visible_lines,
     state::{EditorState, Mode},
 };
+use tracing::{debug, error};
 
 use crate::{
     command_dispatcher::CommandDispatcher,
