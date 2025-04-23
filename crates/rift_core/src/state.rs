@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use copypasta::ClipboardContext;
+use notify::{Config, Event, RecommendedWatcher, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
-use notify::{Event, Result as NotifyResult};
 
 use crate::{
     actions::{perform_action, Action},
@@ -60,9 +60,26 @@ pub struct EditorState {
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
-        let (_file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
+        let (file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
 
-        let initial_folder = std::path::absolute("/")
+        let rt_handle = rt.handle().clone();
+        let _watcher = RecommendedWatcher::new(
+            move |res: NotifyResult<Event>| {
+                let sender = file_event_sender.clone();
+                // Use block_on because the EventHandler trait is synchronous
+                rt_handle.block_on(async {
+                    if sender.send(res).await.is_err() {
+                        // Log error or handle disconnected channel if necessary
+                        eprintln!("Error sending file event: receiver dropped?");
+                    }
+                });
+            },
+            Config::default(),
+        )
+        .expect("Failed to create file watcher");
+        // Watcher is created but not stored or used yet. Needs further implementation.
+
+        let initial_folder = std::path::absolute(Path::new("/"))
             .unwrap()
             .to_str()
             .unwrap()
