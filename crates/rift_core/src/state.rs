@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use copypasta::ClipboardContext;
-use notify::{Config, Event, RecommendedWatcher, Result as NotifyResult, Watcher};
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -119,6 +119,16 @@ impl EditorState {
         {
             *idx
         } else {
+            // Watch the file path if it exists before inserting the buffer
+            if let Some(path_str) = &buffer.file_path {
+                let path = Path::new(path_str);
+                if path.exists() {
+                    // Use expect for now, consider proper error handling later
+                    self.file_watcher
+                        .watch(path, RecursiveMode::NonRecursive)
+                        .expect("Failed to watch file path");
+                }
+            }
             self.buffers.insert(self.next_id, buffer);
             self.instances
                 .insert(self.next_id, BufferInstance::new(self.next_id));
