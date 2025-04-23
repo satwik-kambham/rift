@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, Result as NotifyResult, Watcher};
@@ -63,23 +63,17 @@ impl EditorState {
         let (file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
 
         let rt_handle = rt.handle().clone();
-        let _watcher = RecommendedWatcher::new(
-            move |res: NotifyResult<Event>| {
-                let sender = file_event_sender.clone();
-                // Use block_on because the EventHandler trait is synchronous
+        let watcher = RecommendedWatcher::new(
+            move |res| {
                 rt_handle.block_on(async {
-                    if sender.send(res).await.is_err() {
-                        // Log error or handle disconnected channel if necessary
-                        eprintln!("Error sending file event: receiver dropped?");
-                    }
+                    file_event_sender.clone().send(res).await.unwrap();
                 });
             },
             Config::default(),
         )
         .expect("Failed to create file watcher");
-        // Watcher is created but not stored or used yet. Needs further implementation.
 
-        let initial_folder = std::path::absolute(Path::new("/"))
+        let initial_folder = std::path::absolute("/")
             .unwrap()
             .to_str()
             .unwrap()
