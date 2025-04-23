@@ -83,6 +83,7 @@ impl EditorState {
             rt,
             async_handle: AsyncHandle { sender, receiver },
             file_event_receiver,
+            file_watcher: watcher,
             preferences: Preferences::default(),
             buffers: HashMap::new(),
             next_id: 0,
