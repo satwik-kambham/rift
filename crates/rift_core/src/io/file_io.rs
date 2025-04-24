@@ -1,10 +1,15 @@
 use anyhow::Result;
 use std::{
     cmp::Ordering,
+    collections::HashMap,
     fs::{self, File},
     io::{Read, Write},
     path,
 };
+
+use notify::{event::ModifyKind, Event, EventKind, Result as NotifyResult};
+
+use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FolderEntry {
@@ -136,4 +141,22 @@ pub fn get_directory_entries(path: &str) -> Result<Vec<FolderEntry>> {
     }
     entries.sort();
     Ok(entries)
+}
+
+/// Handles a single file event received from the watcher.
+pub fn handle_file_event(
+    file_event_result: NotifyResult<Event>,
+    _state: &mut EditorState,
+    _lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+) {
+    match file_event_result {
+        Ok(event) => {
+            if let EventKind::Modify(_) = event.kind {
+                tracing::info!("Received file data modification event: {:?}", event);
+            }
+        }
+        Err(e) => {
+            tracing::error!("Error receiving file event: {:?}", e);
+        }
+    }
 }
