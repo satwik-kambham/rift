@@ -7,9 +7,13 @@ use std::{
     path,
 };
 
-use notify::{event::ModifyKind, Event, EventKind, Result as NotifyResult};
+use notify::{Event, EventKind, Result as NotifyResult};
 
-use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
+use crate::{
+    buffer::instance::{Cursor, Language, Selection},
+    lsp::client::LSPClientHandle,
+    state::EditorState,
+};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FolderEntry {
@@ -146,13 +150,56 @@ pub fn get_directory_entries(path: &str) -> Result<Vec<FolderEntry>> {
 /// Handles a single file event received from the watcher.
 pub fn handle_file_event(
     file_event_result: NotifyResult<Event>,
-    _state: &mut EditorState,
-    _lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    state: &mut EditorState,
+    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
     match file_event_result {
         Ok(event) => {
-            if let EventKind::Modify(_) = event.kind {
-                tracing::info!("Received file data modification event: {:?}", event);
+            if matches!(event.kind, EventKind::Create(_) | EventKind::Modify(_)) {
+                if event.paths.len() == 1 {
+                    let file_path = event.paths.first().unwrap().to_str().unwrap();
+                    if let Some((buffer_id, _)) = state
+                        .buffers
+                        .iter()
+                        .find(|(_, buf)| buf.file_path.as_ref().unwrap() == file_path)
+                    {
+                        let (buffer, instance) = state.get_buffer_by_id_mut(*buffer_id);
+                        let lsp_handle = lsp_handles.get_mut(&buffer.language);
+                        let content = read_file_content(file_path).unwrap();
+
+                        if buffer.get_content("\n".to_string()) != content {
+                            tracing::info!("Buffer modified by external process. UPDATING!");
+                            buffer.reset();
+                            buffer.remove_text(
+                                &Selection {
+                                    mark: Cursor::default(),
+                                    cursor: Cursor {
+                                        row: buffer.get_num_lines().saturating_sub(1),
+                                        column: buffer.get_line_length(
+                                            buffer.get_num_lines().saturating_sub(1),
+                                        ),
+                                    },
+                                },
+                                &lsp_handle,
+                                false,
+                            );
+                            buffer.insert_text(&content, &Cursor::default(), &lsp_handle, false);
+
+                            instance.selection = Selection::default();
+
+                            let buffer_end = Cursor {
+                                row: buffer.get_num_lines().saturating_sub(1),
+                                column: buffer
+                                    .get_line_length(buffer.get_num_lines().saturating_sub(1)),
+                            };
+
+                            if instance.cursor > buffer_end {
+                                instance.cursor = buffer_end;
+                            }
+                            instance.column_level = instance.cursor.column;
+                        }
+                    }
+                }
             }
         }
         Err(e) => {
