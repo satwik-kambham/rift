@@ -4,6 +4,7 @@ use egui::{text::LayoutJob, FontDefinitions, FontId, RichText};
 use rift_core::{
     buffer::instance::{Attribute, HighlightType, Language},
     cli::{process_cli_args, CLIArgs},
+    io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages, types},
     rendering::update_visible_lines,
     state::{EditorState, Mode},
@@ -196,6 +197,11 @@ impl App {
                         &mut self.state,
                         &mut self.lsp_handles,
                     );
+                }
+
+                // Handle file watcher events
+                if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
+                    handle_file_event(file_event_result, &mut self.state, &mut self.lsp_handles);
                 }
 
                 // Handle lsp messages

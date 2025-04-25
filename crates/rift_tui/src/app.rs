@@ -15,6 +15,7 @@ use rift_core::{
     actions::{perform_action, Action},
     buffer::instance::{Attribute, Language},
     cli::{process_cli_args, CLIArgs},
+    io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages},
     preferences::Color,
     rendering::update_visible_lines,
@@ -82,6 +83,11 @@ impl App {
                         &mut self.state,
                         &mut self.lsp_handles,
                     );
+                }
+
+                // Handle file watcher events
+                if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
+                    handle_file_event(file_event_result, &mut self.state, &mut self.lsp_handles);
                 }
 
                 handle_lsp_messages(&mut self.state, &mut self.lsp_handles);

@@ -22,5 +22,6 @@ copypasta = "0.10.1"
 reqwest = { version = "0.12", features = ["json"] }
 clap = { version = "4.5.23", features = ["derive"] }
 strum = "0.27.1"
+notify = "8.0.0"
 strum_macros = "0.27.1"
 which = "7.0.2"

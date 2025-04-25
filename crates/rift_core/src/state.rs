@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use copypasta::ClipboardContext;
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -30,6 +31,8 @@ pub struct EditorState {
     pub quit: bool,
     pub rt: tokio::runtime::Runtime,
     pub async_handle: AsyncHandle,
+    pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
+    pub file_watcher: RecommendedWatcher,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
@@ -58,6 +61,19 @@ pub struct EditorState {
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
+        let (file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
+
+        let rt_handle = rt.handle().clone();
+        let watcher = RecommendedWatcher::new(
+            move |res| {
+                rt_handle.block_on(async {
+                    file_event_sender.clone().send(res).await.unwrap();
+                });
+            },
+            Config::default(),
+        )
+        .expect("Failed to create file watcher");
+
         let initial_folder = std::path::absolute("/")
             .unwrap()
             .to_str()
@@ -67,6 +83,8 @@ impl EditorState {
             quit: false,
             rt,
             async_handle: AsyncHandle { sender, receiver },
+            file_event_receiver,
+            file_watcher: watcher,
             preferences: Preferences::default(),
             buffers: HashMap::new(),
             next_id: 0,
@@ -101,6 +119,12 @@ impl EditorState {
         {
             *idx
         } else {
+            if let Some(path_str) = &buffer.file_path {
+                let path = Path::new(path_str);
+                self.file_watcher
+                    .watch(path, RecursiveMode::NonRecursive)
+                    .expect("Failed to watch file path");
+            }
             self.buffers.insert(self.next_id, buffer);
             self.instances
                 .insert(self.next_id, BufferInstance::new(self.next_id));

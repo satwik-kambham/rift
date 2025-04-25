@@ -591,6 +591,12 @@ impl LineBuffer {
         cursor.column = self.get_line_length(cursor.row);
     }
 
+    /// Reset buffer
+    pub fn reset(&mut self) {
+        self.changes.clear();
+        self.change_idx = 0;
+    }
+
     /// Insert text at cursor position and return update cursor position
     pub fn insert_text_no_log(&mut self, text: &str, cursor: &Cursor) -> Cursor {
         self.modified = true;
