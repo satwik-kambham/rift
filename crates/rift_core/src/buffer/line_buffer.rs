@@ -143,12 +143,24 @@ impl LineBuffer {
             Language::Nix => Some(
                 HighlightConfiguration::new(
                     tree_sitter_nix::LANGUAGE.into(),
-                    "dart",
+                    "nix",
                     tree_sitter_nix::HIGHLIGHTS_QUERY,
                     "",
                     "",
-                ).unwrap(),
+                )
+                .unwrap(),
             ),
+            Language::Dart => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_dart::language(),
+                    "dart",
+                    tree_sitter_dart::HIGHLIGHTS_QUERY,
+                    "",
+                    "",
+                )
+                .unwrap(),
+            ),
+
             _ => None,
         };
 
