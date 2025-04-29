@@ -84,6 +84,8 @@ pub enum Language {
     Python,
     Markdown,
     TOML,
+    Nix,
+    Dart,
 }
 
 /// Types of highlighted tokens

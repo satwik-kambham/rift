@@ -339,6 +339,8 @@ pub fn perform_action(
                         Language::Python => "python",
                         Language::Rust => "rust",
                         Language::Markdown => "markdown",
+                        Language::Dart => "dart",
+                        Language::Nix => "nix",
                         _ => "",
                     };
 

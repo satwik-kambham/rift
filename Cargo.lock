@@ -3391,6 +3391,7 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-highlight",
  "tree-sitter-md",
+ "tree-sitter-nix",
  "tree-sitter-python",
  "tree-sitter-rust",
  "which",
@@ -4326,6 +4327,15 @@ name = "tree-sitter-md"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17f968c22a01010b83fc960455ae729db08dbeb6388617d9113897cb9204b030"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-nix"
+version = "0.0.2"
+source = "git+https://github.com/nix-community/tree-sitter-nix.git?branch=master#cfc53fd287d23ab7281440a8526c73542984669b"
 dependencies = [
  "cc",
  "tree-sitter-language",

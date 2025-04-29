@@ -46,6 +46,8 @@ pub fn process_cli_args(
                     Language::Python => "python",
                     Language::Rust => "rust",
                     Language::Markdown => "markdown",
+                    Language::Dart => "dart",
+                    Language::Nix => "nix",
                     _ => "",
                 };
 

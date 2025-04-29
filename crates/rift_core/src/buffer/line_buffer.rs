@@ -59,6 +59,8 @@ impl LineBuffer {
                     "py" => Language::Python,
                     "md" => Language::Markdown,
                     "toml" => Language::TOML,
+                    "nix" => Language::Nix,
+                    "dart" => Language::Dart,
                     _ => Language::PlainText,
                 },
                 None => Language::PlainText,
@@ -137,6 +139,15 @@ impl LineBuffer {
                     "",
                 )
                 .unwrap(),
+            ),
+            Language::Nix => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_nix::LANGUAGE.into(),
+                    "dart",
+                    tree_sitter_nix::HIGHLIGHTS_QUERY,
+                    "",
+                    "",
+                ).unwrap(),
             ),
             _ => None,
         };
