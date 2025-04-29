@@ -333,7 +333,7 @@ impl LSPClientHandle {
                 if let IncomingMessage::Response(message) = response {
                     tracing::info!("{:#?}", message);
                     self.initialize_capabilities = message.result.unwrap()["capabilities"].clone();
-                    self.send_notification("initialized".to_string(), None)
+                    self.send_notification("initialized".to_string(), Some(json!({})))
                         .await
                         .unwrap();
                     break;
@@ -356,7 +356,7 @@ impl LSPClientHandle {
                 if let IncomingMessage::Response(message) = response {
                     tracing::info!("{:#?}", message);
                     self.initialize_capabilities = message.result.unwrap()["capabilities"].clone();
-                    self.send_notification_sync("initialized".to_string(), None)
+                    self.send_notification_sync("initialized".to_string(), Some(json!({})))
                         .unwrap();
                 }
                 break;

@@ -178,6 +178,7 @@ impl EditorState {
         let command: Option<(&str, &[&str])> = match language {
             Language::Rust => Some(("rust-analyzer", &[])),
             Language::Python => Some(("uv", &["run", "pylsp"])),
+            Language::Dart => Some(("dart", &["language-server", "--client-id=helix"])),
             _ => None,
         };
         if let Some(command) = command {
