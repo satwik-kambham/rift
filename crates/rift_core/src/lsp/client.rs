@@ -289,7 +289,7 @@ impl LSPClientHandle {
     pub fn get_initialization_params(&self, workspace_folder: String) -> Value {
         json!({
             "processId": process::id(),
-            "rootUri": format!("file:///{}", workspace_folder),
+            "rootUri": format!("file://{}", workspace_folder),
             "capabilities": {
                 "textDocument": {
                     "synchronization": {
@@ -373,7 +373,7 @@ impl LSPClientHandle {
     ) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
                 "languageId": language_id,
                 "version": 1,
                 "text": document_content,
@@ -386,7 +386,7 @@ impl LSPClientHandle {
     pub fn did_save_text_document(document_path: String) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
             }
         })
     }
@@ -423,7 +423,7 @@ impl LSPClientHandle {
 
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
                 "version": document_version,
             },
             "contentChanges": [content_changes],
@@ -435,7 +435,7 @@ impl LSPClientHandle {
     pub fn hover_request(document_path: String, cursor: Cursor) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
             },
             "position": {
                 "line": cursor.row,
@@ -449,7 +449,7 @@ impl LSPClientHandle {
     pub fn completion_request(document_path: String, cursor: Cursor) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
             },
             "position": {
                 "line": cursor.row,
@@ -463,7 +463,7 @@ impl LSPClientHandle {
     pub fn signature_help_request(document_path: String, cursor: Cursor) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
             },
             "position": {
                 "line": cursor.row,
@@ -477,7 +477,7 @@ impl LSPClientHandle {
     pub fn go_to_definition_request(document_path: String, cursor: Cursor) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
             },
             "position": {
                 "line": cursor.row,
@@ -491,7 +491,7 @@ impl LSPClientHandle {
     pub fn go_to_references_request(document_path: String, cursor: Cursor) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
             },
             "position": {
                 "line": cursor.row,
@@ -508,7 +508,7 @@ impl LSPClientHandle {
     pub fn formatting_request(document_path: String, tab_size: usize) -> Value {
         json!({
             "textDocument": {
-                "uri": format!("file:///{}", document_path),
+                "uri": format!("file://{}", document_path),
             },
             "options": {
                 "tabSize": tab_size,
