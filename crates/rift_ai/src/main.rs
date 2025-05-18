@@ -34,7 +34,7 @@ struct ServerState {
 
 #[tokio::main]
 async fn main() {
-    let recordings_path = std::path::PathBuf::from("/home/satwik/Documents/Recordings/");
+    let recordings_path = std::path::PathBuf::from("/home/satwik/Documents/Recordings");
 
     let server_state = Arc::new(Mutex::new(ServerState {
         recordings_path,
@@ -44,7 +44,6 @@ async fn main() {
     let app = Router::new()
         .route("/", get(info))
         .route("/transcribe", post(transcribe))
-        .route("/chat", post(ollama_chat))
         .route("/ws", any(websocket_handler))
         .with_state(server_state)
         .layer(DefaultBodyLimit::disable());
@@ -106,6 +105,8 @@ async fn handle_socket(stream: WebSocket, state: Arc<Mutex<ServerState>>) {
             if let Message::Text(text) = message {
                 let text = text.as_str();
 
+                let text = ollama_chat(text, state.clone()).await;
+
                 let body = serde_json::json!({
                     "text": text,
                 });
@@ -122,19 +123,16 @@ async fn handle_socket(stream: WebSocket, state: Arc<Mutex<ServerState>>) {
             }
         }
     });
-
-    state.lock().unwrap().recordings_path = "".into();
 }
 
-async fn ollama_chat(State(state): State<Arc<Mutex<ServerState>>>) {
+async fn ollama_chat(prompt: &str, state: Arc<Mutex<ServerState>>) -> String {
     state.lock().unwrap().chat_messages.push(OllamaChatMessage {
         role: "user".into(),
-        content: "What is the current state of the rust ecosystem for ML? Summarize in 50 words"
-            .to_string(),
+        content: prompt.to_string(),
     });
 
     let request = OllamaChat {
-        model: "qwen3:30b-a3b".to_string(),
+        model: "qwen3:0.6b".to_string(),
         messages: state.lock().unwrap().chat_messages.clone(),
         stream: true,
         options: serde_json::json!({
@@ -164,6 +162,8 @@ async fn ollama_chat(State(state): State<Arc<Mutex<ServerState>>>) {
 
     state.lock().unwrap().chat_messages.push(OllamaChatMessage {
         role: "assistant".into(),
-        content: message_content,
+        content: message_content.clone(),
     });
+    
+    message_content
 }
