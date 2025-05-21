@@ -3572,6 +3572,7 @@ name = "rift_ai"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "clap",
  "futures-util",
  "reqwest",
  "serde",

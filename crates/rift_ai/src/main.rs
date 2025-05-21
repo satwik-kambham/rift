@@ -10,7 +10,19 @@ use axum::{
     response::IntoResponse,
     routing::{any, get, post},
 };
+use clap::Parser;
 use futures_util::{SinkExt, StreamExt};
+
+#[derive(Parser)]
+pub struct CLIArgs {
+    /// Directory to store audio recordings and llm data
+    #[arg(required = true, value_name = "FOLDER")]
+    app_dir: std::path::PathBuf,
+
+    /// Port number to listen on
+    #[arg(default_value_t = 4123)]
+    port: u16,
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct OllamaChatMessage {
@@ -28,16 +40,20 @@ pub struct OllamaChat {
 }
 
 struct ServerState {
-    recordings_path: std::path::PathBuf,
+    recordings_dir: std::path::PathBuf,
+    chat_dir: std::path::PathBuf,
     chat_messages: Vec<OllamaChatMessage>,
 }
 
 #[tokio::main]
 async fn main() {
-    let recordings_path = std::path::PathBuf::from("/home/satwik/Documents/Recordings");
+    let cli_args = CLIArgs::parse();
+    let recordings_dir = cli_args.app_dir.join("Recordings");
+    let chat_dir = cli_args.app_dir.join("Chat");
 
     let server_state = Arc::new(Mutex::new(ServerState {
-        recordings_path,
+        recordings_dir,
+        chat_dir,
         chat_messages: vec![],
     }));
 
@@ -48,7 +64,9 @@ async fn main() {
         .with_state(server_state)
         .layer(DefaultBodyLimit::disable());
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:4123").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", cli_args.port))
+        .await
+        .unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -64,7 +82,7 @@ async fn transcribe(
         let file_path = state
             .lock()
             .unwrap()
-            .recordings_path
+            .recordings_dir
             .join(field.file_name().unwrap());
         let mut file = std::fs::File::create(&file_path).unwrap();
         let data = field.bytes().await.unwrap();
@@ -120,6 +138,7 @@ async fn handle_socket(stream: WebSocket, state: Arc<Mutex<ServerState>>) {
                 let tts = response.bytes().await.unwrap();
 
                 sender.send(Message::binary(tts)).await.unwrap();
+                sender.send(Message::text(text)).await.unwrap();
             }
         }
     });
@@ -132,7 +151,7 @@ async fn ollama_chat(prompt: &str, state: Arc<Mutex<ServerState>>) -> String {
     });
 
     let request = OllamaChat {
-        model: "qwen3:0.6b".to_string(),
+        model: "gemma3:1b".to_string(),
         messages: state.lock().unwrap().chat_messages.clone(),
         stream: true,
         options: serde_json::json!({
@@ -164,6 +183,11 @@ async fn ollama_chat(prompt: &str, state: Arc<Mutex<ServerState>>) -> String {
         role: "assistant".into(),
         content: message_content.clone(),
     });
-    
+
+    let messages = serde_json::to_string_pretty(&state.lock().unwrap().chat_messages).unwrap();
+    let save_path = state.lock().unwrap().chat_dir.join("chat.json");
+    let mut f = std::fs::File::create(save_path).unwrap();
+    f.write_all(messages.as_bytes()).unwrap();
+
     message_content
 }
