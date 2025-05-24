@@ -12,6 +12,7 @@ use axum::{
 };
 use clap::Parser;
 use futures_util::{SinkExt, StreamExt};
+use uuid::Uuid;
 
 #[derive(Parser)]
 pub struct CLIArgs {
@@ -43,6 +44,18 @@ struct ServerState {
     recordings_dir: std::path::PathBuf,
     chat_dir: std::path::PathBuf,
     chat_messages: Vec<OllamaChatMessage>,
+    chat_options: ChatOptions,
+    chat_id: String,
+}
+
+pub struct ChatOptions {
+    model_name: String,
+    temperature: f32,
+    seed: u32,
+}
+
+pub fn generate_uuid() -> String {
+    Uuid::new_v4().to_string()
 }
 
 #[tokio::main]
@@ -55,6 +68,12 @@ async fn main() {
         recordings_dir,
         chat_dir,
         chat_messages: vec![],
+        chat_options: ChatOptions {
+            model_name: "gemma3:1b".into(),
+            temperature: 0.5,
+            seed: 42,
+        },
+        chat_id: generate_uuid(),
     }));
 
     let app = Router::new()
@@ -151,12 +170,12 @@ async fn ollama_chat(prompt: &str, state: Arc<Mutex<ServerState>>) -> String {
     });
 
     let request = OllamaChat {
-        model: "gemma3:1b".to_string(),
+        model: state.lock().unwrap().chat_options.model_name.clone(),
         messages: state.lock().unwrap().chat_messages.clone(),
         stream: true,
         options: serde_json::json!({
-            "seed": 42,
-            "temperature": 0.7,
+            "seed": state.lock().unwrap().chat_options.seed,
+            "temperature": state.lock().unwrap().chat_options.temperature,
         }),
     };
     let body = serde_json::to_string(&request).unwrap();
@@ -185,7 +204,11 @@ async fn ollama_chat(prompt: &str, state: Arc<Mutex<ServerState>>) -> String {
     });
 
     let messages = serde_json::to_string_pretty(&state.lock().unwrap().chat_messages).unwrap();
-    let save_path = state.lock().unwrap().chat_dir.join("chat.json");
+    let save_path = state
+        .lock()
+        .unwrap()
+        .chat_dir
+        .join(format!("{}.json", state.lock().unwrap().chat_id));
     let mut f = std::fs::File::create(save_path).unwrap();
     f.write_all(messages.as_bytes()).unwrap();
 
