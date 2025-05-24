@@ -53,3 +53,35 @@ pub fn post_request(
             .unwrap();
     });
 }
+
+pub fn post_request_json_body_with_bearer_auth(
+    url: String,
+    body: serde_json::Value,
+    bearer_auth_token: String,
+    callback: fn(
+        String,
+        state: &mut EditorState,
+        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    ),
+    rt: &tokio::runtime::Runtime,
+    sender: Sender<AsyncResult>,
+) {
+    rt.spawn(async move {
+        let client = reqwest::Client::new();
+        let response = client
+            .post(url)
+            .bearer_auth(bearer_auth_token)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        let content = response.text().await.unwrap();
+        sender
+            .send(AsyncResult {
+                result: content,
+                callback,
+            })
+            .await
+            .unwrap();
+    });
+}

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rift_core::{
     actions::{perform_action, Action},
-    ai::{ollama_chat, ollama_fim},
+    ai::{ollama_chat, ollama_fim, openrouter_chat, ChatState},
     buffer::instance::Language,
     lsp::client::LSPClientHandle,
     state::EditorState,
@@ -90,6 +90,13 @@ impl AIPanel {
                             }
                         }
                         PanelType::Chat => {
+                            if ui.button("ollama").clicked() {
+                                state.ai_state.chat_state = ChatState::ollama();
+                            }
+                            if ui.button("openrouter").clicked() {
+                                state.ai_state.chat_state = ChatState::openrouter();
+                            }
+
                             ui.collapsing("Options", |ui| {
                                 ui.label("Model");
                                 ui.text_edit_singleline(&mut state.ai_state.chat_state.model_name);
@@ -107,7 +114,11 @@ impl AIPanel {
                             });
                             ui.text_edit_multiline(&mut state.ai_state.chat_state.input);
                             if ui.button(">").clicked() {
-                                ollama_chat(state);
+                                if state.ai_state.chat_state.provider == "ollama" {
+                                    ollama_chat(state);
+                                } else if state.ai_state.chat_state.provider == "openrouter" {
+                                    openrouter_chat(state);
+                                }
                             }
                             ui.separator();
                             for message in &state.ai_state.chat_state.history {
