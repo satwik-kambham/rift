@@ -7,6 +7,8 @@ use crate::{
     state::EditorState,
 };
 
+pub mod tool_calling;
+
 pub struct GenerateState {
     pub model_name: String,
     pub url: String,
@@ -15,12 +17,18 @@ pub struct GenerateState {
     pub output: String,
     pub seed: usize,
     pub temperature: f32,
+    pub num_ctx: usize,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct LLMChatMessage {
     pub role: String,
     pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<serde_json::Value>,
+    /// Tool name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 pub struct ChatState {
@@ -57,7 +65,8 @@ impl Default for GenerateState {
             input: String::new(),
             output: String::new(),
             seed: 42,
-            temperature: 0.7,
+            temperature: 0.3,
+            num_ctx: 4096,
         }
     }
 }
@@ -71,7 +80,7 @@ impl ChatState {
             input: String::new(),
             history: vec![],
             seed: 42,
-            temperature: 0.7,
+            temperature: 0.3,
         }
     }
 
@@ -151,7 +160,8 @@ pub fn ollama_fim(state: &mut EditorState) {
                 "<|file_sep|>",
                 "<|im_start|>",
                 "<|im_end|>",
-            ]
+            ],
+            "num_ctx": state.ai_state.generate_state.num_ctx,
         }),
     };
     let body = serde_json::to_string(&request).unwrap();
@@ -174,8 +184,52 @@ pub fn ollama_fim(state: &mut EditorState) {
 pub struct OllamaChat {
     pub model: String,
     pub messages: Vec<LLMChatMessage>,
+    pub tools: serde_json::Value,
     pub stream: bool,
     pub options: Value,
+}
+
+pub fn ollama_chat_send(state: &mut EditorState) {
+    let request = OllamaChat {
+        model: state.ai_state.chat_state.model_name.clone(),
+        messages: state.ai_state.chat_state.history.clone(),
+        tools: tool_calling::get_tools(),
+        stream: false,
+        options: serde_json::json!({
+            "seed": state.ai_state.chat_state.seed,
+            "temperature": state.ai_state.chat_state.temperature,
+        }),
+    };
+    let body = serde_json::to_string(&request).unwrap();
+
+    post_request(
+        state.ai_state.chat_state.url.clone(),
+        body,
+        |response, state, _lsp_handle| {
+            let llm_response: Value = serde_json::from_str(&response).unwrap();
+            let message: LLMChatMessage =
+                serde_json::from_value(llm_response["message"].clone()).unwrap();
+            state.ai_state.chat_state.history.push(message.clone());
+
+            if message.tool_calls.is_some() {
+                tool_calling::handle_tool_calls_async(
+                    response,
+                    |response, state, _lsp_handle| {
+                        let tool_responses: Vec<LLMChatMessage> =
+                            serde_json::from_str(&response).unwrap();
+                        for tool_response in tool_responses {
+                            state.ai_state.chat_state.history.push(tool_response);
+                        }
+                        ollama_chat_send(state);
+                    },
+                    &state.rt,
+                    state.async_handle.sender.clone(),
+                );
+            }
+        },
+        &state.rt,
+        state.async_handle.sender.clone(),
+    );
 }
 
 pub fn ollama_chat(state: &mut EditorState) {
@@ -189,30 +243,11 @@ pub fn ollama_chat(state: &mut EditorState) {
     state.ai_state.chat_state.history.push(LLMChatMessage {
         role: "user".into(),
         content: prompt,
+        tool_calls: None,
+        name: None,
     });
-    let request = OllamaChat {
-        model: state.ai_state.chat_state.model_name.clone(),
-        messages: state.ai_state.chat_state.history.clone(),
-        stream: false,
-        options: serde_json::json!({
-            "seed": state.ai_state.chat_state.seed,
-            "temperature": state.ai_state.chat_state.temperature,
-        }),
-    };
-    let body = serde_json::to_string(&request).unwrap();
 
-    post_request(
-        state.ai_state.chat_state.url.clone(),
-        body,
-        |response, state, _lsp_handle| {
-            let response: Value = serde_json::from_str(&response).unwrap();
-            let message: LLMChatMessage =
-                serde_json::from_value(response["message"].clone()).unwrap();
-            state.ai_state.chat_state.history.push(message);
-        },
-        &state.rt,
-        state.async_handle.sender.clone(),
-    );
+    ollama_chat_send(state);
 }
 
 #[derive(serde::Serialize)]
@@ -249,6 +284,8 @@ pub fn openrouter_chat(state: &mut EditorState) {
     state.ai_state.chat_state.history.push(LLMChatMessage {
         role: "user".into(),
         content: prompt,
+        tool_calls: None,
+        name: None,
     });
     let request = OpenRouterChat {
         model: state.ai_state.chat_state.model_name.clone(),

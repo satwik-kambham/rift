@@ -62,6 +62,11 @@ impl AIPanel {
                                     &mut state.ai_state.generate_state.temperature,
                                 ));
 
+                                ui.label("Context Length");
+                                ui.add(egui::DragValue::new(
+                                    &mut state.ai_state.generate_state.num_ctx,
+                                ));
+
                                 ui.label("FIM Prompt");
                                 ui.text_edit_multiline(
                                     state
@@ -112,6 +117,15 @@ impl AIPanel {
                                     &mut state.ai_state.chat_state.temperature,
                                 ));
                             });
+                            for message in &state.ai_state.chat_state.history {
+                                ui.label(egui::RichText::new(&message.role).strong());
+                                ui.label(&message.content);
+                                if let Some(tool_calls) = &message.tool_calls {
+                                    ui.label(format!("Tool Requested: {}", tool_calls.to_string()));
+                                }
+                                ui.separator();
+                            }
+                            ui.separator();
                             ui.text_edit_multiline(&mut state.ai_state.chat_state.input);
                             if ui.button(">").clicked() {
                                 if state.ai_state.chat_state.provider == "ollama" {
@@ -121,12 +135,7 @@ impl AIPanel {
                                 }
                             }
                             ui.separator();
-                            for message in &state.ai_state.chat_state.history {
-                                ui.label(egui::RichText::new(&message.role).strong());
-                                ui.label(&message.content);
-                                ui.separator();
-                            }
-                            ui.separator();
+
                             if ui.button("clear").clicked() {
                                 state.ai_state.chat_state.history.clear();
                             }
