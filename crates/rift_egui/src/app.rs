@@ -110,16 +110,11 @@ impl App {
             };
         });
 
-        let mut char_height = 0.0;
-        let mut char_width = 0.0;
         let mut visible_lines = 0;
         let mut max_characters = 0;
 
-        self.ai_panel
-            .show(ctx, &mut self.state, &mut self.lsp_handles);
-
         show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
-        show_status_line(ctx, &mut self.state);
+        let (char_width, char_height) = show_status_line(ctx, &mut self.state);
 
         self.file_explorer
             .show(ctx, &mut self.state, &mut self.lsp_handles);
@@ -161,26 +156,10 @@ impl App {
                 }
             });
 
-        // Calculate character width and height
-        egui::CentralPanel::default()
-            .frame(egui::Frame {
-                fill: self.state.preferences.theme.editor_bg.into(),
-                inner_margin: egui::Margin::same(self.state.preferences.editor_padding),
-                ..Default::default()
-            })
-            .show(ctx, |ui| {
-                let label_response = ui.label(RichText::new("x").font(FontId::monospace(
-                    self.state.preferences.editor_font_size as f32,
-                )));
-                char_width = label_response.rect.width();
-                char_height = label_response.rect.height();
-            });
-
         // Render editor
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.editor_bg.into(),
-                outer_margin: egui::Margin::same(self.state.preferences.editor_padding),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -338,6 +317,9 @@ impl App {
                     show_signature_information(char_width, char_height, top_left, ctx, &self.state);
                 }
             });
+
+        self.ai_panel
+            .show(ctx, &mut self.state, &mut self.lsp_handles, true);
 
         // Render modals and other widgets
         self.info_modal.show(ctx, &mut self.state);

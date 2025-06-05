@@ -45,6 +45,7 @@ pub struct ChatState {
 pub struct AIState {
     pub generate_state: GenerateState,
     pub chat_state: ChatState,
+    pub pending_tool_calls: Vec<(String, String)>,
 }
 
 impl Default for GenerateState {
@@ -212,19 +213,36 @@ pub fn ollama_chat_send(state: &mut EditorState) {
             state.ai_state.chat_state.history.push(message.clone());
 
             if message.tool_calls.is_some() {
-                tool_calling::handle_tool_calls_async(
-                    response,
-                    |response, state, _lsp_handle| {
-                        let tool_responses: Vec<LLMChatMessage> =
-                            serde_json::from_str(&response).unwrap();
-                        for tool_response in tool_responses {
-                            state.ai_state.chat_state.history.push(tool_response);
-                        }
-                        ollama_chat_send(state);
-                    },
-                    &state.rt,
-                    state.async_handle.sender.clone(),
-                );
+                let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+                let message: LLMChatMessage =
+                    serde_json::from_value(response["message"].clone()).unwrap();
+                let tool_calls = message.tool_calls.unwrap();
+
+                for tool_call in tool_calls.as_array().unwrap() {
+                    let tool_name = tool_call["function"]["name"].as_str().unwrap();
+                    let tool_args = tool_call["function"]["arguments"].clone();
+                    let requires_approval =
+                        tool_calling::tool_requires_approval(tool_name, &tool_args);
+                    if requires_approval {
+                        state.ai_state.pending_tool_calls.push((
+                            tool_name.to_string(),
+                            serde_json::to_string(&tool_args).unwrap(),
+                        ));
+                    } else {
+                        tool_calling::handle_tool_calls_async(
+                            tool_name.to_string(),
+                            tool_args,
+                            |response, state, _lsp_handle| {
+                                let tool_response: LLMChatMessage =
+                                    serde_json::from_str(&response).unwrap();
+                                state.ai_state.chat_state.history.push(tool_response);
+                                ollama_chat_send(state);
+                            },
+                            &state.rt,
+                            state.async_handle.sender.clone(),
+                        );
+                    }
+                }
             }
         },
         &state.rt,
