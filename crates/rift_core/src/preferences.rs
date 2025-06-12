@@ -62,7 +62,7 @@ impl Default for Preferences {
             gutter_padding: 4,
             editor_padding: 4,
             trigger_completion_on_type: true,
-            show_file_explorer: true,
+            show_file_explorer: false,
             show_ai_panel: false,
         }
     }

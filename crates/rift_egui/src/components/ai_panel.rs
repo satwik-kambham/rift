@@ -117,7 +117,7 @@ impl AIPanel {
             }
             PanelType::Chat => {
                 if ui.button("ollama").clicked() {
-                    state.ai_state.chat_state = ChatState::ollama();
+                    state.ai_state.chat_state = ChatState::ollama(Some(state));
                 }
                 if ui.button("openrouter").clicked() {
                     state.ai_state.chat_state = ChatState::openrouter();

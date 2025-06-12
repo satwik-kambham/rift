@@ -147,7 +147,7 @@ pub fn file_context_menu(
     entry: &FolderEntry,
     ui: &mut egui::Ui,
     state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    _lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
     if ui.button("Create File").clicked() {}
     if ui.button("Create Folder").clicked() {}

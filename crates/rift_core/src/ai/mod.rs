@@ -46,6 +46,7 @@ pub struct AIState {
     pub generate_state: GenerateState,
     pub chat_state: ChatState,
     pub pending_tool_calls: Vec<(String, String)>,
+    pub enable_thinking: bool,
 }
 
 impl Default for GenerateState {
@@ -73,13 +74,18 @@ impl Default for GenerateState {
 }
 
 impl ChatState {
-    pub fn ollama() -> Self {
+    pub fn ollama(state: Option<&mut EditorState>) -> Self {
         Self {
             provider: "ollama".into(),
             model_name: "qwen3:30b-a3b".into(),
             url: "http://localhost:11434/api/chat".into(),
             input: String::new(),
-            history: vec![],
+            history: vec![LLMChatMessage {
+                role: "system".into(),
+                content: create_system_prompt(state),
+                tool_calls: None,
+                name: None,
+            }],
             seed: 42,
             temperature: 0.3,
         }
@@ -100,7 +106,7 @@ impl ChatState {
 
 impl Default for ChatState {
     fn default() -> Self {
-        ChatState::ollama()
+        ChatState::ollama(None)
     }
 }
 
@@ -111,6 +117,21 @@ pub fn formatter(format: String, args: HashMap<String, String>) -> String {
         result = result.replace(&placeholder, &value);
     }
     result
+}
+
+pub fn create_system_prompt(state: Option<&mut EditorState>) -> String {
+    if let Some(state) = state {
+        return formatter(
+            include_str!("SYSTEM.md").to_string(),
+            HashMap::from([
+                ("workspace_dir".into(), state.workspace_folder.clone()),
+                ("platform".into(), "Linux (NixOS)".into()),
+                ("file_tree".into(), tool_calling::get_file_tree()),
+            ]),
+        );
+    } else {
+        return include_str!("SYSTEM.md").to_string();
+    }
 }
 
 #[derive(Debug, serde::Serialize)]
