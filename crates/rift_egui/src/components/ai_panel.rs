@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rift_core::{
     actions::{perform_action, Action},
-    ai::{ollama_chat, ollama_fim, openrouter_chat, ChatState},
+    ai::{llamacpp_chat, ollama_chat, ollama_fim, openrouter_chat, ChatState},
     buffer::instance::Language,
     lsp::client::LSPClientHandle,
     state::EditorState,
@@ -116,11 +116,14 @@ impl AIPanel {
                 }
             }
             PanelType::Chat => {
+                if ui.button("llamacpp").clicked() {
+                    state.ai_state.chat_state = ChatState::llamacpp(Some(state));
+                }
                 if ui.button("ollama").clicked() {
                     state.ai_state.chat_state = ChatState::ollama(Some(state));
                 }
                 if ui.button("openrouter").clicked() {
-                    state.ai_state.chat_state = ChatState::openrouter();
+                    state.ai_state.chat_state = ChatState::openrouter(Some(state));
                 }
 
                 ui.collapsing("Options", |ui| {
@@ -140,7 +143,7 @@ impl AIPanel {
                 });
                 for message in &state.ai_state.chat_state.history {
                     ui.label(egui::RichText::new(&message.role).strong());
-                    ui.label(&message.content);
+                    ui.label(&message.content.clone().unwrap_or_default());
                     if let Some(tool_calls) = &message.tool_calls {
                         ui.label(format!("Tool Requested: {}", tool_calls.to_string()));
                     }
@@ -148,15 +151,15 @@ impl AIPanel {
                 }
                 ui.separator();
                 if !state.ai_state.pending_tool_calls.is_empty() {
-                    for (tool_name, tool_args) in &state.ai_state.pending_tool_calls {
+                    for (tool_name, tool_args, _) in &state.ai_state.pending_tool_calls {
                         ui.horizontal(|ui| {
                             ui.label(tool_name);
                             ui.label(tool_args);
                         });
                     }
                     if ui.button("approve").clicked() {
-                        let (tool_name, tool_args) = state.ai_state.pending_tool_calls.remove(0);
-                        rift_core::ai::tool_calling::handle_tool_calls(tool_name, tool_args, state);
+                        let (tool_name, tool_args, tool_call_id) = state.ai_state.pending_tool_calls.remove(0);
+                        rift_core::ai::tool_calling::handle_tool_calls(tool_name, tool_args, tool_call_id, state);
                     }
                     if ui.button("deny").clicked() {
                         state.ai_state.pending_tool_calls.remove(0);
@@ -165,7 +168,9 @@ impl AIPanel {
                 ui.separator();
                 ui.text_edit_multiline(&mut state.ai_state.chat_state.input);
                 if ui.button(">").clicked() {
-                    if state.ai_state.chat_state.provider == "ollama" {
+                    if state.ai_state.chat_state.provider == "llamacpp" {
+                        llamacpp_chat(state);
+                    } else if state.ai_state.chat_state.provider == "ollama" {
                         ollama_chat(state);
                     } else if state.ai_state.chat_state.provider == "openrouter" {
                         openrouter_chat(state);

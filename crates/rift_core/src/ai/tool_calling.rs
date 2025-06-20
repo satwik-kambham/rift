@@ -111,15 +111,22 @@ pub fn tool_requires_approval(tool_name: &str, _tool_arguments: &serde_json::Val
     }
 }
 
-pub fn handle_tool_calls(tool_name: String, tool_arguments: String, state: &mut EditorState) {
+pub fn handle_tool_calls(tool_name: String, tool_arguments: String, tool_call_id: Option<String>, state: &mut EditorState) {
     let tool_args = serde_json::from_str(&tool_arguments).unwrap();
     handle_tool_calls_async(
         tool_name.to_string(),
         tool_args,
+        tool_call_id,
         |response, state, _lsp_handle| {
             let tool_response: LLMChatMessage = serde_json::from_str(&response).unwrap();
             state.ai_state.chat_state.history.push(tool_response);
-            crate::ai::ollama_chat_send(state);
+            if state.ai_state.chat_state.provider == "llamacpp" {
+                crate::ai::llamacpp_chat_send(state);
+            } else if state.ai_state.chat_state.provider == "ollama" {
+                crate::ai::ollama_chat_send(state);
+            } else if state.ai_state.chat_state.provider == "openrouter" {
+                crate::ai::openrouter_chat_send(state);
+            }
         },
         &state.rt,
         state.async_handle.sender.clone(),
@@ -129,6 +136,7 @@ pub fn handle_tool_calls(tool_name: String, tool_arguments: String, state: &mut 
 pub fn handle_tool_calls_async(
     tool_name: String,
     tool_arguments: serde_json::Value,
+    tool_call_id: Option<String>,
     callback: fn(
         String,
         state: &mut EditorState,
@@ -141,9 +149,10 @@ pub fn handle_tool_calls_async(
         let tool_response = get_tool_response(&tool_name, &tool_arguments).await;
         let tool_response = LLMChatMessage {
             role: "tool".into(),
-            content: tool_response,
+            content: Some(tool_response),
             tool_calls: None,
             name: Some(tool_name.to_string()),
+            tool_call_id,
         };
         let tool_response = serde_json::to_string(&tool_response).unwrap();
 

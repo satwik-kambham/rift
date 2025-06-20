@@ -166,11 +166,11 @@ impl LineBuffer {
 
         let highlight_params = if let Some(mut language_config) = language_config {
             language_config.configure(&highlight_names);
-            tracing::info!(
-                "Highlight Names: {:#?} {:#?}",
-                language,
-                language_config.names()
-            );
+            // tracing::info!(
+            //     "Highlight Names: {:#?} {:#?}",
+            //     language,
+            //     language_config.names()
+            // );
 
             Some(TreeSitterParams {
                 language_config,

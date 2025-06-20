@@ -23,12 +23,14 @@ pub struct GenerateState {
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct LLMChatMessage {
     pub role: String,
-    pub content: String,
+    pub content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<serde_json::Value>,
     /// Tool name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 pub struct ChatState {
@@ -45,7 +47,7 @@ pub struct ChatState {
 pub struct AIState {
     pub generate_state: GenerateState,
     pub chat_state: ChatState,
-    pub pending_tool_calls: Vec<(String, String)>,
+    pub pending_tool_calls: Vec<(String, String, Option<String>)>,
     pub enable_thinking: bool,
 }
 
@@ -74,6 +76,24 @@ impl Default for GenerateState {
 }
 
 impl ChatState {
+    pub fn llamacpp(state: Option<&mut EditorState>) -> Self {
+        Self {
+            provider: "llamacpp".into(),
+            model_name: "qwen3:30b-a3b".into(),
+            url: "http://localhost:8080/v1/chat/completions".into(),
+            input: String::new(),
+            history: vec![LLMChatMessage {
+                role: "system".into(),
+                content: Some(create_system_prompt(state)),
+                tool_calls: None,
+                name: None,
+                tool_call_id: None,
+            }],
+            seed: 42,
+            temperature: 0.3,
+        }
+    }
+
     pub fn ollama(state: Option<&mut EditorState>) -> Self {
         Self {
             provider: "ollama".into(),
@@ -82,31 +102,38 @@ impl ChatState {
             input: String::new(),
             history: vec![LLMChatMessage {
                 role: "system".into(),
-                content: create_system_prompt(state),
+                content: Some(create_system_prompt(state)),
                 tool_calls: None,
                 name: None,
+                tool_call_id: None,
             }],
             seed: 42,
             temperature: 0.3,
         }
     }
 
-    pub fn openrouter() -> Self {
+    pub fn openrouter(state: Option<&mut EditorState>) -> Self {
         Self {
             provider: "openrouter".into(),
-            model_name: "google/gemini-2.5-flash-preview-05-20".into(),
+            model_name: "mistralai/devstral-small".into(),
             url: "https://openrouter.ai/api/v1/chat/completions".into(),
             input: String::new(),
-            history: vec![],
+            history: vec![LLMChatMessage {
+                role: "system".into(),
+                content: Some(create_system_prompt(state)),
+                tool_calls: None,
+                name: None,
+                tool_call_id: None,
+            }],
             seed: 42,
-            temperature: 0.7,
+            temperature: 0.2,
         }
     }
 }
 
 impl Default for ChatState {
     fn default() -> Self {
-        ChatState::ollama(None)
+        ChatState::llamacpp(None)
     }
 }
 
@@ -203,6 +230,101 @@ pub fn ollama_fim(state: &mut EditorState) {
 
 #[derive(serde::Serialize)]
 /// Request content for ollama generate api
+pub struct LlamacppChat {
+    pub model: String,
+    pub messages: Vec<LLMChatMessage>,
+    pub tools: serde_json::Value,
+    pub stream: bool,
+    pub temperature: Option<f32>,
+    pub seed: Option<usize>,
+}
+
+pub fn llamacpp_chat_send(state: &mut EditorState) {
+    let request = LlamacppChat {
+        model: state.ai_state.chat_state.model_name.clone(),
+        messages: state.ai_state.chat_state.history.clone(),
+        tools: tool_calling::get_tools(),
+        stream: false,
+        temperature: Some(state.ai_state.chat_state.temperature),
+        seed: Some(state.ai_state.chat_state.seed),
+    };
+    let body = serde_json::to_string(&request).unwrap();
+
+    post_request(
+        state.ai_state.chat_state.url.clone(),
+        body,
+        |response, state, _lsp_handle| {
+            tracing::info!(response);
+            let llm_response: Value = serde_json::from_str(&response).unwrap();
+            let choices = llm_response["choices"].as_array().unwrap();
+            let message: LLMChatMessage =
+                serde_json::from_value(choices[0]["message"].clone()).unwrap();
+            state.ai_state.chat_state.history.push(message.clone());
+
+            if message.tool_calls.is_some() {
+                let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+                let choices = response["choices"].as_array().unwrap();
+                let message: LLMChatMessage =
+                    serde_json::from_value(choices[0]["message"].clone()).unwrap();
+                let tool_calls = message.tool_calls.unwrap();
+
+                for tool_call in tool_calls.as_array().unwrap() {
+                    let tool_name = tool_call["function"]["name"].as_str().unwrap();
+                    let tool_args = tool_call["function"]["arguments"].as_str().unwrap();
+                    let tool_args = serde_json::from_str(tool_args).unwrap();
+                    let tool_call_id = tool_call["id"].as_str().unwrap();
+                    let requires_approval =
+                        tool_calling::tool_requires_approval(tool_name, &tool_args);
+                    if requires_approval {
+                        state.ai_state.pending_tool_calls.push((
+                            tool_name.to_string(),
+                            serde_json::to_string(&tool_args).unwrap(),
+                            Some(tool_call_id.to_string()),
+                        ));
+                    } else {
+                        tool_calling::handle_tool_calls_async(
+                            tool_name.to_string(),
+                            tool_args,
+                            Some(tool_call_id.to_string()),
+                            |response, state, _lsp_handle| {
+                                let tool_response: LLMChatMessage =
+                                    serde_json::from_str(&response).unwrap();
+                                state.ai_state.chat_state.history.push(tool_response);
+                                llamacpp_chat_send(state);
+                            },
+                            &state.rt,
+                            state.async_handle.sender.clone(),
+                        );
+                    }
+                }
+            }
+        },
+        &state.rt,
+        state.async_handle.sender.clone(),
+    );
+}
+
+pub fn llamacpp_chat(state: &mut EditorState) {
+    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+
+    let prompt = formatter(
+        state.ai_state.chat_state.input.clone(),
+        HashMap::from([("source".into(), buffer.get_content("\n".to_string()))]),
+    );
+
+    state.ai_state.chat_state.history.push(LLMChatMessage {
+        role: "user".into(),
+        content: Some(prompt),
+        tool_calls: None,
+        name: None,
+        tool_call_id: None,
+    });
+
+    llamacpp_chat_send(state);
+}
+
+#[derive(serde::Serialize)]
+/// Request content for ollama generate api
 pub struct OllamaChat {
     pub model: String,
     pub messages: Vec<LLMChatMessage>,
@@ -228,6 +350,7 @@ pub fn ollama_chat_send(state: &mut EditorState) {
         state.ai_state.chat_state.url.clone(),
         body,
         |response, state, _lsp_handle| {
+            tracing::info!(response);
             let llm_response: Value = serde_json::from_str(&response).unwrap();
             let message: LLMChatMessage =
                 serde_json::from_value(llm_response["message"].clone()).unwrap();
@@ -248,11 +371,13 @@ pub fn ollama_chat_send(state: &mut EditorState) {
                         state.ai_state.pending_tool_calls.push((
                             tool_name.to_string(),
                             serde_json::to_string(&tool_args).unwrap(),
+                            None,
                         ));
                     } else {
                         tool_calling::handle_tool_calls_async(
                             tool_name.to_string(),
                             tool_args,
+                            None,
                             |response, state, _lsp_handle| {
                                 let tool_response: LLMChatMessage =
                                     serde_json::from_str(&response).unwrap();
@@ -281,9 +406,10 @@ pub fn ollama_chat(state: &mut EditorState) {
 
     state.ai_state.chat_state.history.push(LLMChatMessage {
         role: "user".into(),
-        content: prompt,
+        content: Some(prompt),
         tool_calls: None,
         name: None,
+        tool_call_id: None,
     });
 
     ollama_chat_send(state);
@@ -298,6 +424,8 @@ pub struct OpenRouterChat {
     /// Allowed role values: system, developer, user, assistant, tool
     messages: Vec<LLMChatMessage>,
 
+    tools: serde_json::Value,
+
     /// Whether to include usage information in the response.
     usage: bool,
 
@@ -311,8 +439,77 @@ pub struct OpenRouterChat {
     seed: Option<usize>,
 }
 
-pub fn openrouter_chat(state: &mut EditorState) {
+pub fn openrouter_chat_send(state: &mut EditorState) {
     let auth_token = std::env::var("OPENROUTER_KEY").unwrap();
+
+    let request = OpenRouterChat {
+        model: state.ai_state.chat_state.model_name.clone(),
+        messages: state.ai_state.chat_state.history.clone(),
+        tools: tool_calling::get_tools(),
+        stream: false,
+        usage: true,
+        temperature: Some(state.ai_state.chat_state.temperature),
+        seed: Some(state.ai_state.chat_state.seed),
+    };
+
+    let body = serde_json::to_value(&request).unwrap();
+
+    post_request_json_body_with_bearer_auth(
+        state.ai_state.chat_state.url.clone(),
+        body,
+        auth_token,
+        |response, state, _lsp_handle| {
+            tracing::info!(response);
+            let llm_response: Value = serde_json::from_str(&response).unwrap();
+            let choices = llm_response["choices"].as_array().unwrap();
+            let message: LLMChatMessage =
+                serde_json::from_value(choices[0]["message"].clone()).unwrap();
+            state.ai_state.chat_state.history.push(message.clone());
+
+            if message.tool_calls.is_some() {
+                let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+                let choices = response["choices"].as_array().unwrap();
+                let message: LLMChatMessage =
+                    serde_json::from_value(choices[0]["message"].clone()).unwrap();
+                let tool_calls = message.tool_calls.unwrap();
+                for tool_call in tool_calls.as_array().unwrap() {
+                    let tool_name = tool_call["function"]["name"].as_str().unwrap();
+                    let tool_args = tool_call["function"]["arguments"].as_str().unwrap();
+                    let tool_args = serde_json::from_str(tool_args).unwrap();
+                    let tool_call_id = tool_call["id"].as_str().unwrap();
+
+                    let requires_approval =
+                        tool_calling::tool_requires_approval(tool_name, &tool_args);
+                    if requires_approval {
+                        state.ai_state.pending_tool_calls.push((
+                            tool_name.to_string(),
+                            serde_json::to_string(&tool_args).unwrap(),
+                            Some(tool_call_id.to_string()),
+                        ));
+                    } else {
+                        tool_calling::handle_tool_calls_async(
+                            tool_name.to_string(),
+                            tool_args,
+                            Some(tool_call_id.to_string()),
+                            |response, state, _lsp_handle| {
+                                let tool_response: LLMChatMessage =
+                                    serde_json::from_str(&response).unwrap();
+                                state.ai_state.chat_state.history.push(tool_response);
+                                openrouter_chat_send(state);
+                            },
+                            &state.rt,
+                            state.async_handle.sender.clone(),
+                        );
+                    }
+                }
+            }
+        },
+        &state.rt,
+        state.async_handle.sender.clone(),
+    );
+}
+
+pub fn openrouter_chat(state: &mut EditorState) {
     let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
 
     let prompt = formatter(
@@ -322,32 +519,11 @@ pub fn openrouter_chat(state: &mut EditorState) {
 
     state.ai_state.chat_state.history.push(LLMChatMessage {
         role: "user".into(),
-        content: prompt,
+        content: Some(prompt),
         tool_calls: None,
         name: None,
+        tool_call_id: None,
     });
-    let request = OpenRouterChat {
-        model: state.ai_state.chat_state.model_name.clone(),
-        messages: state.ai_state.chat_state.history.clone(),
-        stream: false,
-        usage: true,
-        temperature: Some(state.ai_state.chat_state.temperature),
-        seed: Some(state.ai_state.chat_state.seed),
-    };
-    let body = serde_json::to_value(&request).unwrap();
 
-    post_request_json_body_with_bearer_auth(
-        state.ai_state.chat_state.url.clone(),
-        body,
-        auth_token,
-        |response, state, _lsp_handle| {
-            let response: Value = serde_json::from_str(&response).unwrap();
-            let choices = response["choices"].as_array().unwrap();
-            let message: LLMChatMessage =
-                serde_json::from_value(choices[0]["message"].clone()).unwrap();
-            state.ai_state.chat_state.history.push(message);
-        },
-        &state.rt,
-        state.async_handle.sender.clone(),
-    );
+    openrouter_chat_send(state);
 }
