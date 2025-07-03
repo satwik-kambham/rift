@@ -66,6 +66,77 @@ pub fn read_file(workspace_dir: &str, path: &str) -> String {
     }
 }
 
+pub fn write_file(workspace_dir: &str, file_path: &str, content: &str) -> String {
+    if !is_absolute_path(file_path) {
+        return "Error: file_path is not absolute".to_string();
+    }
+    if !is_in_workspace(workspace_dir, file_path) {
+        return "Error: file_path is not in workspace".to_string();
+    }
+
+    let parent_dir = Path::new(file_path).parent().unwrap();
+    if let Err(e) = std::fs::create_dir_all(parent_dir) {
+        return format!(
+            "Error creating parent directories for '{}': {}",
+            file_path, e
+        );
+    }
+
+    match std::fs::write(file_path, content) {
+        Ok(_) => format!("Successfully wrote to file: {}", file_path),
+        Err(e) => format!("Error writing to file '{}': {}", file_path, e),
+    }
+}
+
+pub fn replace(
+    workspace_dir: &str,
+    file_path: &str,
+    old_string: &str,
+    new_string: &str,
+    expected_replacements: Option<usize>,
+) -> String {
+    if !is_absolute_path(file_path) {
+        return "Error: file_path is not absolute.".to_string();
+    }
+    if !is_in_workspace(workspace_dir, file_path) {
+        return "Error: file_path is not in workspace.".to_string();
+    }
+
+    let file_content = match std::fs::read_to_string(file_path) {
+        Ok(content) => content,
+        Err(e) => return format!("Error reading file '{}': {}", file_path, e),
+    };
+
+    let original_content = file_content.clone();
+    let replaced_content = original_content.replace(old_string, new_string);
+
+    let actual_replacements = original_content.matches(old_string).count();
+
+    if let Some(expected) = expected_replacements {
+        if actual_replacements != expected {
+            return format!(
+                "Error: Expected {} replacements, but found {} occurrences of the old string.",
+                expected, actual_replacements
+            );
+        }
+    } else if actual_replacements == 0 {
+        return format!(
+            "Error: No occurrences of the old string found in '{}'.",
+            file_path
+        );
+    }
+
+    let file_content = replaced_content;
+
+    match std::fs::write(file_path, file_content) {
+        Ok(_) => format!(
+            "Successfully replaced content in '{}'. {} occurrences replaced.",
+            file_path, actual_replacements
+        ),
+        Err(e) => format!("Error writing to file '{}': {}", file_path, e),
+    }
+}
+
 pub fn get_datetime() -> String {
     let now = Local::now();
     now.format("%d/%m/%Y %H:%M").to_string()
@@ -111,6 +182,38 @@ pub fn get_tools() -> serde_json::Value {
                     "required": ["path"]
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "write_file",
+                "description": "Writes content to a specified file replacing the existing content.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string"},
+                        "content": {"type": "string"},
+                    },
+                    "required": ["file_path", "content"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "replace",
+                "description": "Replaces text within a file. Can replace single or multiple occurrences.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string"},
+                        "old_string": {"type": "string"},
+                        "new_string": {"type": "string"},
+                        "expected_replacements": {"type": "number", "optional": true},
+                    },
+                    "required": ["file_path", "old_string", "new_string"]
+                }
+            }
         }
     ])
 }
@@ -121,8 +224,24 @@ pub async fn get_tool_response(
     workspace_dir: &str,
 ) -> String {
     match tool_name {
-        "run_shell_command" => run_shell_command(workspace_dir, tool_arguments["command"].as_str().unwrap()).await,
+        "run_shell_command" => {
+            run_shell_command(workspace_dir, tool_arguments["command"].as_str().unwrap()).await
+        }
         "read_file" => read_file(workspace_dir, tool_arguments["path"].as_str().unwrap()),
+        "write_file" => write_file(
+            workspace_dir,
+            tool_arguments["file_path"].as_str().unwrap(),
+            tool_arguments["content"].as_str().unwrap(),
+        ),
+        "replace" => replace(
+            workspace_dir,
+            tool_arguments["file_path"].as_str().unwrap(),
+            tool_arguments["old_string"].as_str().unwrap(),
+            tool_arguments["new_string"].as_str().unwrap(),
+            tool_arguments["expected_replacements"]
+                .as_u64()
+                .map(|u| u as usize),
+        ),
         "get_datetime" => get_datetime(),
         _ => "Unknown Tool".to_string(),
     }
@@ -132,6 +251,8 @@ pub fn tool_requires_approval(tool_name: &str, _tool_arguments: &serde_json::Val
     match tool_name {
         "run_shell_command" => true,
         "read_file" => false,
+        "write_file" => true,
+        "replace" => true,
         "get_datetime" => false,
         _ => true,
     }
