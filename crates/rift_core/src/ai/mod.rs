@@ -286,6 +286,7 @@ pub fn llamacpp_chat_send(state: &mut EditorState) {
                             tool_name.to_string(),
                             tool_args,
                             Some(tool_call_id.to_string()),
+                            state.workspace_folder.clone(),
                             |response, state, _lsp_handle| {
                                 let tool_response: LLMChatMessage =
                                     serde_json::from_str(&response).unwrap();
@@ -378,6 +379,7 @@ pub fn ollama_chat_send(state: &mut EditorState) {
                             tool_name.to_string(),
                             tool_args,
                             None,
+                            state.workspace_folder.clone(),
                             |response, state, _lsp_handle| {
                                 let tool_response: LLMChatMessage =
                                     serde_json::from_str(&response).unwrap();
@@ -491,6 +493,7 @@ pub fn openrouter_chat_send(state: &mut EditorState) {
                             tool_name.to_string(),
                             tool_args,
                             Some(tool_call_id.to_string()),
+                            state.workspace_folder.clone(),
                             |response, state, _lsp_handle| {
                                 let tool_response: LLMChatMessage =
                                     serde_json::from_str(&response).unwrap();

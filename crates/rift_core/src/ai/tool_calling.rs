@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::Read};
+use std::{collections::HashMap, path::Path};
 
 use chrono::Local;
 use tokio::process::Command;
@@ -8,17 +8,31 @@ use crate::ai::LLMChatMessage;
 use crate::concurrent::AsyncResult;
 use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
 
-pub async fn run_command(command: &str) -> String {
-    let output = Command::new("sh")
+pub fn is_absolute_path(path: &str) -> bool {
+    Path::new(path).is_absolute()
+}
+
+pub fn is_in_workspace(workspace_dir: &str, path: &str) -> bool {
+    let workspace_path = Path::new(workspace_dir);
+    let file_path = Path::new(path);
+    file_path.starts_with(workspace_path)
+}
+
+pub async fn run_shell_command(workspace_dir: &str, command: &str) -> String {
+    match Command::new("sh")
         .arg("-c")
         .arg(command)
+        .current_dir(workspace_dir)
         .output()
         .await
-        .unwrap();
-
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    format!("STDOUT:\n{}\n\nSTDERR:\n{}", stdout, stderr)
+    {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            format!("STDOUT:\n{}\n\nSTDERR:\n{}", stdout, stderr)
+        }
+        Err(e) => format!("Error executing command: {}", e),
+    }
 }
 
 pub fn get_file_tree() -> String {
@@ -31,17 +45,25 @@ pub fn get_file_tree() -> String {
     stdout
 }
 
-pub fn get_file_content(path: &str) -> String {
-    let mut f = File::open(path).unwrap();
-    let mut buf = String::new();
+pub fn read_file(workspace_dir: &str, path: &str) -> String {
+    if !is_absolute_path(path) {
+        return "Error: path is not absolute".to_string();
+    }
+    if !is_in_workspace(workspace_dir, path) {
+        return "Error: path is not in workspace".to_string();
+    }
 
-    let _ = f.read_to_string(&mut buf).unwrap();
-    let lines: Vec<String> = buf
-        .lines()
-        .enumerate()
-        .map(|(line_number, line)| format!("{}\t{}", line_number + 1, line))
-        .collect();
-    format!("{}\n\n{}", path, lines.join("\n"))
+    match std::fs::read_to_string(path) {
+        Ok(buf) => {
+            let lines: Vec<String> = buf
+                .lines()
+                .enumerate()
+                .map(|(line_number, line)| format!("{}\t{}", line_number + 1, line))
+                .collect();
+            format!("{}\n\n{}", path, lines.join("\n"))
+        }
+        Err(e) => format!("Error reading file '{}': {}", path, e),
+    }
 }
 
 pub fn get_datetime() -> String {
@@ -54,7 +76,7 @@ pub fn get_tools() -> serde_json::Value {
         {
             "type": "function",
             "function": {
-                "name": "run_command",
+                "name": "run_shell_command",
                 "description": "Run a shell command and return the output",
                 "parameters": {
                     "type": "object",
@@ -79,7 +101,7 @@ pub fn get_tools() -> serde_json::Value {
         {
             "type": "function",
             "function": {
-                "name": "get_file_content",
+                "name": "read_file",
                 "description": "Get the content of a file with line numbers",
                 "parameters": {
                     "type": "object",
@@ -93,10 +115,14 @@ pub fn get_tools() -> serde_json::Value {
     ])
 }
 
-pub async fn get_tool_response(tool_name: &str, tool_arguments: &serde_json::Value) -> String {
+pub async fn get_tool_response(
+    tool_name: &str,
+    tool_arguments: &serde_json::Value,
+    workspace_dir: &str,
+) -> String {
     match tool_name {
-        "run_command" => run_command(tool_arguments["command"].as_str().unwrap()).await,
-        "get_file_content" => get_file_content(tool_arguments["path"].as_str().unwrap()),
+        "run_shell_command" => run_shell_command(workspace_dir, tool_arguments["command"].as_str().unwrap()).await,
+        "read_file" => read_file(workspace_dir, tool_arguments["path"].as_str().unwrap()),
         "get_datetime" => get_datetime(),
         _ => "Unknown Tool".to_string(),
     }
@@ -104,19 +130,25 @@ pub async fn get_tool_response(tool_name: &str, tool_arguments: &serde_json::Val
 
 pub fn tool_requires_approval(tool_name: &str, _tool_arguments: &serde_json::Value) -> bool {
     match tool_name {
-        "run_command" => true,
-        "get_file_content" => false,
+        "run_shell_command" => true,
+        "read_file" => false,
         "get_datetime" => false,
         _ => true,
     }
 }
 
-pub fn handle_tool_calls(tool_name: String, tool_arguments: String, tool_call_id: Option<String>, state: &mut EditorState) {
+pub fn handle_tool_calls(
+    tool_name: String,
+    tool_arguments: String,
+    tool_call_id: Option<String>,
+    state: &mut EditorState,
+) {
     let tool_args = serde_json::from_str(&tool_arguments).unwrap();
     handle_tool_calls_async(
         tool_name.to_string(),
         tool_args,
         tool_call_id,
+        state.workspace_folder.clone(),
         |response, state, _lsp_handle| {
             let tool_response: LLMChatMessage = serde_json::from_str(&response).unwrap();
             state.ai_state.chat_state.history.push(tool_response);
@@ -137,6 +169,7 @@ pub fn handle_tool_calls_async(
     tool_name: String,
     tool_arguments: serde_json::Value,
     tool_call_id: Option<String>,
+    workspace_dir: String,
     callback: fn(
         String,
         state: &mut EditorState,
@@ -146,7 +179,7 @@ pub fn handle_tool_calls_async(
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {
-        let tool_response = get_tool_response(&tool_name, &tool_arguments).await;
+        let tool_response = get_tool_response(&tool_name, &tool_arguments, &workspace_dir).await;
         let tool_response = LLMChatMessage {
             role: "tool".into(),
             content: Some(tool_response),
