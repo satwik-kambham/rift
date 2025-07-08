@@ -482,7 +482,7 @@ impl App {
                                 if let Some(on_input) = self.state.modal.on_input {
                                     on_input(&input, &mut self.state, &mut self.lsp_handles);
                                 }
-                                self.modal_list_state.select(None);
+                                self.modal_list_state.select(self.state.modal.selection);
                             } else if key.code == KeyCode::Tab {
                                 self.state.modal.select_next();
                                 self.modal_list_state.select(self.state.modal.selection);
