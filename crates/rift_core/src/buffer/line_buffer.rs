@@ -487,12 +487,12 @@ impl LineBuffer {
 
         for line_info in &gutter_info {
             while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {
+                let line_end = self.lines[line_info.start.row].len();
                 let mut buffer_segment = self.lines[line_info.start.row][segment.start
                     - line_info.start_byte
                     + line_info.start.column
-                    ..(segment.end - line_info.start_byte + 1 + line_info.start.column).min(
-                        line_info.end_byte - line_info.start_byte - 1 + line_info.start.column,
-                    )]
+                    ..(segment.end - line_info.start_byte + 1 + line_info.start.column)
+                        .min(line_end)]
                     .to_string();
                 if segment.attributes.contains(&Attribute::Cursor) && buffer_segment.is_empty() {
                     buffer_segment.push(' ');
