@@ -288,7 +288,7 @@ impl LineBuffer {
         eol_sequence: String,
         mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
-        let max_characters = max_characters - 1;
+        let max_characters = max_characters - 3;
         let mut segments = vec![];
         segments.append(&mut extra_segments);
 

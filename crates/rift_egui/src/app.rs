@@ -205,6 +205,9 @@ impl App {
                 // Render buffer
                 for line in &self.state.highlighted_text {
                     let mut job = LayoutJob::default();
+                    job.wrap.max_width = f32::INFINITY;
+                    job.wrap.max_rows = 1;
+                    // job.wrap.break_anywhere = true;
                     for token in line {
                         let mut format = egui::TextFormat {
                             font_id: FontId::monospace(
