@@ -116,15 +116,34 @@ impl AIPanel {
                 }
             }
             PanelType::Chat => {
-                if ui.button("llamacpp").clicked() {
-                    state.ai_state.chat_state = ChatState::llamacpp(Some(state));
-                }
-                if ui.button("ollama").clicked() {
-                    state.ai_state.chat_state = ChatState::ollama(Some(state));
-                }
-                if ui.button("openrouter").clicked() {
-                    state.ai_state.chat_state = ChatState::openrouter(Some(state));
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("llamacpp").clicked() {
+                        state.ai_state.chat_state = ChatState::llamacpp();
+                    }
+                    if ui.button("ollama").clicked() {
+                        state.ai_state.chat_state = ChatState::ollama();
+                    }
+                    if ui.button("openrouter").clicked() {
+                        state.ai_state.chat_state = ChatState::openrouter();
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    if ui.button("Default").clicked() {
+                        perform_action(
+                            Action::SetSystemPrompt("default".to_string()),
+                            state,
+                            lsp_handles,
+                        );
+                    }
+                    if ui.button("Agentic Coding").clicked() {
+                        perform_action(
+                            Action::SetSystemPrompt("agentic_coding".to_string()),
+                            state,
+                            lsp_handles,
+                        );
+                    }
+                });
 
                 ui.collapsing("Options", |ui| {
                     ui.label("Model");
@@ -158,8 +177,14 @@ impl AIPanel {
                         });
                     }
                     if ui.button("approve").clicked() {
-                        let (tool_name, tool_args, tool_call_id) = state.ai_state.pending_tool_calls.remove(0);
-                        rift_core::ai::tool_calling::handle_tool_calls(tool_name, tool_args, tool_call_id, state);
+                        let (tool_name, tool_args, tool_call_id) =
+                            state.ai_state.pending_tool_calls.remove(0);
+                        rift_core::ai::tool_calling::handle_tool_calls(
+                            tool_name,
+                            tool_args,
+                            tool_call_id,
+                            state,
+                        );
                     }
                     if ui.button("deny").clicked() {
                         state.ai_state.pending_tool_calls.remove(0);

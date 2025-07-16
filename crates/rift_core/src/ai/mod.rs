@@ -76,55 +76,37 @@ impl Default for GenerateState {
 }
 
 impl ChatState {
-    pub fn llamacpp(state: Option<&mut EditorState>) -> Self {
+    pub fn llamacpp() -> Self {
         Self {
             provider: "llamacpp".into(),
             model_name: "qwen3:30b-a3b".into(),
             url: "http://localhost:8080/v1/chat/completions".into(),
             input: String::new(),
-            history: vec![LLMChatMessage {
-                role: "system".into(),
-                content: Some(create_system_prompt(state)),
-                tool_calls: None,
-                name: None,
-                tool_call_id: None,
-            }],
+            history: vec![],
             seed: 42,
             temperature: 0.3,
         }
     }
 
-    pub fn ollama(state: Option<&mut EditorState>) -> Self {
+    pub fn ollama() -> Self {
         Self {
             provider: "ollama".into(),
             model_name: "qwen3:30b-a3b".into(),
             url: "http://localhost:11434/api/chat".into(),
             input: String::new(),
-            history: vec![LLMChatMessage {
-                role: "system".into(),
-                content: Some(create_system_prompt(state)),
-                tool_calls: None,
-                name: None,
-                tool_call_id: None,
-            }],
+            history: vec![],
             seed: 42,
             temperature: 0.3,
         }
     }
 
-    pub fn openrouter(state: Option<&mut EditorState>) -> Self {
+    pub fn openrouter() -> Self {
         Self {
             provider: "openrouter".into(),
             model_name: "mistralai/devstral-small".into(),
             url: "https://openrouter.ai/api/v1/chat/completions".into(),
             input: String::new(),
-            history: vec![LLMChatMessage {
-                role: "system".into(),
-                content: Some(create_system_prompt(state)),
-                tool_calls: None,
-                name: None,
-                tool_call_id: None,
-            }],
+            history: vec![],
             seed: 42,
             temperature: 0.2,
         }
@@ -133,7 +115,7 @@ impl ChatState {
 
 impl Default for ChatState {
     fn default() -> Self {
-        ChatState::llamacpp(None)
+        ChatState::llamacpp()
     }
 }
 
@@ -146,19 +128,35 @@ pub fn formatter(format: String, args: HashMap<String, String>) -> String {
     result
 }
 
-pub fn create_system_prompt(state: Option<&mut EditorState>) -> String {
-    if let Some(state) = state {
-        return formatter(
-            include_str!("SYSTEM.md").to_string(),
-            HashMap::from([
-                ("workspace_dir".into(), state.workspace_folder.clone()),
-                ("platform".into(), "Linux (NixOS)".into()),
-                ("file_tree".into(), tool_calling::get_file_tree()),
-            ]),
-        );
-    } else {
-        return include_str!("SYSTEM.md").to_string();
+pub fn create_system_prompt(template: String, state: &mut EditorState) -> String {
+    return formatter(
+        template,
+        HashMap::from([
+            ("workspace_dir".into(), state.workspace_folder.clone()),
+            ("platform".into(), "Linux (NixOS)".into()),
+            ("file_tree".into(), tool_calling::get_file_tree()),
+            ("get_datetime_tool_name".into(), "get_datetime".into()),
+            (
+                "run_shell_command_tool_name".into(),
+                "run_shell_command".into(),
+            ),
+            ("glob_tool_name".into(), "glob".into()),
+            ("search_tool_name".into(), "search_workspace".into()),
+            ("read_file_tool_name".into(), "read_file".into()),
+            ("write_file_tool_name".into(), "write_file".into()),
+            ("replace_tool_name".into(), "replace".into()),
+        ]),
+    );
+}
+
+pub fn get_system_prompt(template_name: &str, state: &mut EditorState) -> String {
+    let system_prompt_template = match template_name {
+        "default" => include_str!("prompts/SYSTEM.md"),
+        "agentic_coding" => include_str!("prompts/AGENTIC_CODING.md"),
+        _ => include_str!("prompts/SYSTEM.md"),
     }
+    .to_string();
+    create_system_prompt(system_prompt_template, state)
 }
 
 #[derive(Debug, serde::Serialize)]

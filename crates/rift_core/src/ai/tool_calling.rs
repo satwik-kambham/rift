@@ -45,6 +45,28 @@ pub fn get_file_tree() -> String {
     stdout
 }
 
+pub fn glob(pattern: &str) -> String {
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("fd --type f --strip-cwd-prefix --full-path --absolute-path -g")
+        .arg(pattern)
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    stdout
+}
+
+pub fn search_workspace(pattern: &str) -> String {
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("rg")
+        .arg(pattern)
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    stdout
+}
+
 pub fn read_file(workspace_dir: &str, path: &str) -> String {
     if !is_absolute_path(path) {
         return "Error: path is not absolute".to_string();
@@ -161,6 +183,34 @@ pub fn get_tools() -> serde_json::Value {
         {
             "type": "function",
             "function": {
+                "name": "glob",
+                "description": "Finds files matching glob patterns, returning absolute paths",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {"type": "string"}
+                    },
+                    "required": ["pattern"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_workspace",
+                "description": "Grep search in the current workspace for matching patterns",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {"type": "string"}
+                    },
+                    "required": ["pattern"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "get_datetime",
                 "description": "Get the current date and time",
                 "parameters": {
@@ -227,6 +277,8 @@ pub async fn get_tool_response(
         "run_shell_command" => {
             run_shell_command(workspace_dir, tool_arguments["command"].as_str().unwrap()).await
         }
+        "glob" => glob(tool_arguments["pattern"].as_str().unwrap()),
+        "search_workspace" => search_workspace(tool_arguments["pattern"].as_str().unwrap()),
         "read_file" => read_file(workspace_dir, tool_arguments["path"].as_str().unwrap()),
         "write_file" => write_file(
             workspace_dir,
@@ -250,6 +302,8 @@ pub async fn get_tool_response(
 pub fn tool_requires_approval(tool_name: &str, _tool_arguments: &serde_json::Value) -> bool {
     match tool_name {
         "run_shell_command" => true,
+        "glob" => false,
+        "search_workspace" => false,
         "read_file" => false,
         "write_file" => true,
         "replace" => true,

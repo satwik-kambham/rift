@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::lsp::types;
 
-/// Struct representating a position in the buffer
+/// Struct representing a position in the buffer
 #[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub struct Cursor {
     pub row: usize,
@@ -116,7 +116,7 @@ pub enum Attribute {
     Cursor,
 }
 
-/// Struct representating a position in the buffer
+/// Struct representing a position in the buffer
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Range {
     pub start: usize,

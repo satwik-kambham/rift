@@ -91,6 +91,7 @@ pub enum Action {
     DecreaseFontSize,
     ScrollDown,
     ScrollUp,
+    SetSystemPrompt(String),
 }
 
 pub fn perform_action(
@@ -1152,6 +1153,17 @@ pub fn perform_action(
         Action::ScrollDown => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             instance.scroll.row = instance.scroll.row.saturating_add(1);
+        }
+        Action::SetSystemPrompt(template_name) => {
+            let system_prompt = ai::get_system_prompt(&template_name, state);
+            let history = vec![ai::LLMChatMessage {
+                role: "system".into(),
+                content: Some(system_prompt),
+                tool_calls: None,
+                name: None,
+                tool_call_id: None,
+            }];
+            state.ai_state.chat_state.history = history;
         }
     }
 }

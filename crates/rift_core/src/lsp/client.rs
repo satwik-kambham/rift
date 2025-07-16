@@ -50,7 +50,7 @@ pub enum OutgoingMessage {
 
 pub struct LSPClientHandle {
     pub sender: Sender<OutgoingMessage>,
-    pub reciever: Receiver<IncomingMessage>,
+    pub receiver: Receiver<IncomingMessage>,
     pub pending_id: usize,
     pub pending_requests: HashMap<usize, IncomingMessage>,
     pub id_method: HashMap<usize, String>,
@@ -178,7 +178,7 @@ pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> 
 
     Ok(LSPClientHandle {
         sender: outgoing_tx,
-        reciever: incoming_rx,
+        receiver: incoming_rx,
         pending_id: 0,
         pending_requests: HashMap::new(),
         id_method: HashMap::new(),
@@ -247,7 +247,7 @@ impl LSPClientHandle {
     }
 
     pub async fn recv_message(&mut self) -> Option<IncomingMessage> {
-        if let Some(message) = self.reciever.recv().await {
+        if let Some(message) = self.receiver.recv().await {
             match &message {
                 IncomingMessage::Response(response) => {
                     self.pending_requests.insert(response.id, message);
@@ -267,7 +267,7 @@ impl LSPClientHandle {
     }
 
     pub fn recv_message_sync(&mut self) -> Option<IncomingMessage> {
-        if let Ok(message) = self.reciever.try_recv() {
+        if let Ok(message) = self.receiver.try_recv() {
             match &message {
                 IncomingMessage::Response(response) => {
                     self.pending_requests.insert(response.id, message);
