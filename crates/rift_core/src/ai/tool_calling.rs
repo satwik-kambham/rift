@@ -35,10 +35,11 @@ pub async fn run_shell_command(workspace_dir: &str, command: &str) -> String {
     }
 }
 
-pub fn get_file_tree() -> String {
+pub fn get_file_tree(workspace_dir: &str) -> String {
     let output = std::process::Command::new("sh")
         .arg("-c")
         .arg("fd --type f --strip-cwd-prefix --full-path")
+        .current_dir(workspace_dir)
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();

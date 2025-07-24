@@ -134,7 +134,10 @@ pub fn create_system_prompt(template: String, state: &mut EditorState) -> String
         HashMap::from([
             ("workspace_dir".into(), state.workspace_folder.clone()),
             ("platform".into(), "Linux (NixOS)".into()),
-            ("file_tree".into(), tool_calling::get_file_tree()),
+            (
+                "file_tree".into(),
+                tool_calling::get_file_tree(&state.workspace_folder),
+            ),
             ("get_datetime_tool_name".into(), "get_datetime".into()),
             (
                 "run_shell_command_tool_name".into(),
