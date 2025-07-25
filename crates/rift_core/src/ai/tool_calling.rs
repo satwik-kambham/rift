@@ -46,22 +46,25 @@ pub fn get_file_tree(workspace_dir: &str) -> String {
     stdout
 }
 
-pub fn glob(pattern: &str) -> String {
+pub fn glob(workspace_dir: &str, pattern: &str) -> String {
     let output = std::process::Command::new("sh")
         .arg("-c")
-        .arg("fd --type f --strip-cwd-prefix --full-path --absolute-path -g")
-        .arg(pattern)
+        .arg(format!(
+            "fd --type f --strip-cwd-prefix --full-path --absolute-path -g {}",
+            pattern
+        ))
+        .current_dir(workspace_dir)
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     stdout
 }
 
-pub fn search_workspace(pattern: &str) -> String {
+pub fn search_workspace(workspace_dir: &str, pattern: &str) -> String {
     let output = std::process::Command::new("sh")
         .arg("-c")
-        .arg("rg")
-        .arg(pattern)
+        .arg(format!("rg {}", pattern))
+        .current_dir(workspace_dir)
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -278,8 +281,10 @@ pub async fn get_tool_response(
         "run_shell_command" => {
             run_shell_command(workspace_dir, tool_arguments["command"].as_str().unwrap()).await
         }
-        "glob" => glob(tool_arguments["pattern"].as_str().unwrap()),
-        "search_workspace" => search_workspace(tool_arguments["pattern"].as_str().unwrap()),
+        "glob" => glob(workspace_dir, tool_arguments["pattern"].as_str().unwrap()),
+        "search_workspace" => {
+            search_workspace(workspace_dir, tool_arguments["pattern"].as_str().unwrap())
+        }
         "read_file" => read_file(workspace_dir, tool_arguments["path"].as_str().unwrap()),
         "write_file" => write_file(
             workspace_dir,
