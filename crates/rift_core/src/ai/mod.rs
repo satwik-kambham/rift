@@ -129,6 +129,16 @@ pub fn formatter(format: String, args: HashMap<String, String>) -> String {
 }
 
 pub fn create_system_prompt(template: String, state: &mut EditorState) -> String {
+    let project_documentation = if std::path::Path::new(&state.workspace_folder)
+        .join("RIFT.md")
+        .exists()
+    {
+        std::fs::read_to_string(std::path::Path::new(&state.workspace_folder).join("RIFT.md"))
+            .unwrap_or_else(|_| "".into())
+    } else {
+        "".into()
+    };
+
     return formatter(
         template,
         HashMap::from([
@@ -148,6 +158,7 @@ pub fn create_system_prompt(template: String, state: &mut EditorState) -> String
             ("read_file_tool_name".into(), "read_file".into()),
             ("write_file_tool_name".into(), "write_file".into()),
             ("replace_tool_name".into(), "replace".into()),
+            ("project_documentation".into(), project_documentation),
         ]),
     );
 }

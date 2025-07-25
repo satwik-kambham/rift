@@ -139,3 +139,5 @@ Here is some useful information about the environment you are running in:
 Working directory: {workspace_dir}
 Is directory a git repo: yes
 Platform: {platform}
+
+{project_documentation}
