@@ -12,7 +12,3 @@ Here is some useful information about the environment you are running in:
 Working directory: {workspace_dir}
 Is directory a git repo: yes
 Platform: {platform}
-
-As you answer the user's questions, you can use the following context:
-Directory Structure:
-{file_tree}
