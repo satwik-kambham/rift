@@ -153,7 +153,7 @@ pub fn create_system_prompt(template: String, state: &mut EditorState) -> String
                 "run_shell_command_tool_name".into(),
                 "run_shell_command".into(),
             ),
-            ("glob_tool_name".into(), "glob".into()),
+            ("find_file_tool_name".into(), "find_file".into()),
             ("search_tool_name".into(), "search_workspace".into()),
             ("read_file_tool_name".into(), "read_file".into()),
             ("write_file_tool_name".into(), "write_file".into()),

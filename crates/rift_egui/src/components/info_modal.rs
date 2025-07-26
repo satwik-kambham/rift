@@ -14,7 +14,7 @@ impl InfoModalWidget {
                 .interactable(true)
                 .order(egui::Order::Tooltip)
                 .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .resizable(false)
+                .resizable(true)
                 .collapsible(false)
                 .title_bar(false)
                 .vscroll(true)

@@ -46,11 +46,11 @@ pub fn get_file_tree(workspace_dir: &str) -> String {
     stdout
 }
 
-pub fn glob(workspace_dir: &str, pattern: &str) -> String {
+pub fn find_file(workspace_dir: &str, pattern: &str) -> String {
     let output = std::process::Command::new("sh")
         .arg("-c")
         .arg(format!(
-            "fd --type f --strip-cwd-prefix --full-path --absolute-path -g {}",
+            "fd --type f --strip-cwd-prefix --full-path --absolute-path {}",
             pattern
         ))
         .current_dir(workspace_dir)
@@ -187,8 +187,8 @@ pub fn get_tools() -> serde_json::Value {
         {
             "type": "function",
             "function": {
-                "name": "glob",
-                "description": "Finds files matching glob patterns, returning absolute paths",
+                "name": "find_file",
+                "description": "Finds files matching regex patterns, returning absolute paths",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -281,7 +281,7 @@ pub async fn get_tool_response(
         "run_shell_command" => {
             run_shell_command(workspace_dir, tool_arguments["command"].as_str().unwrap()).await
         }
-        "glob" => glob(workspace_dir, tool_arguments["pattern"].as_str().unwrap()),
+        "find_file" => find_file(workspace_dir, tool_arguments["pattern"].as_str().unwrap()),
         "search_workspace" => {
             search_workspace(workspace_dir, tool_arguments["pattern"].as_str().unwrap())
         }
@@ -308,7 +308,7 @@ pub async fn get_tool_response(
 pub fn tool_requires_approval(tool_name: &str, _tool_arguments: &serde_json::Value) -> bool {
     match tool_name {
         "run_shell_command" => true,
-        "glob" => false,
+        "find_file" => false,
         "search_workspace" => false,
         "read_file" => false,
         "write_file" => true,

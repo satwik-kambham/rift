@@ -336,7 +336,7 @@ impl App {
                 .movable(false)
                 .order(egui::Order::Foreground)
                 .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .resizable(false)
+                .resizable(true)
                 .collapsible(false)
                 .title_bar(false)
                 .show(ctx, |ui| {
