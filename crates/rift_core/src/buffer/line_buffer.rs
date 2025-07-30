@@ -61,6 +61,16 @@ impl LineBuffer {
                     "toml" => Language::TOML,
                     "nix" => Language::Nix,
                     "dart" => Language::Dart,
+                    "html" => Language::HTML,
+                    "css" => Language::CSS,
+                    "scss" => Language::CSS,
+                    "js" => Language::Javascript,
+                    "ts" => Language::Typescript,
+                    "tsx" => Language::Tsx,
+                    "json" => Language::JSON,
+                    "c" => Language::C,
+                    "cpp" => Language::CPP,
+                    "vue" => Language::Vue,
                     _ => Language::PlainText,
                 },
                 None => Language::PlainText,
@@ -78,6 +88,7 @@ impl LineBuffer {
             ("function".into(), HighlightType::Blue),
             ("function.method".into(), HighlightType::Blue),
             ("function.macro".into(), HighlightType::Turquoise),
+            ("function.special".into(), HighlightType::Turquoise),
             ("keyword".into(), HighlightType::Purple),
             ("label".into(), HighlightType::Red),
             ("operator".into(), HighlightType::Purple),
@@ -92,7 +103,8 @@ impl LineBuffer {
             ("escape".into(), HighlightType::Turquoise),
             ("comment".into(), HighlightType::Gray),
             ("comment.documentation".into(), HighlightType::Gray),
-            ("tag".into(), HighlightType::Turquoise),
+            ("tag".into(), HighlightType::Blue),
+            ("tag.error".into(), HighlightType::Red),
             ("type".into(), HighlightType::Yellow),
             ("type.builtin".into(), HighlightType::Yellow),
             ("variable".into(), HighlightType::Red),
@@ -105,6 +117,9 @@ impl LineBuffer {
             ("constructor".into(), HighlightType::Turquoise),
             ("number".into(), HighlightType::Blue),
             ("embedded".into(), HighlightType::Purple),
+            ("constructor".into(), HighlightType::Turquoise),
+            ("local.definition".into(), HighlightType::Blue),
+            ("module".into(), HighlightType::Blue),
         ]);
         let highlight_names: Vec<String> =
             highlight_map.keys().map(|key| key.to_string()).collect();
@@ -160,7 +175,96 @@ impl LineBuffer {
                 )
                 .unwrap(),
             ),
-
+            Language::HTML => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_html::LANGUAGE.into(),
+                    "html",
+                    tree_sitter_html::HIGHLIGHTS_QUERY,
+                    tree_sitter_html::INJECTIONS_QUERY,
+                    "",
+                )
+                .unwrap(),
+            ),
+            Language::CSS => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_css::LANGUAGE.into(),
+                    "css",
+                    tree_sitter_css::HIGHLIGHTS_QUERY,
+                    "",
+                    "",
+                )
+                .unwrap(),
+            ),
+            Language::Javascript => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_javascript::LANGUAGE.into(),
+                    "javascript",
+                    tree_sitter_javascript::HIGHLIGHT_QUERY,
+                    tree_sitter_javascript::INJECTIONS_QUERY,
+                    tree_sitter_javascript::LOCALS_QUERY,
+                )
+                .unwrap(),
+            ),
+            Language::Typescript => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_javascript::LANGUAGE.into(),
+                    "javascript",
+                    tree_sitter_javascript::HIGHLIGHT_QUERY,
+                    tree_sitter_javascript::INJECTIONS_QUERY,
+                    tree_sitter_javascript::LOCALS_QUERY,
+                )
+                .unwrap(),
+            ),
+            Language::Tsx => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_javascript::LANGUAGE.into(),
+                    "javascript",
+                    tree_sitter_javascript::HIGHLIGHT_QUERY,
+                    tree_sitter_javascript::INJECTIONS_QUERY,
+                    tree_sitter_javascript::LOCALS_QUERY,
+                )
+                .unwrap(),
+            ),
+            Language::Vue => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_javascript::LANGUAGE.into(),
+                    "javascript",
+                    tree_sitter_javascript::HIGHLIGHT_QUERY,
+                    tree_sitter_javascript::INJECTIONS_QUERY,
+                    tree_sitter_javascript::LOCALS_QUERY,
+                )
+                .unwrap(),
+            ),
+            Language::JSON => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_json::LANGUAGE.into(),
+                    "json",
+                    tree_sitter_json::HIGHLIGHTS_QUERY,
+                    "",
+                    "",
+                )
+                .unwrap(),
+            ),
+            Language::C => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_c::LANGUAGE.into(),
+                    "c",
+                    tree_sitter_c::HIGHLIGHT_QUERY,
+                    "",
+                    "",
+                )
+                .unwrap(),
+            ),
+            Language::CPP => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_cpp::LANGUAGE.into(),
+                    "cpp",
+                    tree_sitter_cpp::HIGHLIGHT_QUERY,
+                    "",
+                    "",
+                )
+                .unwrap(),
+            ),
             _ => None,
         };
 

@@ -48,6 +48,14 @@ pub fn process_cli_args(
                     Language::Markdown => "markdown",
                     Language::Dart => "dart",
                     Language::Nix => "nix",
+                    Language::HTML => "html",
+                    Language::CSS => "css",
+                    Language::Javascript => "javascript",
+                    Language::Typescript => "typescript",
+                    Language::JSON => "json",
+                    Language::C => "c",
+                    Language::CPP => "cpp",
+                    Language::Vue => "vue",
                     _ => "",
                 };
 

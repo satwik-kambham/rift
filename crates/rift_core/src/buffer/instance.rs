@@ -86,6 +86,15 @@ pub enum Language {
     TOML,
     Nix,
     Dart,
+    HTML,
+    CSS,
+    Javascript,
+    Typescript,
+    Tsx,
+    Vue,
+    JSON,
+    C,
+    CPP,
 }
 
 /// Types of highlighted tokens

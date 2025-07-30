@@ -342,6 +342,14 @@ pub fn perform_action(
                         Language::Markdown => "markdown",
                         Language::Dart => "dart",
                         Language::Nix => "nix",
+                        Language::HTML => "html",
+                        Language::CSS => "css",
+                        Language::Javascript => "javascript",
+                        Language::Typescript => "typescript",
+                        Language::JSON => "json",
+                        Language::C => "c",
+                        Language::CPP => "cpp",
+                        Language::Vue => "vue",
                         _ => "",
                     };
 
@@ -772,6 +780,7 @@ pub fn perform_action(
                     |_result, _state, _lsp_handle| {},
                     &state.rt,
                     state.async_handle.sender.clone(),
+                    state.workspace_folder.clone(),
                 );
             } else {
                 state
@@ -817,6 +826,7 @@ pub fn perform_action(
                     },
                     &state.rt,
                     state.async_handle.sender.clone(),
+                    state.workspace_folder.clone(),
                 );
             } else {
                 let content = state.clipboard_ctx.get_contents().unwrap();
@@ -881,6 +891,7 @@ pub fn perform_action(
                                 },
                                 &state.rt,
                                 state.async_handle.sender.clone(),
+                                state.workspace_folder.clone(),
                             );
                         });
                     state.modal.set_modal_on_select(
@@ -900,6 +911,7 @@ pub fn perform_action(
                 },
                 &state.rt,
                 state.async_handle.sender.clone(),
+                state.workspace_folder.clone(),
             );
         }
         Action::SearchWorkspace => {
@@ -958,6 +970,7 @@ pub fn perform_action(
                             },
                             &state.rt,
                             state.async_handle.sender.clone(),
+                            state.workspace_folder.clone(),
                         );
                     }
                 });

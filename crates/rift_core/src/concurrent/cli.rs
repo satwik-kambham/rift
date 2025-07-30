@@ -21,6 +21,7 @@ pub fn run_command(
     ),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
+    current_dir: String,
 ) {
     if which::which(&program_args.program).is_err() {
         return;
@@ -30,6 +31,7 @@ pub fn run_command(
         let result = String::from_utf8(
             Command::new(program_args.program)
                 .args(program_args.args)
+                .current_dir(current_dir)
                 .output()
                 .await
                 .unwrap()
@@ -49,6 +51,7 @@ pub fn run_piped_commands(
     ),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
+    current_dir: String,
 ) {
     for program in &program_args {
         if which::which(&program.program).is_err() {
@@ -61,7 +64,7 @@ pub fn run_piped_commands(
 
         for program in program_args {
             let mut command = Command::new(&program.program);
-            command.args(&program.args).stdout(Stdio::piped());
+            command.args(&program.args).current_dir(&current_dir).stdout(Stdio::piped());
 
             if let Some(output) = previous_result {
                 command.stdin(Stdio::piped());

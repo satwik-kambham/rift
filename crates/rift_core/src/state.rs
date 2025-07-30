@@ -179,6 +179,14 @@ impl EditorState {
             Language::Rust => Some(("rust-analyzer", &[])),
             Language::Python => Some(("uv", &["run", "pylsp"])),
             Language::Dart => Some(("dart", &["language-server", "--client-id=rift"])),
+            Language::Nix => Some(("nil", &[])),
+            Language::HTML => Some(("vscode-html-language-server", &["--stdio"])),
+            Language::CSS => Some(("vscode-css-language-server", &["--stdio"])),
+            Language::JSON => Some(("vscode-json-language-server", &["--stdio"])),
+            Language::Javascript => Some(("typescript-language-server", &["--stdio"])),
+            Language::Typescript => Some(("typescript-language-server", &["--stdio"])),
+            Language::Tsx => Some(("typescript-language-server", &["--stdio"])),
+            Language::Vue => Some(("vue-language-server", &["--stdio"])),
             _ => None,
         };
         if let Some(command) = command {
