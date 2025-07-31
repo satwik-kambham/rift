@@ -209,6 +209,7 @@ impl AIPanel {
                     } else if state.ai_state.chat_state.provider == "openrouter" {
                         openrouter_chat(state);
                     }
+                    state.ai_state.chat_state.input.clear();
                 }
                 ui.separator();
 
