@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use egui::{text::LayoutJob, FontDefinitions, FontId, RichText};
+use egui::{
+    style::TextStyle,
+    text::LayoutJob,
+    FontDefinitions,
+    FontFamily::{Monospace, Proportional},
+    FontId, RichText,
+};
 use rift_core::{
     buffer::instance::{Attribute, HighlightType, Language},
     cli::{process_cli_args, CLIArgs},
@@ -65,6 +71,38 @@ impl App {
         // Set fonts and global style
         ctx.set_fonts(self.font_definitions.clone());
         ctx.style_mut(|style| {
+            style.text_styles = [
+                (
+                    TextStyle::Heading,
+                    FontId::new(
+                        self.state.preferences.ui_font_size_heading as f32,
+                        Proportional,
+                    ),
+                ),
+                (
+                    TextStyle::Body,
+                    FontId::new(self.state.preferences.ui_font_size as f32, Proportional),
+                ),
+                (
+                    TextStyle::Monospace,
+                    FontId::new(self.state.preferences.editor_font_size as f32, Monospace),
+                ),
+                (
+                    TextStyle::Button,
+                    FontId::new(
+                        self.state.preferences.ui_font_size_button as f32,
+                        Proportional,
+                    ),
+                ),
+                (
+                    TextStyle::Small,
+                    FontId::new(
+                        self.state.preferences.ui_font_size_small as f32,
+                        Proportional,
+                    ),
+                ),
+            ]
+            .into();
             style.visuals.override_text_color = Some(self.state.preferences.theme.ui_text.into());
             style.visuals.widgets = egui::style::Widgets {
                 noninteractive: egui::style::WidgetVisuals {

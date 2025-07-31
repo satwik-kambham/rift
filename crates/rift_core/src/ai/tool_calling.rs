@@ -349,11 +349,15 @@ pub fn handle_tool_calls(
     } else {
         let denial_message = LLMChatMessage {
             role: "tool".into(),
-            content: Some(format!("Tool call '{}' was denied by user.", tool_name)),
+            content: Some(format!(
+                "Tool call '{}' was denied by user.\n{}",
+                tool_name, state.ai_state.chat_state.input
+            )),
             tool_calls: None,
             name: Some(tool_name.to_string()),
             tool_call_id,
         };
+        state.ai_state.chat_state.input.clear();
         state.ai_state.chat_state.history.push(denial_message);
         if state.ai_state.chat_state.provider == "llamacpp" {
             crate::ai::llamacpp_chat_send(state);

@@ -64,7 +64,10 @@ pub fn run_piped_commands(
 
         for program in program_args {
             let mut command = Command::new(&program.program);
-            command.args(&program.args).current_dir(&current_dir).stdout(Stdio::piped());
+            command
+                .args(&program.args)
+                .current_dir(&current_dir)
+                .stdout(Stdio::piped());
 
             if let Some(output) = previous_result {
                 command.stdin(Stdio::piped());

@@ -1,5 +1,6 @@
 use crate::themes;
 
+
 /// Color representation (values between 0 and 255)
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Color {
@@ -34,6 +35,9 @@ pub struct Preferences {
     pub ui_font_family: String,
     pub editor_font_size: usize,
     pub ui_font_size: usize,
+    pub ui_font_size_heading: usize,
+    pub ui_font_size_button: usize,
+    pub ui_font_size_small: usize,
     pub line_height: f32,
     pub gutter_padding: i8,
     pub editor_padding: i8,
@@ -56,8 +60,11 @@ impl Default for Preferences {
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),
             editor_font_size: 16,
-            ui_font_family: "Monaspace Neon".into(),
+            ui_font_family: "Open Sans".into(),
             ui_font_size: 14,
+            ui_font_size_heading: 16,
+            ui_font_size_button: 14,
+            ui_font_size_small: 12,
             line_height: 1.5,
             gutter_padding: 4,
             editor_padding: 4,
