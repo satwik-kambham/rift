@@ -184,10 +184,19 @@ impl AIPanel {
                             tool_args,
                             tool_call_id,
                             state,
+                            true,
                         );
                     }
                     if ui.button("deny").clicked() {
-                        state.ai_state.pending_tool_calls.remove(0);
+                        let (tool_name, tool_args, tool_call_id) =
+                            state.ai_state.pending_tool_calls.remove(0);
+                        rift_core::ai::tool_calling::handle_tool_calls(
+                            tool_name,
+                            tool_args,
+                            tool_call_id,
+                            state,
+                            false,
+                        );
                     }
                 }
                 ui.separator();

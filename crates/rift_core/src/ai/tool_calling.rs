@@ -323,27 +323,46 @@ pub fn handle_tool_calls(
     tool_arguments: String,
     tool_call_id: Option<String>,
     state: &mut EditorState,
+    approved: bool,
 ) {
-    let tool_args = serde_json::from_str(&tool_arguments).unwrap();
-    handle_tool_calls_async(
-        tool_name.to_string(),
-        tool_args,
-        tool_call_id,
-        state.workspace_folder.clone(),
-        |response, state, _lsp_handle| {
-            let tool_response: LLMChatMessage = serde_json::from_str(&response).unwrap();
-            state.ai_state.chat_state.history.push(tool_response);
-            if state.ai_state.chat_state.provider == "llamacpp" {
-                crate::ai::llamacpp_chat_send(state);
-            } else if state.ai_state.chat_state.provider == "ollama" {
-                crate::ai::ollama_chat_send(state);
-            } else if state.ai_state.chat_state.provider == "openrouter" {
-                crate::ai::openrouter_chat_send(state);
-            }
-        },
-        &state.rt,
-        state.async_handle.sender.clone(),
-    );
+    if approved {
+        let tool_args = serde_json::from_str(&tool_arguments).unwrap();
+        handle_tool_calls_async(
+            tool_name.to_string(),
+            tool_args,
+            tool_call_id,
+            state.workspace_folder.clone(),
+            |response, state, _lsp_handle| {
+                let tool_response: LLMChatMessage = serde_json::from_str(&response).unwrap();
+                state.ai_state.chat_state.history.push(tool_response);
+                if state.ai_state.chat_state.provider == "llamacpp" {
+                    crate::ai::llamacpp_chat_send(state);
+                } else if state.ai_state.chat_state.provider == "ollama" {
+                    crate::ai::ollama_chat_send(state);
+                } else if state.ai_state.chat_state.provider == "openrouter" {
+                    crate::ai::openrouter_chat_send(state);
+                }
+            },
+            &state.rt,
+            state.async_handle.sender.clone(),
+        );
+    } else {
+        let denial_message = LLMChatMessage {
+            role: "tool".into(),
+            content: Some(format!("Tool call '{}' was denied by user.", tool_name)),
+            tool_calls: None,
+            name: Some(tool_name.to_string()),
+            tool_call_id,
+        };
+        state.ai_state.chat_state.history.push(denial_message);
+        if state.ai_state.chat_state.provider == "llamacpp" {
+            crate::ai::llamacpp_chat_send(state);
+        } else if state.ai_state.chat_state.provider == "ollama" {
+            crate::ai::ollama_chat_send(state);
+        } else if state.ai_state.chat_state.provider == "openrouter" {
+            crate::ai::openrouter_chat_send(state);
+        }
+    }
 }
 
 pub fn handle_tool_calls_async(
