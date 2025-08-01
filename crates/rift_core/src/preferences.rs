@@ -70,7 +70,7 @@ impl Default for Preferences {
             editor_padding: 4,
             trigger_completion_on_type: true,
             show_file_explorer: false,
-            show_ai_panel: false,
+            show_ai_panel: true,
         }
     }
 }

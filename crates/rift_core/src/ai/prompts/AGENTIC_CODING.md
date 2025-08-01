@@ -78,7 +78,8 @@ model: [tool_call: '{run_shell_command_tool_name}' for 'node server.js']
 user: Refactor the auth logic in src/auth.py to use the requests library instead of urllib.
 model: Okay, I can refactor 'src/auth.py'.
 First, I'll analyze the code and check for a test safety net before planning any changes.
-[tool_call: '{find_file_tool_name}' for path 'tests/test_auth.py']
+[tool_call: '{find_file_tool_name}' for pattern 'test']
+(Assuming '{find_file_tool_name}' returns a list of paths like ['/path/to/tests/test_auth.py'])
 [tool_call: '{read_file_tool_name}' for absolute_path '/path/to/tests/test_auth.py']
 (After analysis)
 Great, 'tests/test_auth.py' exists and covers the core authentication logic. With this safety net in place, I can safely plan the refactoring.
@@ -124,8 +125,8 @@ It appears the `updateUserProfile` method in `UserProfileService.java` is respon
 <example>
 user: Where are all the 'app.config' files in this project? I need to check their settings.
 model:
-[tool_call: '{find_file_tool_name}' for pattern '**/app.config']
-(Assuming GlobTool returns a list of paths like ['/path/to/moduleA/app.config', '/path/to/moduleB/app.config'])
+[tool_call: '{find_file_tool_name}' for pattern 'app.config']
+(Assuming '{find_file_tool_name}' returns a list of paths like ['/path/to/moduleA/app.config', '/path/to/moduleB/app.config'])
 I found the following 'app.config' files:
 - /path/to/moduleA/app.config
 - /path/to/moduleB/app.config

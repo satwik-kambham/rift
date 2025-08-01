@@ -57,7 +57,11 @@ pub fn find_file(workspace_dir: &str, pattern: &str) -> String {
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    stdout
+    if stdout.trim().is_empty() {
+        format!("No files found matching pattern: {}\nMake a meaningful change to the pattern before trying again. If still unsucessful try a different approach or request input from the user.", pattern)
+    } else {
+        stdout
+    }
 }
 
 pub fn search_workspace(workspace_dir: &str, pattern: &str) -> String {
@@ -68,7 +72,12 @@ pub fn search_workspace(workspace_dir: &str, pattern: &str) -> String {
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    stdout
+    if stdout.trim().is_empty() {
+        format!("No matches found for pattern: {}\nMake a meaningful change to the pattern before trying again. If still unsucessful try a different approach or request input from the user.
+", pattern)
+    } else {
+        stdout
+    }
 }
 
 pub fn read_file(workspace_dir: &str, path: &str) -> String {
@@ -188,7 +197,7 @@ pub fn get_tools() -> serde_json::Value {
             "type": "function",
             "function": {
                 "name": "find_file",
-                "description": "Finds files matching regex patterns, returning absolute paths",
+                "description": "Returns paths matching regex pattern by searching recursively in the workspace folder, returning absolute paths. Does not accept glob patterns.",
                 "parameters": {
                     "type": "object",
                     "properties": {
