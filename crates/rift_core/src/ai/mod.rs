@@ -318,12 +318,7 @@ pub fn llamacpp_chat_send(state: &mut EditorState) {
 }
 
 pub fn llamacpp_chat(state: &mut EditorState) {
-    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-
-    let prompt = formatter(
-        state.ai_state.chat_state.input.clone(),
-        HashMap::from([("source".into(), buffer.get_content("\n".to_string()))]),
-    );
+    let prompt = formatter(state.ai_state.chat_state.input.clone(), HashMap::from([]));
 
     state.ai_state.chat_state.history.push(LLMChatMessage {
         role: "user".into(),
@@ -411,12 +406,7 @@ pub fn ollama_chat_send(state: &mut EditorState) {
 }
 
 pub fn ollama_chat(state: &mut EditorState) {
-    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-
-    let prompt = formatter(
-        state.ai_state.chat_state.input.clone(),
-        HashMap::from([("source".into(), buffer.get_content("\n".to_string()))]),
-    );
+    let prompt = formatter(state.ai_state.chat_state.input.clone(), HashMap::from([]));
 
     state.ai_state.chat_state.history.push(LLMChatMessage {
         role: "user".into(),
@@ -525,12 +515,7 @@ pub fn openrouter_chat_send(state: &mut EditorState) {
 }
 
 pub fn openrouter_chat(state: &mut EditorState) {
-    let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-
-    let prompt = formatter(
-        state.ai_state.chat_state.input.clone(),
-        HashMap::from([("source".into(), buffer.get_content("\n".to_string()))]),
-    );
+    let prompt = formatter(state.ai_state.chat_state.input.clone(), HashMap::from([]));
 
     state.ai_state.chat_state.history.push(LLMChatMessage {
         role: "user".into(),
