@@ -176,14 +176,12 @@ impl AIPanel {
                 }
                 ui.separator();
                 if !state.ai_state.pending_tool_calls.is_empty() {
-                    for (tool_name, tool_args, _) in &state.ai_state.pending_tool_calls {
-                        ui.horizontal(|ui| {
-                            ui.label(tool_name);
-                            ui.label(tool_args);
-                        });
+                    for (tool_name, _, _, tool_preview) in &state.ai_state.pending_tool_calls {
+                        ui.label(tool_name);
+                        ui.label(tool_preview);
                     }
                     if ui.button("approve").clicked() {
-                        let (tool_name, tool_args, tool_call_id) =
+                        let (tool_name, tool_args, tool_call_id, _) =
                             state.ai_state.pending_tool_calls.remove(0);
                         rift_core::ai::tool_calling::handle_tool_calls(
                             tool_name,
@@ -194,7 +192,7 @@ impl AIPanel {
                         );
                     }
                     if ui.button("deny").clicked() {
-                        let (tool_name, tool_args, tool_call_id) =
+                        let (tool_name, tool_args, tool_call_id, _) =
                             state.ai_state.pending_tool_calls.remove(0);
                         rift_core::ai::tool_calling::handle_tool_calls(
                             tool_name,

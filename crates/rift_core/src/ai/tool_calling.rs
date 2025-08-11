@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use chrono::Local;
+use similar::{ChangeTag, TextDiff};
 use tokio::process::Command;
 use tokio::sync::mpsc::Sender;
 
@@ -301,6 +302,94 @@ pub async fn get_tool_response(
             tool_arguments["content"].as_str().unwrap(),
         ),
         "replace" => replace(
+            workspace_dir,
+            tool_arguments["file_path"].as_str().unwrap(),
+            tool_arguments["old_string"].as_str().unwrap(),
+            tool_arguments["new_string"].as_str().unwrap(),
+            tool_arguments["expected_replacements"]
+                .as_u64()
+                .map(|u| u as usize),
+        ),
+        "get_datetime" => get_datetime(),
+        _ => "Unknown Tool".to_string(),
+    }
+}
+
+pub fn get_replace_diff(
+    workspace_dir: &str,
+    file_path: &str,
+    old_string: &str,
+    new_string: &str,
+    expected_replacements: Option<usize>,
+) -> String {
+    if !is_absolute_path(file_path) {
+        return "Error: file_path is not absolute.".to_string();
+    }
+    if !is_in_workspace(workspace_dir, file_path) {
+        return "Error: file_path is not in workspace.".to_string();
+    }
+
+    let file_content = match std::fs::read_to_string(file_path) {
+        Ok(content) => content,
+        Err(e) => return format!("Error reading file '{}': {}", file_path, e),
+    };
+
+    let original_content = file_content.clone();
+    let replaced_content = original_content.replace(old_string, new_string);
+
+    let actual_replacements = original_content.matches(old_string).count();
+
+    if let Some(expected) = expected_replacements {
+        if actual_replacements != expected {
+            return format!(
+                "Error: Expected {} replacements, but found {} occurrences of the old string.",
+                expected, actual_replacements
+            );
+        }
+    } else if actual_replacements == 0 {
+        return format!(
+            "Error: No occurrences of the old string found in '{}'.",
+            file_path
+        );
+    }
+
+    let diff = TextDiff::from_lines(&file_content, &replaced_content);
+    let mut diff_output = String::new();
+    for change in diff.iter_all_changes() {
+        let sign = match change.tag() {
+            ChangeTag::Equal => " ",
+            ChangeTag::Insert => "+",
+            ChangeTag::Delete => "-",
+        };
+        if change.tag() != ChangeTag::Equal {
+            diff_output.push_str(&format!(
+                "{} {} {}{}",
+                change.old_index().unwrap_or_default(),
+                change.new_index().unwrap_or_default(),
+                sign,
+                change
+            ));
+        }
+    }
+    diff_output
+}
+
+pub fn get_tool_call_preview(
+    tool_name: &str,
+    tool_arguments: &serde_json::Value,
+    workspace_dir: &str,
+) -> String {
+    match tool_name {
+        "run_shell_command" => tool_arguments["command"].as_str().unwrap().to_string(),
+        "find_file" => tool_arguments["pattern"].as_str().unwrap().to_string(),
+        "search_workspace" => tool_arguments["pattern"].as_str().unwrap().to_string(),
+        "read_file" => tool_arguments["path"].as_str().unwrap().to_string(),
+        "write_file" => format!(
+            "{} {}",
+            tool_arguments["file_path"].as_str().unwrap(),
+            tool_arguments["content"].as_str().unwrap(),
+        ),
+        "replace" => get_replace_diff(
             workspace_dir,
             tool_arguments["file_path"].as_str().unwrap(),
             tool_arguments["old_string"].as_str().unwrap(),

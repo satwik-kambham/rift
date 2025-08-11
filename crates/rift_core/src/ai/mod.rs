@@ -47,7 +47,7 @@ pub struct ChatState {
 pub struct AIState {
     pub generate_state: GenerateState,
     pub chat_state: ChatState,
-    pub pending_tool_calls: Vec<(String, String, Option<String>)>,
+    pub pending_tool_calls: Vec<(String, String, Option<String>, String)>,
     pub full_user_control: bool,
 }
 
@@ -295,6 +295,11 @@ pub fn llamacpp_chat_send(state: &mut EditorState) {
                             tool_name.to_string(),
                             serde_json::to_string(&tool_args).unwrap(),
                             Some(tool_call_id.to_string()),
+                            tool_calling::get_tool_call_preview(
+                                tool_name,
+                                &tool_args,
+                                &state.workspace_folder,
+                            ),
                         ));
                     } else {
                         tool_calling::handle_tool_calls_async(
@@ -386,6 +391,11 @@ pub fn ollama_chat_send(state: &mut EditorState) {
                             tool_name.to_string(),
                             serde_json::to_string(&tool_args).unwrap(),
                             None,
+                            tool_calling::get_tool_call_preview(
+                                tool_name,
+                                &tool_args,
+                                &state.workspace_folder,
+                            ),
                         ));
                     } else {
                         tool_calling::handle_tool_calls_async(
@@ -497,6 +507,11 @@ pub fn openrouter_chat_send(state: &mut EditorState) {
                             tool_name.to_string(),
                             serde_json::to_string(&tool_args).unwrap(),
                             Some(tool_call_id.to_string()),
+                            tool_calling::get_tool_call_preview(
+                                tool_name,
+                                &tool_args,
+                                &state.workspace_folder,
+                            ),
                         ));
                     } else {
                         tool_calling::handle_tool_calls_async(
