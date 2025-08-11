@@ -63,9 +63,10 @@ impl AIPanel {
         state: &mut EditorState,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) {
-        ui.selectable_value(&mut self.panel_type, PanelType::FIM, "FIM");
-        ui.selectable_value(&mut self.panel_type, PanelType::Chat, "Chat");
-
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.panel_type, PanelType::FIM, "FIM");
+            ui.selectable_value(&mut self.panel_type, PanelType::Chat, "Chat");
+        });
         match self.panel_type {
             PanelType::FIM => {
                 ui.collapsing("Options", |ui| {
@@ -220,6 +221,7 @@ impl AIPanel {
 
                 if ui.button("clear").clicked() {
                     state.ai_state.chat_state.history.clear();
+                    state.ai_state.pending_tool_calls.clear();
                 }
             }
         }
