@@ -314,17 +314,24 @@ pub async fn get_tool_response(
     }
 }
 
-pub fn tool_requires_approval(tool_name: &str, _tool_arguments: &serde_json::Value) -> bool {
-    match tool_name {
-        "run_shell_command" => true,
-        "find_file" => false,
-        "search_workspace" => false,
-        "read_file" => false,
-        "write_file" => true,
-        "replace" => true,
-        "get_datetime" => false,
-        _ => true,
+pub fn tool_requires_approval(
+    tool_name: &str,
+    _tool_arguments: &serde_json::Value,
+    full_user_control: bool,
+) -> bool {
+    if !full_user_control {
+        return match tool_name {
+            "run_shell_command" => true,
+            "find_file" => false,
+            "search_workspace" => false,
+            "read_file" => false,
+            "write_file" => true,
+            "replace" => true,
+            "get_datetime" => false,
+            _ => true,
+        };
     }
+    true
 }
 
 pub fn handle_tool_calls(

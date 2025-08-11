@@ -145,6 +145,11 @@ impl AIPanel {
                     }
                 });
 
+                ui.checkbox(
+                    &mut state.ai_state.full_user_control,
+                    "Enable full user control",
+                );
+
                 ui.collapsing("Options", |ui| {
                     ui.label("Model");
                     ui.text_edit_singleline(&mut state.ai_state.chat_state.model_name);

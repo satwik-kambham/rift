@@ -48,7 +48,7 @@ pub struct AIState {
     pub generate_state: GenerateState,
     pub chat_state: ChatState,
     pub pending_tool_calls: Vec<(String, String, Option<String>)>,
-    pub enable_thinking: bool,
+    pub full_user_control: bool,
 }
 
 impl Default for GenerateState {
@@ -285,8 +285,11 @@ pub fn llamacpp_chat_send(state: &mut EditorState) {
                     let tool_args = tool_call["function"]["arguments"].as_str().unwrap();
                     let tool_args = serde_json::from_str(tool_args).unwrap();
                     let tool_call_id = tool_call["id"].as_str().unwrap();
-                    let requires_approval =
-                        tool_calling::tool_requires_approval(tool_name, &tool_args);
+                    let requires_approval = tool_calling::tool_requires_approval(
+                        tool_name,
+                        &tool_args,
+                        state.ai_state.full_user_control,
+                    );
                     if requires_approval {
                         state.ai_state.pending_tool_calls.push((
                             tool_name.to_string(),
@@ -373,8 +376,11 @@ pub fn ollama_chat_send(state: &mut EditorState) {
                 for tool_call in tool_calls.as_array().unwrap() {
                     let tool_name = tool_call["function"]["name"].as_str().unwrap();
                     let tool_args = tool_call["function"]["arguments"].clone();
-                    let requires_approval =
-                        tool_calling::tool_requires_approval(tool_name, &tool_args);
+                    let requires_approval = tool_calling::tool_requires_approval(
+                        tool_name,
+                        &tool_args,
+                        state.ai_state.full_user_control,
+                    );
                     if requires_approval {
                         state.ai_state.pending_tool_calls.push((
                             tool_name.to_string(),
@@ -463,7 +469,6 @@ pub fn openrouter_chat_send(state: &mut EditorState) {
         body,
         auth_token,
         |response, state, _lsp_handle| {
-            tracing::info!(response);
             let llm_response: Value = serde_json::from_str(&response).unwrap();
             let choices = llm_response["choices"].as_array().unwrap();
             let message: LLMChatMessage =
@@ -482,8 +487,11 @@ pub fn openrouter_chat_send(state: &mut EditorState) {
                     let tool_args = serde_json::from_str(tool_args).unwrap();
                     let tool_call_id = tool_call["id"].as_str().unwrap();
 
-                    let requires_approval =
-                        tool_calling::tool_requires_approval(tool_name, &tool_args);
+                    let requires_approval = tool_calling::tool_requires_approval(
+                        tool_name,
+                        &tool_args,
+                        state.ai_state.full_user_control,
+                    );
                     if requires_approval {
                         state.ai_state.pending_tool_calls.push((
                             tool_name.to_string(),
