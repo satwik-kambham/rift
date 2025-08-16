@@ -69,7 +69,9 @@ impl LineBuffer {
                     "tsx" => Language::Tsx,
                     "json" => Language::JSON,
                     "c" => Language::C,
+                    "h" => Language::C,
                     "cpp" => Language::CPP,
+                    "hpp" => Language::CPP,
                     "vue" => Language::Vue,
                     _ => Language::PlainText,
                 },
@@ -259,7 +261,8 @@ impl LineBuffer {
                 HighlightConfiguration::new(
                     tree_sitter_cpp::LANGUAGE.into(),
                     "cpp",
-                    tree_sitter_cpp::HIGHLIGHT_QUERY,
+                    &(tree_sitter_c::HIGHLIGHT_QUERY.to_string()
+                        + tree_sitter_cpp::HIGHLIGHT_QUERY),
                     "",
                     "",
                 )
