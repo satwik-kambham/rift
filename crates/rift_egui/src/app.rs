@@ -157,9 +157,13 @@ impl App {
         self.file_explorer
             .show(ctx, &mut self.state, &mut self.lsp_handles);
 
+        self.ai_panel
+            .show(ctx, &mut self.state, &mut self.lsp_handles, false);
+
         egui::SidePanel::left("gutter")
-            .resizable(false)
+            .resizable(true)
             .show_separator_line(false)
+            .min_width(60.0)
             .frame(egui::Frame {
                 fill: self.state.preferences.theme.gutter_bg.into(),
                 inner_margin: egui::Margin::same(self.state.preferences.gutter_padding),
@@ -358,9 +362,6 @@ impl App {
                     show_signature_information(char_width, char_height, top_left, ctx, &self.state);
                 }
             });
-
-        self.ai_panel
-            .show(ctx, &mut self.state, &mut self.lsp_handles, true);
 
         // Render modals and other widgets
         self.info_modal.show(ctx, &mut self.state);
