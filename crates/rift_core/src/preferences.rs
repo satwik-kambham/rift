@@ -1,6 +1,5 @@
 use crate::themes;
 
-
 /// Color representation (values between 0 and 255)
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Color {
