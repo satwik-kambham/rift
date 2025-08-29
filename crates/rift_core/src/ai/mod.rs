@@ -446,9 +446,6 @@ pub struct OpenRouterChat {
 
     tools: serde_json::Value,
 
-    /// Whether to include usage information in the response.
-    usage: bool,
-
     /// Enable streaming of results.
     stream: bool,
 
@@ -467,7 +464,6 @@ pub fn openrouter_chat_send(state: &mut EditorState) {
         messages: state.ai_state.chat_state.history.clone(),
         tools: tool_calling::get_tools(),
         stream: false,
-        usage: true,
         temperature: Some(state.ai_state.chat_state.temperature),
         seed: Some(state.ai_state.chat_state.seed),
     };
@@ -480,56 +476,62 @@ pub fn openrouter_chat_send(state: &mut EditorState) {
         auth_token,
         |response, state, _lsp_handle| {
             let llm_response: Value = serde_json::from_str(&response).unwrap();
-            let choices = llm_response["choices"].as_array().unwrap();
-            let message: LLMChatMessage =
-                serde_json::from_value(choices[0]["message"].clone()).unwrap();
-            state.ai_state.chat_state.history.push(message.clone());
-
-            if message.tool_calls.is_some() {
-                let response: serde_json::Value = serde_json::from_str(&response).unwrap();
-                let choices = response["choices"].as_array().unwrap();
+            if let Some(choices) = llm_response["choices"].as_array() {
                 let message: LLMChatMessage =
                     serde_json::from_value(choices[0]["message"].clone()).unwrap();
-                let tool_calls = message.tool_calls.unwrap();
-                for tool_call in tool_calls.as_array().unwrap() {
-                    let tool_name = tool_call["function"]["name"].as_str().unwrap();
-                    let tool_args = tool_call["function"]["arguments"].as_str().unwrap();
-                    let tool_args = serde_json::from_str(tool_args).unwrap();
-                    let tool_call_id = tool_call["id"].as_str().unwrap();
+                state.ai_state.chat_state.history.push(message.clone());
 
-                    let requires_approval = tool_calling::tool_requires_approval(
-                        tool_name,
-                        &tool_args,
-                        state.ai_state.full_user_control,
-                    );
-                    if requires_approval {
-                        state.ai_state.pending_tool_calls.push((
-                            tool_name.to_string(),
-                            serde_json::to_string(&tool_args).unwrap(),
-                            Some(tool_call_id.to_string()),
-                            tool_calling::get_tool_call_preview(
+                if message.tool_calls.is_some() {
+                    let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+                    if let Some(choices) = response["choices"].as_array() {
+                        let message: LLMChatMessage =
+                            serde_json::from_value(choices[0]["message"].clone()).unwrap();
+                        let tool_calls = message.tool_calls.unwrap();
+                        for tool_call in tool_calls.as_array().unwrap() {
+                            let tool_name = tool_call["function"]["name"].as_str().unwrap();
+                            let tool_args = tool_call["function"]["arguments"].as_str().unwrap();
+                            let tool_args = serde_json::from_str(tool_args).unwrap();
+                            let tool_call_id = tool_call["id"].as_str().unwrap();
+
+                            let requires_approval = tool_calling::tool_requires_approval(
                                 tool_name,
                                 &tool_args,
-                                &state.workspace_folder,
-                            ),
-                        ));
+                                state.ai_state.full_user_control,
+                            );
+                            if requires_approval {
+                                state.ai_state.pending_tool_calls.push((
+                                    tool_name.to_string(),
+                                    serde_json::to_string(&tool_args).unwrap(),
+                                    Some(tool_call_id.to_string()),
+                                    tool_calling::get_tool_call_preview(
+                                        tool_name,
+                                        &tool_args,
+                                        &state.workspace_folder,
+                                    ),
+                                ));
+                            } else {
+                                tool_calling::handle_tool_calls_async(
+                                    tool_name.to_string(),
+                                    tool_args,
+                                    Some(tool_call_id.to_string()),
+                                    state.workspace_folder.clone(),
+                                    |response, state, _lsp_handle| {
+                                        let tool_response: LLMChatMessage =
+                                            serde_json::from_str(&response).unwrap();
+                                        state.ai_state.chat_state.history.push(tool_response);
+                                        openrouter_chat_send(state);
+                                    },
+                                    &state.rt,
+                                    state.async_handle.sender.clone(),
+                                );
+                            }
+                        }
                     } else {
-                        tool_calling::handle_tool_calls_async(
-                            tool_name.to_string(),
-                            tool_args,
-                            Some(tool_call_id.to_string()),
-                            state.workspace_folder.clone(),
-                            |response, state, _lsp_handle| {
-                                let tool_response: LLMChatMessage =
-                                    serde_json::from_str(&response).unwrap();
-                                state.ai_state.chat_state.history.push(tool_response);
-                                openrouter_chat_send(state);
-                            },
-                            &state.rt,
-                            state.async_handle.sender.clone(),
-                        );
+                        tracing::error!("{}", response);
                     }
                 }
+            } else {
+                tracing::error!("{}", response);
             }
         },
         &state.rt,

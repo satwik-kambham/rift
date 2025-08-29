@@ -151,17 +151,17 @@ impl CommandDispatcher {
                                 }
                             }
                         }
-                        egui::Event::MouseWheel {
-                            unit: _,
-                            delta,
-                            modifiers: _,
-                        } => {
-                            if delta.y > 0.0 {
-                                perform_action(Action::MoveCursorUp, state, lsp_handles);
-                            } else {
-                                perform_action(Action::MoveCursorDown, state, lsp_handles);
-                            }
-                        }
+                        // egui::Event::MouseWheel {
+                        //     unit: _,
+                        //     delta,
+                        //     modifiers: _,
+                        // } => {
+                        //     if delta.y > 0.0 {
+                        //         perform_action(Action::MoveCursorUp, state, lsp_handles);
+                        //     } else {
+                        //         perform_action(Action::MoveCursorDown, state, lsp_handles);
+                        //     }
+                        // }
                         _ => {}
                     }
                 }

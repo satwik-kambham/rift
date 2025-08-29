@@ -158,7 +158,7 @@ impl App {
             .show(ctx, &mut self.state, &mut self.lsp_handles);
 
         self.ai_panel
-            .show(ctx, &mut self.state, &mut self.lsp_handles, false);
+            .show(ctx, &mut self.state, &mut self.lsp_handles, true);
 
         egui::SidePanel::left("gutter")
             .resizable(true)
