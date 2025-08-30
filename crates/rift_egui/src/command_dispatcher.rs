@@ -2,9 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use egui::Ui;
 use rift_core::{
-    actions::{perform_action, Action},
-    buffer::instance::Language,
-    lsp::client::LSPClientHandle,
+    actions::perform_action, buffer::instance::Language, lsp::client::LSPClientHandle,
     state::EditorState,
 };
 
