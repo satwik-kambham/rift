@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     // Operators
     Plus,
@@ -6,8 +6,13 @@ pub enum Token {
     Asterisk,
     Slash,
     Percent,
-
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
     Equals,
+    IsEqual,
+    NotEqual,
 
     // Delimiters
     Semicolon,
@@ -26,6 +31,7 @@ pub enum Token {
     If,
     Else,
     While,
+    Fn,
 
     // Comment
     Hash,
