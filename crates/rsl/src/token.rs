@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // Operators
     Plus,
@@ -29,9 +29,10 @@ pub enum Token {
     Or,
     Not,
     If,
-    Else,
-    While,
+    Loop,
     Fn,
+    Break,
+    Return,
 
     // Comment
     Hash,
