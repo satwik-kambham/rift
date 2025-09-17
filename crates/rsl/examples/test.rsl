@@ -1,0 +1,23 @@
+print("Hello");
+
+x = 5.4;
+print("x: ", x);
+
+loop {
+    x = x + 1;
+    print("x: ", x);
+    
+    if x > 10 {
+        break;
+    }
+}
+
+print(x, y);
+
+fn fun(a) {
+    print("a * a + 2 = ");
+    return a * a + 2;
+    print("Hello again");
+}
+
+print(fun, fun(x));

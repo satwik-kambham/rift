@@ -13,7 +13,7 @@ struct MultilineSourceValidator;
 
 impl Validator for MultilineSourceValidator {
     fn validate(&self, line: &str) -> ValidationResult {
-        if line.ends_with(";") || line.ends_with("}") {
+        if line.ends_with("\n\n") {
             ValidationResult::Complete
         } else {
             ValidationResult::Incomplete

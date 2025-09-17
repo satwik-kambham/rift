@@ -4,6 +4,7 @@ use crate::environment::Environment;
 use crate::expression;
 use crate::primitive::{FunctionDefinition, Primitive};
 
+#[derive(Debug)]
 pub enum StatementResult {
     None,
     Break,
@@ -153,6 +154,7 @@ impl Statement for LoopStatement {
         loop {
             for statement in &self.body {
                 let execution_result = statement.execute(local_environment.clone());
+
                 if let StatementResult::Break = execution_result {
                     return StatementResult::None;
                 }

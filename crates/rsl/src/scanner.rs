@@ -121,11 +121,13 @@ impl Scanner {
                         "and" => self.tokens.push(Token::And),
                         "or" => self.tokens.push(Token::Or),
                         "if" => self.tokens.push(Token::If),
-                        "while" => self.tokens.push(Token::Loop),
+                        "loop" => self.tokens.push(Token::Loop),
                         "fn" => self.tokens.push(Token::Fn),
                         "null" => self.tokens.push(Token::Null),
                         "true" => self.tokens.push(Token::True),
                         "false" => self.tokens.push(Token::False),
+                        "break" => self.tokens.push(Token::Break),
+                        "return" => self.tokens.push(Token::Return),
                         _ => self.tokens.push(Token::Identifier(identifier.to_string())),
                     }
                 }

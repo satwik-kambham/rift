@@ -126,7 +126,7 @@ impl Parser {
     fn return_statement(&mut self) -> Box<dyn statement::Statement> {
         let expression = self.expression();
         expect_token!(self, Token::Semicolon, ";");
-        return Box::new(statement::ExpressionStatement::new(expression));
+        return Box::new(statement::ReturnStatement::new(expression));
     }
 
     fn assignment_statement(&mut self) -> Box<dyn statement::Statement> {

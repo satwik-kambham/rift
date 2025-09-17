@@ -233,13 +233,27 @@ impl Expression for FunctionCallExpression {
             }
 
             for statement in function_definition.body.iter() {
-                if let StatementResult::Return(result) =
-                    statement.execute(local_environment.clone())
-                {
+                let result = statement.execute(local_environment.clone());
+
+                if let StatementResult::Return(result) = result {
                     return result;
                 }
-                return Primitive::Null;
             }
+            return Primitive::Null;
+        }
+
+        if self.identifier == "print" {
+            let mut arguments = vec![];
+            for parameter in self.parameters.iter() {
+                arguments.push(parameter.execute(environment.clone()));
+            }
+            let text = arguments
+                .iter()
+                .map(|arg| format!("{}", arg))
+                .collect::<Vec<_>>()
+                .join(" ");
+            println!("{}", text);
+            return Primitive::Null;
         }
 
         panic!("function does not exist")

@@ -21,6 +21,3 @@ logs
 
 # Nix build results
 result
-.aider*
-
-examples
