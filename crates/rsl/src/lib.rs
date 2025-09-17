@@ -14,8 +14,9 @@ pub fn run_script(source: String) {
     let mut scanner = crate::scanner::Scanner::new(source);
     let tokens = scanner.scan();
 
-    println!("Tokens: {:?}", tokens);
-
     let mut parser = crate::parser::Parser::new(tokens.clone());
     let statements = parser.parse();
+
+    let mut interpreter = crate::interpreter::Interpreter::new(statements);
+    interpreter.interpret();
 }

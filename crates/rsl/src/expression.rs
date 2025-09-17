@@ -1,7 +1,13 @@
+use std::rc::Rc;
+
+use crate::environment::Environment;
 use crate::operator::Operator;
 use crate::primitive::Primitive;
+use crate::statement::StatementResult;
 
-pub trait Expression {}
+pub trait Expression {
+    fn execute(&self, environment: Rc<Environment>) -> Primitive;
+}
 
 pub struct LiteralExpression {
     literal: Primitive,
@@ -13,7 +19,11 @@ impl LiteralExpression {
     }
 }
 
-impl Expression for LiteralExpression {}
+impl Expression for LiteralExpression {
+    fn execute(&self, _environment: Rc<Environment>) -> Primitive {
+        self.literal.clone()
+    }
+}
 
 pub struct VariableExpression {
     identifier: String,
@@ -25,7 +35,11 @@ impl VariableExpression {
     }
 }
 
-impl Expression for VariableExpression {}
+impl Expression for VariableExpression {
+    fn execute(&self, environment: Rc<Environment>) -> Primitive {
+        environment.get_value(&self.identifier)
+    }
+}
 
 pub struct BinaryExpression {
     left: Box<dyn Expression>,
@@ -43,7 +57,95 @@ impl BinaryExpression {
     }
 }
 
-impl Expression for BinaryExpression {}
+impl Expression for BinaryExpression {
+    fn execute(&self, environment: Rc<Environment>) -> Primitive {
+        let left = self.left.execute(environment.clone());
+        let right = self.right.execute(environment.clone());
+
+        match &self.operator {
+            Operator::Or => {
+                if let (Primitive::Boolean(left), Primitive::Boolean(right)) = (left, right) {
+                    Primitive::Boolean(left || right)
+                } else {
+                    panic!("Expected left and right expression of 'or' operator to be boolean")
+                }
+            }
+            Operator::And => {
+                if let (Primitive::Boolean(left), Primitive::Boolean(right)) = (left, right) {
+                    Primitive::Boolean(left && right)
+                } else {
+                    panic!("Expected left and right expression of 'and' operator to be boolean")
+                }
+            }
+            Operator::IsEqual => Primitive::Boolean(left == right),
+            Operator::NotEqual => Primitive::Boolean(left != right),
+            Operator::LessThan => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Boolean(left < right)
+                } else {
+                    panic!("Expected left and right expression of '<' operator to be numbers")
+                }
+            }
+            Operator::LessThanEqual => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Boolean(left <= right)
+                } else {
+                    panic!("Expected left and right expression of '<=' operator to be numbers")
+                }
+            }
+            Operator::GreaterThan => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Boolean(left > right)
+                } else {
+                    panic!("Expected left and right expression of '>' operator to be numbers")
+                }
+            }
+            Operator::GreaterThanEqual => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Boolean(left >= right)
+                } else {
+                    panic!("Expected left and right expression of '>=' operator to be numbers")
+                }
+            }
+            Operator::Plus => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Number(left + right)
+                } else {
+                    panic!("Expected left and right expression of '+' operator to be numbers")
+                }
+            }
+            Operator::Minus => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Number(left - right)
+                } else {
+                    panic!("Expected left and right expression of '-' operator to be numbers")
+                }
+            }
+            Operator::Asterisk => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Number(left * right)
+                } else {
+                    panic!("Expected left and right expression of '*' operator to be numbers")
+                }
+            }
+            Operator::Slash => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Number(left / right)
+                } else {
+                    panic!("Expected left and right expression of '/' operator to be numbers")
+                }
+            }
+            Operator::Percent => {
+                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+                    Primitive::Number(left % right)
+                } else {
+                    panic!("Expected left and right expression of '%' operator to be numbers")
+                }
+            }
+            other => panic!("Unexpected operator {:?}", other),
+        }
+    }
+}
 
 pub struct UnaryExpression {
     operator: Operator,
@@ -59,7 +161,29 @@ impl UnaryExpression {
     }
 }
 
-impl Expression for UnaryExpression {}
+impl Expression for UnaryExpression {
+    fn execute(&self, environment: Rc<Environment>) -> Primitive {
+        let expression = self.expression.execute(environment.clone());
+
+        match &self.operator {
+            Operator::Minus => {
+                if let Primitive::Number(expression) = expression {
+                    Primitive::Number(-expression)
+                } else {
+                    panic!("Expected expression of '-' operator to be a number")
+                }
+            }
+            Operator::Not => {
+                if let Primitive::Boolean(expression) = expression {
+                    Primitive::Boolean(!expression)
+                } else {
+                    panic!("Expected expression of 'not' operator to be boolean")
+                }
+            }
+            other => panic!("Unexpected operator {:?}", other),
+        }
+    }
+}
 
 pub struct GroupingExpression {
     expression: Box<dyn Expression>,
@@ -71,7 +195,11 @@ impl GroupingExpression {
     }
 }
 
-impl Expression for GroupingExpression {}
+impl Expression for GroupingExpression {
+    fn execute(&self, environment: Rc<Environment>) -> Primitive {
+        self.expression.execute(environment)
+    }
+}
 
 pub struct FunctionCallExpression {
     identifier: String,
@@ -87,4 +215,33 @@ impl FunctionCallExpression {
     }
 }
 
-impl Expression for FunctionCallExpression {}
+impl Expression for FunctionCallExpression {
+    fn execute(&self, environment: Rc<Environment>) -> Primitive {
+        if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
+            let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+            let function_definition = local_environment.get_function(&function_id);
+
+            if self.parameters.len() != function_definition.parameters.len() {
+                panic!("Number of parameters does not match")
+            }
+
+            for i in 0..function_definition.parameters.len() {
+                local_environment.set_value_local(
+                    function_definition.parameters.get(i).unwrap().clone(),
+                    self.parameters.get(i).unwrap().execute(environment.clone()),
+                );
+            }
+
+            for statement in function_definition.body.iter() {
+                if let StatementResult::Return(result) =
+                    statement.execute(local_environment.clone())
+                {
+                    return result;
+                }
+                return Primitive::Null;
+            }
+        }
+
+        panic!("function does not exist")
+    }
+}

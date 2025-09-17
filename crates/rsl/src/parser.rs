@@ -79,7 +79,7 @@ impl Parser {
         expect_token!(self, Token::LeftBrace, "{");
         let body = self.block();
         expect_token!(self, Token::RightBrace, "}");
-        Box::new(statement::FunctionDefinition::new(
+        Box::new(statement::FunctionDefinitionStatement::new(
             identifier, parameters, body,
         ))
     }

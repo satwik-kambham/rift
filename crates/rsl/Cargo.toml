@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.23", features = ["derive"] }
 reedline = "0.41.0"
+uuid = { version = "1.16.0", features = ["v4"] }

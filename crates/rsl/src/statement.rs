@@ -1,6 +1,18 @@
-use crate::expression;
+use std::rc::Rc;
 
-pub trait Statement {}
+use crate::environment::Environment;
+use crate::expression;
+use crate::primitive::{FunctionDefinition, Primitive};
+
+pub enum StatementResult {
+    None,
+    Break,
+    Return(Primitive),
+}
+
+pub trait Statement {
+    fn execute(&self, environment: Rc<Environment>) -> StatementResult;
+}
 
 pub struct ExpressionStatement {
     expression: Box<dyn expression::Expression>,
@@ -12,7 +24,12 @@ impl ExpressionStatement {
     }
 }
 
-impl Statement for ExpressionStatement {}
+impl Statement for ExpressionStatement {
+    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+        self.expression.execute(environment);
+        StatementResult::None
+    }
+}
 
 pub struct AssignmentStatement {
     identifier: String,
@@ -28,25 +45,46 @@ impl AssignmentStatement {
     }
 }
 
-impl Statement for AssignmentStatement {}
-
-pub struct FunctionDefinition {
-    identifier: String,
-    parameters: Vec<String>,
-    body: Vec<Box<dyn Statement>>,
+impl Statement for AssignmentStatement {
+    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+        let local_environment = environment.clone();
+        local_environment.set_value_non_local(
+            self.identifier.clone(),
+            self.expression.execute(environment),
+        );
+        StatementResult::None
+    }
 }
 
-impl FunctionDefinition {
+pub struct FunctionDefinitionStatement {
+    identifier: String,
+    parameters: Vec<String>,
+    body: Rc<Vec<Box<dyn Statement>>>,
+}
+
+impl FunctionDefinitionStatement {
     pub fn new(identifier: String, parameters: Vec<String>, body: Vec<Box<dyn Statement>>) -> Self {
         Self {
             identifier,
             parameters,
-            body,
+            body: Rc::new(body),
         }
     }
 }
 
-impl Statement for FunctionDefinition {}
+impl Statement for FunctionDefinitionStatement {
+    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+        let local_environment = environment.clone();
+        local_environment.register_function(
+            self.identifier.clone(),
+            FunctionDefinition {
+                parameters: self.parameters.clone(),
+                body: self.body.clone(),
+            },
+        );
+        StatementResult::None
+    }
+}
 
 pub struct ReturnStatement {
     expression: Box<dyn expression::Expression>,
@@ -58,7 +96,11 @@ impl ReturnStatement {
     }
 }
 
-impl Statement for ReturnStatement {}
+impl Statement for ReturnStatement {
+    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+        StatementResult::Return(self.expression.execute(environment))
+    }
+}
 
 pub struct IfStatement {
     condition: Box<dyn expression::Expression>,
@@ -71,7 +113,29 @@ impl IfStatement {
     }
 }
 
-impl Statement for IfStatement {}
+impl Statement for IfStatement {
+    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+        let condition = self.condition.execute(environment.clone());
+        if let Primitive::Boolean(condition) = condition {
+            if condition {
+                let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+                for statement in &self.body {
+                    let statement_result = statement.execute(local_environment.clone());
+                    if matches!(
+                        statement_result,
+                        StatementResult::Break | StatementResult::Return(_)
+                    ) {
+                        return statement_result;
+                    }
+                }
+            }
+        } else {
+            panic!("Expected boolean got {:?}", condition)
+        }
+
+        StatementResult::None
+    }
+}
 
 pub struct LoopStatement {
     body: Vec<Box<dyn Statement>>,
@@ -83,7 +147,23 @@ impl LoopStatement {
     }
 }
 
-impl Statement for LoopStatement {}
+impl Statement for LoopStatement {
+    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+        let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+        loop {
+            for statement in &self.body {
+                let execution_result = statement.execute(local_environment.clone());
+                if let StatementResult::Break = execution_result {
+                    return StatementResult::None;
+                }
+
+                if matches!(execution_result, StatementResult::Return(_)) {
+                    return execution_result;
+                }
+            }
+        }
+    }
+}
 
 pub struct BreakStatement {}
 
@@ -93,4 +173,8 @@ impl BreakStatement {
     }
 }
 
-impl Statement for BreakStatement {}
+impl Statement for BreakStatement {
+    fn execute(&self, _environment: Rc<Environment>) -> StatementResult {
+        StatementResult::Break
+    }
+}
