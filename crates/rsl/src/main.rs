@@ -2,7 +2,7 @@ use clap::Parser;
 use reedline::{
     DefaultPrompt, DefaultPromptSegment, Reedline, Signal, ValidationResult, Validator,
 };
-use rsl::run_script;
+use rsl::RSL;
 
 #[derive(Parser)]
 pub struct CLIArgs {
@@ -23,9 +23,10 @@ impl Validator for MultilineSourceValidator {
 
 fn main() {
     let cli_args = CLIArgs::parse();
+    let rsl = RSL::new();
     if let Some(path) = cli_args.script_path {
         let source = std::fs::read_to_string(path).unwrap();
-        run_script(source);
+        rsl.run(source);
     } else {
         let mut line_editor = Reedline::create().with_validator(Box::new(MultilineSourceValidator));
         let prompt = DefaultPrompt::new(DefaultPromptSegment::Empty, DefaultPromptSegment::Empty);
@@ -34,7 +35,7 @@ fn main() {
             let signal = line_editor.read_line(&prompt);
             match signal {
                 Ok(Signal::Success(source)) => {
-                    run_script(source);
+                    rsl.run(source);
                 }
                 Ok(Signal::CtrlC) => {
                     eprintln!("Aborted!");

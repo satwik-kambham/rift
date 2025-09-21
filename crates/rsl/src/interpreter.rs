@@ -16,6 +16,16 @@ impl Interpreter {
         }
     }
 
+    pub fn with_environment(
+        statements: Vec<Box<dyn statement::Statement>>,
+        environment: Rc<Environment>,
+    ) -> Self {
+        Self {
+            statements,
+            environment,
+        }
+    }
+
     pub fn interpret(&mut self) {
         for statement in &self.statements {
             statement.execute(self.environment.clone());
