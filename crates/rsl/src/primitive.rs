@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::array::Array;
 use crate::statement::Statement;
 use crate::table::Table;
 
@@ -10,7 +12,9 @@ pub enum Primitive {
     Number(f32),
     String(String),
     Function(String),
-    Table(Rc<Table>),
+    Array(Rc<RefCell<Array>>),
+    Table(Rc<RefCell<Table>>),
+    Error(String),
 }
 
 impl std::fmt::Display for Primitive {
@@ -21,7 +25,9 @@ impl std::fmt::Display for Primitive {
             Primitive::Number(n) => write!(f, "{n}"),
             Primitive::String(s) => write!(f, "{s}"),
             Primitive::Function(name) => write!(f, "<fn {name}>"),
-            Primitive::Table(table) => write!(f, "{table}"),
+            Primitive::Table(table) => write!(f, "{}", table.borrow()),
+            Primitive::Array(array) => write!(f, "{}", array.borrow()),
+            Primitive::Error(msg) => write!(f, "Error: {msg}"),
         }
     }
 }
