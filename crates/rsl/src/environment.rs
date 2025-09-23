@@ -9,6 +9,7 @@ use crate::primitive::{FunctionDefinition, Primitive};
 pub struct Environment {
     values: RefCell<HashMap<String, Primitive>>,
     functions: RefCell<HashMap<String, FunctionDefinition>>,
+    native_functions: RefCell<HashMap<String, fn(Vec<Primitive>) -> Primitive>>,
     parent: Option<Rc<Environment>>,
 }
 
@@ -17,6 +18,7 @@ impl Environment {
         Self {
             values: RefCell::new(HashMap::new()),
             functions: RefCell::new(HashMap::new()),
+            native_functions: RefCell::new(HashMap::new()),
             parent,
         }
     }
@@ -65,15 +67,48 @@ impl Environment {
         self.set_value_local(name, Primitive::Function(function_id));
     }
 
-    pub fn get_function(&self, function_id: &str) -> FunctionDefinition {
-        if let Some(value) = self.functions.borrow().get(function_id) {
-            return value.clone();
+    pub fn register_native_function(
+        &self,
+        name: &str,
+        native_function: fn(Vec<Primitive>) -> Primitive,
+    ) {
+        if let Some(parent) = &self.parent {
+            return parent.register_native_function(name, native_function);
+        }
+
+        let function_id = Uuid::new_v4().to_string();
+
+        self.native_functions
+            .borrow_mut()
+            .insert(function_id.clone(), native_function);
+
+        self.set_value_local(name.to_string(), Primitive::Function(function_id));
+    }
+
+    pub fn get_function(&self, function_id: &str) -> Option<FunctionDefinition> {
+        if let Some(definition) = self.functions.borrow().get(function_id) {
+            return Some(definition.clone());
         }
 
         if let Some(parent) = &self.parent {
             return parent.get_function(function_id);
         }
 
-        panic!("function id not found")
+        None
+    }
+
+    pub fn get_native_function(
+        &self,
+        function_id: &str,
+    ) -> Option<fn(Vec<Primitive>) -> Primitive> {
+        if let Some(func) = self.native_functions.borrow().get(function_id) {
+            return Some(*func);
+        }
+
+        if let Some(parent) = &self.parent {
+            return parent.get_native_function(function_id);
+        }
+
+        None
     }
 }

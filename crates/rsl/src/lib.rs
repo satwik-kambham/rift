@@ -6,22 +6,13 @@ pub mod parser;
 pub mod primitive;
 pub mod scanner;
 pub mod statement;
+pub mod table;
 pub mod token;
 
 use std::rc::Rc;
 
 use crate::environment::Environment;
-
-pub fn run_script(source: String) {
-    let mut scanner = crate::scanner::Scanner::new(source);
-    let tokens = scanner.scan();
-
-    let mut parser = crate::parser::Parser::new(tokens.clone());
-    let statements = parser.parse();
-
-    let mut interpreter = crate::interpreter::Interpreter::new(statements);
-    interpreter.interpret();
-}
+use crate::primitive::Primitive;
 
 pub struct RSL {
     pub environment: Rc<Environment>,
@@ -29,8 +20,18 @@ pub struct RSL {
 
 impl RSL {
     pub fn new() -> Self {
+        let environment = Environment::new(None);
+        environment.register_native_function("print", |arguments| {
+            let text = arguments
+                .iter()
+                .map(|arg| format!("{}", arg))
+                .collect::<Vec<_>>()
+                .join(" ");
+            println!("{}", text);
+            return Primitive::Null;
+        });
         Self {
-            environment: Rc::new(Environment::new(None)),
+            environment: Rc::new(environment),
         }
     }
 

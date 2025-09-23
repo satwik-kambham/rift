@@ -219,43 +219,40 @@ impl Expression for FunctionCallExpression {
     fn execute(&self, environment: Rc<Environment>) -> Primitive {
         if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
             let local_environment = Rc::new(Environment::new(Some(environment.clone())));
-            let function_definition = local_environment.get_function(&function_id);
-
-            if self.parameters.len() != function_definition.parameters.len() {
-                panic!("Number of parameters does not match")
-            }
-
-            for i in 0..function_definition.parameters.len() {
-                local_environment.set_value_local(
-                    function_definition.parameters.get(i).unwrap().clone(),
-                    self.parameters.get(i).unwrap().execute(environment.clone()),
-                );
-            }
-
-            for statement in function_definition.body.iter() {
-                let result = statement.execute(local_environment.clone());
-
-                if let StatementResult::Return(result) = result {
-                    return result;
+            if let Some(function_definition) = local_environment.get_function(&function_id) {
+                if self.parameters.len() != function_definition.parameters.len() {
+                    panic!("Number of parameters does not match")
                 }
+
+                for i in 0..function_definition.parameters.len() {
+                    local_environment.set_value_local(
+                        function_definition.parameters.get(i).unwrap().clone(),
+                        self.parameters.get(i).unwrap().execute(environment.clone()),
+                    );
+                }
+
+                for statement in function_definition.body.iter() {
+                    let result = statement.execute(local_environment.clone());
+
+                    if let StatementResult::Return(result) = result {
+                        return result;
+                    }
+                }
+                return Primitive::Null;
+            } else if let Some(native_function) =
+                local_environment.get_native_function(&function_id)
+            {
+                let mut parameters = vec![];
+                for param_expression in &self.parameters {
+                    parameters.push(param_expression.execute(environment.clone()));
+                }
+
+                return native_function(parameters);
+            } else {
+                panic!("function {} not found", function_id);
             }
-            return Primitive::Null;
         }
 
-        if self.identifier == "print" {
-            let mut arguments = vec![];
-            for parameter in self.parameters.iter() {
-                arguments.push(parameter.execute(environment.clone()));
-            }
-            let text = arguments
-                .iter()
-                .map(|arg| format!("{}", arg))
-                .collect::<Vec<_>>()
-                .join(" ");
-            println!("{}", text);
-            return Primitive::Null;
-        }
-
-        panic!("function does not exist")
+        panic!("function {} does not exist", self.identifier)
     }
 }

@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::statement::Statement;
+use crate::table::Table;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Primitive {
@@ -9,6 +10,7 @@ pub enum Primitive {
     Number(f32),
     String(String),
     Function(String),
+    Table(Rc<Table>),
 }
 
 impl std::fmt::Display for Primitive {
@@ -19,6 +21,7 @@ impl std::fmt::Display for Primitive {
             Primitive::Number(n) => write!(f, "{n}"),
             Primitive::String(s) => write!(f, "{s}"),
             Primitive::Function(name) => write!(f, "<fn {name}>"),
+            Primitive::Table(table) => write!(f, "{table}"),
         }
     }
 }
