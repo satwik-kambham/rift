@@ -31,6 +31,10 @@ impl RSL {
         environment.register_native_function("arrayPushBack", std_lib::array::array_push_back);
         environment.register_native_function("arrayRemove", std_lib::array::array_remove);
         environment.register_native_function("arrayPopBack", std_lib::array::array_pop_back);
+        environment.register_native_function("createTable", std_lib::table::create_table);
+        environment.register_native_function("tableSet", std_lib::table::table_set);
+        environment.register_native_function("tableGet", std_lib::table::table_get);
+        environment.register_native_function("tableKeys", std_lib::table::table_keys);
 
         Self {
             environment: Rc::new(environment),

@@ -22,6 +22,10 @@ impl Table {
     pub fn get_value(&self, key: &str) -> Primitive {
         self.table.get(key).unwrap_or(&Primitive::Null).clone()
     }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.table.keys().cloned().collect()
+    }
 }
 
 impl PartialEq for Table {

@@ -25,9 +25,3 @@ The project developement environment is create using nix devshell.
 - Run tui frontend: `cargo b -p rift_tui`
 - Run egui frontend: `cargo b -p rift_egui`
 - Build all executables for release: `cargo b -r`
-
-## Important Files
-
-- `crates/rift_core/src/state.rs` - Main editor state
-- `crates/rift_egui/src/app.rs` - Main egui code
-- `crates/rift_tui/src/app.rs` - main tui code
