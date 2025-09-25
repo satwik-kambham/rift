@@ -1,12 +1,16 @@
 use std::rc::Rc;
 
+#[cfg(feature = "rift_rpc")]
+use tarpc::context;
+
+use crate::RSL;
 use crate::environment::Environment;
 use crate::operator::Operator;
 use crate::primitive::Primitive;
 use crate::statement::StatementResult;
 
 pub trait Expression {
-    fn execute(&self, environment: Rc<Environment>) -> Primitive;
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive;
 }
 
 pub struct LiteralExpression {
@@ -20,7 +24,7 @@ impl LiteralExpression {
 }
 
 impl Expression for LiteralExpression {
-    fn execute(&self, _environment: Rc<Environment>) -> Primitive {
+    fn execute(&self, _environment: Rc<Environment>, _rsl: &mut RSL) -> Primitive {
         self.literal.clone()
     }
 }
@@ -36,7 +40,7 @@ impl VariableExpression {
 }
 
 impl Expression for VariableExpression {
-    fn execute(&self, environment: Rc<Environment>) -> Primitive {
+    fn execute(&self, environment: Rc<Environment>, _rsl: &mut RSL) -> Primitive {
         environment.get_value(&self.identifier)
     }
 }
@@ -58,9 +62,9 @@ impl BinaryExpression {
 }
 
 impl Expression for BinaryExpression {
-    fn execute(&self, environment: Rc<Environment>) -> Primitive {
-        let left = self.left.execute(environment.clone());
-        let right = self.right.execute(environment.clone());
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
+        let left = self.left.execute(environment.clone(), rsl);
+        let right = self.right.execute(environment.clone(), rsl);
 
         match &self.operator {
             Operator::Or => {
@@ -162,8 +166,8 @@ impl UnaryExpression {
 }
 
 impl Expression for UnaryExpression {
-    fn execute(&self, environment: Rc<Environment>) -> Primitive {
-        let expression = self.expression.execute(environment.clone());
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
+        let expression = self.expression.execute(environment.clone(), rsl);
 
         match &self.operator {
             Operator::Minus => {
@@ -196,8 +200,8 @@ impl GroupingExpression {
 }
 
 impl Expression for GroupingExpression {
-    fn execute(&self, environment: Rc<Environment>) -> Primitive {
-        self.expression.execute(environment)
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
+        self.expression.execute(environment, rsl)
     }
 }
 
@@ -216,7 +220,7 @@ impl FunctionCallExpression {
 }
 
 impl Expression for FunctionCallExpression {
-    fn execute(&self, environment: Rc<Environment>) -> Primitive {
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
         if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
             let local_environment = Rc::new(Environment::new(Some(environment.clone())));
             if let Some(function_definition) = local_environment.get_function(&function_id) {
@@ -227,12 +231,15 @@ impl Expression for FunctionCallExpression {
                 for i in 0..function_definition.parameters.len() {
                     local_environment.set_value_local(
                         function_definition.parameters.get(i).unwrap().clone(),
-                        self.parameters.get(i).unwrap().execute(environment.clone()),
+                        self.parameters
+                            .get(i)
+                            .unwrap()
+                            .execute(environment.clone(), rsl),
                     );
                 }
 
                 for statement in function_definition.body.iter() {
-                    let result = statement.execute(local_environment.clone());
+                    let result = statement.execute(local_environment.clone(), rsl);
 
                     if let StatementResult::Return(result) = result {
                         return result;
@@ -244,15 +251,39 @@ impl Expression for FunctionCallExpression {
             {
                 let mut parameters = vec![];
                 for param_expression in &self.parameters {
-                    parameters.push(param_expression.execute(environment.clone()));
+                    parameters.push(param_expression.execute(environment.clone(), rsl));
                 }
 
                 return native_function(parameters);
             } else {
                 panic!("function {} not found", function_id);
             }
-        }
+        } else {
+            #[cfg(feature = "rift_rpc")]
+            {
+                let mut parameters = vec![];
+                for param_expression in &self.parameters {
+                    parameters.push(param_expression.execute(environment.clone(), rsl));
+                }
 
-        panic!("function {} does not exist", self.identifier)
+                return rsl.rt.block_on(async {
+                    match self.identifier.as_str() {
+                        "log" => {
+                            rsl.rift_rpc_client
+                                .rlog(
+                                    context::Context::current(),
+                                    parameters.get(0).unwrap().to_string(),
+                                )
+                                .await
+                                .unwrap();
+                            Primitive::Null
+                        }
+                        _ => panic!("function {} does not exist", self.identifier),
+                    }
+                });
+            }
+            #[cfg(not(feature = "rift_rpc"))]
+            panic!("function {} does not exist", self.identifier)
+        }
     }
 }

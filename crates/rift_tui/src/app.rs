@@ -85,6 +85,10 @@ impl App {
                     );
                 }
 
+                if let Ok(action) = self.state.event_reciever.try_recv() {
+                    self.perform_action(action);
+                }
+
                 // Handle file watcher events
                 if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
                     handle_file_event(file_event_result, &mut self.state, &mut self.lsp_handles);
@@ -296,6 +300,11 @@ impl App {
                         )
                         .into(),
                         format!(" {} ", self.state.keybind_handler.running_sequence).into(),
+                        format!(
+                            " {} ",
+                            self.state.log_messages.last().unwrap_or(&String::new())
+                        )
+                        .into(),
                     ]);
                     frame.render_widget(status, v_layout[1]);
                 }

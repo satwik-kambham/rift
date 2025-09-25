@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::RSL;
 use crate::environment::Environment;
 use crate::statement;
 
@@ -26,9 +27,9 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(&mut self) {
+    pub fn interpret(&mut self, rsl: &mut RSL) {
         for statement in &self.statements {
-            statement.execute(self.environment.clone());
+            statement.execute(self.environment.clone(), rsl);
         }
     }
 }

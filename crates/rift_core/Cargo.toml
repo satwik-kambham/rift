@@ -7,6 +7,10 @@ edition = "2021"
 cc="*"
 
 [dependencies]
+rsl = { path = "../rsl", features = ["rift_rpc"] }
+rift_rpc = { path = "../rift_rpc" }
+tarpc = { version = "0.37", features = ["full"] }
+futures = "0.3"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tree-sitter = "0.23.0"

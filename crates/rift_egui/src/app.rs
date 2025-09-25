@@ -8,6 +8,7 @@ use egui::{
     FontId, RichText,
 };
 use rift_core::{
+    actions::perform_action,
     buffer::instance::{Attribute, HighlightType, Language},
     cli::{process_cli_args, CLIArgs},
     io::file_io::handle_file_event,
@@ -218,6 +219,10 @@ impl App {
                         &mut self.state,
                         &mut self.lsp_handles,
                     );
+                }
+
+                if let Ok(action) = self.state.event_reciever.try_recv() {
+                    perform_action(action, &mut self.state, &mut self.lsp_handles);
                 }
 
                 // Handle file watcher events

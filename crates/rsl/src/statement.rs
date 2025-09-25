@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::RSL;
 use crate::environment::Environment;
 use crate::expression;
 use crate::primitive::{FunctionDefinition, Primitive};
@@ -12,7 +13,7 @@ pub enum StatementResult {
 }
 
 pub trait Statement {
-    fn execute(&self, environment: Rc<Environment>) -> StatementResult;
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult;
 }
 
 pub struct ExpressionStatement {
@@ -26,8 +27,8 @@ impl ExpressionStatement {
 }
 
 impl Statement for ExpressionStatement {
-    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
-        self.expression.execute(environment);
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
+        self.expression.execute(environment, rsl);
         StatementResult::None
     }
 }
@@ -47,11 +48,11 @@ impl AssignmentStatement {
 }
 
 impl Statement for AssignmentStatement {
-    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
         let local_environment = environment.clone();
         local_environment.set_value_non_local(
             self.identifier.clone(),
-            self.expression.execute(environment),
+            self.expression.execute(environment, rsl),
         );
         StatementResult::None
     }
@@ -74,7 +75,7 @@ impl FunctionDefinitionStatement {
 }
 
 impl Statement for FunctionDefinitionStatement {
-    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+    fn execute(&self, environment: Rc<Environment>, _rsl: &mut RSL) -> StatementResult {
         let local_environment = environment.clone();
         local_environment.register_function(
             self.identifier.clone(),
@@ -98,8 +99,8 @@ impl ReturnStatement {
 }
 
 impl Statement for ReturnStatement {
-    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
-        StatementResult::Return(self.expression.execute(environment))
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
+        StatementResult::Return(self.expression.execute(environment, rsl))
     }
 }
 
@@ -115,13 +116,13 @@ impl IfStatement {
 }
 
 impl Statement for IfStatement {
-    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
-        let condition = self.condition.execute(environment.clone());
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
+        let condition = self.condition.execute(environment.clone(), rsl);
         if let Primitive::Boolean(condition) = condition {
             if condition {
                 let local_environment = Rc::new(Environment::new(Some(environment.clone())));
                 for statement in &self.body {
-                    let statement_result = statement.execute(local_environment.clone());
+                    let statement_result = statement.execute(local_environment.clone(), rsl);
                     if matches!(
                         statement_result,
                         StatementResult::Break | StatementResult::Return(_)
@@ -149,11 +150,11 @@ impl LoopStatement {
 }
 
 impl Statement for LoopStatement {
-    fn execute(&self, environment: Rc<Environment>) -> StatementResult {
+    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
         let local_environment = Rc::new(Environment::new(Some(environment.clone())));
         loop {
             for statement in &self.body {
-                let execution_result = statement.execute(local_environment.clone());
+                let execution_result = statement.execute(local_environment.clone(), rsl);
 
                 if let StatementResult::Break = execution_result {
                     return StatementResult::None;
@@ -176,7 +177,7 @@ impl BreakStatement {
 }
 
 impl Statement for BreakStatement {
-    fn execute(&self, _environment: Rc<Environment>) -> StatementResult {
+    fn execute(&self, _environment: Rc<Environment>, _rsl: &mut RSL) -> StatementResult {
         StatementResult::Break
     }
 }

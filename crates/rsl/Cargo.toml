@@ -3,7 +3,15 @@ name = "rsl"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+rift_rpc = ["dep:rift_rpc", "tarpc", "futures"]
+
 [dependencies]
 clap = { version = "4.5.23", features = ["derive"] }
 reedline = "0.41.0"
 uuid = { version = "1.16.0", features = ["v4"] }
+tokio = { version = "1.41.0", features = ["full"] }
+rift_rpc = { path = "../rift_rpc", optional = true }
+tarpc = { version = "0.37", features = ["full"], optional = true }
+futures = { version = "0.3", optional = true }

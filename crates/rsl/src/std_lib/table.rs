@@ -41,7 +41,9 @@ pub fn table_keys(arguments: Vec<Primitive>) -> Primitive {
         if let Primitive::Table(table) = arguments.get(0).unwrap() {
             let keys = table.borrow().keys();
             let array = crate::array::Array::new(
-                keys.into_iter().map(|k| Primitive::String(k)).collect::<Vec<_>>(),
+                keys.into_iter()
+                    .map(|k| Primitive::String(k))
+                    .collect::<Vec<_>>(),
             );
             return Primitive::Array(Rc::new(RefCell::new(array)));
         }

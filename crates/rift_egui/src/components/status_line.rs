@@ -49,6 +49,10 @@ pub fn show_status_line(ctx: &egui::Context, state: &mut EditorState) -> (f32, f
                 }
                 ui.label(&state.keybind_handler.running_sequence);
                 ui.separator();
+
+                ui.label(state.log_messages.last().unwrap_or(&String::new()));
+
+                ui.separator();
             });
         });
     (char_width, char_height)

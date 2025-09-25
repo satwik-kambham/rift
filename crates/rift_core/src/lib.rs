@@ -8,5 +8,6 @@ pub mod keybinds;
 pub mod lsp;
 pub mod preferences;
 pub mod rendering;
+pub mod rpc;
 pub mod state;
 pub mod themes;

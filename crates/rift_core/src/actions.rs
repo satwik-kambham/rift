@@ -37,6 +37,8 @@ pub enum Action {
     CyclePreviousBuffer,
     CloseCurrentBuffer,
     SaveCurrentBuffer,
+    RunCurrentBuffer,
+    RunSource(String),
     Select(Selection),
     SelectCurrentLine,
     SelectAndExtendCurrentLine,
@@ -92,6 +94,7 @@ pub enum Action {
     ScrollDown,
     ScrollUp,
     SetSystemPrompt(String),
+    Log(String),
 }
 
 pub fn perform_action(
@@ -278,6 +281,14 @@ pub fn perform_action(
                     )
                     .unwrap();
             }
+        }
+        Action::RunCurrentBuffer => {
+            let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let source = buffer.get_content("\n".to_string());
+            perform_action(Action::RunSource(source), state, lsp_handles);
+        }
+        Action::RunSource(source) => {
+            state.rsl_interpreter.run(source);
         }
         Action::Select(selection) => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
@@ -1177,6 +1188,9 @@ pub fn perform_action(
                 tool_call_id: None,
             }];
             state.ai_state.chat_state.history = history;
+        }
+        Action::Log(message) => {
+            state.log_messages.push(message);
         }
     }
 }

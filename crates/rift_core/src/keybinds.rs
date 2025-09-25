@@ -192,6 +192,7 @@ impl Default for KeybindHandler {
             "paste-from-register nor p",
             "paste-from-clipboard nor s-p",
             "keybind-help nor ?",
+            "run-current-buffer nor space r",
         ])
     }
 }

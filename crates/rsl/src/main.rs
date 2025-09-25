@@ -1,7 +1,9 @@
 use clap::Parser;
+#[cfg(not(feature = "rift_rpc"))]
 use reedline::{
     DefaultPrompt, DefaultPromptSegment, Reedline, Signal, ValidationResult, Validator,
 };
+#[cfg(not(feature = "rift_rpc"))]
 use rsl::RSL;
 
 #[derive(Parser)]
@@ -9,8 +11,10 @@ pub struct CLIArgs {
     pub script_path: Option<std::path::PathBuf>,
 }
 
+#[cfg(not(feature = "rift_rpc"))]
 struct MultilineSourceValidator;
 
+#[cfg(not(feature = "rift_rpc"))]
 impl Validator for MultilineSourceValidator {
     fn validate(&self, line: &str) -> ValidationResult {
         if line.ends_with("\n\n") {
@@ -21,9 +25,10 @@ impl Validator for MultilineSourceValidator {
     }
 }
 
+#[cfg(not(feature = "rift_rpc"))]
 fn main() {
     let cli_args = CLIArgs::parse();
-    let rsl = RSL::new();
+    let mut rsl = RSL::new();
     if let Some(path) = cli_args.script_path {
         let source = std::fs::read_to_string(path).unwrap();
         rsl.run(source);
@@ -52,3 +57,6 @@ fn main() {
         }
     }
 }
+
+#[cfg(feature = "rift_rpc")]
+fn main() {}

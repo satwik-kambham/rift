@@ -4,6 +4,8 @@ use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
 
+use rsl::RSL;
+
 use crate::{
     actions::{perform_action, Action},
     ai::AIState,
@@ -18,6 +20,7 @@ use crate::{
         types,
     },
     preferences::Preferences,
+    rpc::start_rpc_server,
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -32,6 +35,7 @@ pub struct EditorState {
     pub rt: tokio::runtime::Runtime,
     pub async_handle: AsyncHandle,
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
+    pub event_reciever: mpsc::Receiver<Action>,
     pub file_watcher: RecommendedWatcher,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
@@ -56,10 +60,17 @@ pub struct EditorState {
     pub signature_information: SignatureInformation,
     pub keybind_handler: KeybindHandler,
     pub ai_state: AIState,
+    pub log_messages: Vec<String>,
+    pub rsl_interpreter: RSL,
 }
 
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
+        let (event_sender, event_reciever) = mpsc::channel::<Action>(32);
+
+        let rpc_client_transport = rt.block_on(start_rpc_server(event_sender));
+        let rsl_interpreter = RSL::new(rpc_client_transport);
+
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
         let (file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
 
@@ -84,6 +95,7 @@ impl EditorState {
             rt,
             async_handle: AsyncHandle { sender, receiver },
             file_event_receiver,
+            event_reciever,
             file_watcher: watcher,
             preferences: Preferences::default(),
             buffers: HashMap::new(),
@@ -108,6 +120,8 @@ impl EditorState {
             signature_information: SignatureInformation::default(),
             keybind_handler: KeybindHandler::default(),
             ai_state: AIState::default(),
+            log_messages: vec![],
+            rsl_interpreter,
         }
     }
 
