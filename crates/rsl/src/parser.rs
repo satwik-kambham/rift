@@ -119,13 +119,11 @@ impl Parser {
     }
 
     fn break_statement(&mut self) -> Box<dyn statement::Statement> {
-        expect_token!(self, Token::Semicolon, ";");
         return Box::new(statement::BreakStatement::new());
     }
 
     fn return_statement(&mut self) -> Box<dyn statement::Statement> {
         let expression = self.expression();
-        expect_token!(self, Token::Semicolon, ";");
         return Box::new(statement::ReturnStatement::new(expression));
     }
 
@@ -133,13 +131,11 @@ impl Parser {
         let identifier = self.expect_identifier();
         expect_token!(self, Token::Equals, "=");
         let expression = self.expression();
-        expect_token!(self, Token::Semicolon, ";");
         return Box::new(statement::AssignmentStatement::new(identifier, expression));
     }
 
     fn expression_statement(&mut self) -> Box<dyn statement::Statement> {
         let expression = self.expression();
-        expect_token!(self, Token::Semicolon, ";");
         Box::new(statement::ExpressionStatement::new(expression))
     }
 
