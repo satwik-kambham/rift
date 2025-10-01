@@ -33,6 +33,8 @@ pub enum Token {
     Fn,
     Break,
     Return,
+    Local,
+    Export,
 
     // Comment
     Hash,

@@ -86,7 +86,7 @@
             ./crates/rift_core
             ./crates/rift_egui
             ./crates/rift_tui
-            ./crates/rift_ai
+            ./crates/rift_rpc
             ./crates/rsl
             crate
             (pkgs.lib.fileset.fileFilter

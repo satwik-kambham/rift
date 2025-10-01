@@ -27,16 +27,14 @@ pub fn process_cli_args(
             if !path.try_exists().expect("Can't check existence of path") {
                 std::fs::create_dir_all(&path).unwrap();
             }
-        } else {
-            if !path
-                .parent()
-                .unwrap()
-                .try_exists()
-                .expect("Can't check existence of path")
-            {
-                std::fs::create_dir_all(&path.parent().unwrap()).unwrap();
-                std::fs::File::create(&path).unwrap();
-            }
+        } else if !path
+            .parent()
+            .unwrap()
+            .try_exists()
+            .expect("Can't check existence of path")
+        {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::File::create(&path).unwrap();
         }
         path = path.canonicalize().unwrap();
     }

@@ -128,6 +128,8 @@ impl Scanner {
                         "false" => self.tokens.push(Token::False),
                         "break" => self.tokens.push(Token::Break),
                         "return" => self.tokens.push(Token::Return),
+                        "local" => self.tokens.push(Token::Local),
+                        "export" => self.tokens.push(Token::Export),
                         _ => self.tokens.push(Token::Identifier(identifier.to_string())),
                     }
                 }
@@ -149,7 +151,7 @@ impl Scanner {
         }
 
         self.current += 1;
-        return true;
+        true
     }
 
     fn is_at_eof(&self) -> bool {

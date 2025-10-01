@@ -1,3 +1,4 @@
+use crate::environment::VariableType;
 use crate::expression;
 use crate::operator;
 use crate::primitive;
@@ -63,6 +64,8 @@ impl Parser {
     }
 
     fn function_declaration(&mut self) -> Box<dyn statement::Statement> {
+        let export_function = consume_token!(self, Token::Export);
+
         let identifier = self.expect_identifier();
         expect_token!(self, Token::LeftParentheses, "(");
         let mut parameters = vec![];
@@ -80,7 +83,10 @@ impl Parser {
         let body = self.block();
         expect_token!(self, Token::RightBrace, "}");
         Box::new(statement::FunctionDefinitionStatement::new(
-            identifier, parameters, body,
+            identifier,
+            parameters,
+            body,
+            export_function,
         ))
     }
 
@@ -96,6 +102,9 @@ impl Parser {
         }
         if consume_token!(self, Token::Return) {
             return self.return_statement();
+        }
+        if matches!(self.peek(), Token::Local | Token::Export) {
+            return self.assignment_statement();
         }
         if matches!(self.peek(), Token::Identifier(_)) && matches!(self.peek_n(1), Token::Equals) {
             return self.assignment_statement();
@@ -119,33 +128,39 @@ impl Parser {
     }
 
     fn break_statement(&mut self) -> Box<dyn statement::Statement> {
-        expect_token!(self, Token::Semicolon, ";");
-        return Box::new(statement::BreakStatement::new());
+        Box::new(statement::BreakStatement::new())
     }
 
     fn return_statement(&mut self) -> Box<dyn statement::Statement> {
         let expression = self.expression();
-        expect_token!(self, Token::Semicolon, ";");
-        return Box::new(statement::ReturnStatement::new(expression));
+        Box::new(statement::ReturnStatement::new(expression))
     }
 
     fn assignment_statement(&mut self) -> Box<dyn statement::Statement> {
+        let variable_type = if consume_token!(self, Token::Local) {
+            VariableType::Local
+        } else if consume_token!(self, Token::Export) {
+            VariableType::Export
+        } else {
+            VariableType::Default
+        };
         let identifier = self.expect_identifier();
         expect_token!(self, Token::Equals, "=");
         let expression = self.expression();
-        expect_token!(self, Token::Semicolon, ";");
-        return Box::new(statement::AssignmentStatement::new(identifier, expression));
+        Box::new(statement::AssignmentStatement::new(
+            identifier,
+            expression,
+            variable_type,
+        ))
     }
 
     fn expression_statement(&mut self) -> Box<dyn statement::Statement> {
         let expression = self.expression();
-        expect_token!(self, Token::Semicolon, ";");
         Box::new(statement::ExpressionStatement::new(expression))
     }
 
     fn expression(&mut self) -> Box<dyn expression::Expression> {
-        let expression = self.or_expression();
-        expression
+        self.or_expression()
     }
 
     fn or_expression(&mut self) -> Box<dyn expression::Expression> {
@@ -346,7 +361,7 @@ impl Parser {
             Token::Identifier(identifier) => {
                 let identifier = identifier.clone();
                 self.consume();
-                return identifier;
+                identifier
             }
             other => {
                 panic!("Parse error: expected identifier, found {:?}", other);

@@ -1,0 +1,12 @@
+print("Hello from RSL package")
+
+export x = 5
+
+fn export localTest() {
+    local y = 10
+    z = 20
+    print(y + 20)
+}
+localTest()
+
+print(x, y, z)
