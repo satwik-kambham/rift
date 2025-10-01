@@ -10,7 +10,7 @@ pub fn create_table(_arguments: Vec<Primitive>) -> Primitive {
 
 pub fn table_set(arguments: Vec<Primitive>) -> Primitive {
     if arguments.len() == 3 {
-        if let Primitive::Table(table) = arguments.get(0).unwrap() {
+        if let Primitive::Table(table) = arguments.first().unwrap() {
             if let Primitive::String(key) = arguments.get(1).unwrap() {
                 let value = arguments.get(2).unwrap().clone();
                 table.borrow_mut().set_value(key.clone(), value);
@@ -25,7 +25,7 @@ pub fn table_set(arguments: Vec<Primitive>) -> Primitive {
 
 pub fn table_get(arguments: Vec<Primitive>) -> Primitive {
     if arguments.len() == 2 {
-        if let Primitive::Table(table) = arguments.get(0).unwrap() {
+        if let Primitive::Table(table) = arguments.first().unwrap() {
             if let Primitive::String(key) = arguments.get(1).unwrap() {
                 return table.borrow().get_value(key);
             }
@@ -38,12 +38,10 @@ pub fn table_get(arguments: Vec<Primitive>) -> Primitive {
 
 pub fn table_keys(arguments: Vec<Primitive>) -> Primitive {
     if arguments.len() == 1 {
-        if let Primitive::Table(table) = arguments.get(0).unwrap() {
+        if let Primitive::Table(table) = arguments.first().unwrap() {
             let keys = table.borrow().keys();
             let array = crate::array::Array::new(
-                keys.into_iter()
-                    .map(|k| Primitive::String(k))
-                    .collect::<Vec<_>>(),
+                keys.into_iter().map(Primitive::String).collect::<Vec<_>>(),
             );
             return Primitive::Array(Rc::new(RefCell::new(array)));
         }

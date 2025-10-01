@@ -232,8 +232,8 @@ impl Expression for FunctionCallExpression {
                 parameters.push(param_expression.execute(environment.clone(), rsl));
             }
 
-            if let Primitive::String(package_name) = parameters.get(0).unwrap() {
-                let source = rsl.get_package_code(&package_name);
+            if let Primitive::String(package_name) = parameters.first().unwrap() {
+                let source = rsl.get_package_code(package_name);
                 let local_environment = Rc::new(Environment::new(Some(environment.clone())));
                 rsl.run_with_environment(source, local_environment.clone());
                 let exported_values = local_environment.get_exported_values();
@@ -293,7 +293,7 @@ impl Expression for FunctionCallExpression {
                             rsl.rift_rpc_client
                                 .rlog(
                                     context::Context::current(),
-                                    parameters.get(0).unwrap().to_string(),
+                                    parameters.first().unwrap().to_string(),
                                 )
                                 .await
                                 .unwrap();

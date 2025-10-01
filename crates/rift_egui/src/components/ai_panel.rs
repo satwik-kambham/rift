@@ -168,9 +168,9 @@ impl AIPanel {
                 });
                 for message in &state.ai_state.chat_state.history {
                     ui.label(egui::RichText::new(&message.role).strong());
-                    ui.label(&message.content.clone().unwrap_or_default());
+                    ui.label(message.content.clone().unwrap_or_default());
                     if let Some(tool_calls) = &message.tool_calls {
-                        ui.label(format!("Tool Requested: {}", tool_calls.to_string()));
+                        ui.label(format!("Tool Requested: {}", tool_calls));
                     }
                     ui.separator();
                 }

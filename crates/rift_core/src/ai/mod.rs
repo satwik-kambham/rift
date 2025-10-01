@@ -139,7 +139,7 @@ pub fn create_system_prompt(template: String, state: &mut EditorState) -> String
         "".into()
     };
 
-    return formatter(
+    formatter(
         template,
         HashMap::from([
             ("workspace_dir".into(), state.workspace_folder.clone()),
@@ -160,7 +160,7 @@ pub fn create_system_prompt(template: String, state: &mut EditorState) -> String
             ("replace_tool_name".into(), "replace".into()),
             ("project_documentation".into(), project_documentation),
         ]),
-    );
+    )
 }
 
 pub fn get_system_prompt(template_name: &str, state: &mut EditorState) -> String {

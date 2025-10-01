@@ -64,11 +64,7 @@ impl Parser {
     }
 
     fn function_declaration(&mut self) -> Box<dyn statement::Statement> {
-        let export_function = if consume_token!(self, Token::Export) {
-            true
-        } else {
-            false
-        };
+        let export_function = consume_token!(self, Token::Export);
 
         let identifier = self.expect_identifier();
         expect_token!(self, Token::LeftParentheses, "(");
@@ -132,12 +128,12 @@ impl Parser {
     }
 
     fn break_statement(&mut self) -> Box<dyn statement::Statement> {
-        return Box::new(statement::BreakStatement::new());
+        Box::new(statement::BreakStatement::new())
     }
 
     fn return_statement(&mut self) -> Box<dyn statement::Statement> {
         let expression = self.expression();
-        return Box::new(statement::ReturnStatement::new(expression));
+        Box::new(statement::ReturnStatement::new(expression))
     }
 
     fn assignment_statement(&mut self) -> Box<dyn statement::Statement> {
@@ -151,11 +147,11 @@ impl Parser {
         let identifier = self.expect_identifier();
         expect_token!(self, Token::Equals, "=");
         let expression = self.expression();
-        return Box::new(statement::AssignmentStatement::new(
+        Box::new(statement::AssignmentStatement::new(
             identifier,
             expression,
             variable_type,
-        ));
+        ))
     }
 
     fn expression_statement(&mut self) -> Box<dyn statement::Statement> {
@@ -164,8 +160,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Box<dyn expression::Expression> {
-        let expression = self.or_expression();
-        expression
+        self.or_expression()
     }
 
     fn or_expression(&mut self) -> Box<dyn expression::Expression> {
@@ -366,7 +361,7 @@ impl Parser {
             Token::Identifier(identifier) => {
                 let identifier = identifier.clone();
                 self.consume();
-                return identifier;
+                identifier
             }
             other => {
                 panic!("Parse error: expected identifier, found {:?}", other);

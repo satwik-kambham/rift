@@ -13,7 +13,7 @@ pub struct RPCHandle {
 }
 
 impl RiftRPC for RPCHandle {
-    async fn rlog(self, _context: tarpc::context::Context, message: String) -> () {
+    async fn rlog(self, _context: tarpc::context::Context, message: String) {
         self.sender.send(Action::Log(message)).await.unwrap();
     }
 }

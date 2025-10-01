@@ -151,7 +151,7 @@ impl Scanner {
         }
 
         self.current += 1;
-        return true;
+        true
     }
 
     fn is_at_eof(&self) -> bool {

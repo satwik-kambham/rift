@@ -10,5 +10,5 @@ pub fn print(arguments: Vec<Primitive>) -> Primitive {
         .collect::<Vec<_>>()
         .join(" ");
     println!("{}", text);
-    return Primitive::Null;
+    Primitive::Null
 }

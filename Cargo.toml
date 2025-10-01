@@ -5,6 +5,6 @@ members = [
   "crates/rift_core",
   "crates/rift_tui",
   "crates/rift_egui",
-  "crates/rift_ai",
-  "crates/rsl", "crates/rift_rpc",
+  "crates/rsl",
+  "crates/rift_rpc",
 ]

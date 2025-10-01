@@ -155,49 +155,48 @@ pub fn handle_file_event(
 ) {
     match file_event_result {
         Ok(event) => {
-            if matches!(event.kind, EventKind::Create(_) | EventKind::Modify(_)) {
-                if event.paths.len() == 1 {
-                    let file_path = event.paths.first().unwrap().to_str().unwrap();
-                    if let Some((buffer_id, _)) = state
-                        .buffers
-                        .iter()
-                        .find(|(_, buf)| buf.file_path.as_ref().unwrap() == file_path)
-                    {
-                        let (buffer, instance) = state.get_buffer_by_id_mut(*buffer_id);
-                        let lsp_handle = lsp_handles.get_mut(&buffer.language);
-                        let content = read_file_content(file_path).unwrap();
+            if matches!(event.kind, EventKind::Create(_) | EventKind::Modify(_))
+                && event.paths.len() == 1
+            {
+                let file_path = event.paths.first().unwrap().to_str().unwrap();
+                if let Some((buffer_id, _)) = state
+                    .buffers
+                    .iter()
+                    .find(|(_, buf)| buf.file_path.as_ref().unwrap() == file_path)
+                {
+                    let (buffer, instance) = state.get_buffer_by_id_mut(*buffer_id);
+                    let lsp_handle = lsp_handles.get_mut(&buffer.language);
+                    let content = read_file_content(file_path).unwrap();
 
-                        if buffer.get_content("\n".to_string()) != content {
-                            tracing::info!("Buffer modified by external process. UPDATING!");
-                            buffer.reset();
-                            buffer.remove_text(
-                                &Selection {
-                                    mark: Cursor::default(),
-                                    cursor: Cursor {
-                                        row: buffer.get_num_lines().saturating_sub(1),
-                                        column: buffer.get_line_length(
-                                            buffer.get_num_lines().saturating_sub(1),
-                                        ),
-                                    },
+                    if buffer.get_content("\n".to_string()) != content {
+                        tracing::info!("Buffer modified by external process. UPDATING!");
+                        buffer.reset();
+                        buffer.remove_text(
+                            &Selection {
+                                mark: Cursor::default(),
+                                cursor: Cursor {
+                                    row: buffer.get_num_lines().saturating_sub(1),
+                                    column: buffer
+                                        .get_line_length(buffer.get_num_lines().saturating_sub(1)),
                                 },
-                                &lsp_handle,
-                                false,
-                            );
-                            buffer.insert_text(&content, &Cursor::default(), &lsp_handle, false);
+                            },
+                            &lsp_handle,
+                            false,
+                        );
+                        buffer.insert_text(&content, &Cursor::default(), &lsp_handle, false);
 
-                            instance.selection = Selection::default();
+                        instance.selection = Selection::default();
 
-                            let buffer_end = Cursor {
-                                row: buffer.get_num_lines().saturating_sub(1),
-                                column: buffer
-                                    .get_line_length(buffer.get_num_lines().saturating_sub(1)),
-                            };
+                        let buffer_end = Cursor {
+                            row: buffer.get_num_lines().saturating_sub(1),
+                            column: buffer
+                                .get_line_length(buffer.get_num_lines().saturating_sub(1)),
+                        };
 
-                            if instance.cursor > buffer_end {
-                                instance.cursor = buffer_end;
-                            }
-                            instance.column_level = instance.cursor.column;
+                        if instance.cursor > buffer_end {
+                            instance.cursor = buffer_end;
                         }
+                        instance.column_level = instance.cursor.column;
                     }
                 }
             }
