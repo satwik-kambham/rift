@@ -28,7 +28,7 @@ impl Validator for MultilineSourceValidator {
 #[cfg(not(feature = "rift_rpc"))]
 fn main() {
     let cli_args = CLIArgs::parse();
-    let mut rsl = RSL::new();
+    let mut rsl = RSL::new(None);
     if let Some(path) = cli_args.script_path {
         let source = std::fs::read_to_string(path).unwrap();
         rsl.run(source);

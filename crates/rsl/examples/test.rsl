@@ -77,3 +77,6 @@ print("Is Not Student:", isNotStudent)
 # Get all keys
 keys = tableKeys(table)
 print("Keys:", keys)
+
+let testLib = import("lib.rsl")
+print(testLib)

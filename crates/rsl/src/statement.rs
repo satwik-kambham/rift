@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::RSL;
-use crate::environment::Environment;
+use crate::environment::{Environment, VariableType};
 use crate::expression;
 use crate::primitive::{FunctionDefinition, Primitive};
 
@@ -36,13 +36,19 @@ impl Statement for ExpressionStatement {
 pub struct AssignmentStatement {
     identifier: String,
     expression: Box<dyn expression::Expression>,
+    variable_type: VariableType,
 }
 
 impl AssignmentStatement {
-    pub fn new(identifier: String, expression: Box<dyn expression::Expression>) -> Self {
+    pub fn new(
+        identifier: String,
+        expression: Box<dyn expression::Expression>,
+        variable_type: VariableType,
+    ) -> Self {
         Self {
             identifier,
             expression,
+            variable_type,
         }
     }
 }
@@ -50,10 +56,23 @@ impl AssignmentStatement {
 impl Statement for AssignmentStatement {
     fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
         let local_environment = environment.clone();
-        local_environment.set_value_non_local(
-            self.identifier.clone(),
-            self.expression.execute(environment, rsl),
-        );
+
+        match self.variable_type {
+            VariableType::Default | VariableType::Export => {
+                local_environment.set_value_non_local(
+                    self.identifier.clone(),
+                    self.expression.execute(environment, rsl),
+                    self.variable_type,
+                );
+            }
+            VariableType::Local => {
+                local_environment.set_value_local(
+                    self.identifier.clone(),
+                    self.expression.execute(environment, rsl),
+                );
+            }
+        }
+
         StatementResult::None
     }
 }
@@ -62,14 +81,21 @@ pub struct FunctionDefinitionStatement {
     identifier: String,
     parameters: Vec<String>,
     body: Rc<Vec<Box<dyn Statement>>>,
+    export: bool,
 }
 
 impl FunctionDefinitionStatement {
-    pub fn new(identifier: String, parameters: Vec<String>, body: Vec<Box<dyn Statement>>) -> Self {
+    pub fn new(
+        identifier: String,
+        parameters: Vec<String>,
+        body: Vec<Box<dyn Statement>>,
+        export: bool,
+    ) -> Self {
         Self {
             identifier,
             parameters,
             body: Rc::new(body),
+            export,
         }
     }
 }
@@ -83,6 +109,7 @@ impl Statement for FunctionDefinitionStatement {
                 parameters: self.parameters.clone(),
                 body: self.body.clone(),
             },
+            self.export,
         );
         StatementResult::None
     }

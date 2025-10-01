@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 #[cfg(feature = "rift_rpc")]
@@ -221,7 +222,27 @@ impl FunctionCallExpression {
 
 impl Expression for FunctionCallExpression {
     fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
-        if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
+        if self.identifier == "import" {
+            if self.parameters.len() != 1 {
+                panic!("Expected 1 parameter, got {}", self.parameters.len())
+            }
+
+            let mut parameters = vec![];
+            for param_expression in &self.parameters {
+                parameters.push(param_expression.execute(environment.clone(), rsl));
+            }
+
+            if let Primitive::String(package_name) = parameters.get(0).unwrap() {
+                let source = rsl.get_package_code(&package_name);
+                let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+                rsl.run_with_environment(source, local_environment.clone());
+                let exported_values = local_environment.get_exported_values();
+                let exported_values = Primitive::Table(Rc::new(RefCell::new(exported_values)));
+                return exported_values;
+            }
+
+            Primitive::Null
+        } else if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
             let local_environment = Rc::new(Environment::new(Some(environment.clone())));
             if let Some(function_definition) = local_environment.get_function(&function_id) {
                 if self.parameters.len() != function_definition.parameters.len() {

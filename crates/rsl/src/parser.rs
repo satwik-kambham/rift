@@ -1,3 +1,4 @@
+use crate::environment::VariableType;
 use crate::expression;
 use crate::operator;
 use crate::primitive;
@@ -63,6 +64,12 @@ impl Parser {
     }
 
     fn function_declaration(&mut self) -> Box<dyn statement::Statement> {
+        let export_function = if consume_token!(self, Token::Export) {
+            true
+        } else {
+            false
+        };
+
         let identifier = self.expect_identifier();
         expect_token!(self, Token::LeftParentheses, "(");
         let mut parameters = vec![];
@@ -80,7 +87,10 @@ impl Parser {
         let body = self.block();
         expect_token!(self, Token::RightBrace, "}");
         Box::new(statement::FunctionDefinitionStatement::new(
-            identifier, parameters, body,
+            identifier,
+            parameters,
+            body,
+            export_function,
         ))
     }
 
@@ -96,6 +106,9 @@ impl Parser {
         }
         if consume_token!(self, Token::Return) {
             return self.return_statement();
+        }
+        if matches!(self.peek(), Token::Local | Token::Export) {
+            return self.assignment_statement();
         }
         if matches!(self.peek(), Token::Identifier(_)) && matches!(self.peek_n(1), Token::Equals) {
             return self.assignment_statement();
@@ -128,10 +141,21 @@ impl Parser {
     }
 
     fn assignment_statement(&mut self) -> Box<dyn statement::Statement> {
+        let variable_type = if consume_token!(self, Token::Local) {
+            VariableType::Local
+        } else if consume_token!(self, Token::Export) {
+            VariableType::Export
+        } else {
+            VariableType::Default
+        };
         let identifier = self.expect_identifier();
         expect_token!(self, Token::Equals, "=");
         let expression = self.expression();
-        return Box::new(statement::AssignmentStatement::new(identifier, expression));
+        return Box::new(statement::AssignmentStatement::new(
+            identifier,
+            expression,
+            variable_type,
+        ));
     }
 
     fn expression_statement(&mut self) -> Box<dyn statement::Statement> {

@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
@@ -69,7 +72,6 @@ impl EditorState {
         let (event_sender, event_reciever) = mpsc::channel::<Action>(32);
 
         let rpc_client_transport = rt.block_on(start_rpc_server(event_sender));
-        let rsl_interpreter = RSL::new(rpc_client_transport);
 
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
         let (file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
@@ -90,6 +92,9 @@ impl EditorState {
             .to_str()
             .unwrap()
             .to_owned();
+
+        let rsl_interpreter = RSL::new(Some(PathBuf::from(&initial_folder)), rpc_client_transport);
+
         Self {
             quit: false,
             rt,
