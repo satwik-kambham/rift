@@ -5,26 +5,18 @@ fn main() {
 
 pub struct TemplateApp {
     label: String,
-
-    value: f32,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
-            // Example stuff:
             label: "Hello World!".to_owned(),
-            value: 2.7,
         }
     }
 }
 
 impl TemplateApp {
-    /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
         Default::default()
     }
 }
@@ -38,12 +30,6 @@ impl eframe::App for TemplateApp {
                 ui.label("Write something: ");
                 ui.text_edit_singleline(&mut self.label);
             });
-
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
-
             ui.separator();
         });
     }
@@ -75,7 +61,6 @@ fn main() {
             )
             .await;
 
-        // Remove the loading text and spinner:
         if let Some(loading_text) = document.get_element_by_id("loading_text") {
             match start_result {
                 Ok(_) => {
