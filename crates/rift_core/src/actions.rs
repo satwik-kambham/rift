@@ -794,10 +794,11 @@ pub fn perform_action(
                     state.workspace_folder.clone(),
                 );
             } else {
-                state
-                    .clipboard_ctx
-                    .set_contents(buffer.get_selection(&instance.selection))
-                    .unwrap();
+                let selection = buffer.get_selection(&instance.selection);
+
+                if let Some(clipboard_ctx) = state.clipboard_ctx.as_mut() {
+                    clipboard_ctx.set_contents(selection).unwrap();
+                }
             }
         }
         Action::CutToRegister => {}
@@ -840,7 +841,11 @@ pub fn perform_action(
                     state.workspace_folder.clone(),
                 );
             } else {
-                let content = state.clipboard_ctx.get_contents().unwrap();
+                let content = if let Some(clipboard_ctx) = state.clipboard_ctx.as_mut() {
+                    clipboard_ctx.get_contents().unwrap()
+                } else {
+                    String::new()
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
                 instance.cursor = cursor;
