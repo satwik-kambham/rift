@@ -773,7 +773,11 @@ pub fn perform_action(
             instance.selection.mark = instance.cursor;
             instance.column_level = instance.cursor.column;
         }
-        Action::CopyToRegister => {}
+        Action::CopyToRegister => {
+            let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+            let selection = buffer.get_selection(&instance.selection);
+            state.register = selection;
+        }
         Action::CopyToClipboard => {
             let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
 
@@ -803,7 +807,20 @@ pub fn perform_action(
         }
         Action::CutToRegister => {}
         Action::CutToClipboard => {}
-        Action::PasteFromRegister => {}
+        Action::PasteFromRegister => {
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
+            let content = state.register.clone();
+            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
+            instance.cursor = cursor;
+            instance.selection.cursor = instance.cursor;
+            instance.selection.mark = instance.cursor;
+        }
         Action::PasteFromClipboard => {
             let lsp_handle = if state.buffer_idx.is_some() {
                 let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());

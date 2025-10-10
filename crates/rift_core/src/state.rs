@@ -65,6 +65,7 @@ pub struct EditorState {
     pub ai_state: AIState,
     pub log_messages: Vec<String>,
     pub rsl_interpreter: RSL,
+    pub register: String,
 }
 
 impl EditorState {
@@ -127,6 +128,7 @@ impl EditorState {
             ai_state: AIState::default(),
             log_messages: vec![],
             rsl_interpreter,
+            register: String::new(),
         }
     }
 
