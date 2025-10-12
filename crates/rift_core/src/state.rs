@@ -23,7 +23,7 @@ use crate::{
         types,
     },
     preferences::Preferences,
-    rpc::start_rpc_server,
+    rpc::{start_rpc_server, RPCRequest},
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -38,7 +38,7 @@ pub struct EditorState {
     pub rt: tokio::runtime::Runtime,
     pub async_handle: AsyncHandle,
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
-    pub event_reciever: mpsc::Receiver<Action>,
+    pub event_reciever: mpsc::Receiver<RPCRequest>,
     pub file_watcher: RecommendedWatcher,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
@@ -70,7 +70,7 @@ pub struct EditorState {
 
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
-        let (event_sender, event_reciever) = mpsc::channel::<Action>(32);
+        let (event_sender, event_reciever) = mpsc::channel::<RPCRequest>(32);
 
         let rpc_client_transport = rt.block_on(start_rpc_server(event_sender));
 

@@ -48,8 +48,8 @@ impl App {
         }
     }
 
-    pub fn perform_action(&mut self, action: Action) {
-        perform_action(action, &mut self.state, &mut self.lsp_handles);
+    pub fn perform_action(&mut self, action: Action) -> String {
+        perform_action(action, &mut self.state, &mut self.lsp_handles).unwrap_or_default()
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
@@ -85,8 +85,9 @@ impl App {
                     );
                 }
 
-                if let Ok(action) = self.state.event_reciever.try_recv() {
-                    self.perform_action(action);
+                if let Ok(action_request) = self.state.event_reciever.try_recv() {
+                    let result = self.perform_action(action_request.action);
+                    action_request.response_tx.send(result).unwrap();
                 }
 
                 // Handle file watcher events

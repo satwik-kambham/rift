@@ -101,7 +101,7 @@ pub fn perform_action(
     action: Action,
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
+) -> Option<String> {
     match action {
         Action::Quit => {
             state.quit = true;
@@ -1214,5 +1214,6 @@ pub fn perform_action(
         Action::Log(message) => {
             state.log_messages.push(message);
         }
-    }
+    };
+    None
 }

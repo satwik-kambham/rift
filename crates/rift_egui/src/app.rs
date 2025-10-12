@@ -221,8 +221,9 @@ impl App {
                     );
                 }
 
-                if let Ok(action) = self.state.event_reciever.try_recv() {
-                    perform_action(action, &mut self.state, &mut self.lsp_handles);
+                if let Ok(action_request) = self.state.event_reciever.try_recv() {
+                    let result = perform_action(action_request.action, &mut self.state, &mut self.lsp_handles).unwrap_or_default();
+                    action_request.response_tx.send(result).unwrap();
                 }
 
                 // Handle file watcher events
