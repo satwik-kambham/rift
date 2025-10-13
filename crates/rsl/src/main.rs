@@ -32,7 +32,7 @@ fn main() {
         .enable_all()
         .build()
         .unwrap();
-    let mut rsl = RSL::new(None, rt.handle());
+    let mut rsl = RSL::new(None, rt.handle().clone());
     if let Some(path) = cli_args.script_path {
         let source = std::fs::read_to_string(path).unwrap();
         rsl.run(source);
