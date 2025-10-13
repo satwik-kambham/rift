@@ -19,6 +19,7 @@ use rift_core::{
     lsp::{client::LSPClientHandle, handle_lsp_messages},
     preferences::Color,
     rendering::update_visible_lines,
+    rsl::initialize_rsl,
     state::{CompletionMenu, EditorState, Mode},
 };
 
@@ -31,6 +32,7 @@ pub struct App {
     pub lsp_handles: HashMap<Language, LSPClientHandle>,
     pub modal_list_state: widgets::ListState,
     pub info_modal_scroll: u16,
+    first_frame: bool,
 }
 
 impl App {
@@ -45,6 +47,7 @@ impl App {
             lsp_handles,
             modal_list_state: widgets::ListState::default(),
             info_modal_scroll: 0,
+            first_frame: true,
         }
     }
 
@@ -53,6 +56,10 @@ impl App {
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
+        if self.first_frame {
+            self.first_frame = false;
+            initialize_rsl(&mut self.state, &mut self.lsp_handles);
+        }
         while !self.state.quit {
             terminal.draw(|frame| {
                 // Layout

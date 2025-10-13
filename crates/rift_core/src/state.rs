@@ -1,13 +1,8 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
-
-use rsl::RSL;
 
 use crate::{
     actions::{perform_action, Action},
@@ -24,6 +19,7 @@ use crate::{
     },
     preferences::Preferences,
     rpc::{start_rpc_server, RPCRequest},
+    rsl::start_rsl_interpreter,
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -39,6 +35,7 @@ pub struct EditorState {
     pub async_handle: AsyncHandle,
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
     pub event_reciever: mpsc::Receiver<RPCRequest>,
+    pub rsl_sender: mpsc::Sender<String>,
     pub file_watcher: RecommendedWatcher,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
@@ -64,7 +61,6 @@ pub struct EditorState {
     pub keybind_handler: KeybindHandler,
     pub ai_state: AIState,
     pub log_messages: Vec<String>,
-    pub rsl_interpreter: RSL,
     pub register: String,
 }
 
@@ -94,7 +90,7 @@ impl EditorState {
             .unwrap()
             .to_owned();
 
-        let rsl_interpreter = RSL::new(Some(PathBuf::from(&initial_folder)), rpc_client_transport);
+        let rsl_sender = start_rsl_interpreter(initial_folder.clone(), rpc_client_transport);
 
         Self {
             quit: false,
@@ -102,6 +98,7 @@ impl EditorState {
             async_handle: AsyncHandle { sender, receiver },
             file_event_receiver,
             event_reciever,
+            rsl_sender,
             file_watcher: watcher,
             preferences: Preferences::default(),
             buffers: HashMap::new(),
@@ -127,7 +124,6 @@ impl EditorState {
             keybind_handler: KeybindHandler::default(),
             ai_state: AIState::default(),
             log_messages: vec![],
-            rsl_interpreter,
             register: String::new(),
         }
     }

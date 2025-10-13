@@ -9,5 +9,6 @@ pub mod lsp;
 pub mod preferences;
 pub mod rendering;
 pub mod rpc;
+pub mod rsl;
 pub mod state;
 pub mod themes;

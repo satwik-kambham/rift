@@ -21,7 +21,13 @@ pub struct RPCHandle {
 impl RPCHandle {
     async fn send_action_request(&self, action: Action) -> String {
         let (response_tx, response_rx) = oneshot::channel();
-        self.sender.send(RPCRequest {action, response_tx}).await.unwrap();
+        self.sender
+            .send(RPCRequest {
+                action,
+                response_tx,
+            })
+            .await
+            .unwrap();
         response_rx.await.unwrap()
     }
 }

@@ -288,7 +288,7 @@ pub fn perform_action(
             perform_action(Action::RunSource(source), state, lsp_handles);
         }
         Action::RunSource(source) => {
-            state.rsl_interpreter.run(source);
+            state.rsl_sender.blocking_send(source).unwrap();
         }
         Action::Select(selection) => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());

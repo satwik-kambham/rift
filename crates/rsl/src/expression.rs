@@ -287,7 +287,7 @@ impl Expression for FunctionCallExpression {
                     parameters.push(param_expression.execute(environment.clone(), rsl));
                 }
 
-                return rsl.rt.block_on(async {
+                return rsl.rt_handle.block_on(async {
                     match self.identifier.as_str() {
                         "log" => {
                             rsl.rift_rpc_client

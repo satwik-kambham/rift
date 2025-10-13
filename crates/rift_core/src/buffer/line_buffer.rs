@@ -21,6 +21,7 @@ pub struct TreeSitterParams {
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
     pub file_path: Option<String>,
+    pub special: bool,
     pub lines: Vec<String>,
     pub modified: bool,
     pub changes: VecDeque<Edit>,
@@ -290,6 +291,7 @@ impl LineBuffer {
 
         Self {
             file_path,
+            special: false,
             lines,
             highlighter,
             highlight_params,
