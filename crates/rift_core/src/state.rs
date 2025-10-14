@@ -191,6 +191,16 @@ impl EditorState {
         )
     }
 
+    pub fn is_active_buffer_special(&self) -> Option<bool> {
+        if let Some(buffer_idx) = self.buffer_idx {
+            if let Some(buffer) = self.buffers.get(&buffer_idx) {
+                return Some(buffer.special);
+            }
+            return None;
+        }
+        None
+    }
+
     pub fn spawn_lsp(&self, language: Language) -> Option<LSPClientHandle> {
         let command: Option<(&str, &[&str])> = match language {
             Language::Rust => Some(("rust-analyzer", &[])),

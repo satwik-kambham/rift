@@ -1179,7 +1179,7 @@ pub fn perform_action(
         Action::KeybindHelp => {
             let help_content = state
                 .keybind_handler
-                .keybinds
+                .global_keybinds
                 .iter()
                 .map(|keybind| keybind.definition.clone())
                 .collect::<Vec<_>>()

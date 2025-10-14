@@ -591,6 +591,8 @@ impl App {
                                 }
 
                                 if let Some(action) = self.state.keybind_handler.handle_input(
+                                    self.state.buffer_idx.clone(),
+                                    self.state.is_active_buffer_special(),
                                     self.state.mode.clone(),
                                     keybind.to_string(),
                                     modifiers_set,
