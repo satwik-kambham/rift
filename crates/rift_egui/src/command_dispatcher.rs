@@ -141,6 +141,8 @@ impl CommandDispatcher {
                                 }
 
                                 if let Some(action) = state.keybind_handler.handle_input(
+                                    state.buffer_idx.clone(),
+                                    state.is_active_buffer_special(),
                                     state.mode.clone(),
                                     key.to_string(),
                                     modifiers_set,

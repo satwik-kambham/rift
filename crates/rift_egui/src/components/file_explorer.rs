@@ -154,9 +154,7 @@ pub fn file_context_menu(
     if ui.button("Rename").clicked() {}
     if ui.button("Move").clicked() {}
     if ui.button("Delete").clicked() {}
-    if entry.is_dir {
-        if ui.button("Set as Workspace Folder").clicked() {
-            state.workspace_folder = entry.path.clone();
-        }
+    if entry.is_dir && ui.button("Set as Workspace Folder").clicked() {
+        state.workspace_folder = entry.path.clone();
     }
 }

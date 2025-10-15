@@ -1,1 +1,4 @@
-log("Hello");
+log("Hello")
+
+bufferId = createSpecialBuffer()
+log(bufferId)

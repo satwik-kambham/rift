@@ -26,6 +26,12 @@ impl Table {
     pub fn keys(&self) -> Vec<String> {
         self.table.keys().cloned().collect()
     }
+
+    pub fn merge(&mut self, other: &Table) {
+        for (k, v) in other.table.iter() {
+            self.table.entry(k.clone()).or_insert(v.clone());
+        }
+    }
 }
 
 impl PartialEq for Table {

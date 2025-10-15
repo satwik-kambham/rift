@@ -14,6 +14,7 @@ use rift_core::{
     io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages, types},
     rendering::update_visible_lines,
+    rsl::initialize_rsl,
     state::{EditorState, Mode},
 };
 
@@ -37,6 +38,7 @@ pub struct App {
     completion_menu: CompletionMenuWidget,
     file_explorer: FileExplorer,
     ai_panel: AIPanel,
+    first_frame: bool,
 }
 
 impl App {
@@ -45,6 +47,7 @@ impl App {
         let mut lsp_handles = HashMap::new();
 
         process_cli_args(cli_args, &mut state, &mut lsp_handles);
+
         let font_definitions = load_fonts(&mut state);
 
         Self {
@@ -56,10 +59,15 @@ impl App {
             info_modal: InfoModalWidget::default(),
             file_explorer: FileExplorer::new(),
             ai_panel: AIPanel::default(),
+            first_frame: true,
         }
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
+        if self.first_frame {
+            self.first_frame = false;
+            initialize_rsl(&mut self.state, &mut self.lsp_handles);
+        }
         egui_extras::install_image_loaders(ctx);
         // Quit command
         if self.state.quit {
@@ -221,8 +229,14 @@ impl App {
                     );
                 }
 
-                if let Ok(action) = self.state.event_reciever.try_recv() {
-                    perform_action(action, &mut self.state, &mut self.lsp_handles);
+                if let Ok(action_request) = self.state.event_reciever.try_recv() {
+                    let result = perform_action(
+                        action_request.action,
+                        &mut self.state,
+                        &mut self.lsp_handles,
+                    )
+                    .unwrap_or_default();
+                    action_request.response_tx.send(result).unwrap();
                 }
 
                 // Handle file watcher events

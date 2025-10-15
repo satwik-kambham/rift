@@ -19,6 +19,7 @@ use rift_core::{
     lsp::{client::LSPClientHandle, handle_lsp_messages},
     preferences::Color,
     rendering::update_visible_lines,
+    rsl::initialize_rsl,
     state::{CompletionMenu, EditorState, Mode},
 };
 
@@ -31,6 +32,7 @@ pub struct App {
     pub lsp_handles: HashMap<Language, LSPClientHandle>,
     pub modal_list_state: widgets::ListState,
     pub info_modal_scroll: u16,
+    first_frame: bool,
 }
 
 impl App {
@@ -45,14 +47,19 @@ impl App {
             lsp_handles,
             modal_list_state: widgets::ListState::default(),
             info_modal_scroll: 0,
+            first_frame: true,
         }
     }
 
-    pub fn perform_action(&mut self, action: Action) {
-        perform_action(action, &mut self.state, &mut self.lsp_handles);
+    pub fn perform_action(&mut self, action: Action) -> String {
+        perform_action(action, &mut self.state, &mut self.lsp_handles).unwrap_or_default()
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
+        if self.first_frame {
+            self.first_frame = false;
+            initialize_rsl(&mut self.state, &mut self.lsp_handles);
+        }
         while !self.state.quit {
             terminal.draw(|frame| {
                 // Layout
@@ -85,8 +92,9 @@ impl App {
                     );
                 }
 
-                if let Ok(action) = self.state.event_reciever.try_recv() {
-                    self.perform_action(action);
+                if let Ok(action_request) = self.state.event_reciever.try_recv() {
+                    let result = self.perform_action(action_request.action);
+                    action_request.response_tx.send(result).unwrap();
                 }
 
                 // Handle file watcher events
@@ -266,7 +274,7 @@ impl App {
                                 .0
                                 .file_path
                                 .as_ref()
-                                .unwrap(),
+                                .unwrap_or(&self.state.buffer_idx.unwrap().to_string()),
                         )
                         .into(),
                         format!(
@@ -583,6 +591,8 @@ impl App {
                                 }
 
                                 if let Some(action) = self.state.keybind_handler.handle_input(
+                                    self.state.buffer_idx.clone(),
+                                    self.state.is_active_buffer_special(),
                                     self.state.mode.clone(),
                                     keybind.to_string(),
                                     modifiers_set,

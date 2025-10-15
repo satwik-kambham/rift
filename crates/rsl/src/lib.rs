@@ -11,13 +11,15 @@ pub mod std_lib;
 pub mod table;
 pub mod token;
 
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::environment::Environment;
 
 pub struct RSL {
     pub environment: Rc<Environment>,
-    pub rt: tokio::runtime::Runtime,
+    pub rt_handle: tokio::runtime::Handle,
+    working_dir: PathBuf,
 
     #[cfg(feature = "rift_rpc")]
     pub rift_rpc_client: rift_rpc::RiftRPCClient,
@@ -25,6 +27,8 @@ pub struct RSL {
 
 impl RSL {
     pub fn new(
+        working_dir: Option<PathBuf>,
+        rt_handle: tokio::runtime::Handle,
         #[cfg(feature = "rift_rpc")]
         rpc_client_transport: tarpc::transport::channel::UnboundedChannel<
             tarpc::Response<rift_rpc::RiftRPCResponse>,
@@ -46,25 +50,26 @@ impl RSL {
         environment.register_native_function("tableGet", std_lib::table::table_get);
         environment.register_native_function("tableKeys", std_lib::table::table_keys);
 
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
         #[cfg(feature = "rift_rpc")]
         let rpc_client =
             rift_rpc::RiftRPCClient::new(tarpc::client::Config::default(), rpc_client_transport);
         #[cfg(feature = "rift_rpc")]
-        let rpc_client = rt.block_on(async { rpc_client.spawn() });
+        let rpc_client = rt_handle.block_on(async { rpc_client.spawn() });
 
         Self {
             environment: Rc::new(environment),
-            rt,
+            rt_handle,
+            working_dir: working_dir.unwrap_or(std::env::current_dir().unwrap()),
             #[cfg(feature = "rift_rpc")]
             rift_rpc_client: rpc_client,
         }
     }
 
     pub fn run(&mut self, source: String) {
+        self.run_with_environment(source, self.environment.clone());
+    }
+
+    pub fn run_with_environment(&mut self, source: String, environment: Rc<Environment>) {
         let mut scanner = crate::scanner::Scanner::new(source);
         let tokens = scanner.scan();
 
@@ -72,7 +77,16 @@ impl RSL {
         let statements = parser.parse();
 
         let mut interpreter =
-            crate::interpreter::Interpreter::with_environment(statements, self.environment.clone());
+            crate::interpreter::Interpreter::with_environment(statements, environment);
         interpreter.interpret(self);
+    }
+
+    pub fn get_package_code(&self, package_name: &str) -> String {
+        let candidate = self.working_dir.join(package_name);
+        if candidate.is_file() {
+            let source = std::fs::read_to_string(candidate).unwrap();
+            return source;
+        }
+        panic!("Package not found at {:?}", candidate)
     }
 }

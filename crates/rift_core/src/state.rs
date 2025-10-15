@@ -4,8 +4,6 @@ use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
 
-use rsl::RSL;
-
 use crate::{
     actions::{perform_action, Action},
     ai::AIState,
@@ -20,7 +18,8 @@ use crate::{
         types,
     },
     preferences::Preferences,
-    rpc::start_rpc_server,
+    rpc::{start_rpc_server, RPCRequest},
+    rsl::start_rsl_interpreter,
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -35,7 +34,8 @@ pub struct EditorState {
     pub rt: tokio::runtime::Runtime,
     pub async_handle: AsyncHandle,
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
-    pub event_reciever: mpsc::Receiver<Action>,
+    pub event_reciever: mpsc::Receiver<RPCRequest>,
+    pub rsl_sender: mpsc::Sender<String>,
     pub file_watcher: RecommendedWatcher,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, LineBuffer>,
@@ -51,7 +51,7 @@ pub struct EditorState {
     pub gutter_info: Vec<GutterInfo>,
     pub relative_cursor: Cursor,
     pub buffer_idx: Option<u32>,
-    pub clipboard_ctx: ClipboardContext,
+    pub clipboard_ctx: Option<ClipboardContext>,
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
     pub modal: Modal,
     pub diagnostics_overlay: DiagnosticsOverlay,
@@ -61,15 +61,14 @@ pub struct EditorState {
     pub keybind_handler: KeybindHandler,
     pub ai_state: AIState,
     pub log_messages: Vec<String>,
-    pub rsl_interpreter: RSL,
+    pub register: String,
 }
 
 impl EditorState {
     pub fn new(rt: tokio::runtime::Runtime) -> Self {
-        let (event_sender, event_reciever) = mpsc::channel::<Action>(32);
+        let (event_sender, event_reciever) = mpsc::channel::<RPCRequest>(32);
 
         let rpc_client_transport = rt.block_on(start_rpc_server(event_sender));
-        let rsl_interpreter = RSL::new(rpc_client_transport);
 
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
         let (file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
@@ -90,12 +89,16 @@ impl EditorState {
             .to_str()
             .unwrap()
             .to_owned();
+
+        let rsl_sender = start_rsl_interpreter(initial_folder.clone(), rpc_client_transport);
+
         Self {
             quit: false,
             rt,
             async_handle: AsyncHandle { sender, receiver },
             file_event_receiver,
             event_reciever,
+            rsl_sender,
             file_watcher: watcher,
             preferences: Preferences::default(),
             buffers: HashMap::new(),
@@ -112,7 +115,7 @@ impl EditorState {
             modal: Modal::default(),
             relative_cursor: Cursor { row: 0, column: 0 },
             update_view: true,
-            clipboard_ctx: ClipboardContext::new().unwrap(),
+            clipboard_ctx: ClipboardContext::new().ok(),
             diagnostics: HashMap::new(),
             diagnostics_overlay: DiagnosticsOverlay::default(),
             info_modal: InfoModal::default(),
@@ -121,7 +124,7 @@ impl EditorState {
             keybind_handler: KeybindHandler::default(),
             ai_state: AIState::default(),
             log_messages: vec![],
-            rsl_interpreter,
+            register: String::new(),
         }
     }
 
@@ -129,7 +132,7 @@ impl EditorState {
         if let Some((idx, _)) = self
             .buffers
             .iter()
-            .find(|(_, buf)| buf.file_path == buffer.file_path)
+            .find(|(_, buf)| !buf.special && buf.file_path == buffer.file_path)
         {
             *idx
         } else {
@@ -186,6 +189,16 @@ impl EditorState {
             self.buffers.get_mut(&id).unwrap(),
             self.instances.get_mut(&id).unwrap(),
         )
+    }
+
+    pub fn is_active_buffer_special(&self) -> Option<bool> {
+        if let Some(buffer_idx) = self.buffer_idx {
+            if let Some(buffer) = self.buffers.get(&buffer_idx) {
+                return Some(buffer.special);
+            }
+            return None;
+        }
+        None
     }
 
     pub fn spawn_lsp(&self, language: Language) -> Option<LSPClientHandle> {

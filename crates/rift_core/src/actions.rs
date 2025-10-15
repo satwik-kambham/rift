@@ -20,6 +20,7 @@ use crate::{
 #[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum Action {
     Quit,
+    SetBufferContent(u32, String),
     InsertTextAtCursor(String),
     InsertTextAtCursorAndTriggerCompletion(String),
     InsertSpace,
@@ -33,6 +34,7 @@ pub enum Action {
     InsertAfterSelection,
     AddIndent,
     RemoveIndent,
+    SetActiveBuffer(u32),
     CycleNextBuffer,
     CyclePreviousBuffer,
     CloseCurrentBuffer,
@@ -47,6 +49,7 @@ pub enum Action {
     SelectTillStartOfWord,
     ExtendSelectTillStartOfWord,
     CreateBufferFromFile(String),
+    CreateSpecialBuffer,
     OpenFile,
     SwitchBuffer,
     FormatCurrentBuffer,
@@ -95,16 +98,23 @@ pub enum Action {
     ScrollUp,
     SetSystemPrompt(String),
     Log(String),
+    RegisterGlobalKeybind(String, String),
+    RegisterBufferKeybind(u32, String, String),
 }
 
 pub fn perform_action(
     action: Action,
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
+) -> Option<String> {
     match action {
         Action::Quit => {
             state.quit = true;
+        }
+        Action::SetBufferContent(buffer_id, content) => {
+            let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+            buffer.set_content(content.clone());
+            instance.scroll = Cursor { row: 0, column: 0 };
         }
         Action::InsertTextAtCursor(text) => {
             let lsp_handle = if state.buffer_idx.is_some() {
@@ -250,6 +260,9 @@ pub fn perform_action(
             instance.cursor = instance.selection.cursor;
             instance.column_level = instance.cursor.column;
         }
+        Action::SetActiveBuffer(buffer_id) => {
+            state.buffer_idx = Some(buffer_id);
+        }
         Action::CycleNextBuffer => {
             state.cycle_buffer(false);
         }
@@ -288,7 +301,7 @@ pub fn perform_action(
             perform_action(Action::RunSource(source), state, lsp_handles);
         }
         Action::RunSource(source) => {
-            state.rsl_interpreter.run(source);
+            state.rsl_sender.blocking_send(source).unwrap();
         }
         Action::Select(selection) => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
@@ -324,6 +337,11 @@ pub fn perform_action(
         }
         Action::SelectTillStartOfWord => {}
         Action::ExtendSelectTillStartOfWord => {}
+        Action::CreateSpecialBuffer => {
+            let buffer = LineBuffer::new(String::new(), None, true);
+            let buffer_id = state.add_buffer(buffer);
+            return Some(buffer_id.to_string());
+        }
         Action::CreateBufferFromFile(path) => {
             if let Some(idx) = state.buffers.iter().find_map(|(idx, buffer)| {
                 if buffer.file_path.clone().unwrap_or_default() == path {
@@ -335,7 +353,7 @@ pub fn perform_action(
                 state.buffer_idx = Some(*idx);
             } else {
                 let initial_text = file_io::read_file_content(&path).unwrap();
-                let buffer = LineBuffer::new(initial_text.clone(), Some(path.clone()));
+                let buffer = LineBuffer::new(initial_text.clone(), Some(path.clone()), false);
 
                 if let std::collections::hash_map::Entry::Vacant(e) =
                     lsp_handles.entry(buffer.language)
@@ -444,7 +462,12 @@ pub fn perform_action(
             state.modal.options = state
                 .buffers
                 .iter()
-                .map(|(idx, buffer)| (buffer.file_path.clone().unwrap(), idx.to_string()))
+                .map(|(idx, buffer)| {
+                    (
+                        buffer.file_path.clone().unwrap_or(idx.to_string()),
+                        idx.to_string(),
+                    )
+                })
                 .collect();
             state
                 .modal
@@ -773,7 +796,11 @@ pub fn perform_action(
             instance.selection.mark = instance.cursor;
             instance.column_level = instance.cursor.column;
         }
-        Action::CopyToRegister => {}
+        Action::CopyToRegister => {
+            let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+            let selection = buffer.get_selection(&instance.selection);
+            state.register = selection;
+        }
         Action::CopyToClipboard => {
             let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
 
@@ -794,15 +821,29 @@ pub fn perform_action(
                     state.workspace_folder.clone(),
                 );
             } else {
-                state
-                    .clipboard_ctx
-                    .set_contents(buffer.get_selection(&instance.selection))
-                    .unwrap();
+                let selection = buffer.get_selection(&instance.selection);
+
+                if let Some(clipboard_ctx) = state.clipboard_ctx.as_mut() {
+                    clipboard_ctx.set_contents(selection).unwrap();
+                }
             }
         }
         Action::CutToRegister => {}
         Action::CutToClipboard => {}
-        Action::PasteFromRegister => {}
+        Action::PasteFromRegister => {
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
+            let content = state.register.clone();
+            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
+            instance.cursor = cursor;
+            instance.selection.cursor = instance.cursor;
+            instance.selection.mark = instance.cursor;
+        }
         Action::PasteFromClipboard => {
             let lsp_handle = if state.buffer_idx.is_some() {
                 let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
@@ -840,7 +881,11 @@ pub fn perform_action(
                     state.workspace_folder.clone(),
                 );
             } else {
-                let content = state.clipboard_ctx.get_contents().unwrap();
+                let content = if let Some(clipboard_ctx) = state.clipboard_ctx.as_mut() {
+                    clipboard_ctx.get_contents().unwrap()
+                } else {
+                    String::new()
+                };
                 let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
                 let cursor = buffer.insert_text(&content, &instance.cursor, lsp_handle, true);
                 instance.cursor = cursor;
@@ -1157,7 +1202,7 @@ pub fn perform_action(
         Action::KeybindHelp => {
             let help_content = state
                 .keybind_handler
-                .keybinds
+                .global_keybinds
                 .iter()
                 .map(|keybind| keybind.definition.clone())
                 .collect::<Vec<_>>()
@@ -1192,5 +1237,16 @@ pub fn perform_action(
         Action::Log(message) => {
             state.log_messages.push(message);
         }
-    }
+        Action::RegisterGlobalKeybind(definition, function_id) => {
+            state
+                .keybind_handler
+                .register_global_keybind(&definition, &function_id);
+        }
+        Action::RegisterBufferKeybind(buffer_id, definition, function_id) => {
+            state
+                .keybind_handler
+                .register_buffer_keybind(buffer_id, &definition, &function_id);
+        }
+    };
+    None
 }

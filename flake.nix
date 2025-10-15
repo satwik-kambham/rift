@@ -16,7 +16,9 @@
           inherit system overlays;
         };
         craneLib = (crane.mkLib pkgs).overrideToolchain (
-          p: p.rust-bin.stable.latest.default
+          p: p.rust-bin.stable.latest.default.override {
+              targets = [ "wasm32-unknown-unknown" ];
+          }
         );
         unfilteredRoot = ./.;
         src = pkgs.lib.fileset.toSource {
@@ -34,8 +36,10 @@
         };
 
         buildDeps = with pkgs; [
-          rust-bin.stable.latest.default
-          rust-analyzer
+          (rust-bin.stable.latest.default.override {
+              targets = [ "wasm32-unknown-unknown" ];
+          })
+          # rust-analyzer
           trunk
         ];
         runtimeDeps = with pkgs; [
@@ -86,7 +90,7 @@
             ./crates/rift_core
             ./crates/rift_egui
             ./crates/rift_tui
-            ./crates/rift_ai
+            ./crates/rift_rpc
             ./crates/rsl
             crate
             (pkgs.lib.fileset.fileFilter

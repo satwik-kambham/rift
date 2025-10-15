@@ -1,49 +1,49 @@
 # Primitive data types
-print(null); # Null
-print(true, false); # Boolean
-print("String"); # String
-print(16, 16.5, -0.5); # Number
+print(null) # Null
+print(true, false) # Boolean
+print("String") # String
+print(16, 16.5, -0.5) # Number
 
 # Variables
-print(x); # Null by default
+print(x) # Null by default
 
-x = 5;
-print(x);
+x = 5
+print(x)
 # Except functions, arrays and tables everything else is cloned when passed around
-y = x;
-y = y + 1;
-print(x, y);
+y = x
+y = y + 1
+print(x, y)
 
 # Functions
 # Functions are stored as variables
 # Functions are not duplicated when passed around
 
 fn square(a) {
-    return a * a;
+    return a * a
 }
 
-print(square, square(4));
+print(square, square(4))
 
-sqr = square;
-print(sqr, sqr(5));
+sqr = square
+print(sqr, sqr(5))
 
 # Array
-arr = createArray(9, 8, 7);
-print(arr, arrayLen(arr));
-print(arrayGet(arr, 1), arrayGet(arr, 3));
+arr = createArray(9, 8, 7)
+print(arr, arrayLen(arr))
+print(arrayGet(arr, 1), arrayGet(arr, 3))
 
 fn applyArray(arr, fun) {
-    i = 0;
+    i = 0
     loop {
-        if i >= arrayLen(arr) { break; }
-        item = arrayGet(arr, i);
-        arraySet(arr, i, fun(item));
-        i = i + 1;
+        if i >= arrayLen(arr) { break }
+        item = arrayGet(arr, i)
+        arraySet(arr, i, fun(item))
+        i = i + 1
     }
 }
 
-applyArray(arr, sqr);
-print(arr);
+applyArray(arr, sqr)
+print(arr)
 
 multiDimArr = createArray(
     createArray(1, 2, 3),
@@ -52,28 +52,31 @@ multiDimArr = createArray(
     createArray(0),
     null,
     "Hello"
-);
+)
 
-print(multiDimArr);
+print(multiDimArr)
 
 # Tables
 
-table = createTable();
-tableSet(table, "name", "Satwik");
-tableSet(table, "age", -56);
-tableSet(table, "isStudent", false);
+table = createTable()
+tableSet(table, "name", "Satwik")
+tableSet(table, "age", -56)
+tableSet(table, "isStudent", false)
 
 # Get values
-name = tableGet(table, "name");
-age = tableGet(table, "age");
-isNotStudent = tableGet(table, "isNotStudent");
+name = tableGet(table, "name")
+age = tableGet(table, "age")
+isNotStudent = tableGet(table, "isNotStudent")
 
 # Print values
-print(table);
-print("Name:", name);
-print("Age:", age);
-print("Is Not Student:", isNotStudent);
+print(table)
+print("Name:", name)
+print("Age:", age)
+print("Is Not Student:", isNotStudent)
 
 # Get all keys
-keys = tableKeys(table);
-print("Keys:", keys);
+keys = tableKeys(table)
+print("Keys:", keys)
+
+let testLib = import("lib.rsl")
+print(testLib)
