@@ -1,9 +1,42 @@
-version = 1
-log("Starting editor")
-
-fn incrementVersion() {
-    version = version + 1
-    log(version)
+fn hi() {
+    log("Hi!")
 }
 
-registerGlobalKeybind("nor space v", incrementVersion)
+registerGlobalKeybind("nor space h", hi)
+
+counterId = -1
+count = 0
+
+fn renderCounter() {
+    content = ""
+    text = "Hello"
+    i = 0
+    loop {
+        if i >= count { break }
+        i = i + 1
+        content = content + "\n" + text        
+    }
+    setBufferContent(counterId, content)
+}
+
+fn increment() {
+    count = count + 1
+    renderCounter()
+}
+
+fn decrement() {
+    if count > 1 {
+        count = count - 1
+    }
+    renderCounter()
+}
+
+fn createCounter() {
+    bufferId = createSpecialBuffer()
+    counterId = bufferId
+    registerBufferKeybind(bufferId, "nor j", increment)
+    registerBufferKeybind(bufferId, "nor k", decrement)
+    renderCounter()
+}
+
+registerGlobalKeybind("nor space c", createCounter)

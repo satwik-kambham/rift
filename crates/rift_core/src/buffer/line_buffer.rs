@@ -303,6 +303,20 @@ impl LineBuffer {
         self.lines.join(&eol_sequence)
     }
 
+    pub fn set_content(&mut self, content: String) {
+        let mut lines: Vec<String> = content.lines().map(String::from).collect();
+
+        if let Some(last) = lines.last() {
+            if !last.is_empty() {
+                lines.push("".into())
+            }
+        } else {
+            lines.push("".into());
+        }
+
+        self.lines = lines;
+    }
+
     /// Get a portion text buffer content as a string
     /// with the desired EOL sequence
     pub fn get_content_range(&self, start: usize, end: usize, eol_sequence: String) -> String {

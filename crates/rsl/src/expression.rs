@@ -112,13 +112,19 @@ impl Expression for BinaryExpression {
                     panic!("Expected left and right expression of '>=' operator to be numbers")
                 }
             }
-            Operator::Plus => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
+            Operator::Plus => match (left, right) {
+                (Primitive::Number(left), Primitive::Number(right)) => {
                     Primitive::Number(left + right)
-                } else {
-                    panic!("Expected left and right expression of '+' operator to be numbers")
                 }
-            }
+                (Primitive::String(left), Primitive::String(right)) => {
+                    Primitive::String(format!("{}{}", left, right))
+                }
+                _ => {
+                    panic!(
+                        "Expected left and right expression of '+' operator to be numbers or strings"
+                    )
+                }
+            },
             Operator::Minus => {
                 if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
                     Primitive::Number(left - right)
@@ -304,6 +310,26 @@ impl Expression for FunctionCallExpression {
                             }
                             Primitive::Null
                         }
+                        "registerBufferKeybind" => {
+                            if let Primitive::Number(buffer_id) = parameters.first().unwrap() {
+                                if let Primitive::String(definition) = parameters.get(1).unwrap() {
+                                    if let Primitive::Function(function_id) =
+                                        parameters.get(2).unwrap()
+                                    {
+                                        rsl.rift_rpc_client
+                                            .register_buffer_keybind(
+                                                context::Context::current(),
+                                                *buffer_id as u32,
+                                                definition.clone(),
+                                                function_id.clone(),
+                                            )
+                                            .await
+                                            .unwrap();
+                                    }
+                                }
+                            }
+                            Primitive::Null
+                        }
                         "createSpecialBuffer" => {
                             let buffer_id = rsl
                                 .rift_rpc_client
@@ -311,6 +337,19 @@ impl Expression for FunctionCallExpression {
                                 .await
                                 .unwrap();
                             Primitive::Number(buffer_id as f32)
+                        }
+                        "setBufferContent" => {
+                            if let Primitive::Number(buffer_id) = parameters.first().unwrap() {
+                                rsl.rift_rpc_client
+                                    .set_buffer_content(
+                                        context::Context::current(),
+                                        *buffer_id as u32,
+                                        parameters.get(1).unwrap().to_string(),
+                                    )
+                                    .await
+                                    .unwrap();
+                            }
+                            Primitive::Null
                         }
                         _ => panic!("function {} does not exist", self.identifier),
                     }

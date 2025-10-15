@@ -20,6 +20,7 @@ use crate::{
 #[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum Action {
     Quit,
+    SetBufferContent(u32, String),
     InsertTextAtCursor(String),
     InsertTextAtCursorAndTriggerCompletion(String),
     InsertSpace,
@@ -98,6 +99,7 @@ pub enum Action {
     SetSystemPrompt(String),
     Log(String),
     RegisterGlobalKeybind(String, String),
+    RegisterBufferKeybind(u32, String, String),
 }
 
 pub fn perform_action(
@@ -108,6 +110,11 @@ pub fn perform_action(
     match action {
         Action::Quit => {
             state.quit = true;
+        }
+        Action::SetBufferContent(buffer_id, content) => {
+            let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+            buffer.set_content(content.clone());
+            instance.scroll = Cursor { row: 0, column: 0 };
         }
         Action::InsertTextAtCursor(text) => {
             let lsp_handle = if state.buffer_idx.is_some() {
@@ -1234,6 +1241,11 @@ pub fn perform_action(
             state
                 .keybind_handler
                 .register_global_keybind(&definition, &function_id);
+        }
+        Action::RegisterBufferKeybind(buffer_id, definition, function_id) => {
+            state
+                .keybind_handler
+                .register_buffer_keybind(buffer_id, &definition, &function_id);
         }
     };
     None
