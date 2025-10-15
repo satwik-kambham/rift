@@ -36,6 +36,20 @@ impl RiftRPC for RPCHandle {
     async fn rlog(self, _context: tarpc::context::Context, message: String) {
         self.send_action_request(Action::Log(message)).await;
     }
+
+    async fn set_active_buffer(self, _context: tarpc::context::Context, id: u32) {
+        self.send_action_request(Action::SetActiveBuffer(id)).await;
+    }
+
+    async fn register_global_keybind(
+        self,
+        _context: tarpc::context::Context,
+        definition: String,
+        function_id: String,
+    ) {
+        self.send_action_request(Action::RegisterGlobalKeybind(definition, function_id))
+            .await;
+    }
 }
 
 pub async fn start_rpc_server(

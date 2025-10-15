@@ -1,2 +1,9 @@
 version = 1
 log("Starting editor")
+
+fn incrementVersion() {
+    version = version + 1
+    log(version)
+}
+
+registerGlobalKeybind("nor space v", incrementVersion)

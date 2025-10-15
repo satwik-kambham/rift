@@ -87,16 +87,19 @@ impl KeybindHandler {
         }
     }
 
-    pub fn register_buffer_keybind(
-        &mut self,
-        buffer_id: u32,
-        definition: &str,
-        function_name: &str,
-    ) {
+    pub fn register_global_keybind(&mut self, definition: &str, function_id: &str) {
+        self.global_keybinds
+            .push(Keybind::from_definition_with_action(
+                definition,
+                Action::RunSource(format!("runFunctionById(\"{}\")", function_id)),
+            ));
+    }
+
+    pub fn register_buffer_keybind(&mut self, buffer_id: u32, definition: &str, function_id: &str) {
         self.buffer_keybinds.entry(buffer_id).or_default().push(
             Keybind::from_definition_with_action(
                 definition,
-                Action::RunSource(format!("{}()", function_name)),
+                Action::RunSource(format!("runFunctionById(\"{}\")", function_id)),
             ),
         );
     }

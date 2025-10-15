@@ -33,6 +33,7 @@ pub enum Action {
     InsertAfterSelection,
     AddIndent,
     RemoveIndent,
+    SetActiveBuffer(u32),
     CycleNextBuffer,
     CyclePreviousBuffer,
     CloseCurrentBuffer,
@@ -95,6 +96,7 @@ pub enum Action {
     ScrollUp,
     SetSystemPrompt(String),
     Log(String),
+    RegisterGlobalKeybind(String, String),
 }
 
 pub fn perform_action(
@@ -249,6 +251,9 @@ pub fn perform_action(
                 buffer.remove_indentation(&instance.selection, tab_width, lsp_handle);
             instance.cursor = instance.selection.cursor;
             instance.column_level = instance.cursor.column;
+        }
+        Action::SetActiveBuffer(buffer_id) => {
+            state.buffer_idx = Some(buffer_id);
         }
         Action::CycleNextBuffer => {
             state.cycle_buffer(false);
@@ -1213,6 +1218,11 @@ pub fn perform_action(
         }
         Action::Log(message) => {
             state.log_messages.push(message);
+        }
+        Action::RegisterGlobalKeybind(definition, function_id) => {
+            state
+                .keybind_handler
+                .register_global_keybind(&definition, &function_id);
         }
     };
     None

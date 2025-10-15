@@ -242,43 +242,23 @@ impl Expression for FunctionCallExpression {
             }
 
             Primitive::Null
-        } else if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
-            let local_environment = Rc::new(Environment::new(Some(environment.clone())));
-            if let Some(function_definition) = local_environment.get_function(&function_id) {
-                if self.parameters.len() != function_definition.parameters.len() {
-                    panic!("Number of parameters does not match")
-                }
-
-                for i in 0..function_definition.parameters.len() {
-                    local_environment.set_value_local(
-                        function_definition.parameters.get(i).unwrap().clone(),
-                        self.parameters
-                            .get(i)
-                            .unwrap()
-                            .execute(environment.clone(), rsl),
-                    );
-                }
-
-                for statement in function_definition.body.iter() {
-                    let result = statement.execute(local_environment.clone(), rsl);
-
-                    if let StatementResult::Return(result) = result {
-                        return result;
-                    }
-                }
-                return Primitive::Null;
-            } else if let Some(native_function) =
-                local_environment.get_native_function(&function_id)
-            {
-                let mut parameters = vec![];
-                for param_expression in &self.parameters {
-                    parameters.push(param_expression.execute(environment.clone(), rsl));
-                }
-
-                return native_function(parameters);
-            } else {
-                panic!("function {} not found", function_id);
+        } else if self.identifier == "runFunctionById" {
+            if self.parameters.len() != 1 {
+                panic!("Expected 1 parameter, got {}", self.parameters.len())
             }
+
+            let mut parameters = vec![];
+            for param_expression in &self.parameters {
+                parameters.push(param_expression.execute(environment.clone(), rsl));
+            }
+
+            if let Primitive::String(function_id) = parameters.first().unwrap() {
+                return run_function_by_id(function_id.clone(), &vec![], environment, rsl);
+            }
+
+            Primitive::Null
+        } else if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
+            return run_function_by_id(function_id, &self.parameters, environment, rsl);
         } else {
             #[cfg(feature = "rift_rpc")]
             {
@@ -299,6 +279,31 @@ impl Expression for FunctionCallExpression {
                                 .unwrap();
                             Primitive::Null
                         }
+                        "setActiveBuffer" => {
+                            if let Primitive::Number(number) = parameters.first().unwrap() {
+                                rsl.rift_rpc_client
+                                    .set_active_buffer(context::Context::current(), *number as u32)
+                                    .await
+                                    .unwrap();
+                            }
+                            Primitive::Null
+                        }
+                        "registerGlobalKeybind" => {
+                            if let Primitive::String(definition) = parameters.first().unwrap() {
+                                if let Primitive::Function(function_id) = parameters.get(1).unwrap()
+                                {
+                                    rsl.rift_rpc_client
+                                        .register_global_keybind(
+                                            context::Context::current(),
+                                            definition.clone(),
+                                            function_id.clone(),
+                                        )
+                                        .await
+                                        .unwrap();
+                                }
+                            }
+                            Primitive::Null
+                        }
                         _ => panic!("function {} does not exist", self.identifier),
                     }
                 });
@@ -307,4 +312,45 @@ impl Expression for FunctionCallExpression {
             panic!("function {} does not exist", self.identifier)
         }
     }
+}
+
+fn run_function_by_id(
+    function_id: String,
+    raw_parameters: &Vec<Box<dyn Expression>>,
+    environment: Rc<Environment>,
+    rsl: &mut RSL,
+) -> Primitive {
+    let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+    if let Some(function_definition) = local_environment.get_function(&function_id) {
+        if raw_parameters.len() != function_definition.parameters.len() {
+            panic!("Number of parameters does not match")
+        }
+
+        for i in 0..function_definition.parameters.len() {
+            local_environment.set_value_local(
+                function_definition.parameters.get(i).unwrap().clone(),
+                raw_parameters
+                    .get(i)
+                    .unwrap()
+                    .execute(environment.clone(), rsl),
+            );
+        }
+
+        for statement in function_definition.body.iter() {
+            let result = statement.execute(local_environment.clone(), rsl);
+
+            if let StatementResult::Return(result) = result {
+                return result;
+            }
+        }
+        return Primitive::Null;
+    } else if let Some(native_function) = local_environment.get_native_function(&function_id) {
+        let mut parameters = vec![];
+        for param_expression in raw_parameters {
+            parameters.push(param_expression.execute(environment.clone(), rsl));
+        }
+
+        return native_function(parameters);
+    }
+    panic!("function {} not found", function_id);
 }
