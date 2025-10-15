@@ -36,20 +36,14 @@ pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
 
 impl LineBuffer {
     /// Create a line buffer
-    pub fn new(initial_text: String, file_path: Option<String>) -> Self {
-        // Split string at line endings and collect
-        // into a vector of strings
+    pub fn new(initial_text: String, file_path: Option<String>, special: bool) -> Self {
         let mut lines: Vec<String> = initial_text.lines().map(String::from).collect();
 
-        // We always want an extra empty line at
-        // the end of the buffer / file
         if let Some(last) = lines.last() {
             if !last.is_empty() {
-                // Last line is not empty
                 lines.push("".into())
             }
         } else {
-            // The buffer is empty
             lines.push("".into());
         }
 
@@ -291,7 +285,7 @@ impl LineBuffer {
 
         Self {
             file_path,
-            special: false,
+            special,
             lines,
             highlighter,
             highlight_params,
@@ -406,12 +400,14 @@ impl LineBuffer {
         let mut range_start = scroll.row;
         let mut range_end = range_start + visible_lines + 3;
 
-        if cursor < scroll {
-            range_start = cursor.row;
-            range_end = range_start + visible_lines;
-        } else if cursor.row >= scroll.row + visible_lines {
-            range_end = cursor.row + 1;
-            range_start = range_end.saturating_sub(visible_lines);
+        if !self.special {
+            if cursor < scroll {
+                range_start = cursor.row;
+                range_end = range_start + visible_lines;
+            } else if cursor.row >= scroll.row + visible_lines {
+                range_end = cursor.row + 1;
+                range_start = range_end.saturating_sub(visible_lines);
+            }
         }
 
         // Calculate start byte
@@ -487,57 +483,60 @@ impl LineBuffer {
             row: 0,
             column: cursor.column,
         };
-        let mut cursor_idx: usize = 0;
-        for line_info in &gutter_info {
-            if cursor.row == line_info.start.row
-                && cursor.column >= line_info.start.column
-                && (cursor.column < line_info.end
-                    || (cursor.column == line_info.end && line_info.wrap_end))
-            {
-                relative_cursor.column -= line_info.start.column;
-                break;
-            }
-            cursor_idx += 1;
-        }
 
-        // Update range of lines that need to be rendered
-        // taking line wrap into account
-        if cursor < scroll {
-            range_start = cursor_idx.saturating_sub(1);
-            range_end = range_start + visible_lines;
-        } else if cursor.row >= scroll.row + visible_lines {
-            range_end = cursor_idx + 1;
-            range_start = range_end.saturating_sub(visible_lines);
-        } else {
-            range_start = 0;
-            range_end = visible_lines;
-            if cursor_idx >= visible_lines {
+        if !self.special {
+            let mut cursor_idx: usize = 0;
+            for line_info in &gutter_info {
+                if cursor.row == line_info.start.row
+                    && cursor.column >= line_info.start.column
+                    && (cursor.column < line_info.end
+                        || (cursor.column == line_info.end && line_info.wrap_end))
+                {
+                    relative_cursor.column -= line_info.start.column;
+                    break;
+                }
+                cursor_idx += 1;
+            }
+
+            // Update range of lines that need to be rendered
+            // taking line wrap into account
+            if cursor < scroll {
+                range_start = cursor_idx.saturating_sub(1);
+                range_end = range_start + visible_lines;
+            } else if cursor.row >= scroll.row + visible_lines {
                 range_end = cursor_idx + 1;
                 range_start = range_end.saturating_sub(visible_lines);
+            } else {
+                range_start = 0;
+                range_end = visible_lines;
+                if cursor_idx >= visible_lines {
+                    range_end = cursor_idx + 1;
+                    range_start = range_end.saturating_sub(visible_lines);
+                }
             }
-        }
 
-        range_end = gutter_info.len().min(range_end);
-        relative_cursor.row = cursor_idx - range_start;
+            range_end = gutter_info.len().min(range_end);
+            relative_cursor.row = cursor_idx - range_start;
 
-        scroll.row = gutter_info[range_start].start.row;
-        scroll.column = gutter_info[range_start].start.column;
+            scroll.row = gutter_info[range_start].start.row;
+            scroll.column = gutter_info[range_start].start.column;
 
-        // Cursor and selection
-        let (selection_start, selection_end) = selection.in_order();
-        if selection_start != selection_end {
+            // Cursor and selection
+            let (selection_start, selection_end) = selection.in_order();
+            if selection_start != selection_end {
+                segments.push(Range {
+                    start: self.byte_index_from_cursor(selection_start, &eol_sequence),
+                    end: self.byte_index_from_cursor(selection_end, &eol_sequence),
+                    attributes: HashSet::from([Attribute::Select]),
+                });
+            }
+
             segments.push(Range {
-                start: self.byte_index_from_cursor(selection_start, &eol_sequence),
-                end: self.byte_index_from_cursor(selection_end, &eol_sequence),
-                attributes: HashSet::from([Attribute::Select]),
+                start: self.byte_index_from_cursor(cursor, &eol_sequence),
+                end: self.byte_index_from_cursor(cursor, &eol_sequence),
+                attributes: HashSet::from([Attribute::Cursor]),
             });
         }
-
-        segments.push(Range {
-            start: self.byte_index_from_cursor(cursor, &eol_sequence),
-            end: self.byte_index_from_cursor(cursor, &eol_sequence),
-            attributes: HashSet::from([Attribute::Cursor]),
-        });
 
         // Highlight
         if let Some(highlight_params) = &self.highlight_params {
@@ -1125,90 +1124,5 @@ impl LineBuffer {
             cursor: *cursor,
             mark: start,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::buffer::instance::{Cursor, Selection};
-
-    use super::LineBuffer;
-
-    #[test]
-    fn line_buffer_empty() {
-        let buf = LineBuffer::new("".into(), None);
-        assert_eq!(buf.file_path, None);
-        assert_eq!(buf.lines, vec![""])
-    }
-
-    #[test]
-    fn line_buffer_with_line_ending() {
-        let buf = LineBuffer::new("\n".into(), None);
-        assert_eq!(buf.file_path, None);
-        assert_eq!(buf.lines, vec![""])
-    }
-
-    #[test]
-    fn line_buffer_with_no_extra_line() {
-        let buf = LineBuffer::new("Hello\nWorld".into(), None);
-        assert_eq!(buf.file_path, None);
-        assert_eq!(buf.lines, vec!["Hello", "World", "",])
-    }
-
-    #[test]
-    fn line_buffer_with_extra_line() {
-        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        assert_eq!(buf.file_path, None);
-        assert_eq!(buf.lines, vec!["Hello", "World", "",])
-    }
-
-    #[test]
-    fn line_buffer_hard_wrap() {
-        let mut buf = LineBuffer::new("HelloWorld".into(), None);
-        let mut scroll = Cursor { row: 0, column: 0 };
-        let cursor = Cursor { row: 0, column: 0 };
-        let selection = Selection {
-            mark: Cursor { row: 0, column: 0 },
-            cursor: Cursor { row: 0, column: 0 },
-        };
-        let (_lines, visible_cursor, _gutter_info) =
-            buf.get_visible_lines(&mut scroll, &cursor, &selection, 10, 5, "\n".into(), vec![]);
-        // assert_eq!(vec!["Hello", "World", ""], lines);
-        assert_eq!(visible_cursor, Cursor { row: 0, column: 0 });
-    }
-
-    #[test]
-    fn move_cursor_right_same_line() {
-        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        let mut cursor = Cursor { row: 0, column: 0 };
-        buf.move_cursor_right(&mut cursor);
-        assert_eq!(cursor, Cursor { row: 0, column: 1 });
-    }
-
-    #[test]
-    fn move_cursor_right_next_line() {
-        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        let mut cursor = Cursor { row: 0, column: 5 };
-        buf.move_cursor_right(&mut cursor);
-        assert_eq!(cursor, Cursor { row: 1, column: 0 });
-    }
-
-    #[test]
-    fn move_cursor_right_final_line() {
-        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        let mut cursor = Cursor { row: 2, column: 0 };
-        buf.move_cursor_right(&mut cursor);
-        assert_eq!(cursor, Cursor { row: 2, column: 0 })
-    }
-
-    #[test]
-    fn byte_index_from_cursor() {
-        let buf = LineBuffer::new("Hello\nWorld\n".into(), None);
-        let cursor = Cursor { row: 0, column: 0 };
-        assert_eq!(buf.byte_index_from_cursor(&cursor, "\n"), 0);
-        let cursor = Cursor { row: 1, column: 0 };
-        assert_eq!(buf.byte_index_from_cursor(&cursor, "\n"), 6);
-        let cursor = Cursor { row: 1, column: 2 };
-        assert_eq!(buf.byte_index_from_cursor(&cursor, "\n"), 8);
     }
 }

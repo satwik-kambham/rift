@@ -13,35 +13,38 @@ pub fn update_visible_lines(
     if state.buffer_idx.is_some() {
         let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
         let mut extra_segments = vec![];
-        let path = buffer.file_path.as_ref().unwrap().clone();
 
-        #[cfg(target_os = "windows")]
-        let path = path.to_lowercase();
+        if let Some(path) = buffer.file_path.as_ref() {
+            let path = path.clone();
+            #[cfg(target_os = "windows")]
+            let path = path.to_lowercase();
 
-        if let Some(diagnostics) = state.diagnostics.get(&path) {
-            let mut diagnostic_info = String::new();
-            if diagnostics.version != 0 && diagnostics.version == buffer.version {
-                for diagnostic in &diagnostics.diagnostics {
-                    if instance.cursor >= diagnostic.range.mark
-                        && instance.cursor <= diagnostic.range.cursor
-                    {
-                        diagnostic_info.push_str(&format!(
-                            "{} {} {}\n",
-                            diagnostic.source, diagnostic.code, diagnostic.message
-                        ));
+            if let Some(diagnostics) = state.diagnostics.get(&path) {
+                let mut diagnostic_info = String::new();
+                if diagnostics.version != 0 && diagnostics.version == buffer.version {
+                    for diagnostic in &diagnostics.diagnostics {
+                        if instance.cursor >= diagnostic.range.mark
+                            && instance.cursor <= diagnostic.range.cursor
+                        {
+                            diagnostic_info.push_str(&format!(
+                                "{} {} {}\n",
+                                diagnostic.source, diagnostic.code, diagnostic.message
+                            ));
+                        }
+
+                        extra_segments.push(Range {
+                            start: buffer.byte_index_from_cursor(&diagnostic.range.mark, "\n"),
+                            end: buffer.byte_index_from_cursor(&diagnostic.range.cursor, "\n"),
+                            attributes: HashSet::from([Attribute::DiagnosticSeverity(
+                                diagnostic.severity.clone(),
+                            )]),
+                        });
                     }
-
-                    extra_segments.push(Range {
-                        start: buffer.byte_index_from_cursor(&diagnostic.range.mark, "\n"),
-                        end: buffer.byte_index_from_cursor(&diagnostic.range.cursor, "\n"),
-                        attributes: HashSet::from([Attribute::DiagnosticSeverity(
-                            diagnostic.severity.clone(),
-                        )]),
-                    });
                 }
+                state.diagnostics_overlay.content = diagnostic_info;
             }
-            state.diagnostics_overlay.content = diagnostic_info;
         }
+
         let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
         let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
             &mut instance.scroll,

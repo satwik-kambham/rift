@@ -304,6 +304,14 @@ impl Expression for FunctionCallExpression {
                             }
                             Primitive::Null
                         }
+                        "createSpecialBuffer" => {
+                            let buffer_id = rsl
+                                .rift_rpc_client
+                                .create_special_buffer(context::Context::current())
+                                .await
+                                .unwrap();
+                            Primitive::Number(buffer_id as f32)
+                        }
                         _ => panic!("function {} does not exist", self.identifier),
                     }
                 });

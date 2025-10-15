@@ -47,6 +47,7 @@ pub fn process_cli_args(
         let buffer = LineBuffer::new(
             initial_text.clone(),
             Some(path.to_str().unwrap().to_string()),
+            false,
         );
 
         if let std::collections::hash_map::Entry::Vacant(e) = lsp_handles.entry(buffer.language) {

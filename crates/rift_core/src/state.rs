@@ -132,7 +132,7 @@ impl EditorState {
         if let Some((idx, _)) = self
             .buffers
             .iter()
-            .find(|(_, buf)| buf.file_path == buffer.file_path)
+            .find(|(_, buf)| !buf.special && buf.file_path == buffer.file_path)
         {
             *idx
         } else {

@@ -40,7 +40,11 @@ pub fn show_status_line(ctx: &egui::Context, state: &mut EditorState) -> (f32, f
                     let modified = buffer.modified;
                     let cursor = instance.cursor;
 
-                    ui.label(file_path.as_ref().unwrap());
+                    ui.label(
+                        file_path
+                            .as_ref()
+                            .unwrap_or(&state.buffer_idx.unwrap().to_string()),
+                    );
                     ui.separator();
                     ui.label(format!("{}:{}", cursor.row + 1, cursor.column + 1));
                     ui.separator();

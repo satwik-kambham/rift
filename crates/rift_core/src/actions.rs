@@ -48,6 +48,7 @@ pub enum Action {
     SelectTillStartOfWord,
     ExtendSelectTillStartOfWord,
     CreateBufferFromFile(String),
+    CreateSpecialBuffer,
     OpenFile,
     SwitchBuffer,
     FormatCurrentBuffer,
@@ -329,6 +330,11 @@ pub fn perform_action(
         }
         Action::SelectTillStartOfWord => {}
         Action::ExtendSelectTillStartOfWord => {}
+        Action::CreateSpecialBuffer => {
+            let buffer = LineBuffer::new(String::new(), None, true);
+            let buffer_id = state.add_buffer(buffer);
+            return Some(buffer_id.to_string());
+        }
         Action::CreateBufferFromFile(path) => {
             if let Some(idx) = state.buffers.iter().find_map(|(idx, buffer)| {
                 if buffer.file_path.clone().unwrap_or_default() == path {
@@ -340,7 +346,7 @@ pub fn perform_action(
                 state.buffer_idx = Some(*idx);
             } else {
                 let initial_text = file_io::read_file_content(&path).unwrap();
-                let buffer = LineBuffer::new(initial_text.clone(), Some(path.clone()));
+                let buffer = LineBuffer::new(initial_text.clone(), Some(path.clone()), false);
 
                 if let std::collections::hash_map::Entry::Vacant(e) =
                     lsp_handles.entry(buffer.language)
@@ -449,7 +455,12 @@ pub fn perform_action(
             state.modal.options = state
                 .buffers
                 .iter()
-                .map(|(idx, buffer)| (buffer.file_path.clone().unwrap(), idx.to_string()))
+                .map(|(idx, buffer)| {
+                    (
+                        buffer.file_path.clone().unwrap_or(idx.to_string()),
+                        idx.to_string(),
+                    )
+                })
                 .collect();
             state
                 .modal

@@ -50,6 +50,11 @@ impl RiftRPC for RPCHandle {
         self.send_action_request(Action::RegisterGlobalKeybind(definition, function_id))
             .await;
     }
+
+    async fn create_special_buffer(self, _context: tarpc::context::Context) -> u32 {
+        let buffer_id = self.send_action_request(Action::CreateSpecialBuffer).await;
+        buffer_id.parse().unwrap()
+    }
 }
 
 pub async fn start_rpc_server(

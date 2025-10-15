@@ -274,7 +274,7 @@ impl App {
                                 .0
                                 .file_path
                                 .as_ref()
-                                .unwrap(),
+                                .unwrap_or(&self.state.buffer_idx.unwrap().to_string()),
                         )
                         .into(),
                         format!(
