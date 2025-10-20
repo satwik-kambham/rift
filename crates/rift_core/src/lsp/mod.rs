@@ -41,6 +41,7 @@ pub fn handle_lsp_messages(
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
+    state.update_view = true;
     if state.buffer_idx.is_some() {
         let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
         if let Some(lsp_handle) = lsp_handles.get_mut(&buffer.language) {

@@ -90,16 +90,19 @@ impl App {
                         &mut self.state,
                         &mut self.lsp_handles,
                     );
+                    self.state.update_view = true;
                 }
 
                 if let Ok(action_request) = self.state.event_reciever.try_recv() {
                     let result = self.perform_action(action_request.action);
                     action_request.response_tx.send(result).unwrap();
+                    self.state.update_view = true;
                 }
 
                 // Handle file watcher events
                 if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
                     handle_file_event(file_event_result, &mut self.state, &mut self.lsp_handles);
+                    self.state.update_view = true;
                 }
 
                 handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
