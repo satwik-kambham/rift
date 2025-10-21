@@ -166,6 +166,10 @@ impl KeybindHandler {
                         return None;
                     }
                 }
+                if matches!(mode, Mode::Insert) && key.is_ascii() && key.len() == 1 {
+                    self.running_sequence = "".to_string();
+                    return Some(Action::InsertBufferInput(key));
+                }
             } else {
                 if let Some(keybind) = self.editing_keybinds.iter().find(|keybind| {
                     keybind.mode.contains(&mode) && keybind.sequence == self.running_sequence

@@ -351,6 +351,33 @@ impl Expression for FunctionCallExpression {
                             }
                             Primitive::Null
                         }
+                        "getBufferInput" => {
+                            if let Primitive::Number(buffer_id) = parameters.first().unwrap() {
+                                let input = rsl
+                                    .rift_rpc_client
+                                    .get_buffer_input(
+                                        context::Context::current(),
+                                        *buffer_id as u32,
+                                    )
+                                    .await
+                                    .unwrap();
+                                return Primitive::String(input);
+                            }
+                            Primitive::Null
+                        }
+                        "setBufferInput" => {
+                            if let Primitive::Number(buffer_id) = parameters.first().unwrap() {
+                                rsl.rift_rpc_client
+                                    .set_buffer_input(
+                                        context::Context::current(),
+                                        *buffer_id as u32,
+                                        parameters.get(1).unwrap().to_string(),
+                                    )
+                                    .await
+                                    .unwrap();
+                            }
+                            Primitive::Null
+                        }
                         _ => panic!("function {} does not exist", self.identifier),
                     }
                 });

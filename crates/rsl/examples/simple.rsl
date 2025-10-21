@@ -1,4 +1,3 @@
-log("Hello")
+x = "Hi Hey"
 
-bufferId = createSpecialBuffer()
-log(bufferId)
+log(x)

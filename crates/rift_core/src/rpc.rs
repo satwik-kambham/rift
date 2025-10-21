@@ -80,6 +80,21 @@ impl RiftRPC for RPCHandle {
         self.send_action_request(Action::SetBufferContent(buffer_id, content))
             .await;
     }
+
+    async fn get_buffer_input(self, _context: tarpc::context::Context, buffer_id: u32) -> String {
+        self.send_action_request(Action::GetBufferInput(buffer_id))
+            .await
+    }
+
+    async fn set_buffer_input(
+        self,
+        _context: tarpc::context::Context,
+        buffer_id: u32,
+        input: String,
+    ) {
+        self.send_action_request(Action::SetBufferInput(buffer_id, input))
+            .await;
+    }
 }
 
 pub async fn start_rpc_server(

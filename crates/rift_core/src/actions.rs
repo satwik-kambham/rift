@@ -21,6 +21,9 @@ use crate::{
 pub enum Action {
     Quit,
     SetBufferContent(u32, String),
+    InsertBufferInput(String),
+    GetBufferInput(u32),
+    SetBufferInput(u32, String),
     InsertTextAtCursor(String),
     InsertTextAtCursorAndTriggerCompletion(String),
     InsertSpace,
@@ -115,6 +118,18 @@ pub fn perform_action(
             let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
             buffer.set_content(content.clone());
             instance.scroll = Cursor { row: 0, column: 0 };
+        }
+        Action::InsertBufferInput(text) => {
+            let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            buffer.input.push_str(&text);
+        }
+        Action::GetBufferInput(buffer_id) => {
+            let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
+            return Some(buffer.input.clone());
+        }
+        Action::SetBufferInput(buffer_id, text) => {
+            let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
+            buffer.input = text;
         }
         Action::InsertTextAtCursor(text) => {
             let lsp_handle = if state.buffer_idx.is_some() {

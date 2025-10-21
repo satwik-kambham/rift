@@ -1,5 +1,6 @@
 pub mod array;
 pub mod table;
+pub mod web_requests;
 
 use crate::primitive::Primitive;
 

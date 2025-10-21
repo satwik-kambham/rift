@@ -1,8 +1,29 @@
-fn hi() {
+dashboardText = "
+Welcome to rift!
+
+Basic Keybinds:
+
+esc - Quit Insert Mode
+i - Enter Insert Mode
+space q - Quit
+space f - Fuzzy File Picker (with fd & fzf)
+space F - File Explorer
+space b - Switch Buffer
+"
+
+fn createDashboardBuffer() {
+    bufferId = createSpecialBuffer()
+    setBufferContent(bufferId, dashboardText)
+    setActiveBuffer(bufferId)
+}
+
+createDashboardBuffer()
+
+fn help() {
     log("Hi!")
 }
 
-registerGlobalKeybind("nor space h", hi)
+registerGlobalKeybind("nor space h", help)
 
 counterId = -1
 count = 0
@@ -36,6 +57,7 @@ fn createCounter() {
     counterId = bufferId
     registerBufferKeybind(bufferId, "nor j", increment)
     registerBufferKeybind(bufferId, "nor k", decrement)
+    setActiveBuffer(bufferId)
     renderCounter()
 }
 
