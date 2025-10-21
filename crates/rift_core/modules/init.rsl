@@ -27,15 +27,15 @@ registerGlobalKeybind("nor space h", help)
 
 counterId = -1
 count = 0
+displayText = "Hello"
 
 fn renderCounter() {
     content = ""
-    text = "Hello"
     i = 0
     loop {
         if i >= count { break }
         i = i + 1
-        content = content + "\n" + text        
+        content = content + "\n" + displayText        
     }
     setBufferContent(counterId, content)
 }
@@ -52,13 +52,27 @@ fn decrement() {
     renderCounter()
 }
 
-fn createCounter() {
-    bufferId = createSpecialBuffer()
-    counterId = bufferId
-    registerBufferKeybind(bufferId, "nor j", increment)
-    registerBufferKeybind(bufferId, "nor k", decrement)
-    setActiveBuffer(bufferId)
+fn inputUpdated() {
+    displayText = getBufferInput(counterId)
     renderCounter()
+}
+
+fn clearText() {
+    displayText = ""
+    setBufferInput(counterId, displayText)
+}
+
+fn createCounter() {
+    if counterId == -1 {
+        bufferId = createSpecialBuffer()
+        counterId = bufferId
+        registerBufferKeybind(bufferId, "nor j", increment)
+        registerBufferKeybind(bufferId, "nor k", decrement)
+        registerBufferKeybind(bufferId, "ins backspace", clearText)
+        registerBufferInputHook(bufferId, inputUpdated)
+        setActiveBuffer(bufferId)
+        renderCounter()
+    }
 }
 
 registerGlobalKeybind("nor space c", createCounter)
