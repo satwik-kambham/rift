@@ -8,4 +8,5 @@ pub trait RiftRPC {
     async fn set_buffer_content(buffer_id: u32, content: String);
     async fn get_buffer_input(buffer_id: u32) -> String;
     async fn set_buffer_input(buffer_id: u32, input: String);
+    async fn register_buffer_input_hook(buffer_id: u32, function_id: String);
 }

@@ -103,6 +103,7 @@ pub enum Action {
     Log(String),
     RegisterGlobalKeybind(String, String),
     RegisterBufferKeybind(u32, String, String),
+    RegisterBufferInputHook(u32, String),
 }
 
 pub fn perform_action(
@@ -122,6 +123,13 @@ pub fn perform_action(
         Action::InsertBufferInput(text) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             buffer.input.push_str(&text);
+            if let Some(function_id) = &buffer.input_hook {
+                perform_action(
+                    Action::RunSource(format!("runFunctionById(\"{}\")", function_id)),
+                    state,
+                    lsp_handles,
+                );
+            }
         }
         Action::GetBufferInput(buffer_id) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
@@ -130,6 +138,13 @@ pub fn perform_action(
         Action::SetBufferInput(buffer_id, text) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
             buffer.input = text;
+            if let Some(function_id) = &buffer.input_hook {
+                perform_action(
+                    Action::RunSource(format!("runFunctionById(\"{}\")", function_id)),
+                    state,
+                    lsp_handles,
+                );
+            }
         }
         Action::InsertTextAtCursor(text) => {
             let lsp_handle = if state.buffer_idx.is_some() {
@@ -1261,6 +1276,10 @@ pub fn perform_action(
             state
                 .keybind_handler
                 .register_buffer_keybind(buffer_id, &definition, &function_id);
+        }
+        Action::RegisterBufferInputHook(buffer_id, function_id) => {
+            let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
+            buffer.input_hook = Some(function_id);
         }
     };
     None

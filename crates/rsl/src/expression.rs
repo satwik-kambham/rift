@@ -330,6 +330,22 @@ impl Expression for FunctionCallExpression {
                             }
                             Primitive::Null
                         }
+                        "registerBufferInputHook" => {
+                            if let Primitive::Number(buffer_id) = parameters.first().unwrap() {
+                                if let Primitive::Function(function_id) = parameters.get(1).unwrap()
+                                {
+                                    rsl.rift_rpc_client
+                                        .register_buffer_input_hook(
+                                            context::Context::current(),
+                                            *buffer_id as u32,
+                                            function_id.clone(),
+                                        )
+                                        .await
+                                        .unwrap();
+                                }
+                            }
+                            Primitive::Null
+                        }
                         "createSpecialBuffer" => {
                             let buffer_id = rsl
                                 .rift_rpc_client

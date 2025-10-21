@@ -31,6 +31,7 @@ pub struct LineBuffer {
     highlighter: Highlighter,
     highlight_params: Option<TreeSitterParams>,
     pub input: String,
+    pub input_hook: Option<String>,
 }
 
 pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
@@ -296,6 +297,7 @@ impl LineBuffer {
             version: 1,
             language,
             input: String::new(),
+            input_hook: None,
         }
     }
 
