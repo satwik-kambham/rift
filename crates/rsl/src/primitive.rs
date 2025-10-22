@@ -5,7 +5,8 @@ use crate::array::Array;
 use crate::statement::Statement;
 use crate::table::Table;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
 pub enum Primitive {
     Null,
     Boolean(bool),

@@ -3762,6 +3762,8 @@ dependencies = [
  "reedline",
  "reqwest",
  "rift_rpc",
+ "serde",
+ "serde_json",
  "tarpc",
  "tokio",
  "uuid",

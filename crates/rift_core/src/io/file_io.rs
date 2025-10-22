@@ -162,7 +162,7 @@ pub fn handle_file_event(
                 if let Some((buffer_id, _)) = state
                     .buffers
                     .iter()
-                    .find(|(_, buf)| buf.file_path.as_ref().unwrap() == file_path)
+                    .find(|(_, buf)| buf.file_path.clone().unwrap_or_default() == file_path)
                 {
                     let (buffer, instance) = state.get_buffer_by_id_mut(*buffer_id);
                     let lsp_handle = lsp_handles.get_mut(&buffer.language);

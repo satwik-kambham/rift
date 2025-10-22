@@ -38,6 +38,8 @@ impl RSL {
         let environment = Environment::new(None);
 
         environment.register_native_function("print", std_lib::print);
+        environment.register_native_function("toJson", std_lib::to_json);
+        environment.register_native_function("fromJson", std_lib::from_json);
         environment.register_native_function("createArray", std_lib::array::create_array);
         environment.register_native_function("arrayLen", std_lib::array::array_len);
         environment.register_native_function("arrayGet", std_lib::array::array_get);

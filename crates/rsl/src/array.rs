@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use crate::primitive::Primitive;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Array {
     items: Vec<Primitive>,
 }

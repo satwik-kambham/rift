@@ -3,8 +3,9 @@ use std::fmt::Write;
 
 use crate::primitive::Primitive;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Table {
+    #[serde(flatten)]
     table: HashMap<String, Primitive>,
 }
 
