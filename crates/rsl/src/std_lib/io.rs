@@ -10,3 +10,14 @@ pub fn read_file(arguments: Vec<Primitive>) -> Primitive {
     }
     Primitive::Error("Expected 1 argument".to_string())
 }
+
+pub fn get_env_var(arguments: Vec<Primitive>) -> Primitive {
+    if arguments.len() == 1 {
+        if let Primitive::String(key) = arguments.first().unwrap() {
+            let value = std::env::var(key).unwrap();
+            return Primitive::String(value);
+        }
+        return Primitive::Error("Expected key".to_string());
+    }
+    Primitive::Error("Expected 1 argument".to_string())
+}

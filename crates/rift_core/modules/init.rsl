@@ -1,3 +1,6 @@
+# Dashboard
+
+dashboardId = -1
 dashboardText = "
 Welcome to rift!
 
@@ -12,67 +15,90 @@ space b - Switch Buffer
 "
 
 fn createDashboardBuffer() {
-    bufferId = createSpecialBuffer()
-    setBufferContent(bufferId, dashboardText)
-    setActiveBuffer(bufferId)
+    if dashboardId == -1 {
+        bufferId = createSpecialBuffer()
+        setBufferContent(bufferId, dashboardText)
+        setActiveBuffer(bufferId)
+    }
 }
 
 createDashboardBuffer()
 
-fn help() {
-    log("Hi!")
-}
+#################
 
-registerGlobalKeybind("nor space h", help)
+# Agentic Chat
 
-counterId = -1
-count = 0
-displayText = "Hello"
+llmChatId = -1
+chatInput = ""
+chatHistory = createArray()
 
-fn renderCounter() {
+fn renderLLMChat() {
     content = ""
     i = 0
     loop {
-        if i >= count { break }
+        if i >= arrayLen(chatHistory) { break }
+        message = arrayGet(chatHistory, i)
+        content = content + "\n------\n" + tableGet(message, "role") + ":\n" + tableGet(message, "content") + "\n------\n"
         i = i + 1
-        content = content + "\n" + displayText        
     }
-    setBufferContent(counterId, content)
+    content = content + "\n------\n" + chatInput + "\n------\n"
+    setBufferContent(llmChatId, content)
 }
 
-fn increment() {
-    count = count + 1
-    renderCounter()
-}
+fn sendMessage() {
+    apiKey = getEnvVar("OPENROUTER_KEY")
+    
+    message = createTable()
+    tableSet(message, "role", "user")
+    tableSet(message, "content", chatInput)
+    arrayPushBack(chatHistory, message)
+    
+    renderLLMChat()
 
-fn decrement() {
-    if count > 1 {
-        count = count - 1
-    }
-    renderCounter()
+    request = createTable()
+    tableSet(request, "model", "mistralai/devstral-small")
+    tableSet(request, "messages", chatHistory)
+    tableSet(request, "stream", false)
+    tableSet(request, "temperature", 0.3)
+    tableSet(request, "seed", 42)
+
+    body = toJson(request)
+    response = postRequestWithBearerToken("https://openrouter.ai/api/v1/chat/completions", body, apiKey)
+    response = fromJson(response)
+    message = tableGet(arrayGet(tableGet(response, "choices"), 0), "message")
+    arrayPushBack(chatHistory, message)
+
+    renderLLMChat()
 }
 
 fn inputUpdated() {
-    displayText = getBufferInput(counterId)
-    renderCounter()
+    chatInput = getBufferInput(llmChatId)
+    renderLLMChat()
 }
 
-fn clearText() {
-    displayText = ""
-    setBufferInput(counterId, displayText)
+fn addSpace() {
+    chatInput = getBufferInput(llmChatId)
+    chatInput = chatInput + " "
+    setBufferInput(llmChatId, chatInput)
+    renderLLMChat()
 }
 
-fn createCounter() {
-    if counterId == -1 {
+fn clearInput() {
+    chatInput = ""
+    setBufferInput(llmChatId, chatInput)
+}
+
+fn createLLMChat() {
+    if llmChatId == -1 {
         bufferId = createSpecialBuffer()
-        counterId = bufferId
-        registerBufferKeybind(bufferId, "nor j", increment)
-        registerBufferKeybind(bufferId, "nor k", decrement)
-        registerBufferKeybind(bufferId, "ins backspace", clearText)
+        llmChatId = bufferId
+        registerBufferKeybind(bufferId, "nor enter", sendMessage)
+        registerBufferKeybind(bufferId, "ins space", addSpace)
+        registerBufferKeybind(bufferId, "ins backspace", clearInput)
         registerBufferInputHook(bufferId, inputUpdated)
         setActiveBuffer(bufferId)
-        renderCounter()
+        renderLLMChat()
     }
 }
 
-registerGlobalKeybind("nor space c", createCounter)
+registerGlobalKeybind("nor space c", createLLMChat)

@@ -58,6 +58,7 @@ impl RSL {
             std_lib::web_requests::post_request_with_bearer_token,
         );
         environment.register_native_function("readFile", std_lib::io::read_file);
+        environment.register_native_function("getEnvVar", std_lib::io::get_env_var);
 
         #[cfg(feature = "rift_rpc")]
         let rpc_client =

@@ -34,6 +34,7 @@ impl RPCHandle {
 
 impl RiftRPC for RPCHandle {
     async fn rlog(self, _context: tarpc::context::Context, message: String) {
+        tracing::info!("{}", message);
         self.send_action_request(Action::Log(message)).await;
     }
 
