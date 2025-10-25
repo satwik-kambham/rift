@@ -554,6 +554,12 @@ impl LineBuffer {
                 end: self.byte_index_from_cursor(cursor, &eol_sequence),
                 attributes: HashSet::from([Attribute::Cursor]),
             });
+        } else {
+            range_start = 0;
+            range_end = visible_lines;
+            range_end = gutter_info.len().min(range_end);
+            scroll.row = gutter_info[range_start].start.row;
+            scroll.column = gutter_info[range_start].start.column;
         }
 
         // Highlight
