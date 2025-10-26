@@ -28,6 +28,10 @@ createDashboardBuffer()
 
 # Agentic Chat
 
+fn toolDeclarations() {
+    return ""
+}
+
 llmChatId = -1
 chatInput = ""
 chatHistory = createArray()

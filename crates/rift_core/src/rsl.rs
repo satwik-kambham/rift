@@ -48,9 +48,5 @@ pub fn initialize_rsl(
     let init_module = include_str!("../modules/init.rsl").to_string();
     #[cfg(debug_assertions)]
     let init_module = std::fs::read_to_string("crates/rift_core/modules/init.rsl").unwrap();
-    perform_action(
-        Action::RunSource(init_module),
-        state,
-        lsp_handles,
-    );
+    perform_action(Action::RunSource(init_module), state, lsp_handles);
 }

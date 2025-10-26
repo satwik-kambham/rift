@@ -106,6 +106,10 @@ impl RiftRPC for RPCHandle {
         self.send_action_request(Action::RegisterBufferInputHook(buffer_id, function_id))
             .await;
     }
+
+    async fn get_workspace_dir(self, _context: tarpc::context::Context) -> String {
+        self.send_action_request(Action::GetWorkspaceDir).await
+    }
 }
 
 pub async fn start_rpc_server(

@@ -394,6 +394,14 @@ impl Expression for FunctionCallExpression {
                             }
                             Primitive::Null
                         }
+                        "getWorkspaceDir" => {
+                            let workspace_dir = rsl
+                                .rift_rpc_client
+                                .get_workspace_dir(context::Context::current())
+                                .await
+                                .unwrap();
+                            return Primitive::String(workspace_dir);
+                        }
                         _ => panic!("function {} does not exist", self.identifier),
                     }
                 });

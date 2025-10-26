@@ -22,6 +22,7 @@ pub enum Action {
     Quit,
     SetBufferContent(u32, String),
     InsertBufferInput(String),
+    GetWorkspaceDir,
     GetBufferInput(u32),
     SetBufferInput(u32, String),
     InsertTextAtCursor(String),
@@ -130,6 +131,9 @@ pub fn perform_action(
                     lsp_handles,
                 );
             }
+        }
+        Action::GetWorkspaceDir => {
+            return Some(state.workspace_folder.clone());
         }
         Action::GetBufferInput(buffer_id) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
