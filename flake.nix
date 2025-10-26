@@ -92,6 +92,7 @@
             ./crates/rift_tui
             ./crates/rift_rpc
             ./crates/rsl
+            ./crates/rift_web
             crate
             (pkgs.lib.fileset.fileFilter
               (file: pkgs.lib.any file.hasExt [ "html" "scss" ])
