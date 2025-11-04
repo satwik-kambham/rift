@@ -3766,6 +3766,7 @@ dependencies = [
  "serde_json",
  "tarpc",
  "tokio",
+ "unescaper",
  "uuid",
 ]
 
@@ -4872,6 +4873,15 @@ dependencies = [
  "memoffset",
  "tempfile",
  "winapi",
+]
+
+[[package]]
+name = "unescaper"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c01d12e3a56a4432a8b436f293c25f4808bdf9e9f9f98f9260bba1f1bc5a1f26"
+dependencies = [
+ "thiserror 2.0.12",
 ]
 
 [[package]]

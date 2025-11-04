@@ -29,7 +29,108 @@ createDashboardBuffer()
 # Agentic Chat
 
 fn toolDeclarations() {
-    return ""
+    return
+"[
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"run_shell_command\",
+            \"description\": \"Run a shell command and return the output\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"command\": {\"type\": \"string\"}
+                },
+                \"required\": [\"command\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"find_file\",
+            \"description\": \"Returns paths matching regex pattern by searching recursively in the workspace folder, returning absolute paths. Does not accept glob patterns.\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"pattern\": {\"type\": \"string\"}
+                },
+                \"required\": [\"pattern\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"search_workspace\",
+            \"description\": \"Grep search in the current workspace for matching patterns\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"pattern\": {\"type\": \"string\"}
+                },
+                \"required\": [\"pattern\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"get_datetime\",
+            \"description\": \"Get the current date and time\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {}
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"read_file\",
+            \"description\": \"Get the content of a file with line numbers\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"path\": {\"type\": \"string\"}
+                },
+                \"required\": [\"path\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"write_file\",
+            \"description\": \"Writes content to a specified file replacing the existing content.\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"file_path\": {\"type\": \"string\"},
+                    \"content\": {\"type\": \"string\"},
+                },
+                \"required\": [\"file_path\", \"content\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"replace\",
+            \"description\": \"Replaces text within a file. Can replace single or multiple occurrences.\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"file_path\": {\"type\": \"string\"},
+                    \"old_string\": {\"type\": \"string\"},
+                    \"new_string\": {\"type\": \"string\"},
+                    \"expected_replacements\": {\"type\": \"number\", \"optional\": true},
+                },
+                \"required\": [\"file_path\", \"old_string\", \"new_string\"]
+            }
+        }
+    }
+]"
 }
 
 llmChatId = -1
@@ -62,6 +163,7 @@ fn sendMessage() {
     request = createTable()
     tableSet(request, "model", "mistralai/devstral-small")
     tableSet(request, "messages", chatHistory)
+    tableSet(request, "tools", toolDeclarations())
     tableSet(request, "stream", false)
     tableSet(request, "temperature", 0.3)
     tableSet(request, "seed", 42)
@@ -70,6 +172,12 @@ fn sendMessage() {
     response = postRequestWithBearerToken("https://openrouter.ai/api/v1/chat/completions", body, apiKey)
     response = fromJson(response)
     message = tableGet(arrayGet(tableGet(response, "choices"), 0), "message")
+    toolCalls = tableGet(message, "tool_calls")
+    
+    if toolCalls != null {
+        
+    }
+    
     arrayPushBack(chatHistory, message)
 
     renderLLMChat()

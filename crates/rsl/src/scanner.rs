@@ -84,6 +84,9 @@ impl Scanner {
             ' ' | '\r' | '\t' | '\n' => {}
             '"' => {
                 while self.peek() != '"' && !self.is_at_eof() {
+                    if self.peek() == '\\' {
+                        self.advance();
+                    }
                     self.advance();
                 }
                 self.advance();
@@ -92,7 +95,7 @@ impl Scanner {
                     .get(self.start + 1..self.current - 1)
                     .unwrap()
                     .to_string();
-                let string = string.replace("\\n", "\n");
+                let string = unescaper::unescape(&string).unwrap();
                 self.tokens.push(Token::String(string))
             }
             _ => {
