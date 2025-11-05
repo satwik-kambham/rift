@@ -76,17 +76,6 @@ fn toolDeclarations() {
     {
         \"type\": \"function\",
         \"function\": {
-            \"name\": \"get_datetime\",
-            \"description\": \"Get the current date and time\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {}
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
             \"name\": \"read_file\",
             \"description\": \"Get the content of a file with line numbers\",
             \"parameters\": {
@@ -124,7 +113,6 @@ fn toolDeclarations() {
                     \"file_path\": {\"type\": \"string\"},
                     \"old_string\": {\"type\": \"string\"},
                     \"new_string\": {\"type\": \"string\"},
-                    \"expected_replacements\": {\"type\": \"number\", \"optional\": true},
                 },
                 \"required\": [\"file_path\", \"old_string\", \"new_string\"]
             }
@@ -133,9 +121,25 @@ fn toolDeclarations() {
 ]"
 }
 
+fn agentRunShellCommand(command) {
+    outputs = runShellCommand(command, getWorkspaceDir())
+    return "STDOUT:\n" + tableGet(outputs, "stdout") + "\nSTDERR:\n" + tableGet(outputs, "stderr")
+}
+
+fn agentFindFile(pattern) {
+    results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path " + pattern, getWorkspaceDir())
+    return tableGet(results, "stdout")
+}
+
+fn agentSearchWorkspace(pattern) {
+    results = runShellCommand("rg " + pattern, getWorkspaceDir())
+    return tableGet(results, "stdout")
+}
+
 llmChatId = -1
 chatInput = ""
 chatHistory = createArray()
+pendingToolCalls = createArray()
 
 fn renderLLMChat() {
     content = ""
@@ -143,23 +147,30 @@ fn renderLLMChat() {
     loop {
         if i >= arrayLen(chatHistory) { break }
         message = arrayGet(chatHistory, i)
-        content = content + "\n------\n" + tableGet(message, "role") + ":\n" + tableGet(message, "content") + "\n------\n"
+        content = content + "\n------\n" + tableGet(message, "role") + ":\n" + tableGet(message, "content")
+        toolCalls = tableGet(message, "tool_calls")
+        if toolCalls != null {
+            content = content + "\n\n" + toJson(toolCalls)
+        }
+        content = content + "\n------\n"
         i = i + 1
+    }
+    if arrayLen(pendingToolCalls) != 0 {
+        i = 0
+        loop {
+            if i >= arrayLen(pendingToolCalls) { break }
+            toolCall = arrayGet(pendingToolCalls, i)
+            content = content + "\n" + toJson(toolCall) + "\n"
+            i = i + 1
+        }
     }
     content = content + "\n------\n" + chatInput + "\n------\n"
     setBufferContent(llmChatId, content)
 }
 
-fn sendMessage() {
+fn requestChatCompletion() {
     apiKey = getEnvVar("OPENROUTER_KEY")
     
-    message = createTable()
-    tableSet(message, "role", "user")
-    tableSet(message, "content", chatInput)
-    arrayPushBack(chatHistory, message)
-    
-    renderLLMChat()
-
     request = createTable()
     tableSet(request, "model", "mistralai/devstral-small")
     tableSet(request, "messages", chatHistory)
@@ -175,12 +186,84 @@ fn sendMessage() {
     toolCalls = tableGet(message, "tool_calls")
     
     if toolCalls != null {
-        
+        i = arrayLen(toolCalls)
+        loop {
+            if i <= 0 { break }
+            toolCall = arrayGet(toolCalls, i - 1)
+            
+            arrayPushBack(pendingToolCalls, toolCall)
+            
+            toolName = tableGet(tableGet(toolCall, "function"), "name")
+            toolArgs = fromJson(tableGet(tableGet(toolCall, "function"), "arguments"))
+            toolCallId = tableGet(toolCall, "id")
+            
+            i = i - 1
+        }
     }
     
     arrayPushBack(chatHistory, message)
 
     renderLLMChat()
+}
+
+fn getToolCallResult(allowed) {
+    toolCall = arrayPopBack(pendingToolCalls)
+    
+    toolName = tableGet(tableGet(toolCall, "function"), "name")
+    toolArgs = fromJson(tableGet(tableGet(toolCall, "function"), "arguments"))
+    toolCallId = tableGet(toolCall, "id")
+    
+    result = "Tool call request denied by user. Await further instructions."
+    
+    if allowed {
+        if toolName == "run_shell_command" {
+            result = agentRunShellCommand(tableGet(toolArgs, "command"))
+        }
+        if toolName == "find_file" {
+            result = agentFindFile(tableGet(toolArgs, "pattern"))
+        }
+        if toolName == "search_workspace" {
+            result = agentSearchWorkspace(tableGet(toolArgs, "pattern"))
+        }
+        if toolName == "read_file" {
+            result = agentReadFile(getWorkspaceDir(), tableGet(toolArgs, "path"))
+        }
+        if toolName == "write_file" {
+            result = agentFindFile(getWorkspaceDir(), tableGet(toolArgs, "file_path"), tableGet(toolArgs, "content"))
+        }
+        if toolName == "replace" {
+            result = agentFindFile(getWorkspaceDir(), tableGet(toolArgs, "file_path"), tableGet(toolArgs, "old_string"), tableGet(toolArgs, "new_string"))
+        }
+    }
+    
+    message = createTable()
+    tableSet(message, "role", "tool")
+    tableSet(message, "content", result)
+    tableSet(message, "name", toolName)
+    tableSet(message, "tool_call_id", toolCallId)
+    arrayPushBack(chatHistory, message)
+    
+    renderLLMChat()
+
+    if arrayLen(pendingToolCalls) == 0 {
+        requestChatCompletion()
+    }
+}
+
+fn allowToolCall() { getToolCallResult(true) }
+fn denyToolCall() { getToolCallResult(false) }
+
+fn sendMessage() {
+    if arrayLen(pendingToolCalls) == 0 {
+        message = createTable()
+        tableSet(message, "role", "user")
+        tableSet(message, "content", chatInput)
+        arrayPushBack(chatHistory, message)
+        
+        renderLLMChat()
+    
+        requestChatCompletion()
+    }
 }
 
 fn inputUpdated() {
@@ -207,6 +290,8 @@ fn createLLMChat() {
         registerBufferKeybind(bufferId, "nor enter", sendMessage)
         registerBufferKeybind(bufferId, "ins space", addSpace)
         registerBufferKeybind(bufferId, "ins backspace", clearInput)
+        registerBufferKeybind(bufferId, "nor y", allowToolCall)
+        registerBufferKeybind(bufferId, "nor n", denyToolCall)
         registerBufferInputHook(bufferId, inputUpdated)
         setActiveBuffer(bufferId)
         renderLLMChat()

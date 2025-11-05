@@ -80,6 +80,7 @@ pub struct GutterInfo {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Language {
     PlainText,
+    RSL,
     Rust,
     Python,
     Markdown,

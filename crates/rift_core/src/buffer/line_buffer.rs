@@ -52,6 +52,7 @@ impl LineBuffer {
         let language = match &file_path {
             Some(path) => match std::path::Path::new(&path).extension() {
                 Some(extension) => match extension.to_str().unwrap() {
+                    "rsl" => Language::RSL,
                     "rs" => Language::Rust,
                     "py" => Language::Python,
                     "md" => Language::Markdown,
@@ -125,6 +126,16 @@ impl LineBuffer {
 
         let language_config = match language {
             Language::Rust => Some(
+                HighlightConfiguration::new(
+                    tree_sitter_rust::LANGUAGE.into(),
+                    "rust",
+                    tree_sitter_rust::HIGHLIGHTS_QUERY,
+                    tree_sitter_rust::INJECTIONS_QUERY,
+                    "",
+                )
+                .unwrap(),
+            ),
+            Language::RSL => Some(
                 HighlightConfiguration::new(
                     tree_sitter_rust::LANGUAGE.into(),
                     "rust",

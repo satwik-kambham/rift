@@ -59,6 +59,10 @@ impl RSL {
         );
         environment.register_native_function("readFile", std_lib::io::read_file);
         environment.register_native_function("getEnvVar", std_lib::io::get_env_var);
+        environment.register_native_function("runShellCommand", std_lib::io::run_shell_command);
+        environment.register_native_function("agentReadFile", std_lib::io::agent_read_file);
+        environment.register_native_function("agentWriteFile", std_lib::io::agent_write_file);
+        environment.register_native_function("agentReplace", std_lib::io::agent_replace);
 
         #[cfg(feature = "rift_rpc")]
         let rpc_client =
