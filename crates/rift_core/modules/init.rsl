@@ -96,7 +96,7 @@ fn toolDeclarations() {
                 \"type\": \"object\",
                 \"properties\": {
                     \"file_path\": {\"type\": \"string\"},
-                    \"content\": {\"type\": \"string\"},
+                    \"content\": {\"type\": \"string\"}
                 },
                 \"required\": [\"file_path\", \"content\"]
             }
@@ -112,7 +112,7 @@ fn toolDeclarations() {
                 \"properties\": {
                     \"file_path\": {\"type\": \"string\"},
                     \"old_string\": {\"type\": \"string\"},
-                    \"new_string\": {\"type\": \"string\"},
+                    \"new_string\": {\"type\": \"string\"}
                 },
                 \"required\": [\"file_path\", \"old_string\", \"new_string\"]
             }
@@ -174,7 +174,7 @@ fn requestChatCompletion() {
     request = createTable()
     tableSet(request, "model", "mistralai/devstral-small")
     tableSet(request, "messages", chatHistory)
-    tableSet(request, "tools", toolDeclarations())
+    tableSet(request, "tools", fromJson(toolDeclarations()))
     tableSet(request, "stream", false)
     tableSet(request, "temperature", 0.3)
     tableSet(request, "seed", 42)

@@ -112,7 +112,7 @@ impl Expression for BinaryExpression {
                     panic!("Expected left and right expression of '>=' operator to be numbers")
                 }
             }
-            Operator::Plus => match (left, right) {
+            Operator::Plus => match (&left, &right) {
                 (Primitive::Number(left), Primitive::Number(right)) => {
                     Primitive::Number(left + right)
                 }
@@ -121,7 +121,8 @@ impl Expression for BinaryExpression {
                 }
                 _ => {
                     panic!(
-                        "Expected left and right expression of '+' operator to be numbers or strings"
+                        "Invalid operands for '+', got left = {} and right = {}",
+                        left, right
                     )
                 }
             },

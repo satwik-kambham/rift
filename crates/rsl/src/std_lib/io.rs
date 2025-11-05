@@ -149,30 +149,27 @@ pub fn get_env_var(arguments: Vec<Primitive>) -> Primitive {
 }
 
 pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {
-    if arguments.len() == 1 {
-        if let Primitive::String(command) = arguments.first().unwrap() {
-            if let Primitive::String(workspace_dir) = arguments.get(1).unwrap() {
-                match Command::new("sh")
-                    .arg("-c")
-                    .arg(command)
-                    .current_dir(workspace_dir)
-                    .output()
-                {
-                    Ok(output) => {
-                        let mut table = Table::new();
-                        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                        table.set_value("stdout".to_string(), Primitive::String(stdout));
-                        table.set_value("stderr".to_string(), Primitive::String(stderr));
-                        return Primitive::Table(Rc::new(RefCell::new(table)));
-                    }
-                    Err(e) => {
-                        return Primitive::Error(format!("Error executing command: {}", e));
-                    }
+    if let Primitive::String(command) = arguments.first().unwrap() {
+        if let Primitive::String(workspace_dir) = arguments.get(1).unwrap() {
+            match Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .current_dir(workspace_dir)
+                .output()
+            {
+                Ok(output) => {
+                    let mut table = Table::new();
+                    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                    table.set_value("stdout".to_string(), Primitive::String(stdout));
+                    table.set_value("stderr".to_string(), Primitive::String(stderr));
+                    return Primitive::Table(Rc::new(RefCell::new(table)));
+                }
+                Err(e) => {
+                    return Primitive::Error(format!("Error executing command: {}", e));
                 }
             }
         }
-        return Primitive::Error("Expected file path".to_string());
     }
-    Primitive::Error("Expected 1 argument".to_string())
+    return Primitive::Error("Expected file path".to_string());
 }
