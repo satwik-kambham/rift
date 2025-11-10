@@ -117,9 +117,8 @@ pub fn perform_action(
             state.quit = true;
         }
         Action::SetBufferContent(buffer_id, content) => {
-            let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+            let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
             buffer.set_content(content.clone());
-            instance.scroll = Cursor { row: 0, column: 0 };
         }
         Action::InsertBufferInput(text) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
