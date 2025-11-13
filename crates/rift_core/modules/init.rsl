@@ -266,19 +266,19 @@ fn sendMessage() {
     }
 }
 
-fn inputUpdated() {
+fn llmChatInputUpdated() {
     chatInput = getBufferInput(llmChatId)
     renderLLMChat()
 }
 
-fn addSpace() {
+fn llmChatAddSpace() {
     chatInput = getBufferInput(llmChatId)
     chatInput = chatInput + " "
     setBufferInput(llmChatId, chatInput)
     renderLLMChat()
 }
 
-fn clearInput() {
+fn llmChatClearInput() {
     chatInput = ""
     setBufferInput(llmChatId, chatInput)
 }
@@ -288,14 +288,66 @@ fn createLLMChat() {
         bufferId = createSpecialBuffer()
         llmChatId = bufferId
         registerBufferKeybind(bufferId, "nor enter", sendMessage)
-        registerBufferKeybind(bufferId, "ins space", addSpace)
-        registerBufferKeybind(bufferId, "ins backspace", clearInput)
+        registerBufferKeybind(bufferId, "ins space", llmChatAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", llmChatClearInput)
         registerBufferKeybind(bufferId, "nor y", allowToolCall)
         registerBufferKeybind(bufferId, "nor n", denyToolCall)
-        registerBufferInputHook(bufferId, inputUpdated)
-        setActiveBuffer(bufferId)
+        registerBufferInputHook(bufferId, llmChatInputUpdated)
         renderLLMChat()
     }
+    setActiveBuffer(llmChatId)
 }
 
 registerGlobalKeybind("nor space c", createLLMChat)
+
+############
+
+# Fuzzy Find File
+
+fuzzyFileFinderId = -1
+fuzzyFileFinderInput = ""
+fuzzyFileFinderResults = createArray()
+
+fn renderFuzzyFileFinder() {
+    content = "\n------\n" + fuzzyFileFinderInput + "\n------\n"
+    i = 0
+    loop {
+        if i >= arrayLen(fuzzyFileFinderResults) { break }
+        result = arrayGet(fuzzyFileFinderResults, i)
+        content = content + "\n > " + result
+        i = i + 1
+    }
+    setBufferContent(fuzzyFileFinderId, content)
+}
+
+fn fuzzyFileFinderInputUpdated() {
+    fuzzyFileFinderInput = getBufferInput(fuzzyFileFinderId)
+    results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path | fzf -f " + fuzzyFileFinderInput, getWorkspaceDir())
+    renderFuzzyFileFinder()
+}
+
+fn fuzzyFileFinderAddSpace() {
+    fuzzyFileFinderInput = getBufferInput(fuzzyFileFinderId)
+    fuzzyFileFinderInput = fuzzyFileFinderInput + " "
+    setBufferInput(fuzzyFileFinderId, fuzzyFileFinderInput)
+    renderFuzzyFileFinder()
+}
+
+fn fuzzyFileFinderClearInput() {
+    fuzzyFileFinderInput = ""
+    setBufferInput(fuzzyFileFinderId, fuzzyFileFinderInput)
+}
+
+fn createFuzzyFileFinder() {
+    if fuzzyFileFinderId == -1 {
+        bufferId = createSpecialBuffer()
+        fuzzyFileFinderId = bufferId
+        registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderClearInput)
+        registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
+        renderFuzzyFileFinder()
+    }
+    setActiveBuffer(fuzzyFileFinderId)
+}
+
+registerGlobalKeybind("nor space f", createFuzzyFileFinder)
