@@ -24,9 +24,6 @@ pub fn show_menu_bar(
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.menu_button("File", |ui| {
-                    if ui.button("Open File / Folder").clicked() {
-                        perform_action(Action::OpenFile, state, lsp_handles);
-                    }
                     if ui.button("Save").clicked() {
                         perform_action(Action::SaveCurrentBuffer, state, lsp_handles);
                     }

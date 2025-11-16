@@ -286,6 +286,16 @@ impl Expression for FunctionCallExpression {
                                 .unwrap();
                             Primitive::Null
                         }
+                        "openFile" => {
+                            rsl.rift_rpc_client
+                                .open_file(
+                                    context::Context::current(),
+                                    parameters.first().unwrap().to_string(),
+                                )
+                                .await
+                                .unwrap();
+                            Primitive::Null
+                        }
                         "setActiveBuffer" => {
                             if let Primitive::Number(number) = parameters.first().unwrap() {
                                 rsl.rift_rpc_client

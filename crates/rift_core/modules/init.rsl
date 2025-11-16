@@ -307,6 +307,7 @@ registerGlobalKeybind("nor space c", createLLMChat)
 fuzzyFileFinderId = -1
 fuzzyFileFinderInput = ""
 fuzzyFileFinderResults = createArray()
+fuzzySelectedEntry = 0
 
 fn renderFuzzyFileFinder() {
     content = "\n------\n" + fuzzyFileFinderInput + "\n------\n"
@@ -314,7 +315,11 @@ fn renderFuzzyFileFinder() {
     loop {
         if i >= arrayLen(fuzzyFileFinderResults) { break }
         result = arrayGet(fuzzyFileFinderResults, i)
-        content = content + "\n > " + result
+        if fuzzySelectedEntry == i {
+            content = content + "\n > " + result            
+        } if fuzzySelectedEntry != i {
+            content = content + "\n   " + result 
+        }
         i = i + 1
     }
     setBufferContent(fuzzyFileFinderId, content)
@@ -323,7 +328,9 @@ fn renderFuzzyFileFinder() {
 fn fuzzyFileFinderInputUpdated() {
     fuzzyFileFinderInput = getBufferInput(fuzzyFileFinderId)
     results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path | fzf -f " + fuzzyFileFinderInput, getWorkspaceDir())
+    fuzzyFileFinderResults = stringSplitLines(tableGet(results, "stdout"))
     renderFuzzyFileFinder()
+    fuzzySelectedEntry = 0
 }
 
 fn fuzzyFileFinderAddSpace() {
@@ -338,12 +345,27 @@ fn fuzzyFileFinderClearInput() {
     setBufferInput(fuzzyFileFinderId, fuzzyFileFinderInput)
 }
 
+fn  fuzzyFileFinderCycleIndex() {
+    fuzzySelectedEntry = fuzzySelectedEntry + 1
+    if fuzzySelectedEntry >= arrayLen(fuzzyFileFinderResults) { fuzzySelectedEntry = 0 }
+    renderFuzzyFileFinder()
+}
+
+fn fuzzyFileFinderSelect() {
+    if fuzzySelectedEntry < arrayLen(fuzzyFileFinderResults) {
+        path = arrayGet(fuzzyFileFinderResults, fuzzySelectedEntry)
+        openFile(path)
+    }
+}
+
 fn createFuzzyFileFinder() {
     if fuzzyFileFinderId == -1 {
         bufferId = createSpecialBuffer()
         fuzzyFileFinderId = bufferId
         registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderClearInput)
+        registerBufferKeybind(bufferId, "nor tab", fuzzyFileFinderCycleIndex)
+        registerBufferKeybind(bufferId, "nor enter", fuzzyFileFinderSelect)
         registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
         renderFuzzyFileFinder()
     }
