@@ -1,19 +1,44 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
+use std::{collections::HashMap, net::SocketAddr};
+
+use axum::{
+    extract::ConnectInfo,
+    extract::ws::{WebSocket, WebSocketUpgrade},
 };
 
 use rift_core::{
     actions::{Action, perform_action},
-    buffer::instance::{Attribute, Language},
+    buffer::instance::Language,
     cli::{CLIArgs, process_cli_args},
     io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages},
-    preferences::Color,
     rendering::update_visible_lines,
     rsl::initialize_rsl,
-    state::{CompletionMenu, EditorState, Mode},
+    state::EditorState,
 };
+
+pub async fn start_axum_server() {
+    let app = axum::Router::new().route("/ws", axum::routing::get(ws_handler));
+    tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+            .await
+            .unwrap();
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
+    });
+}
+
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> impl axum::response::IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, addr))
+}
+
+async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {}
 
 pub struct Server {
     pub state: EditorState,
