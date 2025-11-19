@@ -88,10 +88,11 @@
             ./Cargo.toml
             ./Cargo.lock
             ./crates/rift_core
-            ./crates/rift_egui
-            ./crates/rift_tui
             ./crates/rift_rpc
             ./crates/rsl
+            ./crates/rift_egui
+            ./crates/rift_tui
+            ./crates/rift_server
             ./crates/rift_web
             crate
             (pkgs.lib.fileset.fileFilter
