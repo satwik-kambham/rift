@@ -57,6 +57,10 @@ impl RiftRPC for RPCHandle {
         buffer_id.parse().unwrap()
     }
 
+    async fn open_file(self, _context: tarpc::context::Context, path: String) {
+        self.send_action_request(Action::OpenFile(path)).await;
+    }
+
     async fn register_buffer_keybind(
         self,
         _context: tarpc::context::Context,

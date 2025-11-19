@@ -211,7 +211,6 @@ impl Default for KeybindHandler {
                 "scroll-up nor c-up",
                 "scroll-down nor c-down",
                 "open-file nor space s-f",
-                "fuzzy-find-file nor space f",
                 "switch-buffer nor space b",
                 "workspace-diagnostics nor space d",
                 "cycle-previous-buffer nor ,",

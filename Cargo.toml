@@ -8,4 +8,5 @@ members = [
   "crates/rsl",
   "crates/rift_rpc",
   "crates/rift_web",
+  "crates/rift_server",
 ]

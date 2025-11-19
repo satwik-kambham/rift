@@ -1,15 +1,9 @@
-// Prevents additional console window on Windows in release
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use clap::Parser;
 use rift_core::cli::CLIArgs;
 
-pub mod app;
-pub mod command_dispatcher;
-pub mod components;
-pub mod fonts;
+pub mod server;
 
-fn main() -> eframe::Result {
+fn main() -> anyhow::Result<()> {
     #[cfg(debug_assertions)]
     {
         let mut tmp_dir = std::env::temp_dir();
@@ -23,13 +17,13 @@ fn main() -> eframe::Result {
             .init();
     }
     let cli_args = CLIArgs::parse();
-    let native_options = eframe::NativeOptions::default();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap();
-    let mut app = app::App::new(rt, cli_args);
-    eframe::run_simple_native("Rift", native_options, move |ctx, _frame| {
-        app.draw(ctx);
-    })
+
+    let mut server = server::Server::new(rt, cli_args);
+    server.run();
+
+    Ok(())
 }
