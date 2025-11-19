@@ -2,8 +2,11 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use axum::{
     extract::ConnectInfo,
-    extract::ws::{WebSocket, WebSocketUpgrade},
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
 };
+use bytes::Bytes;
+use futures::{SinkExt, StreamExt};
+use tokio::sync::{broadcast, mpsc};
 
 use rift_core::{
     actions::{Action, perform_action},
@@ -16,8 +19,16 @@ use rift_core::{
     state::EditorState,
 };
 
-pub async fn start_axum_server() {
-    let app = axum::Router::new().route("/ws", axum::routing::get(ws_handler));
+pub async fn start_axum_server(
+    sender_to_ws: broadcast::Sender<Bytes>,
+    sender_from_ws: mpsc::Sender<Bytes>,
+) {
+    let app = axum::Router::new().route(
+        "/ws",
+        axum::routing::get(move |ws, info| {
+            ws_handler(ws, info, sender_to_ws.subscribe(), sender_from_ws.clone())
+        }),
+    );
     tokio::spawn(async move {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
             .await
@@ -34,19 +45,54 @@ pub async fn start_axum_server() {
 async fn ws_handler(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    receiver_to_ws: broadcast::Receiver<Bytes>,
+    sender_from_ws: mpsc::Sender<Bytes>,
 ) -> impl axum::response::IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, addr))
+    ws.on_upgrade(move |socket| handle_socket(socket, addr, receiver_to_ws, sender_from_ws))
 }
 
-async fn handle_socket(mut socket: WebSocket, addr: SocketAddr) {}
+async fn handle_socket(
+    socket: WebSocket,
+    _addr: SocketAddr,
+    mut receiver_to_ws: broadcast::Receiver<Bytes>,
+    sender_from_ws: mpsc::Sender<Bytes>,
+) {
+    let (mut socket_sender, mut socket_receiver) = socket.split();
+    tokio::spawn(async move {
+        while let Some(Ok(message)) = socket_receiver.next().await {
+            match message {
+                Message::Binary(bytes) => {
+                    sender_from_ws.send(bytes).await.unwrap();
+                }
+                Message::Close(_) => {
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    tokio::spawn(async move {
+        while let Ok(bytes) = receiver_to_ws.recv().await {
+            socket_sender.send(Message::Binary(bytes)).await.unwrap();
+        }
+    });
+}
 
 pub struct Server {
     pub state: EditorState,
     pub lsp_handles: HashMap<Language, LSPClientHandle>,
+    pub sender_to_ws: broadcast::Sender<Bytes>,
+    pub receiver_from_ws: mpsc::Receiver<Bytes>,
 }
 
 impl Server {
     pub fn new(rt: tokio::runtime::Runtime, cli_args: CLIArgs) -> Self {
+        let (sender_to_ws, _) = broadcast::channel::<Bytes>(32);
+        let (sender_from_ws, receiver_from_ws) = mpsc::channel::<Bytes>(32);
+
+        rt.block_on(async { start_axum_server(sender_to_ws.clone(), sender_from_ws).await });
+
         let mut state = EditorState::new(rt);
         let mut lsp_handles = HashMap::new();
 
@@ -54,7 +100,12 @@ impl Server {
 
         initialize_rsl(&mut state, &mut lsp_handles);
 
-        Self { state, lsp_handles }
+        Self {
+            state,
+            lsp_handles,
+            sender_to_ws,
+            receiver_from_ws,
+        }
     }
 
     pub fn perform_action(&mut self, action: Action) -> String {
@@ -88,6 +139,19 @@ impl Server {
 
             // Handle lsp messages
             handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
+
+            // Handle websocket messages
+            if let Ok(bytes) = self.receiver_from_ws.try_recv() {
+                self.state.update_view = true;
+            }
+
+            // Update view and send to websocket connection
+            if self.state.update_view {
+                // self.state.relative_cursor =
+                //     update_visible_lines(&mut self.state, visible_lines, max_characters);
+
+                self.state.update_view = false;
+            }
         }
     }
 }
