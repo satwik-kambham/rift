@@ -1103,6 +1103,65 @@ impl LineBuffer {
         updated_selection
     }
 
+    /// Comment/Uncomment the selected lines and return the updated cursor position
+    pub fn toggle_comment(
+        &mut self,
+        selection: &Selection,
+        comment_token: String,
+        lsp_handle: &Option<&mut LSPClientHandle>,
+    ) -> Selection {
+        self.modified = true;
+
+        let mut updated_selection = *selection;
+        let (start, end) = selection.in_order();
+        if self
+            .lines
+            .get(start.row)
+            .unwrap()
+            .trim_start()
+            .starts_with(&comment_token)
+        {
+            let (start_new, end_new) = updated_selection.in_order_mut();
+
+            for i in start.row..=end.row {
+                let current_line = &self.lines[i];
+                if current_line.starts_with(&comment_token) {
+                    self.remove_text(
+                        &Selection {
+                            cursor: Cursor { row: i, column: 0 },
+                            mark: Cursor {
+                                row: i,
+                                column: comment_token.len(),
+                            },
+                        },
+                        lsp_handle,
+                        true,
+                    );
+
+                    if i == start.row {
+                        start_new.column = start_new.column.saturating_sub(comment_token.len());
+                    }
+                    if i == end.row {
+                        end_new.column = end_new.column.saturating_sub(comment_token.len());
+                    }
+                }
+            }
+        } else {
+            for i in start.row..=end.row {
+                self.insert_text(
+                    &comment_token,
+                    &Cursor { row: i, column: 0 },
+                    lsp_handle,
+                    true,
+                );
+            }
+            updated_selection.mark.column += comment_token.len();
+            updated_selection.cursor.column += comment_token.len();
+        }
+
+        updated_selection
+    }
+
     /// Adds line to selection and returns updated selection
     pub fn select_line(&self, selection: &Selection) -> Selection {
         let mut updated_selection = *selection;

@@ -264,6 +264,7 @@ impl Default for KeybindHandler {
                 "redo nor s-u",
                 "add-indent nor >",
                 "remove-indent nor <",
+                "toggle-comment nor c-c",
                 "unselect nor ;",
                 "lsp-hover nor z",
                 "lsp-completion nor s-z",

@@ -13,6 +13,7 @@ use crate::{
     concurrent::cli::{run_command, run_piped_commands, ProgramArgs},
     io::file_io,
     lsp::client::LSPClientHandle,
+    preferences::Preferences,
     state::{EditorState, Mode},
 };
 
@@ -38,6 +39,7 @@ pub enum Action {
     InsertAfterSelection,
     AddIndent,
     RemoveIndent,
+    ToggleComment,
     SetActiveBuffer(u32),
     CycleNextBuffer,
     CyclePreviousBuffer,
@@ -290,6 +292,20 @@ pub fn perform_action(
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             instance.selection =
                 buffer.remove_indentation(&instance.selection, tab_width, lsp_handle);
+            instance.cursor = instance.selection.cursor;
+            instance.column_level = instance.cursor.column;
+        }
+        Action::ToggleComment => {
+            let lsp_handle = if state.buffer_idx.is_some() {
+                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+                &mut lsp_handles.get_mut(&buffer.language)
+            } else {
+                &mut None
+            };
+            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let comment_token = Preferences::get_comment_token(buffer.language);
+            instance.selection =
+                buffer.toggle_comment(&instance.selection, comment_token, lsp_handle);
             instance.cursor = instance.selection.cursor;
             instance.column_level = instance.cursor.column;
         }

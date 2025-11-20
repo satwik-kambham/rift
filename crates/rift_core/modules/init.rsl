@@ -350,7 +350,6 @@ fn fuzzyFileFinderAddSpace() {
 fn fuzzyFileFinderClearInput() {
     fuzzyFileFinderInput = ""
     setBufferInput(fuzzyFileFinderId, fuzzyFileFinderInput)
-    fuzzyFileFinderWorkspaceEntries()
 }
 
 fn  fuzzyFileFinderCycleIndex() {
@@ -372,13 +371,13 @@ fn createFuzzyFileFinder() {
         fuzzyFileFinderId = bufferId
         registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderClearInput)
-        registerBufferKeybind(bufferId, "nor tab", fuzzyFileFinderCycleIndex)
-        registerBufferKeybind(bufferId, "nor enter", fuzzyFileFinderSelect)
+        registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderCycleIndex)
+        registerBufferKeybind(bufferId, "ins enter", fuzzyFileFinderSelect)
         registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
-        fuzzyFileFinderWorkspaceEntries()
-        renderFuzzyFileFinder()
     }
+    fuzzyFileFinderClearInput()
     setActiveBuffer(fuzzyFileFinderId)
+    renderFuzzyFileFinder()
 }
 
 registerGlobalKeybind("nor space f", createFuzzyFileFinder)

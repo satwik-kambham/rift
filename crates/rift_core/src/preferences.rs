@@ -1,3 +1,4 @@
+use crate::buffer::instance::Language;
 use crate::themes;
 
 /// Color representation (values between 0 and 255)
@@ -71,6 +72,21 @@ impl Default for Preferences {
             show_file_explorer: false,
             show_ai_panel: false,
         }
+    }
+}
+
+impl Preferences {
+    pub fn get_comment_token(language: Language) -> String {
+        match language {
+            Language::RSL | Language::Python | Language::TOML | Language::Nix => "# ",
+            Language::Rust
+            | Language::Dart
+            | Language::Javascript
+            | Language::Typescript
+            | Language::C
+            | Language::CPP => "// ",
+            _ => "",
+        }.to_string()
     }
 }
 
