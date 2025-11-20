@@ -325,12 +325,19 @@ fn renderFuzzyFileFinder() {
     setBufferContent(fuzzyFileFinderId, content)
 }
 
+fn fuzzyFileFinderWorkspaceEntries() {
+    results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path", getWorkspaceDir())
+    fuzzyFileFinderResults = stringSplitLines(tableGet(results, "stdout"))
+    fuzzySelectedEntry = 0
+    renderFuzzyFileFinder()
+}
+
 fn fuzzyFileFinderInputUpdated() {
     fuzzyFileFinderInput = getBufferInput(fuzzyFileFinderId)
     results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path | fzf -f " + fuzzyFileFinderInput, getWorkspaceDir())
     fuzzyFileFinderResults = stringSplitLines(tableGet(results, "stdout"))
-    renderFuzzyFileFinder()
     fuzzySelectedEntry = 0
+    renderFuzzyFileFinder()
 }
 
 fn fuzzyFileFinderAddSpace() {
@@ -343,6 +350,7 @@ fn fuzzyFileFinderAddSpace() {
 fn fuzzyFileFinderClearInput() {
     fuzzyFileFinderInput = ""
     setBufferInput(fuzzyFileFinderId, fuzzyFileFinderInput)
+    fuzzyFileFinderWorkspaceEntries()
 }
 
 fn  fuzzyFileFinderCycleIndex() {
@@ -367,6 +375,7 @@ fn createFuzzyFileFinder() {
         registerBufferKeybind(bufferId, "nor tab", fuzzyFileFinderCycleIndex)
         registerBufferKeybind(bufferId, "nor enter", fuzzyFileFinderSelect)
         registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
+        fuzzyFileFinderWorkspaceEntries()
         renderFuzzyFileFinder()
     }
     setActiveBuffer(fuzzyFileFinderId)
