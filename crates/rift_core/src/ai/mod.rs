@@ -130,10 +130,10 @@ pub fn formatter(format: String, args: HashMap<String, String>) -> String {
 
 pub fn create_system_prompt(template: String, state: &mut EditorState) -> String {
     let project_documentation = if std::path::Path::new(&state.workspace_folder)
-        .join("RIFT.md")
+        .join("AGENTS.md")
         .exists()
     {
-        std::fs::read_to_string(std::path::Path::new(&state.workspace_folder).join("RIFT.md"))
+        std::fs::read_to_string(std::path::Path::new(&state.workspace_folder).join("AGENTS.md"))
             .unwrap_or_else(|_| "".into())
     } else {
         "".into()
