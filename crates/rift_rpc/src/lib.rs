@@ -10,5 +10,7 @@ pub trait RiftRPC {
     async fn set_buffer_input(buffer_id: u32, input: String);
     async fn register_buffer_input_hook(buffer_id: u32, function_id: String);
     async fn get_workspace_dir() -> String;
+    async fn run_action(action: String) -> String;
+    async fn get_active_buffer() -> u32;
     async fn open_file(path: String);
 }

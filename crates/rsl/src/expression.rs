@@ -305,6 +305,14 @@ impl Expression for FunctionCallExpression {
                             }
                             Primitive::Null
                         }
+                        "getActiveBuffer" => {
+                            let buffer_id = rsl
+                                .rift_rpc_client
+                                .get_active_buffer(context::Context::current())
+                                .await
+                                .unwrap();
+                            return Primitive::Number(buffer_id as f32);
+                        }
                         "registerGlobalKeybind" => {
                             if let Primitive::String(definition) = parameters.first().unwrap() {
                                 if let Primitive::Function(function_id) = parameters.get(1).unwrap()
@@ -412,6 +420,17 @@ impl Expression for FunctionCallExpression {
                                 .await
                                 .unwrap();
                             return Primitive::String(workspace_dir);
+                        }
+                        "runAction" => {
+                            if let Primitive::String(action) = parameters.first().unwrap() {
+                                let result = rsl
+                                    .rift_rpc_client
+                                    .run_action(context::Context::current(), action.clone())
+                                    .await
+                                    .unwrap();
+                                return Primitive::String(result);
+                            }
+                            Primitive::Null
                         }
                         _ => panic!("function {} does not exist", self.identifier),
                     }

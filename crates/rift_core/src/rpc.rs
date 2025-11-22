@@ -114,6 +114,19 @@ impl RiftRPC for RPCHandle {
     async fn get_workspace_dir(self, _context: tarpc::context::Context) -> String {
         self.send_action_request(Action::GetWorkspaceDir).await
     }
+
+    async fn run_action(self, _context: tarpc::context::Context, action: String) -> String {
+        self.send_action_request(Action::RunAction(action)).await
+    }
+
+    async fn get_active_buffer(self, _context: tarpc::context::Context) -> u32 {
+        let buffer_id = self
+            .send_action_request(Action::GetActiveBuffer)
+            .await
+            .parse()
+            .unwrap_or_default();
+        buffer_id
+    }
 }
 
 pub async fn start_rpc_server(

@@ -308,6 +308,7 @@ fuzzyFileFinderId = -1
 fuzzyFileFinderInput = ""
 fuzzyFileFinderResults = createArray()
 fuzzySelectedEntry = 0
+fuzzyFileFinderPreviousBufferId = -1
 
 fn renderFuzzyFileFinder() {
     content = "\n------\n" + fuzzyFileFinderInput + "\n------\n"
@@ -362,10 +363,19 @@ fn fuzzyFileFinderSelect() {
     if fuzzySelectedEntry < arrayLen(fuzzyFileFinderResults) {
         path = arrayGet(fuzzyFileFinderResults, fuzzySelectedEntry)
         openFile(path)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn fuzzyFileFinderEscape() {
+    if fuzzyFileFinderPreviousBufferId != -1 {
+        setActiveBuffer(fuzzyFileFinderPreviousBufferId)
+        runAction("quit-insert-mode")
     }
 }
 
 fn createFuzzyFileFinder() {
+    fuzzyFileFinderPreviousBufferId = getActiveBuffer()
     if fuzzyFileFinderId == -1 {
         bufferId = createSpecialBuffer()
         fuzzyFileFinderId = bufferId
@@ -373,11 +383,13 @@ fn createFuzzyFileFinder() {
         registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderClearInput)
         registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderCycleIndex)
         registerBufferKeybind(bufferId, "ins enter", fuzzyFileFinderSelect)
+        registerBufferKeybind(bufferId, "ins escape", fuzzyFileFinderEscape)
         registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
     }
     fuzzyFileFinderClearInput()
     setActiveBuffer(fuzzyFileFinderId)
     renderFuzzyFileFinder()
+    runAction("enter-insert-mode")
 }
 
 registerGlobalKeybind("nor space f", createFuzzyFileFinder)

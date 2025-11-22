@@ -41,6 +41,7 @@ pub enum Action {
     RemoveIndent,
     ToggleComment,
     SetActiveBuffer(u32),
+    GetActiveBuffer,
     CycleNextBuffer,
     CyclePreviousBuffer,
     CloseCurrentBuffer,
@@ -95,6 +96,7 @@ pub enum Action {
     SearchWorkspace,
     WorkspaceDiagnostics,
     LocationModal(Vec<(String, Selection)>),
+    RunAction(String),
     OpenCommandDispatcher,
     FIMCompletion,
     KeybindHelp,
@@ -311,6 +313,14 @@ pub fn perform_action(
         }
         Action::SetActiveBuffer(buffer_id) => {
             state.buffer_idx = Some(buffer_id);
+        }
+        Action::GetActiveBuffer => {
+            return Some(
+                state
+                    .buffer_idx
+                    .map(|id| id.to_string())
+                    .unwrap_or_default(),
+            );
         }
         Action::CycleNextBuffer => {
             state.cycle_buffer(false);
@@ -1173,6 +1183,11 @@ pub fn perform_action(
                     state.modal.close();
                 },
             );
+        }
+        Action::RunAction(action_name) => {
+            if let Ok(action) = Action::from_str(action_name.trim()) {
+                return perform_action(action, state, lsp_handles);
+            }
         }
         Action::OpenCommandDispatcher => {
             if matches!(state.mode, Mode::Normal) {

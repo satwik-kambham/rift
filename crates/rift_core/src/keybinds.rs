@@ -135,20 +135,6 @@ impl KeybindHandler {
         };
         self.running_sequence.push_str(&input);
 
-        if let Some(keybind) = self.global_keybinds.iter().find(|keybind| {
-            keybind.mode.contains(&mode) && keybind.sequence == self.running_sequence
-        }) {
-            self.running_sequence = "".to_string();
-            return Some(keybind.action.clone());
-        } else if self.global_keybinds.iter().any(|keybind| {
-            keybind.mode.contains(&mode)
-                && keybind
-                    .sequence
-                    .starts_with(&(self.running_sequence.clone() + " "))
-        }) {
-            return None;
-        }
-
         if let Some(buffer_id) = active_buffer_id {
             if is_special_buffer.unwrap_or(false) {
                 if let Some(buffer_keybinds) = self.buffer_keybinds.get(&buffer_id) {
@@ -192,6 +178,20 @@ impl KeybindHandler {
                     }
                 }
             }
+        }
+
+        if let Some(keybind) = self.global_keybinds.iter().find(|keybind| {
+            keybind.mode.contains(&mode) && keybind.sequence == self.running_sequence
+        }) {
+            self.running_sequence = "".to_string();
+            return Some(keybind.action.clone());
+        } else if self.global_keybinds.iter().any(|keybind| {
+            keybind.mode.contains(&mode)
+                && keybind
+                    .sequence
+                    .starts_with(&(self.running_sequence.clone() + " "))
+        }) {
+            return None;
         }
 
         self.running_sequence = "".to_string();

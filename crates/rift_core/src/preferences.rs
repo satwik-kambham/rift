@@ -86,7 +86,8 @@ impl Preferences {
             | Language::C
             | Language::CPP => "// ",
             _ => "",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
