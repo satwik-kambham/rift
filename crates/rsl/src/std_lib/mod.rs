@@ -53,6 +53,5 @@ pub fn to_json(arguments: Vec<Primitive>) -> Primitive {
 
 pub fn from_json(arguments: Vec<Primitive>) -> Primitive {
     let json = args!(arguments; json: String);
-    let deserialized = serde_json::from_str(&json).unwrap();
-    deserialized
+    serde_json::from_str(&json).unwrap()
 }
