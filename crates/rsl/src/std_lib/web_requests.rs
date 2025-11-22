@@ -21,7 +21,7 @@ pub fn post_request(arguments: Vec<Primitive>) -> Primitive {
         }
         return Primitive::Error("Expected string body".to_string());
     }
-    return Primitive::Error("Expected url".to_string());
+    Primitive::Error("Expected url".to_string())
 }
 
 pub fn post_request_with_bearer_token(arguments: Vec<Primitive>) -> Primitive {
@@ -42,5 +42,5 @@ pub fn post_request_with_bearer_token(arguments: Vec<Primitive>) -> Primitive {
         }
         return Primitive::Error("Expected string body".to_string());
     }
-    return Primitive::Error("Expected url".to_string());
+    Primitive::Error("Expected url".to_string())
 }

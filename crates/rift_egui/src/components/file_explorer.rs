@@ -149,11 +149,11 @@ pub fn file_context_menu(
     state: &mut EditorState,
     _lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
-    if ui.button("Create File").clicked() {}
-    if ui.button("Create Folder").clicked() {}
-    if ui.button("Rename").clicked() {}
-    if ui.button("Move").clicked() {}
-    if ui.button("Delete").clicked() {}
+    ui.button("Create File").clicked();
+    ui.button("Create Folder").clicked();
+    ui.button("Rename").clicked();
+    ui.button("Move").clicked();
+    ui.button("Delete").clicked();
     if entry.is_dir && ui.button("Set as Workspace Folder").clicked() {
         state.workspace_folder = entry.path.clone();
     }

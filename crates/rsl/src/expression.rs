@@ -265,7 +265,7 @@ impl Expression for FunctionCallExpression {
 
             Primitive::Null
         } else if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
-            return run_function_by_id(function_id, &self.parameters, environment, rsl);
+            run_function_by_id(function_id, &self.parameters, environment, rsl)
         } else {
             #[cfg(feature = "rift_rpc")]
             {
@@ -274,7 +274,7 @@ impl Expression for FunctionCallExpression {
                     parameters.push(param_expression.execute(environment.clone(), rsl));
                 }
 
-                return rsl.rt_handle.block_on(async {
+                rsl.rt_handle.block_on(async {
                     match self.identifier.as_str() {
                         "log" => {
                             rsl.rift_rpc_client
@@ -311,57 +311,58 @@ impl Expression for FunctionCallExpression {
                                 .get_active_buffer(context::Context::current())
                                 .await
                                 .unwrap();
-                            return Primitive::Number(buffer_id as f32);
+                            Primitive::Number(buffer_id as f32)
                         }
                         "registerGlobalKeybind" => {
-                            if let Primitive::String(definition) = parameters.first().unwrap() {
-                                if let Primitive::Function(function_id) = parameters.get(1).unwrap()
-                                {
-                                    rsl.rift_rpc_client
-                                        .register_global_keybind(
-                                            context::Context::current(),
-                                            definition.clone(),
-                                            function_id.clone(),
-                                        )
-                                        .await
-                                        .unwrap();
-                                }
+                            if let (
+                                Some(Primitive::String(definition)),
+                                Some(Primitive::Function(function_id)),
+                            ) = (parameters.first(), parameters.get(1))
+                            {
+                                rsl.rift_rpc_client
+                                    .register_global_keybind(
+                                        context::Context::current(),
+                                        definition.clone(),
+                                        function_id.clone(),
+                                    )
+                                    .await
+                                    .unwrap();
                             }
                             Primitive::Null
                         }
                         "registerBufferKeybind" => {
-                            if let Primitive::Number(buffer_id) = parameters.first().unwrap() {
-                                if let Primitive::String(definition) = parameters.get(1).unwrap() {
-                                    if let Primitive::Function(function_id) =
-                                        parameters.get(2).unwrap()
-                                    {
-                                        rsl.rift_rpc_client
-                                            .register_buffer_keybind(
-                                                context::Context::current(),
-                                                *buffer_id as u32,
-                                                definition.clone(),
-                                                function_id.clone(),
-                                            )
-                                            .await
-                                            .unwrap();
-                                    }
-                                }
+                            if let (
+                                Some(Primitive::Number(buffer_id)),
+                                Some(Primitive::String(definition)),
+                                Some(Primitive::Function(function_id)),
+                            ) = (parameters.first(), parameters.get(1), parameters.get(2))
+                            {
+                                rsl.rift_rpc_client
+                                    .register_buffer_keybind(
+                                        context::Context::current(),
+                                        *buffer_id as u32,
+                                        definition.clone(),
+                                        function_id.clone(),
+                                    )
+                                    .await
+                                    .unwrap();
                             }
                             Primitive::Null
                         }
                         "registerBufferInputHook" => {
-                            if let Primitive::Number(buffer_id) = parameters.first().unwrap() {
-                                if let Primitive::Function(function_id) = parameters.get(1).unwrap()
-                                {
-                                    rsl.rift_rpc_client
-                                        .register_buffer_input_hook(
-                                            context::Context::current(),
-                                            *buffer_id as u32,
-                                            function_id.clone(),
-                                        )
-                                        .await
-                                        .unwrap();
-                                }
+                            if let (
+                                Some(Primitive::Number(buffer_id)),
+                                Some(Primitive::Function(function_id)),
+                            ) = (parameters.first(), parameters.get(1))
+                            {
+                                rsl.rift_rpc_client
+                                    .register_buffer_input_hook(
+                                        context::Context::current(),
+                                        *buffer_id as u32,
+                                        function_id.clone(),
+                                    )
+                                    .await
+                                    .unwrap();
                             }
                             Primitive::Null
                         }
@@ -419,7 +420,7 @@ impl Expression for FunctionCallExpression {
                                 .get_workspace_dir(context::Context::current())
                                 .await
                                 .unwrap();
-                            return Primitive::String(workspace_dir);
+                            Primitive::String(workspace_dir)
                         }
                         "runAction" => {
                             if let Primitive::String(action) = parameters.first().unwrap() {
@@ -434,7 +435,7 @@ impl Expression for FunctionCallExpression {
                         }
                         _ => panic!("function {} does not exist", self.identifier),
                     }
-                });
+                })
             }
             #[cfg(not(feature = "rift_rpc"))]
             panic!("function {} does not exist", self.identifier)

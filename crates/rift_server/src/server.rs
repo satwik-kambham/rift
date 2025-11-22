@@ -14,7 +14,6 @@ use rift_core::{
     cli::{CLIArgs, process_cli_args},
     io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages},
-    rendering::update_visible_lines,
     rsl::initialize_rsl,
     state::EditorState,
 };
@@ -141,7 +140,7 @@ impl Server {
             handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
 
             // Handle websocket messages
-            if let Ok(bytes) = self.receiver_from_ws.try_recv() {
+            if let Ok(_bytes) = self.receiver_from_ws.try_recv() {
                 self.state.update_view = true;
             }
 

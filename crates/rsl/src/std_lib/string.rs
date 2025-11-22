@@ -14,5 +14,5 @@ pub fn string_split_lines(arguments: Vec<Primitive>) -> Primitive {
         let lines = Primitive::Array(Rc::new(RefCell::new(Array::new(lines))));
         return lines;
     }
-    return Primitive::Error("Expected string".to_string());
+    Primitive::Error("Expected string".to_string())
 }

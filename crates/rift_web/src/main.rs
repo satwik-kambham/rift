@@ -16,7 +16,7 @@ impl Default for TemplateApp {
 }
 
 impl TemplateApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Default::default()
     }
 }

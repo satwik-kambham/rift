@@ -21,10 +21,14 @@ use rift_core::{
 use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
-        ai_panel::AIPanel, completion_menu::CompletionMenuWidget,
-        diagnostics_overlay::show_diagnostics_overlay, file_explorer::FileExplorer,
-        info_modal::InfoModalWidget, menu_bar::show_menu_bar,
-        signature_information::show_signature_information, status_line::show_status_line,
+        ai_panel::AIPanel,
+        completion_menu::{CompletionMenuPosition, CompletionMenuWidget},
+        diagnostics_overlay::show_diagnostics_overlay,
+        file_explorer::FileExplorer,
+        info_modal::InfoModalWidget,
+        menu_bar::show_menu_bar,
+        signature_information::show_signature_information,
+        status_line::show_status_line,
     },
     fonts::load_fonts,
 };
@@ -368,11 +372,14 @@ impl App {
                         .show(ui, &mut self.state, &mut self.lsp_handles);
                 }
 
-                self.completion_menu.show(
+                let completion_position = CompletionMenuPosition {
                     char_width,
                     char_height,
                     top_left,
                     visible_lines,
+                };
+                self.completion_menu.show(
+                    completion_position,
                     ctx,
                     &mut self.state,
                     &mut self.lsp_handles,

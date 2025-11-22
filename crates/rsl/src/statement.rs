@@ -197,6 +197,12 @@ impl Statement for LoopStatement {
 
 pub struct BreakStatement {}
 
+impl Default for BreakStatement {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BreakStatement {
     pub fn new() -> Self {
         Self {}

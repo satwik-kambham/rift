@@ -156,26 +156,24 @@ impl KeybindHandler {
                     self.running_sequence = "".to_string();
                     return Some(Action::InsertBufferInput(key));
                 }
-            } else {
-                if let Some(keybind) = self.editing_keybinds.iter().find(|keybind| {
-                    keybind.mode.contains(&mode) && keybind.sequence == self.running_sequence
-                }) {
-                    self.running_sequence = "".to_string();
-                    return Some(keybind.action.clone());
-                } else if self.editing_keybinds.iter().any(|keybind| {
-                    keybind.mode.contains(&mode)
-                        && keybind
-                            .sequence
-                            .starts_with(&(self.running_sequence.clone() + " "))
-                }) {
-                    return None;
-                } else if matches!(mode, Mode::Insert) && key.is_ascii() && key.len() == 1 {
-                    self.running_sequence = "".to_string();
-                    if key.chars().all(|c| c.is_ascii_alphabetic()) {
-                        return Some(Action::InsertTextAtCursorAndTriggerCompletion(key));
-                    } else {
-                        return Some(Action::InsertTextAtCursor(key));
-                    }
+            } else if let Some(keybind) = self.editing_keybinds.iter().find(|keybind| {
+                keybind.mode.contains(&mode) && keybind.sequence == self.running_sequence
+            }) {
+                self.running_sequence = "".to_string();
+                return Some(keybind.action.clone());
+            } else if self.editing_keybinds.iter().any(|keybind| {
+                keybind.mode.contains(&mode)
+                    && keybind
+                        .sequence
+                        .starts_with(&(self.running_sequence.clone() + " "))
+            }) {
+                return None;
+            } else if matches!(mode, Mode::Insert) && key.is_ascii() && key.len() == 1 {
+                self.running_sequence = "".to_string();
+                if key.chars().all(|c| c.is_ascii_alphabetic()) {
+                    return Some(Action::InsertTextAtCursorAndTriggerCompletion(key));
+                } else {
+                    return Some(Action::InsertTextAtCursor(key));
                 }
             }
         }

@@ -7,6 +7,9 @@ use uuid::Uuid;
 use crate::primitive::{FunctionDefinition, Primitive};
 use crate::table::Table;
 
+type NativeFunction = fn(Vec<Primitive>) -> Primitive;
+type NativeFunctionMap = HashMap<String, NativeFunction>;
+
 #[derive(Clone, Copy)]
 pub enum VariableType {
     Default,
@@ -17,7 +20,7 @@ pub enum VariableType {
 pub struct Environment {
     values: RefCell<HashMap<String, (Primitive, VariableType)>>,
     functions: RefCell<HashMap<String, FunctionDefinition>>,
-    native_functions: RefCell<HashMap<String, fn(Vec<Primitive>) -> Primitive>>,
+    native_functions: RefCell<NativeFunctionMap>,
     parent: Option<Rc<Environment>>,
 }
 
@@ -107,11 +110,7 @@ impl Environment {
         }
     }
 
-    pub fn register_native_function(
-        &self,
-        name: &str,
-        native_function: fn(Vec<Primitive>) -> Primitive,
-    ) {
+    pub fn register_native_function(&self, name: &str, native_function: NativeFunction) {
         if let Some(parent) = &self.parent {
             return parent.register_native_function(name, native_function);
         }
@@ -137,10 +136,7 @@ impl Environment {
         None
     }
 
-    pub fn get_native_function(
-        &self,
-        function_id: &str,
-    ) -> Option<fn(Vec<Primitive>) -> Primitive> {
+    pub fn get_native_function(&self, function_id: &str) -> Option<NativeFunction> {
         if let Some(func) = self.native_functions.borrow().get(function_id) {
             return Some(*func);
         }

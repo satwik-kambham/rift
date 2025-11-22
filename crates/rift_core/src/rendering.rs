@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use crate::{
-    buffer::instance::{Attribute, Cursor, Range},
+    buffer::{
+        instance::{Attribute, Cursor, Range},
+        line_buffer::VisibleLineParams,
+    },
     state::EditorState,
 };
 
@@ -46,13 +49,16 @@ pub fn update_visible_lines(
         }
 
         let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+        let visible_line_params = VisibleLineParams {
+            visible_lines,
+            max_characters,
+            eol_sequence: "\n".into(),
+        };
         let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
             &mut instance.scroll,
             &instance.cursor,
             &instance.selection,
-            visible_lines,
-            max_characters,
-            "\n".into(),
+            &visible_line_params,
             extra_segments,
         );
         state.highlighted_text = lines;

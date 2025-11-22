@@ -9,6 +9,20 @@ use rift_core::{
 
 pub struct CompletionMenuWidget {}
 
+impl Default for CompletionMenuWidget {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct CompletionMenuPosition {
+    pub char_width: f32,
+    pub char_height: f32,
+    pub top_left: egui::Pos2,
+    pub visible_lines: usize,
+}
+
 impl CompletionMenuWidget {
     pub fn new() -> Self {
         Self {}
@@ -16,26 +30,23 @@ impl CompletionMenuWidget {
 
     pub fn show(
         &self,
-        char_width: f32,
-        char_height: f32,
-        top_left: egui::Pos2,
-        visible_lines: usize,
+        position: CompletionMenuPosition,
         ctx: &egui::Context,
         state: &mut EditorState,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) -> bool {
         if state.completion_menu.active {
             let offset = egui::Pos2 {
-                x: (state.relative_cursor.column as f32 * char_width)
-                    + top_left.x
-                    + char_width
+                x: (state.relative_cursor.column as f32 * position.char_width)
+                    + position.top_left.x
+                    + position.char_width
                     + state.preferences.editor_padding as f32,
-                y: (state.relative_cursor.row as f32 * char_height)
-                    + top_left.y
-                    + char_height
+                y: (state.relative_cursor.row as f32 * position.char_height)
+                    + position.top_left.y
+                    + position.char_height
                     + state.preferences.editor_padding as f32,
             };
-            let pivot = if visible_lines - 7 < state.relative_cursor.row {
+            let pivot = if position.visible_lines - 7 < state.relative_cursor.row {
                 egui::Align2::LEFT_BOTTOM
             } else {
                 egui::Align2::LEFT_TOP

@@ -9,6 +9,12 @@ pub struct Table {
     table: HashMap<String, Primitive>,
 }
 
+impl Default for Table {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Table {
     pub fn new() -> Self {
         Self {

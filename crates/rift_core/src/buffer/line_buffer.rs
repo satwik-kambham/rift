@@ -35,6 +35,11 @@ pub struct LineBuffer {
 }
 
 pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
+pub struct VisibleLineParams {
+    pub visible_lines: usize,
+    pub max_characters: usize,
+    pub eol_sequence: String,
+}
 
 impl LineBuffer {
     /// Create a line buffer
@@ -415,34 +420,32 @@ impl LineBuffer {
         scroll: &mut Cursor,
         cursor: &Cursor,
         selection: &Selection,
-        visible_lines: usize,
-        max_characters: usize,
-        eol_sequence: String,
+        params: &VisibleLineParams,
         mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
-        let max_characters = max_characters - 3;
+        let max_characters = params.max_characters - 3;
         let mut segments = vec![];
         segments.append(&mut extra_segments);
 
         // Calculate range of lines which need to be rendered
         // before taking line wrap into account
         let mut range_start = scroll.row;
-        let mut range_end = range_start + visible_lines + 3;
+        let mut range_end = range_start + params.visible_lines + 3;
 
         if !self.special {
             if cursor < scroll {
                 range_start = cursor.row;
-                range_end = range_start + visible_lines;
-            } else if cursor.row >= scroll.row + visible_lines {
+                range_end = range_start + params.visible_lines;
+            } else if cursor.row >= scroll.row + params.visible_lines {
                 range_end = cursor.row + 1;
-                range_start = range_end.saturating_sub(visible_lines);
+                range_start = range_end.saturating_sub(params.visible_lines);
             }
         }
 
         // Calculate start byte
         let mut start_byte = 0;
         for line in self.lines.get(..range_start).unwrap() {
-            start_byte += line.len() + eol_sequence.len();
+            start_byte += line.len() + params.eol_sequence.len();
         }
 
         // Calculate gutter info
@@ -458,7 +461,7 @@ impl LineBuffer {
             while start < line.len() {
                 let end = (start + max_characters).min(line.len());
                 let eol_len = if end == line.len() {
-                    eol_sequence.len()
+                    params.eol_sequence.len()
                 } else {
                     0
                 };
@@ -480,7 +483,7 @@ impl LineBuffer {
             }
 
             if line.is_empty() {
-                let end_byte = start_byte + eol_sequence.len();
+                let end_byte = start_byte + params.eol_sequence.len();
                 gutter_info.push(GutterInfo {
                     start: Cursor {
                         row: range_start + line_idx,
@@ -531,16 +534,16 @@ impl LineBuffer {
             // taking line wrap into account
             if cursor < scroll {
                 range_start = cursor_idx.saturating_sub(1);
-                range_end = range_start + visible_lines;
-            } else if cursor.row >= scroll.row + visible_lines {
+                range_end = range_start + params.visible_lines;
+            } else if cursor.row >= scroll.row + params.visible_lines {
                 range_end = cursor_idx + 1;
-                range_start = range_end.saturating_sub(visible_lines);
+                range_start = range_end.saturating_sub(params.visible_lines);
             } else {
                 range_start = 0;
-                range_end = visible_lines;
-                if cursor_idx >= visible_lines {
+                range_end = params.visible_lines;
+                if cursor_idx >= params.visible_lines {
                     range_end = cursor_idx + 1;
-                    range_start = range_end.saturating_sub(visible_lines);
+                    range_start = range_end.saturating_sub(params.visible_lines);
                 }
             }
 
@@ -554,20 +557,20 @@ impl LineBuffer {
             let (selection_start, selection_end) = selection.in_order();
             if selection_start != selection_end {
                 segments.push(Range {
-                    start: self.byte_index_from_cursor(selection_start, &eol_sequence),
-                    end: self.byte_index_from_cursor(selection_end, &eol_sequence),
+                    start: self.byte_index_from_cursor(selection_start, &params.eol_sequence),
+                    end: self.byte_index_from_cursor(selection_end, &params.eol_sequence),
                     attributes: HashSet::from([Attribute::Select]),
                 });
             }
 
             segments.push(Range {
-                start: self.byte_index_from_cursor(cursor, &eol_sequence),
-                end: self.byte_index_from_cursor(cursor, &eol_sequence),
+                start: self.byte_index_from_cursor(cursor, &params.eol_sequence),
+                end: self.byte_index_from_cursor(cursor, &params.eol_sequence),
                 attributes: HashSet::from([Attribute::Cursor]),
             });
         } else {
             range_start = 0;
-            range_end = visible_lines;
+            range_end = params.visible_lines;
             range_end = gutter_info.len().min(range_end);
             scroll.row = gutter_info[range_start].start.row;
             scroll.column = gutter_info[range_start].start.column;
