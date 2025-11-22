@@ -6,6 +6,35 @@ pub mod web_requests;
 
 use crate::primitive::Primitive;
 
+macro_rules! args {
+    ($args:expr; $($name:ident $( : $variant:ident )?),+ $(,)?) => {{
+        let mut iter = $args.into_iter();
+        let parsed = ($(
+            match iter.next() {
+                Some(value) => {
+                    $(
+                        let Primitive::$variant(value) = value else {
+                            return Primitive::Error(
+                                concat!("expected ", stringify!($variant)).to_string()
+                            );
+                        };
+                    )?
+                    value
+                }
+                _ => return Primitive::Error("missing argument".to_string()),
+            }
+        ),+);
+
+        if iter.next().is_some() {
+            return Primitive::Error("too many arguments".to_string());
+        }
+
+        parsed
+    }};
+}
+
+pub(crate) use args;
+
 pub fn print(arguments: Vec<Primitive>) -> Primitive {
     let text = arguments
         .iter()
@@ -17,21 +46,13 @@ pub fn print(arguments: Vec<Primitive>) -> Primitive {
 }
 
 pub fn to_json(arguments: Vec<Primitive>) -> Primitive {
-    if arguments.len() == 1 {
-        let argument = arguments.first().unwrap();
-        let serialized = serde_json::to_string(argument).unwrap();
-        return Primitive::String(serialized);
-    }
-    Primitive::Error("Expected 1 argument".to_string())
+    let argument = args!(arguments; argument);
+    let serialized = serde_json::to_string(&argument).unwrap();
+    Primitive::String(serialized)
 }
 
 pub fn from_json(arguments: Vec<Primitive>) -> Primitive {
-    if arguments.len() == 1 {
-        if let Primitive::String(json) = arguments.first().unwrap() {
-            let deserialized = serde_json::from_str(json).unwrap();
-            return deserialized;
-        }
-        return Primitive::Error("Expected string".to_string());
-    }
-    Primitive::Error("Expected 1 argument".to_string())
+    let json = args!(arguments; json: String);
+    let deserialized = serde_json::from_str(&json).unwrap();
+    deserialized
 }
