@@ -31,7 +31,11 @@
 - Infer other conventions from existing file contents; match surrounding style and patterns.
 
 ## Commit & Pull Request Guidelines
-- Follow existing history: short, present-tense, imperative summaries (e.g., `add toggle comment action`); keep the subject under ~72 chars.
+- Commit message format:
+  - `<type>: <short imperative summary>`; types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `build`.
+  - Blank line after the subject.
+  - Body wrapped at ~72 chars; focus on what and why, not step-by-step how.
+  - Footer for references or breaking changes, e.g., `Refs: #123`, `BREAKING CHANGE: ...`.
 - Before opening a PR, run `cargo fmt` and `cargo clippy -- -D warnings`; mention anything not run and why.
 - PRs should describe scope, motivations, and user-facing impact; link issues when applicable. Include screenshots or terminal captures for UI/UX changes (TUI/GUI/web).
 - Keep changes scoped to one concern; split large refactors from feature work when possible. Document new flags/config in README or crate-level docs.
