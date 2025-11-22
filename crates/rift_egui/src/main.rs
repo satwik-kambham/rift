@@ -16,7 +16,7 @@ fn main() -> eframe::Result {
         tmp_dir.push("rift_logs");
         let file_appender = tracing_appender::rolling::never(tmp_dir, "rift.log");
         tracing_subscriber::fmt()
-            .with_env_filter("info.tarpc=off")
+            .with_env_filter("debug,tarpc=error")
             .with_writer(file_appender)
             .with_ansi(false)
             .with_level(true)
