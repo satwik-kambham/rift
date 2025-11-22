@@ -159,20 +159,36 @@ impl EditorState {
         }
     }
 
-    pub fn cycle_buffer(&mut self, reverse: bool) {
-        if self.buffer_idx.is_some() {
-            if reverse {
-                self.buffer_idx = if self.buffer_idx.unwrap() == 0 {
-                    Some((self.buffers.len() - 1).try_into().unwrap())
-                } else {
-                    Some(self.buffer_idx.unwrap() - 1)
-                };
+    pub fn cycle_buffer(&mut self, reverse: bool, regular_only: bool) {
+        let Some(current_id) = self.buffer_idx else {
+            return;
+        };
+
+        let mut buffer_ids: Vec<u32> = self.buffers.keys().copied().collect();
+        if buffer_ids.is_empty() {
+            return;
+        }
+
+        buffer_ids.sort_unstable();
+
+        let Some(mut position) = buffer_ids.iter().position(|id| *id == current_id) else {
+            return;
+        };
+
+        let len = buffer_ids.len();
+        for _ in 0..len {
+            position = if reverse {
+                position.checked_sub(1).unwrap_or(len - 1)
             } else {
-                self.buffer_idx = if self.buffer_idx.unwrap() == self.buffers.len() as u32 - 1 {
-                    Some(0)
-                } else {
-                    Some(self.buffer_idx.unwrap() + 1)
-                };
+                (position + 1) % len
+            };
+
+            let candidate_id = buffer_ids[position];
+            if let Some(buffer) = self.buffers.get(&candidate_id) {
+                if !regular_only || !buffer.special {
+                    self.buffer_idx = Some(candidate_id);
+                    return;
+                }
             }
         }
     }

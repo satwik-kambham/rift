@@ -323,10 +323,10 @@ pub fn perform_action(
             );
         }
         Action::CycleNextBuffer => {
-            state.cycle_buffer(false);
+            state.cycle_buffer(false, true);
         }
         Action::CyclePreviousBuffer => {
-            state.cycle_buffer(true);
+            state.cycle_buffer(true, true);
         }
         Action::CloseCurrentBuffer => {
             if state.buffer_idx.is_some() {
