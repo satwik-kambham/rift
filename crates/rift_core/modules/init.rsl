@@ -335,6 +335,10 @@ fn fuzzyFileFinderWorkspaceEntries() {
 
 fn fuzzyFileFinderInputUpdated() {
     fuzzyFileFinderInput = getBufferInput(fuzzyFileFinderId)
+    if fuzzyFileFinderInput == "" {
+        fuzzyFileFinderWorkspaceEntries()
+        return null
+    }
     results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path | fzf -f " + fuzzyFileFinderInput, getWorkspaceDir())
     fuzzyFileFinderResults = stringSplitLines(tableGet(results, "stdout"))
     fuzzySelectedEntry = 0
@@ -388,7 +392,7 @@ fn createFuzzyFileFinder() {
     }
     fuzzyFileFinderClearInput()
     setActiveBuffer(fuzzyFileFinderId)
-    renderFuzzyFileFinder()
+    fuzzyFileFinderWorkspaceEntries()
     runAction("enter-insert-mode")
 }
 
