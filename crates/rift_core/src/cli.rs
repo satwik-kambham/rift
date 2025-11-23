@@ -12,6 +12,8 @@ use crate::{
 #[derive(Parser, Debug)]
 pub struct CLIArgs {
     pub path: Option<PathBuf>,
+    #[arg(long, default_value_t = false, help = "Do not start language servers")]
+    pub no_lsp: bool,
 }
 
 pub fn process_cli_args(
@@ -19,6 +21,8 @@ pub fn process_cli_args(
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
+    state.preferences.no_lsp = cli_args.no_lsp;
+
     let mut path = cli_args.path.unwrap_or(std::env::current_dir().unwrap());
     if path.try_exists().expect("Can't check existence of path") {
         path = path.canonicalize().unwrap();

@@ -218,6 +218,10 @@ impl EditorState {
     }
 
     pub fn spawn_lsp(&self, language: Language) -> Option<LSPClientHandle> {
+        if self.preferences.no_lsp {
+            return None;
+        }
+
         let command: Option<(&str, &[&str])> = match language {
             Language::Rust => Some(("rust-analyzer", &[])),
             Language::Python => Some(("uv", &["run", "pylsp"])),

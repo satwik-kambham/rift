@@ -44,6 +44,7 @@ pub struct Preferences {
     pub trigger_completion_on_type: bool,
     pub show_file_explorer: bool,
     pub show_ai_panel: bool,
+    pub no_lsp: bool,
 }
 
 impl Default for Preferences {
@@ -71,6 +72,7 @@ impl Default for Preferences {
             trigger_completion_on_type: true,
             show_file_explorer: false,
             show_ai_panel: false,
+            no_lsp: false,
         }
     }
 }
