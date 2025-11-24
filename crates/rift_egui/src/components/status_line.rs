@@ -36,7 +36,7 @@ pub fn show_status_line(ctx: &egui::Context, state: &mut EditorState) -> (f32, f
                 ui.separator();
                 if state.buffer_idx.is_some() {
                     let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-                    let file_path = buffer.file_path.clone();
+                    let file_path = buffer.display_name.clone();
                     let modified = buffer.modified;
                     let cursor = instance.cursor;
 

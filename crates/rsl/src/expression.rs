@@ -355,9 +355,14 @@ impl Expression for FunctionCallExpression {
                             Primitive::Null
                         }
                         "createSpecialBuffer" => {
+                            let display_name = if parameters.is_empty() {
+                                "".to_string()
+                            } else {
+                                args!(parameters; display_name: String)
+                            };
                             let buffer_id = rsl
                                 .rift_rpc_client
-                                .create_special_buffer(context::Context::current())
+                                .create_special_buffer(context::Context::current(), display_name)
                                 .await
                                 .unwrap();
                             Primitive::Number(buffer_id as f32)

@@ -132,11 +132,11 @@ impl EditorState {
         if let Some((idx, _)) = self
             .buffers
             .iter()
-            .find(|(_, buf)| !buf.special && buf.file_path == buffer.file_path)
+            .find(|(_, buf)| !buf.special && buf.file_path() == buffer.file_path())
         {
             *idx
         } else {
-            if let Some(path_str) = &buffer.file_path {
+            if let Some(path_str) = buffer.file_path() {
                 let path = Path::new(path_str);
                 self.file_watcher
                     .watch(path, RecursiveMode::NonRecursive)

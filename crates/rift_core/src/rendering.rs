@@ -17,7 +17,7 @@ pub fn update_visible_lines(
         let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
         let mut extra_segments = vec![];
 
-        if let Some(path) = buffer.file_path.as_ref() {
+        if let Some(path) = buffer.file_path() {
             let path = path.clone();
             #[cfg(target_os = "windows")]
             let path = path.to_lowercase();

@@ -56,7 +56,7 @@ pub enum Action {
     SelectTillStartOfWord,
     ExtendSelectTillStartOfWord,
     CreateBufferFromFile(String),
-    CreateSpecialBuffer,
+    CreateSpecialBuffer(String),
     OpenFile(String),
     SwitchBuffer,
     FormatCurrentBuffer,
@@ -338,7 +338,7 @@ pub fn perform_action(
             let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             buffer.modified = false;
             file_io::override_file_content(
-                &buffer.file_path.clone().unwrap(),
+                &buffer.file_path().cloned().unwrap(),
                 buffer.get_content(line_ending.to_string()),
             )
             .unwrap();
@@ -348,7 +348,7 @@ pub fn perform_action(
                     .send_notification_sync(
                         "textDocument/didSave".to_string(),
                         Some(LSPClientHandle::did_save_text_document(
-                            buffer.file_path.clone().unwrap(),
+                            buffer.file_path().cloned().unwrap(),
                         )),
                     )
                     .unwrap();
@@ -396,14 +396,17 @@ pub fn perform_action(
         }
         Action::SelectTillStartOfWord => {}
         Action::ExtendSelectTillStartOfWord => {}
-        Action::CreateSpecialBuffer => {
-            let buffer = LineBuffer::new(String::new(), None, true);
+        Action::CreateSpecialBuffer(display_name) => {
+            let mut buffer = LineBuffer::new(String::new(), None, &state.workspace_folder, true);
+            if !display_name.is_empty() {
+                buffer.display_name = Some(display_name);
+            }
             let buffer_id = state.add_buffer(buffer);
             return Some(buffer_id.to_string());
         }
         Action::CreateBufferFromFile(path) => {
             if let Some(idx) = state.buffers.iter().find_map(|(idx, buffer)| {
-                if buffer.file_path.clone().unwrap_or_default() == path {
+                if buffer.file_path().cloned().unwrap_or_default() == path {
                     Some(idx)
                 } else {
                     None
@@ -412,7 +415,12 @@ pub fn perform_action(
                 state.buffer_idx = Some(*idx);
             } else {
                 let initial_text = file_io::read_file_content(&path).unwrap();
-                let buffer = LineBuffer::new(initial_text.clone(), Some(path.clone()), false);
+                let buffer = LineBuffer::new(
+                    initial_text.clone(),
+                    Some(path.clone()),
+                    &state.workspace_folder,
+                    false,
+                );
 
                 if let std::collections::hash_map::Entry::Vacant(e) =
                     lsp_handles.entry(buffer.language)
@@ -479,10 +487,8 @@ pub fn perform_action(
                 .buffers
                 .iter()
                 .map(|(idx, buffer)| {
-                    (
-                        buffer.file_path.clone().unwrap_or(idx.to_string()),
-                        idx.to_string(),
-                    )
+                    let label = buffer.display_name.clone().unwrap_or(idx.to_string());
+                    (label, idx.to_string())
                 })
                 .collect();
             state
@@ -491,8 +497,14 @@ pub fn perform_action(
                     state.modal.options = state
                         .buffers
                         .iter()
-                        .filter(|(_idx, buffer)| buffer.file_path.clone().unwrap().contains(input))
-                        .map(|(idx, buffer)| (buffer.file_path.clone().unwrap(), idx.to_string()))
+                        .filter_map(|(idx, buffer)| {
+                            let label = buffer.display_name.clone().unwrap_or(idx.to_string());
+                            if label.contains(input) {
+                                Some((label, idx.to_string()))
+                            } else {
+                                None
+                            }
+                        })
                         .collect();
                 });
             state.modal.set_modal_on_select(
@@ -515,7 +527,7 @@ pub fn perform_action(
                     .send_request_sync(
                         "textDocument/formatting".to_string(),
                         Some(LSPClientHandle::formatting_request(
-                            buffer.file_path.clone().unwrap(),
+                            buffer.file_path().cloned().unwrap(),
                             state.preferences.tab_width,
                         )),
                     )
@@ -629,7 +641,7 @@ pub fn perform_action(
                     .send_request_sync(
                         "textDocument/hover".to_string(),
                         Some(LSPClientHandle::hover_request(
-                            buffer.file_path.clone().unwrap(),
+                            buffer.file_path().cloned().unwrap(),
                             instance.cursor,
                         )),
                     )
@@ -649,7 +661,7 @@ pub fn perform_action(
                     .send_request_sync(
                         "textDocument/completion".to_string(),
                         Some(LSPClientHandle::completion_request(
-                            buffer.file_path.clone().unwrap(),
+                            buffer.file_path().cloned().unwrap(),
                             instance.cursor,
                         )),
                     )
@@ -669,7 +681,7 @@ pub fn perform_action(
                     .send_request_sync(
                         "textDocument/signatureHelp".to_string(),
                         Some(LSPClientHandle::signature_help_request(
-                            buffer.file_path.clone().unwrap(),
+                            buffer.file_path().cloned().unwrap(),
                             instance.cursor,
                         )),
                     )
@@ -689,7 +701,7 @@ pub fn perform_action(
                     .send_request_sync(
                         "textDocument/definition".to_string(),
                         Some(LSPClientHandle::go_to_definition_request(
-                            buffer.file_path.clone().unwrap(),
+                            buffer.file_path().cloned().unwrap(),
                             instance.cursor,
                         )),
                     )
@@ -709,7 +721,7 @@ pub fn perform_action(
                     .send_request_sync(
                         "textDocument/references".to_string(),
                         Some(LSPClientHandle::go_to_references_request(
-                            buffer.file_path.clone().unwrap(),
+                            buffer.file_path().cloned().unwrap(),
                             instance.cursor,
                         )),
                     )

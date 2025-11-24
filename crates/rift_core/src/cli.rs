@@ -51,6 +51,7 @@ pub fn process_cli_args(
         let buffer = LineBuffer::new(
             initial_text.clone(),
             Some(path.to_str().unwrap().to_string()),
+            &state.workspace_folder,
             false,
         );
 

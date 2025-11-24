@@ -20,7 +20,8 @@ pub struct TreeSitterParams {
 
 /// Text buffer implementation as a list of lines
 pub struct LineBuffer {
-    pub file_path: Option<String>,
+    file_path: Option<String>,
+    pub display_name: Option<String>,
     pub special: bool,
     pub lines: Vec<String>,
     pub modified: bool,
@@ -42,19 +43,8 @@ pub struct VisibleLineParams {
 }
 
 impl LineBuffer {
-    /// Create a line buffer
-    pub fn new(initial_text: String, file_path: Option<String>, special: bool) -> Self {
-        let mut lines: Vec<String> = initial_text.lines().map(String::from).collect();
-
-        if let Some(last) = lines.last() {
-            if !last.is_empty() {
-                lines.push("".into())
-            }
-        } else {
-            lines.push("".into());
-        }
-
-        let language = match &file_path {
+    fn detect_language(file_path: &Option<String>) -> Language {
+        match file_path {
             Some(path) => match std::path::Path::new(&path).extension() {
                 Some(extension) => match extension.to_str().unwrap() {
                     "rsl" => Language::RSL,
@@ -81,10 +71,10 @@ impl LineBuffer {
                 None => Language::PlainText,
             },
             None => Language::PlainText,
-        };
+        }
+    }
 
-        // Syntax highlighter
-        let highlighter = Highlighter::new();
+    fn build_highlight_params(language: Language) -> Option<TreeSitterParams> {
         let highlight_map: HashMap<String, HighlightType> = HashMap::from([
             ("attribute".into(), HighlightType::Red),
             ("constant".into(), HighlightType::Red),
@@ -284,25 +274,42 @@ impl LineBuffer {
             _ => None,
         };
 
-        let highlight_params = if let Some(mut language_config) = language_config {
+        language_config.map(|mut language_config| {
             language_config.configure(&highlight_names);
-            // tracing::info!(
-            //     "Highlight Names: {:#?} {:#?}",
-            //     language,
-            //     language_config.names()
-            // );
 
-            Some(TreeSitterParams {
+            TreeSitterParams {
                 language_config,
                 highlight_map,
                 highlight_names,
-            })
-        } else {
-            None
-        };
+            }
+        })
+    }
 
-        Self {
-            file_path,
+    /// Create a line buffer
+    pub fn new(
+        initial_text: String,
+        file_path: Option<String>,
+        workspace_folder: &str,
+        special: bool,
+    ) -> Self {
+        let mut lines: Vec<String> = initial_text.lines().map(String::from).collect();
+
+        if let Some(last) = lines.last() {
+            if !last.is_empty() {
+                lines.push("".into())
+            }
+        } else {
+            lines.push("".into());
+        }
+
+        let language = Self::detect_language(&file_path);
+        // Syntax highlighter
+        let highlighter = Highlighter::new();
+        let highlight_params = Self::build_highlight_params(language);
+
+        let mut buffer = Self {
+            file_path: None,
+            display_name: None,
             special,
             lines,
             highlighter,
@@ -314,6 +321,30 @@ impl LineBuffer {
             language,
             input: String::new(),
             input_hook: None,
+        };
+
+        buffer.set_file_path(file_path, workspace_folder);
+        buffer
+    }
+
+    pub fn file_path(&self) -> Option<&String> {
+        self.file_path.as_ref()
+    }
+
+    pub fn set_file_path(&mut self, file_path: Option<String>, workspace_folder: &str) {
+        self.file_path = file_path.clone();
+
+        self.display_name = file_path.as_ref().map(|path| {
+            let path = std::path::Path::new(path);
+            let workspace = std::path::Path::new(workspace_folder);
+            let relative_path = path.strip_prefix(workspace).unwrap_or(path);
+            relative_path.to_string_lossy().to_string()
+        });
+
+        let language = Self::detect_language(&self.file_path);
+        if self.language != language {
+            self.language = language;
+            self.highlight_params = Self::build_highlight_params(language);
         }
     }
 

@@ -16,7 +16,7 @@ space b - Switch Buffer
 
 fn createDashboardBuffer() {
     if dashboardId == -1 {
-        bufferId = createSpecialBuffer()
+        bufferId = createSpecialBuffer("Dashboard")
         setBufferContent(bufferId, dashboardText)
         setActiveBuffer(bufferId)
     }
@@ -285,7 +285,7 @@ fn llmChatClearInput() {
 
 fn createLLMChat() {
     if llmChatId == -1 {
-        bufferId = createSpecialBuffer()
+        bufferId = createSpecialBuffer("LLM Chat")
         llmChatId = bufferId
         registerBufferKeybind(bufferId, "nor enter", sendMessage)
         registerBufferKeybind(bufferId, "ins space", llmChatAddSpace)
@@ -377,7 +377,7 @@ fn fuzzyFileFinderEscape() {
 fn createFuzzyFileFinder() {
     fuzzyFileFinderPreviousBufferId = getActiveBuffer()
     if fuzzyFileFinderId == -1 {
-        bufferId = createSpecialBuffer()
+        bufferId = createSpecialBuffer("Fuzzy File Finder")
         fuzzyFileFinderId = bufferId
         registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderClearInput)

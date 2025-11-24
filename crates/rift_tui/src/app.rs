@@ -268,48 +268,22 @@ impl App {
                         } else {
                             self.state.preferences.theme.status_bar_insert_mode_fg
                         }));
+                    let (buffer, instance) =
+                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    let file_label = buffer
+                        .display_name
+                        .clone()
+                        .unwrap_or(self.state.buffer_idx.unwrap().to_string());
                     let status = text::Line::from(vec![
                         text::Span::styled(format!(" {:#?} ", self.state.mode), status_mode_style),
-                        format!(
-                            " {} ",
-                            self.state
-                                .get_buffer_by_id(self.state.buffer_idx.unwrap())
-                                .0
-                                .file_path
-                                .as_ref()
-                                .unwrap_or(&self.state.buffer_idx.unwrap().to_string()),
-                        )
-                        .into(),
+                        format!(" {} ", file_label).into(),
                         format!(
                             " {}:{} ",
-                            self.state
-                                .get_buffer_by_id(self.state.buffer_idx.unwrap())
-                                .1
-                                .cursor
-                                .row
-                                + 1,
-                            self.state
-                                .get_buffer_by_id(self.state.buffer_idx.unwrap())
-                                .1
-                                .cursor
-                                .column
-                                + 1,
+                            instance.cursor.row + 1,
+                            instance.cursor.column + 1,
                         )
                         .into(),
-                        format!(
-                            " {} ",
-                            if self
-                                .state
-                                .get_buffer_by_id(self.state.buffer_idx.unwrap())
-                                .0
-                                .modified
-                            {
-                                "U"
-                            } else {
-                                ""
-                            },
-                        )
-                        .into(),
+                        format!(" {} ", if buffer.modified { "U" } else { "" },).into(),
                         format!(" {} ", self.state.keybind_handler.running_sequence).into(),
                         format!(
                             " {} ",
