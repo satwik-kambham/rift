@@ -1115,51 +1115,80 @@ impl LineBuffer {
     ) -> Selection {
         self.modified = true;
 
-        let mut updated_selection = *selection;
-        let (start, end) = selection.in_order();
-        if self
-            .lines
-            .get(start.row)
-            .unwrap()
-            .trim_start()
-            .starts_with(&comment_token)
-        {
-            let (start_new, end_new) = updated_selection.in_order_mut();
+        if comment_token.is_empty() {
+            return *selection;
+        }
 
-            for i in start.row..=end.row {
-                let current_line = &self.lines[i];
-                if current_line.starts_with(&comment_token) {
-                    self.remove_text(
-                        &Selection {
-                            cursor: Cursor { row: i, column: 0 },
-                            mark: Cursor {
-                                row: i,
-                                column: comment_token.len(),
-                            },
-                        },
-                        lsp_handle,
-                        true,
-                    );
-
-                    if i == start.row {
-                        start_new.column = start_new.column.saturating_sub(comment_token.len());
-                    }
-                    if i == end.row {
-                        end_new.column = end_new.column.saturating_sub(comment_token.len());
-                    }
+        let leading_whitespace_len = |line: &str| {
+            let mut len = 0;
+            for ch in line.chars() {
+                if ch.is_whitespace() {
+                    len += ch.len_utf8();
+                } else {
+                    break;
                 }
             }
-        } else {
-            for i in start.row..=end.row {
-                self.insert_text(
-                    &comment_token,
-                    &Cursor { row: i, column: 0 },
+            len
+        };
+
+        let shift_cursor_for_insert = |cursor: &mut Cursor, row: usize, column: usize| {
+            if cursor.row == row && cursor.column >= column {
+                cursor.column += comment_token.len();
+            }
+        };
+
+        let shift_cursor_for_remove = |cursor: &mut Cursor, row: usize, column: usize| {
+            if cursor.row == row {
+                if cursor.column > column + comment_token.len() {
+                    cursor.column -= comment_token.len();
+                } else if cursor.column >= column {
+                    cursor.column = column;
+                }
+            }
+        };
+
+        let mut updated_selection = *selection;
+        let (start, end) = selection.in_order();
+        let indents: Vec<usize> = (start.row..=end.row)
+            .map(|row| leading_whitespace_len(&self.lines[row]))
+            .collect();
+        let uncomment = (start.row..=end.row)
+            .zip(indents.iter())
+            .all(|(row, indent)| self.lines[row][*indent..].starts_with(&comment_token));
+
+        if uncomment {
+            for (row, indent) in (start.row..=end.row).zip(indents.iter()) {
+                self.remove_text(
+                    &Selection {
+                        cursor: Cursor {
+                            row,
+                            column: *indent,
+                        },
+                        mark: Cursor {
+                            row,
+                            column: *indent + comment_token.len(),
+                        },
+                    },
                     lsp_handle,
                     true,
                 );
+                shift_cursor_for_remove(&mut updated_selection.cursor, row, *indent);
+                shift_cursor_for_remove(&mut updated_selection.mark, row, *indent);
             }
-            updated_selection.mark.column += comment_token.len();
-            updated_selection.cursor.column += comment_token.len();
+        } else {
+            for (row, indent) in (start.row..=end.row).zip(indents.iter()) {
+                self.insert_text(
+                    &comment_token,
+                    &Cursor {
+                        row,
+                        column: *indent,
+                    },
+                    lsp_handle,
+                    true,
+                );
+                shift_cursor_for_insert(&mut updated_selection.cursor, row, *indent);
+                shift_cursor_for_insert(&mut updated_selection.mark, row, *indent);
+            }
         }
 
         updated_selection
