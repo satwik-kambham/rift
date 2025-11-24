@@ -35,10 +35,10 @@ impl InfoModalWidget {
                     repeat: _,
                     modifiers: _,
                 } = event
+                    && *pressed
+                    && key == &egui::Key::Escape
                 {
-                    if *pressed && key == &egui::Key::Escape {
-                        state.info_modal.close();
-                    }
+                    state.info_modal.close();
                 }
             }
         });

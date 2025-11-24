@@ -43,8 +43,8 @@ pub fn get_file_tree(workspace_dir: &str) -> String {
         .current_dir(workspace_dir)
         .output()
         .unwrap();
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    stdout
+
+    String::from_utf8_lossy(&output.stdout).to_string()
 }
 
 pub fn find_file(workspace_dir: &str, pattern: &str) -> String {
@@ -59,7 +59,10 @@ pub fn find_file(workspace_dir: &str, pattern: &str) -> String {
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     if stdout.trim().is_empty() {
-        format!("No files found matching pattern: {}\nMake a meaningful change to the pattern before trying again. If still unsucessful try a different approach or request input from the user.", pattern)
+        format!(
+            "No files found matching pattern: {}\nMake a meaningful change to the pattern before trying again. If still unsucessful try a different approach or request input from the user.",
+            pattern
+        )
     } else {
         stdout
     }

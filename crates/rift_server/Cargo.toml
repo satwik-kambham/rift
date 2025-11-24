@@ -5,13 +5,13 @@ edition = "2024"
 
 [dependencies]
 rift_core = { path = "../rift_core" }
-anyhow = "1.0"
-tokio = { version = "1.41.0", features = ["full"] }
-clap = { version = "4.5.23", features = ["derive"] }
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-tracing-appender = "0.2.3"
+anyhow = { workspace = true }
+tokio = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
 axum = { version = "0.8.7", features = ["ws"] }
-bincode = "2.0.1"
+bincode = { workspace = true }
 bytes = "1.11.0"
-futures = "0.3.31"
+futures = { workspace = true }

@@ -55,11 +55,11 @@ pub fn process_cli_args(
             false,
         );
 
-        if let std::collections::hash_map::Entry::Vacant(e) = lsp_handles.entry(buffer.language) {
-            if let Some(mut lsp_handle) = state.spawn_lsp(buffer.language) {
-                lsp_handle.init_lsp_sync(state.workspace_folder.clone());
-                e.insert(lsp_handle);
-            }
+        if let std::collections::hash_map::Entry::Vacant(e) = lsp_handles.entry(buffer.language)
+            && let Some(mut lsp_handle) = state.spawn_lsp(buffer.language)
+        {
+            lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+            e.insert(lsp_handle);
         }
 
         if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {

@@ -4,17 +4,17 @@ use std::{
 };
 
 use ratatui::{
+    DefaultTerminal,
     crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text,
     widgets::{self},
-    DefaultTerminal,
 };
 use rift_core::{
-    actions::{perform_action, Action},
+    actions::{Action, perform_action},
     buffer::instance::{Attribute, Language},
-    cli::{process_cli_args, CLIArgs},
+    cli::{CLIArgs, process_cli_args},
     io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages},
     preferences::Color,
@@ -455,144 +455,139 @@ impl App {
             })?;
 
             // Handle keyboard events
-            if event::poll(Duration::from_millis(5))? {
-                if let event::Event::Key(key) = event::read()? {
-                    self.state.update_view = true;
-                    if key.kind == KeyEventKind::Press {
-                        if self.state.info_modal.active {
-                            if key.code == KeyCode::Esc {
-                                self.state.info_modal.close();
-                                self.info_modal_scroll = 0;
-                            } else if key.code == KeyCode::Up {
-                                self.info_modal_scroll = self.info_modal_scroll.saturating_sub(1);
-                            } else if key.code == KeyCode::Down {
-                                self.info_modal_scroll = self.info_modal_scroll.saturating_add(1);
+            if event::poll(Duration::from_millis(5))?
+                && let event::Event::Key(key) = event::read()?
+            {
+                self.state.update_view = true;
+                if key.kind == KeyEventKind::Press {
+                    if self.state.info_modal.active {
+                        if key.code == KeyCode::Esc {
+                            self.state.info_modal.close();
+                            self.info_modal_scroll = 0;
+                        } else if key.code == KeyCode::Up {
+                            self.info_modal_scroll = self.info_modal_scroll.saturating_sub(1);
+                        } else if key.code == KeyCode::Down {
+                            self.info_modal_scroll = self.info_modal_scroll.saturating_add(1);
+                        }
+                    } else if self.state.modal.open {
+                        if let KeyCode::Char(char) = key.code {
+                            let mut input = self.state.modal.input.clone();
+                            input.push(char);
+                            self.state.modal.set_input(input.clone());
+                            if let Some(on_input) = self.state.modal.on_input {
+                                on_input(&input, &mut self.state, &mut self.lsp_handles);
                             }
-                        } else if self.state.modal.open {
-                            if let KeyCode::Char(char) = key.code {
-                                let mut input = self.state.modal.input.clone();
-                                input.push(char);
-                                self.state.modal.set_input(input.clone());
-                                if let Some(on_input) = self.state.modal.on_input {
-                                    on_input(&input, &mut self.state, &mut self.lsp_handles);
-                                }
-                                self.modal_list_state.select(self.state.modal.selection);
-                            } else if key.code == KeyCode::Tab {
-                                self.state.modal.select_next();
-                                self.modal_list_state.select(self.state.modal.selection);
-                            } else if key.code == KeyCode::Backspace {
-                                let mut input = self.state.modal.input.clone();
-                                input.pop();
-                                self.state.modal.set_input(input.clone());
-                                if let Some(on_input) = self.state.modal.on_input {
-                                    on_input(&input, &mut self.state, &mut self.lsp_handles);
-                                }
-                                self.modal_list_state.select(None);
-                            } else if key.code == KeyCode::Enter {
-                                if let Some(on_select) = self.state.modal.on_select {
-                                    if let Some(selection) = self.state.modal.selection {
-                                        let alt = key.modifiers.contains(KeyModifiers::ALT);
-                                        let options = self
-                                            .state
-                                            .modal
-                                            .options
-                                            .get(selection)
-                                            .unwrap()
-                                            .clone();
-                                        on_select(
-                                            self.state.modal.input.clone(),
-                                            &options,
-                                            alt,
-                                            &mut self.state,
-                                            &mut self.lsp_handles,
-                                        );
-                                    }
-                                }
-                                self.modal_list_state.select(None);
-                            } else if key.code == KeyCode::Esc {
-                                self.state.modal.close();
-                                self.modal_list_state.select(None);
+                            self.modal_list_state.select(self.state.modal.selection);
+                        } else if key.code == KeyCode::Tab {
+                            self.state.modal.select_next();
+                            self.modal_list_state.select(self.state.modal.selection);
+                        } else if key.code == KeyCode::Backspace {
+                            let mut input = self.state.modal.input.clone();
+                            input.pop();
+                            self.state.modal.set_input(input.clone());
+                            if let Some(on_input) = self.state.modal.on_input {
+                                on_input(&input, &mut self.state, &mut self.lsp_handles);
                             }
-                        } else {
-                            if !(self.state.completion_menu.active
-                                && (key.code == KeyCode::Tab || key.code == KeyCode::Enter))
+                            self.modal_list_state.select(None);
+                        } else if key.code == KeyCode::Enter {
+                            if let Some(on_select) = self.state.modal.on_select
+                                && let Some(selection) = self.state.modal.selection
                             {
-                                let keybind = match key.code {
-                                    KeyCode::Backspace => "Backspace",
-                                    KeyCode::Enter => "Enter",
-                                    KeyCode::Left => "Left",
-                                    KeyCode::Right => "Right",
-                                    KeyCode::Up => "Up",
-                                    KeyCode::Down => "Down",
-                                    KeyCode::Home => "Home",
-                                    KeyCode::End => "End",
-                                    KeyCode::PageUp => "PageUp",
-                                    KeyCode::PageDown => "PageDown",
-                                    KeyCode::Tab => "Tab",
-                                    KeyCode::Delete => "Delete",
-                                    KeyCode::Insert => "Insert",
-                                    KeyCode::F(n) => match n {
-                                        1 => "F1",
-                                        2 => "F2",
-                                        3 => "F3",
-                                        4 => "F4",
-                                        5 => "F5",
-                                        6 => "F6",
-                                        7 => "F7",
-                                        8 => "F8",
-                                        9 => "F9",
-                                        10 => "F10",
-                                        11 => "F11",
-                                        12 => "F12",
-                                        _ => "",
-                                    },
-                                    KeyCode::Char(c) => {
-                                        if c == ' ' {
-                                            "Space"
-                                        } else if c.is_ascii() {
-                                            &c.to_string()
-                                        } else {
-                                            ""
-                                        }
-                                    }
-                                    KeyCode::Esc => "Escape",
+                                let alt = key.modifiers.contains(KeyModifiers::ALT);
+                                let options =
+                                    self.state.modal.options.get(selection).unwrap().clone();
+                                on_select(
+                                    self.state.modal.input.clone(),
+                                    &options,
+                                    alt,
+                                    &mut self.state,
+                                    &mut self.lsp_handles,
+                                );
+                            }
+                            self.modal_list_state.select(None);
+                        } else if key.code == KeyCode::Esc {
+                            self.state.modal.close();
+                            self.modal_list_state.select(None);
+                        }
+                    } else {
+                        if !(self.state.completion_menu.active
+                            && (key.code == KeyCode::Tab || key.code == KeyCode::Enter))
+                        {
+                            let keybind = match key.code {
+                                KeyCode::Backspace => "Backspace",
+                                KeyCode::Enter => "Enter",
+                                KeyCode::Left => "Left",
+                                KeyCode::Right => "Right",
+                                KeyCode::Up => "Up",
+                                KeyCode::Down => "Down",
+                                KeyCode::Home => "Home",
+                                KeyCode::End => "End",
+                                KeyCode::PageUp => "PageUp",
+                                KeyCode::PageDown => "PageDown",
+                                KeyCode::Tab => "Tab",
+                                KeyCode::Delete => "Delete",
+                                KeyCode::Insert => "Insert",
+                                KeyCode::F(n) => match n {
+                                    1 => "F1",
+                                    2 => "F2",
+                                    3 => "F3",
+                                    4 => "F4",
+                                    5 => "F5",
+                                    6 => "F6",
+                                    7 => "F7",
+                                    8 => "F8",
+                                    9 => "F9",
+                                    10 => "F10",
+                                    11 => "F11",
+                                    12 => "F12",
                                     _ => "",
-                                };
-                                let mut modifiers_set = HashSet::new();
-                                if key.modifiers.contains(KeyModifiers::ALT) {
-                                    modifiers_set.insert("m".to_string());
-                                } else if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                    modifiers_set.insert("c".to_string());
-                                } else if key.modifiers.contains(KeyModifiers::SHIFT) {
-                                    modifiers_set.insert("s".to_string());
+                                },
+                                KeyCode::Char(c) => {
+                                    if c == ' ' {
+                                        "Space"
+                                    } else if c.is_ascii() {
+                                        &c.to_string()
+                                    } else {
+                                        ""
+                                    }
                                 }
-
-                                if let Some(action) = self.state.keybind_handler.handle_input(
-                                    self.state.buffer_idx,
-                                    self.state.is_active_buffer_special(),
-                                    self.state.mode.clone(),
-                                    keybind.to_string(),
-                                    modifiers_set,
-                                ) {
-                                    perform_action(action, &mut self.state, &mut self.lsp_handles);
-                                }
+                                KeyCode::Esc => "Escape",
+                                _ => "",
+                            };
+                            let mut modifiers_set = HashSet::new();
+                            if key.modifiers.contains(KeyModifiers::ALT) {
+                                modifiers_set.insert("m".to_string());
+                            } else if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                modifiers_set.insert("c".to_string());
+                            } else if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                modifiers_set.insert("s".to_string());
                             }
 
-                            if self.state.completion_menu.active {
-                                if key.code == KeyCode::Esc {
-                                    self.state.completion_menu.close();
-                                    self.state.signature_information.content = String::new();
-                                } else if key.code == KeyCode::Tab {
-                                    self.state.completion_menu.select_next();
-                                } else if key.code == KeyCode::Enter {
-                                    let completion_item = self.state.completion_menu.select();
-                                    CompletionMenu::on_select(
-                                        completion_item,
-                                        &mut self.state,
-                                        &mut self.lsp_handles,
-                                    );
-                                    self.state.signature_information.content = String::new();
-                                }
+                            if let Some(action) = self.state.keybind_handler.handle_input(
+                                self.state.buffer_idx,
+                                self.state.is_active_buffer_special(),
+                                self.state.mode.clone(),
+                                keybind.to_string(),
+                                modifiers_set,
+                            ) {
+                                perform_action(action, &mut self.state, &mut self.lsp_handles);
+                            }
+                        }
+
+                        if self.state.completion_menu.active {
+                            if key.code == KeyCode::Esc {
+                                self.state.completion_menu.close();
+                                self.state.signature_information.content = String::new();
+                            } else if key.code == KeyCode::Tab {
+                                self.state.completion_menu.select_next();
+                            } else if key.code == KeyCode::Enter {
+                                let completion_item = self.state.completion_menu.select();
+                                CompletionMenu::on_select(
+                                    completion_item,
+                                    &mut self.state,
+                                    &mut self.lsp_handles,
+                                );
+                                self.state.signature_information.content = String::new();
                             }
                         }
                     }

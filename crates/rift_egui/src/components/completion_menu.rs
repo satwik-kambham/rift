@@ -105,23 +105,22 @@ impl CompletionMenuWidget {
                     repeat: _,
                     modifiers: _,
                 } = event
+                    && *pressed
                 {
-                    if *pressed {
-                        match key {
-                            egui::Key::Escape => {
-                                state.completion_menu.close();
-                                state.signature_information.content = String::new();
-                            }
-                            egui::Key::Tab => {
-                                state.completion_menu.select_next();
-                            }
-                            egui::Key::Enter => {
-                                let completion_item = state.completion_menu.select();
-                                CompletionMenu::on_select(completion_item, state, lsp_handles);
-                                state.signature_information.content = String::new();
-                            }
-                            _ => {}
+                    match key {
+                        egui::Key::Escape => {
+                            state.completion_menu.close();
+                            state.signature_information.content = String::new();
                         }
+                        egui::Key::Tab => {
+                            state.completion_menu.select_next();
+                        }
+                        egui::Key::Enter => {
+                            let completion_item = state.completion_menu.select();
+                            CompletionMenu::on_select(completion_item, state, lsp_handles);
+                            state.signature_information.content = String::new();
+                        }
+                        _ => {}
                     }
                 }
             }

@@ -5,7 +5,7 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyR
 use tokio::sync::mpsc;
 
 use crate::{
-    actions::{perform_action, Action},
+    actions::{Action, perform_action},
     ai::AIState,
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
@@ -14,11 +14,11 @@ use crate::{
     concurrent::{AsyncHandle, AsyncResult},
     keybinds::KeybindHandler,
     lsp::{
-        client::{start_lsp, LSPClientHandle},
+        client::{LSPClientHandle, start_lsp},
         types,
     },
     preferences::Preferences,
-    rpc::{start_rpc_server, RPCRequest},
+    rpc::{RPCRequest, start_rpc_server},
     rsl::start_rsl_interpreter,
 };
 
@@ -184,11 +184,11 @@ impl EditorState {
             };
 
             let candidate_id = buffer_ids[position];
-            if let Some(buffer) = self.buffers.get(&candidate_id) {
-                if !regular_only || !buffer.special {
-                    self.buffer_idx = Some(candidate_id);
-                    return;
-                }
+            if let Some(buffer) = self.buffers.get(&candidate_id)
+                && (!regular_only || !buffer.special)
+            {
+                self.buffer_idx = Some(candidate_id);
+                return;
             }
         }
     }

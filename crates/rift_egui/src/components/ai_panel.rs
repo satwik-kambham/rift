@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use rift_core::{
-    actions::{perform_action, Action},
-    ai::{llamacpp_chat, ollama_chat, ollama_fim, openrouter_chat, ChatState},
+    actions::{Action, perform_action},
+    ai::{ChatState, llamacpp_chat, ollama_chat, ollama_fim, openrouter_chat},
     buffer::instance::Language,
     lsp::client::LSPClientHandle,
     state::EditorState,

@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use rsl::RSL;
 
 use crate::{
-    actions::{perform_action, Action},
+    actions::{Action, perform_action},
     buffer::instance::Language,
     lsp::client::LSPClientHandle,
     state::EditorState,

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rift_core::{
-    actions::{perform_action, Action},
+    actions::{Action, perform_action},
     buffer::instance::Language,
     lsp::client::LSPClientHandle,
     preferences,

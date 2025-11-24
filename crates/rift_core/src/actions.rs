@@ -1,8 +1,7 @@
 use std::{collections::HashMap, path, str::FromStr};
 
 use copypasta::ClipboardProvider;
-use strum::VariantNames;
-use strum_macros::{EnumIter, EnumMessage, EnumString, VariantNames};
+use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
 
 use crate::{
     ai,
@@ -10,7 +9,7 @@ use crate::{
         instance::{Cursor, Language, Selection},
         line_buffer::LineBuffer,
     },
-    concurrent::cli::{run_command, run_piped_commands, ProgramArgs},
+    concurrent::cli::{ProgramArgs, run_command, run_piped_commands},
     io::file_io,
     lsp::client::LSPClientHandle,
     preferences::Preferences,
@@ -424,11 +423,10 @@ pub fn perform_action(
 
                 if let std::collections::hash_map::Entry::Vacant(e) =
                     lsp_handles.entry(buffer.language)
+                    && let Some(mut lsp_handle) = state.spawn_lsp(buffer.language)
                 {
-                    if let Some(mut lsp_handle) = state.spawn_lsp(buffer.language) {
-                        lsp_handle.init_lsp_sync(state.workspace_folder.clone());
-                        e.insert(lsp_handle);
-                    }
+                    lsp_handle.init_lsp_sync(state.workspace_folder.clone());
+                    e.insert(lsp_handle);
                 }
 
                 if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {

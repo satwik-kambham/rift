@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use egui::{Label, Popup, Sense};
 use rift_core::{
-    actions::{perform_action, Action},
+    actions::{Action, perform_action},
     buffer::instance::Language,
     io::file_io::{self, FolderEntry},
     lsp::client::LSPClientHandle,

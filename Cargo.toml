@@ -10,3 +10,27 @@ members = [
   "crates/rift_web",
   "crates/rift_server",
 ]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.78"
+license = "MIT"
+repository = "https://github.com/satwik-kambham/rift"
+authors = ["Satwik Kambham"]
+publish = false
+
+[workspace.dependencies]
+anyhow = "1.0"
+bincode = "2.0.1"
+clap = { version = "4.5.23", features = ["derive"] }
+dirs = "6.0.0"
+futures = "0.3"
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+strum = { version = "0.27.1", features = ["derive"] }
+tarpc = { version = "0.37", features = ["full"] }
+tokio = { version = "1.41.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-appender = "0.2.3"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

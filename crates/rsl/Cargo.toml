@@ -8,14 +8,14 @@ default = []
 rift_rpc = ["dep:rift_rpc", "tarpc", "futures"]
 
 [dependencies]
-clap = { version = "4.5.23", features = ["derive"] }
+clap = { workspace = true }
 reedline = "0.41.0"
 uuid = { version = "1.16.0", features = ["v4"] }
-tokio = { version = "1.41.0", features = ["full"] }
+tokio = { workspace = true }
 rift_rpc = { path = "../rift_rpc", optional = true }
-tarpc = { version = "0.37", features = ["full"], optional = true }
-futures = { version = "0.3", optional = true }
-reqwest = { version = "0.12", features = ["json", "blocking"] }
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive", "rc"] }
+tarpc = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+reqwest = { workspace = true, features = ["blocking"] }
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
 unescaper = "0.1.6"
