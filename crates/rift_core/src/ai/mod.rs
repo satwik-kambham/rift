@@ -188,7 +188,7 @@ pub struct OllamaGenerate {
 pub fn ollama_fim(state: &mut EditorState) {
     let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
     let content = buffer.get_content("\n".into());
-    let byte_idx = buffer.byte_index_from_cursor(&instance.cursor, "\n");
+    let byte_idx = buffer.byte_index_from_cursor(&instance.cursor);
     let (prefix, suffix) = content.split_at(byte_idx);
 
     let prompt_fmt = state.ai_state.generate_state.prompts["file_fim"].clone();

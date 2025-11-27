@@ -1,32 +1,26 @@
 use std::{
     cmp::{max, min},
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
 };
-
-use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
 use crate::lsp::client::LSPClientHandle;
 
+use super::highlight::{TreeSitterParams, build_highlight_params, detect_language};
 use super::instance::{
     Attribute, Cursor, Edit, GutterInfo, HighlightType, Language, Range, Selection,
 };
 
-/// Tree sitter syntax highlight params
-pub struct TreeSitterParams {
-    pub language_config: HighlightConfiguration,
-    pub highlight_map: HashMap<String, HighlightType>,
-    pub highlight_names: Vec<String>,
-}
+use ropey::Rope;
+use tree_sitter_highlight::{HighlightEvent, Highlighter};
 
-/// Text buffer implementation as a list of lines
-pub struct LineBuffer {
+pub struct RopeBuffer {
     file_path: Option<String>,
     pub display_name: Option<String>,
     pub special: bool,
-    pub lines: Vec<String>,
+    buffer: Rope,
     pub modified: bool,
-    pub changes: VecDeque<Edit>,
-    pub change_idx: usize,
+    changes: VecDeque<Edit>,
+    change_idx: usize,
     pub version: usize,
     pub language: Language,
     highlighter: Highlighter,
@@ -42,276 +36,26 @@ pub struct VisibleLineParams {
     pub eol_sequence: String,
 }
 
-impl LineBuffer {
-    fn detect_language(file_path: &Option<String>) -> Language {
-        match file_path {
-            Some(path) => match std::path::Path::new(&path).extension() {
-                Some(extension) => match extension.to_str().unwrap() {
-                    "rsl" => Language::RSL,
-                    "rs" => Language::Rust,
-                    "py" => Language::Python,
-                    "md" => Language::Markdown,
-                    "toml" => Language::TOML,
-                    "nix" => Language::Nix,
-                    "dart" => Language::Dart,
-                    "html" => Language::HTML,
-                    "css" => Language::CSS,
-                    "scss" => Language::CSS,
-                    "js" => Language::Javascript,
-                    "ts" => Language::Typescript,
-                    "tsx" => Language::Tsx,
-                    "json" => Language::JSON,
-                    "c" => Language::C,
-                    "h" => Language::C,
-                    "cpp" => Language::CPP,
-                    "hpp" => Language::CPP,
-                    "vue" => Language::Vue,
-                    _ => Language::PlainText,
-                },
-                None => Language::PlainText,
-            },
-            None => Language::PlainText,
-        }
-    }
-
-    fn build_highlight_params(language: Language) -> Option<TreeSitterParams> {
-        let highlight_map: HashMap<String, HighlightType> = HashMap::from([
-            ("attribute".into(), HighlightType::Red),
-            ("constant".into(), HighlightType::Red),
-            ("constant.builtin".into(), HighlightType::Turquoise),
-            ("function.builtin".into(), HighlightType::Purple),
-            ("function".into(), HighlightType::Blue),
-            ("function.method".into(), HighlightType::Blue),
-            ("function.macro".into(), HighlightType::Turquoise),
-            ("function.special".into(), HighlightType::Turquoise),
-            ("keyword".into(), HighlightType::Purple),
-            ("label".into(), HighlightType::Red),
-            ("operator".into(), HighlightType::Purple),
-            ("property".into(), HighlightType::Yellow),
-            ("punctuation".into(), HighlightType::Purple),
-            ("punctuation.bracket".into(), HighlightType::Orange),
-            ("punctuation.delimiter".into(), HighlightType::Orange),
-            ("punctuation.special".into(), HighlightType::Purple),
-            ("string".into(), HighlightType::Green),
-            ("string.special".into(), HighlightType::Orange),
-            ("string.escape".into(), HighlightType::Turquoise),
-            ("escape".into(), HighlightType::Turquoise),
-            ("comment".into(), HighlightType::Gray),
-            ("comment.documentation".into(), HighlightType::Gray),
-            ("tag".into(), HighlightType::Blue),
-            ("tag.error".into(), HighlightType::Red),
-            ("type".into(), HighlightType::Yellow),
-            ("type.builtin".into(), HighlightType::Yellow),
-            ("variable".into(), HighlightType::Red),
-            ("variable.builtin".into(), HighlightType::Orange),
-            ("variable.parameter".into(), HighlightType::Red),
-            ("text.title".into(), HighlightType::Orange),
-            ("text.uri".into(), HighlightType::Blue),
-            ("text.reference".into(), HighlightType::Turquoise),
-            ("text.literal".into(), HighlightType::Gray),
-            ("constructor".into(), HighlightType::Turquoise),
-            ("number".into(), HighlightType::Blue),
-            ("embedded".into(), HighlightType::Purple),
-            ("constructor".into(), HighlightType::Turquoise),
-            ("local.definition".into(), HighlightType::Blue),
-            ("module".into(), HighlightType::Blue),
-        ]);
-        let highlight_names: Vec<String> =
-            highlight_map.keys().map(|key| key.to_string()).collect();
-
-        let language_config = match language {
-            Language::Rust => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_rust::LANGUAGE.into(),
-                    "rust",
-                    tree_sitter_rust::HIGHLIGHTS_QUERY,
-                    tree_sitter_rust::INJECTIONS_QUERY,
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::RSL => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_rust::LANGUAGE.into(),
-                    "rust",
-                    tree_sitter_rust::HIGHLIGHTS_QUERY,
-                    tree_sitter_rust::INJECTIONS_QUERY,
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::Python => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_python::LANGUAGE.into(),
-                    "python",
-                    tree_sitter_python::HIGHLIGHTS_QUERY,
-                    "",
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::Markdown => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_md::LANGUAGE.into(),
-                    "md",
-                    tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
-                    tree_sitter_md::INJECTION_QUERY_BLOCK,
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::Nix => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_nix::LANGUAGE.into(),
-                    "nix",
-                    tree_sitter_nix::HIGHLIGHTS_QUERY,
-                    "",
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::Dart => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_dart::language(),
-                    "dart",
-                    tree_sitter_dart::HIGHLIGHTS_QUERY,
-                    "",
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::HTML => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_html::LANGUAGE.into(),
-                    "html",
-                    tree_sitter_html::HIGHLIGHTS_QUERY,
-                    tree_sitter_html::INJECTIONS_QUERY,
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::CSS => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_css::LANGUAGE.into(),
-                    "css",
-                    tree_sitter_css::HIGHLIGHTS_QUERY,
-                    "",
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::Javascript => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_javascript::LANGUAGE.into(),
-                    "javascript",
-                    tree_sitter_javascript::HIGHLIGHT_QUERY,
-                    tree_sitter_javascript::INJECTIONS_QUERY,
-                    tree_sitter_javascript::LOCALS_QUERY,
-                )
-                .unwrap(),
-            ),
-            Language::Typescript => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_javascript::LANGUAGE.into(),
-                    "javascript",
-                    tree_sitter_javascript::HIGHLIGHT_QUERY,
-                    tree_sitter_javascript::INJECTIONS_QUERY,
-                    tree_sitter_javascript::LOCALS_QUERY,
-                )
-                .unwrap(),
-            ),
-            Language::Tsx => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_javascript::LANGUAGE.into(),
-                    "javascript",
-                    tree_sitter_javascript::HIGHLIGHT_QUERY,
-                    tree_sitter_javascript::INJECTIONS_QUERY,
-                    tree_sitter_javascript::LOCALS_QUERY,
-                )
-                .unwrap(),
-            ),
-            Language::Vue => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_javascript::LANGUAGE.into(),
-                    "javascript",
-                    tree_sitter_javascript::HIGHLIGHT_QUERY,
-                    tree_sitter_javascript::INJECTIONS_QUERY,
-                    tree_sitter_javascript::LOCALS_QUERY,
-                )
-                .unwrap(),
-            ),
-            Language::JSON => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_json::LANGUAGE.into(),
-                    "json",
-                    tree_sitter_json::HIGHLIGHTS_QUERY,
-                    "",
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::C => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_c::LANGUAGE.into(),
-                    "c",
-                    tree_sitter_c::HIGHLIGHT_QUERY,
-                    "",
-                    "",
-                )
-                .unwrap(),
-            ),
-            Language::CPP => Some(
-                HighlightConfiguration::new(
-                    tree_sitter_cpp::LANGUAGE.into(),
-                    "cpp",
-                    &(tree_sitter_c::HIGHLIGHT_QUERY.to_string()
-                        + tree_sitter_cpp::HIGHLIGHT_QUERY),
-                    "",
-                    "",
-                )
-                .unwrap(),
-            ),
-            _ => None,
-        };
-
-        language_config.map(|mut language_config| {
-            language_config.configure(&highlight_names);
-
-            TreeSitterParams {
-                language_config,
-                highlight_map,
-                highlight_names,
-            }
-        })
-    }
-
-    /// Create a line buffer
+impl RopeBuffer {
+    /// Create a rope buffer
     pub fn new(
         initial_text: String,
         file_path: Option<String>,
         workspace_folder: &str,
         special: bool,
     ) -> Self {
-        let mut lines: Vec<String> = initial_text.lines().map(String::from).collect();
+        let buffer = Rope::from_str(&initial_text);
 
-        if let Some(last) = lines.last() {
-            if !last.is_empty() {
-                lines.push("".into())
-            }
-        } else {
-            lines.push("".into());
-        }
-
-        let language = Self::detect_language(&file_path);
+        let language = detect_language(&file_path);
         // Syntax highlighter
         let highlighter = Highlighter::new();
-        let highlight_params = Self::build_highlight_params(language);
+        let highlight_params = build_highlight_params(language);
 
         let mut buffer = Self {
             file_path: None,
             display_name: None,
             special,
-            lines,
+            buffer,
             highlighter,
             highlight_params,
             modified: false,
@@ -341,57 +85,36 @@ impl LineBuffer {
             relative_path.to_string_lossy().to_string()
         });
 
-        let language = Self::detect_language(&self.file_path);
+        let language = detect_language(&self.file_path);
         if self.language != language {
             self.language = language;
-            self.highlight_params = Self::build_highlight_params(language);
+            self.highlight_params = build_highlight_params(language);
         }
     }
 
     /// Get text buffer content as a string
     /// with the desired EOL sequence
-    pub fn get_content(&self, eol_sequence: String) -> String {
-        self.lines.join(&eol_sequence)
+    pub fn get_content(&self, _eol_sequence: String) -> String {
+        self.buffer.to_string()
     }
 
     pub fn set_content(&mut self, content: String) {
-        let mut lines: Vec<String> = content.lines().map(String::from).collect();
-
-        if let Some(last) = lines.last() {
-            if !last.is_empty() {
-                lines.push("".into())
-            }
-        } else {
-            lines.push("".into());
-        }
-
-        self.lines = lines;
+        self.buffer = Rope::from_str(&content);
     }
 
     /// Get a portion text buffer content as a string
-    /// with the desired EOL sequence
-    pub fn get_content_range(&self, start: usize, end: usize, eol_sequence: String) -> String {
-        let range = self.lines.get(start..end + 1).unwrap();
-        range.join(&eol_sequence)
+    pub fn get_content_range(&self, start_line: usize, end_line: usize) -> String {
+        let start_idx = self.buffer.line_to_char(start_line);
+        let end_idx = self.buffer.line_to_char(end_line);
+        self.buffer.slice(start_idx..end_idx).to_string()
     }
 
     /// Get selection as string
     pub fn get_selection(&self, selection: &Selection) -> String {
-        let mut content = String::new();
         let (start, end) = selection.in_order();
-        let mut cursor = *start;
-
-        while &cursor < end {
-            if cursor.row == end.row {
-                content.push_str(&self.lines[cursor.row][cursor.column..end.column]);
-            } else {
-                content.push_str(&self.lines[cursor.row][cursor.column..]);
-            }
-            content.push('\n');
-            cursor.row += 1;
-            cursor.column = 0;
-        }
-        content
+        let start_idx = self.buffer.line_to_char(start.row) + start.column;
+        let end_idx = self.buffer.line_to_char(end.row) + end.column;
+        self.buffer.slice(start_idx..end_idx).to_string()
     }
 
     pub fn split_ranges(ranges: Vec<Range>) -> Vec<Range> {
@@ -428,22 +151,8 @@ impl LineBuffer {
         result
     }
 
-    pub fn byte_index_from_cursor(&self, cursor: &Cursor, eol_sequence: &str) -> usize {
-        let mut byte_index = 0;
-
-        for (idx, line) in self.lines.iter().enumerate() {
-            match idx.cmp(&cursor.row) {
-                std::cmp::Ordering::Less => {
-                    byte_index += line.len() + eol_sequence.len();
-                }
-                std::cmp::Ordering::Equal => {
-                    byte_index += cursor.column;
-                }
-                std::cmp::Ordering::Greater => {}
-            }
-        }
-
-        byte_index
+    pub fn byte_index_from_cursor(&self, cursor: &Cursor) -> usize {
+        self.buffer.line_to_char(cursor.row) + cursor.column
     }
 
     pub fn get_visible_lines(
@@ -454,13 +163,12 @@ impl LineBuffer {
         params: &VisibleLineParams,
         mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
-        let max_characters = params.max_characters - 3;
+        let max_characters = params.max_characters.saturating_sub(3).max(1);
         let mut segments = vec![];
         segments.append(&mut extra_segments);
 
-        // Calculate range of lines which need to be rendered
-        // before taking line wrap into account
-        let mut range_start = scroll.row;
+        let num_lines = self.get_num_lines();
+        let mut range_start = scroll.row.min(num_lines.saturating_sub(1));
         let mut range_end = range_start + params.visible_lines + 3;
 
         if !self.special {
@@ -473,75 +181,65 @@ impl LineBuffer {
             }
         }
 
-        // Calculate start byte
-        let mut start_byte = 0;
-        for line in self.lines.get(..range_start).unwrap() {
-            start_byte += line.len() + params.eol_sequence.len();
-        }
-
-        // Calculate gutter info
         let mut gutter_info = vec![];
-        let mut start = 0;
-        for (line_idx, line) in self
-            .lines
-            .get(range_start..range_end)
-            .unwrap_or(&self.lines[range_start..])
-            .iter()
-            .enumerate()
-        {
-            while start < line.len() {
-                let end = (start + max_characters).min(line.len());
-                let eol_len = if end == line.len() {
-                    params.eol_sequence.len()
-                } else {
-                    0
-                };
-                let end_byte = start_byte + end - start + eol_len;
-                gutter_info.push(GutterInfo {
-                    start: Cursor {
-                        row: range_start + line_idx,
-                        column: start,
-                    },
-                    end,
-                    wrapped: start != 0,
-                    wrap_end: end == line.len(),
-                    start_byte,
-                    end_byte,
-                });
-
-                start_byte = end_byte;
-                start = end;
+        let end_line = range_end.min(num_lines);
+        for line_idx in range_start..end_line {
+            let line = self.buffer.line(line_idx);
+            let line_length = self.get_line_length(line_idx);
+            let mut eol_len = line.len_chars().saturating_sub(line_length);
+            if eol_len == 0 {
+                eol_len = 1;
             }
 
-            if line.is_empty() {
-                let end_byte = start_byte + params.eol_sequence.len();
+            let line_start = self.buffer.line_to_char(line_idx);
+            if line_length == 0 {
                 gutter_info.push(GutterInfo {
                     start: Cursor {
-                        row: range_start + line_idx,
+                        row: line_idx,
                         column: 0,
                     },
                     end: 0,
                     wrapped: false,
                     wrap_end: true,
-                    start_byte,
-                    end_byte,
+                    start_byte: line_start,
+                    end_byte: line_start + eol_len,
                 });
-                start_byte = end_byte;
+                continue;
             }
 
-            start = 0;
+            let mut start = 0;
+            while start < line_length {
+                let end = (start + max_characters).min(line_length);
+                let wrap_end = end == line_length;
+                let end_byte = line_start + end + if wrap_end { eol_len } else { 0 };
+                gutter_info.push(GutterInfo {
+                    start: Cursor {
+                        row: line_idx,
+                        column: start,
+                    },
+                    end,
+                    wrapped: start != 0,
+                    wrap_end,
+                    start_byte: line_start + start,
+                    end_byte,
+                });
+                start = end;
+            }
         }
 
-        // Add line wrap segments
         for gutter_line in &gutter_info {
+            let visible_end = if gutter_line.end_byte > gutter_line.start_byte {
+                gutter_line.end_byte - 1
+            } else {
+                gutter_line.start_byte
+            };
             segments.push(Range {
                 start: gutter_line.start_byte,
-                end: gutter_line.end_byte.saturating_sub(1),
+                end: visible_end,
                 attributes: HashSet::from([Attribute::Visible]),
             });
         }
 
-        // Calculate relative cursor position
         let mut relative_cursor = Cursor {
             row: 0,
             column: cursor.column,
@@ -561,8 +259,6 @@ impl LineBuffer {
                 cursor_idx += 1;
             }
 
-            // Update range of lines that need to be rendered
-            // taking line wrap into account
             if cursor < scroll {
                 range_start = cursor_idx.saturating_sub(1);
                 range_end = range_start + params.visible_lines;
@@ -581,102 +277,115 @@ impl LineBuffer {
             range_end = gutter_info.len().min(range_end);
             relative_cursor.row = cursor_idx - range_start;
 
-            scroll.row = gutter_info[range_start].start.row;
-            scroll.column = gutter_info[range_start].start.column;
+            if !gutter_info.is_empty() {
+                scroll.row = gutter_info[range_start].start.row;
+                scroll.column = gutter_info[range_start].start.column;
+            }
 
-            // Cursor and selection
             let (selection_start, selection_end) = selection.in_order();
             if selection_start != selection_end {
                 segments.push(Range {
-                    start: self.byte_index_from_cursor(selection_start, &params.eol_sequence),
-                    end: self.byte_index_from_cursor(selection_end, &params.eol_sequence),
+                    start: self.byte_index_from_cursor(selection_start),
+                    end: self.byte_index_from_cursor(selection_end),
                     attributes: HashSet::from([Attribute::Select]),
                 });
             }
 
             segments.push(Range {
-                start: self.byte_index_from_cursor(cursor, &params.eol_sequence),
-                end: self.byte_index_from_cursor(cursor, &params.eol_sequence),
+                start: self.byte_index_from_cursor(cursor),
+                end: self.byte_index_from_cursor(cursor),
                 attributes: HashSet::from([Attribute::Cursor]),
             });
         } else {
             range_start = 0;
             range_end = params.visible_lines;
             range_end = gutter_info.len().min(range_end);
-            scroll.row = gutter_info[range_start].start.row;
-            scroll.column = gutter_info[range_start].start.column;
+            if !gutter_info.is_empty() {
+                scroll.row = gutter_info[range_start].start.row;
+                scroll.column = gutter_info[range_start].start.column;
+            }
         }
 
-        // Highlight
         if let Some(highlight_params) = &self.highlight_params {
             let mut highlight_type = HighlightType::None;
-            let content = self.get_content_range(
-                gutter_info.first().unwrap().start.row,
-                gutter_info.last().unwrap().start.row,
-                "\n".into(),
-            );
-            let highlights = self
-                .highlighter
-                .highlight(
-                    &highlight_params.language_config,
-                    content.as_bytes(),
-                    None,
-                    |_| None,
-                )
-                .unwrap();
 
-            for event in highlights {
-                match event.unwrap() {
-                    HighlightEvent::Source { start, end } => {
-                        let start = start + gutter_info.first().unwrap().start_byte;
-                        let end = end + gutter_info.first().unwrap().start_byte;
-                        if end >= gutter_info.first().unwrap().start_byte
-                            && start <= gutter_info.last().unwrap().end_byte
-                        {
-                            segments.push(Range {
-                                start,
-                                end: end.saturating_sub(1),
-                                attributes: HashSet::from([Attribute::Highlight(highlight_type)]),
-                            });
+            if let (Some(first), Some(last)) = (gutter_info.first(), gutter_info.last()) {
+                let start_char = self.buffer.line_to_char(first.start.row);
+                let end_line_idx = (last.start.row + 1).min(self.buffer.len_lines());
+                let end_char = self.buffer.line_to_char(end_line_idx);
+                let content = self.buffer.slice(start_char..end_char).to_string();
+
+                let highlights = self
+                    .highlighter
+                    .highlight(
+                        &highlight_params.language_config,
+                        content.as_bytes(),
+                        None,
+                        |_| None,
+                    )
+                    .unwrap();
+
+                for event in highlights {
+                    match event.unwrap() {
+                        HighlightEvent::Source { start, end } => {
+                            let start = content[..start].chars().count() + start_char;
+                            let end = content[..end].chars().count() + start_char;
+                            if end >= first.start_byte && start <= last.end_byte {
+                                segments.push(Range {
+                                    start,
+                                    end: end.saturating_sub(1),
+                                    attributes: HashSet::from([Attribute::Highlight(
+                                        highlight_type,
+                                    )]),
+                                });
+                            }
                         }
-                    }
-                    HighlightEvent::HighlightStart(s) => {
-                        highlight_type =
-                            highlight_params.highlight_map[&highlight_params.highlight_names[s.0]];
-                    }
-                    HighlightEvent::HighlightEnd => {
-                        highlight_type = HighlightType::None;
+                        HighlightEvent::HighlightStart(s) => {
+                            highlight_type = highlight_params.highlight_map
+                                [&highlight_params.highlight_names[s.0]];
+                        }
+                        HighlightEvent::HighlightEnd => {
+                            highlight_type = HighlightType::None;
+                        }
                     }
                 }
             }
         }
 
-        // Split and render segments
-        let mut split_segments = LineBuffer::split_ranges(segments);
+        let mut split_segments = RopeBuffer::split_ranges(segments);
         let mut split_segments_iter = split_segments.iter_mut().peekable();
         let mut lines = vec![];
         let mut highlighted_line = vec![];
 
-        while split_segments_iter
-            .next_if(|s| s.start < gutter_info.first().unwrap().start_byte)
-            .is_some()
-        {}
+        while split_segments_iter.next_if(|s| s.start < gutter_info.first().unwrap().start_byte).is_some()
+        {
+        }
 
         for line_info in &gutter_info {
             while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {
-                let line_end = self.lines[line_info.start.row].len();
-                let mut buffer_segment = self.lines[line_info.start.row][segment.start
-                    - line_info.start_byte
-                    + line_info.start.column
-                    ..(segment.end - line_info.start_byte + 1 + line_info.start.column)
-                        .min(line_end)]
+                let line_end = self.get_line_length(line_info.start.row);
+                let line_start = self.buffer.line_to_char(line_info.start.row);
+                let seg_start_in_line =
+                    line_info.start.column + segment.start.saturating_sub(line_info.start_byte);
+                let mut seg_end_in_line =
+                    line_info.start.column + (segment.end.saturating_sub(line_info.start_byte) + 1);
+                if seg_end_in_line > line_end {
+                    seg_end_in_line = line_end;
+                }
+                if seg_end_in_line < seg_start_in_line {
+                    seg_end_in_line = seg_start_in_line;
+                }
+
+                let mut buffer_segment = self
+                    .buffer
+                    .slice((line_start + seg_start_in_line)..(line_start + seg_end_in_line))
                     .to_string();
                 if segment.attributes.contains(&Attribute::Cursor) && buffer_segment.is_empty() {
                     buffer_segment.push(' ');
                 }
                 let attributes = segment.attributes.clone();
                 highlighted_line.push((buffer_segment, attributes));
-                if segment.end == line_info.end_byte - 1 {
+                if segment.end == line_info.end_byte.saturating_sub(1) {
                     lines.push(highlighted_line);
                     highlighted_line = vec![];
                 }
@@ -698,12 +407,14 @@ impl LineBuffer {
 
     /// Get line length
     pub fn get_line_length(&self, row: usize) -> usize {
-        self.lines[row].len()
+        let line = self.buffer.line(row);
+
+        line.chars().take_while(|&c| c != '\n' && c != '\r').count()
     }
 
     /// Get number of lines
     pub fn get_num_lines(&self) -> usize {
-        self.lines.len()
+        self.buffer.len_lines()
     }
 
     /// Move cursor right in insert mode
@@ -802,22 +513,16 @@ impl LineBuffer {
         self.modified = true;
 
         let mut updated_cursor = *cursor;
-        let current_line = self.lines[cursor.row].clone();
         let mut text_iter = text.split('\n');
-        let (s1, s2) = current_line.split_at(cursor.column);
-        let mut s1 = s1.to_string();
-        let e = text_iter.next().unwrap();
-        updated_cursor.column += e.len();
-        s1.push_str(e);
-        self.lines[cursor.row] = s1;
-        for i in text_iter {
+        let current_line_part = text_iter.next().unwrap_or("");
+        updated_cursor.column += current_line_part.chars().count();
+        for segment in text_iter {
             updated_cursor.row += 1;
-            updated_cursor.column = i.len();
-            self.lines.insert(updated_cursor.row, i.to_owned());
+            updated_cursor.column = segment.chars().count();
         }
-        let mut current_line = self.lines[updated_cursor.row].clone();
-        current_line.push_str(s2);
-        self.lines[updated_cursor.row] = current_line;
+
+        let char_idx = self.buffer.line_to_char(cursor.row) + cursor.column;
+        self.buffer.insert(char_idx, text);
 
         updated_cursor
     }
@@ -895,46 +600,14 @@ impl LineBuffer {
     pub fn remove_text_no_log(&mut self, selection: &Selection) -> (String, Cursor) {
         self.modified = true;
 
-        let start = if selection.mark < selection.cursor {
-            selection.mark
-        } else {
-            selection.cursor
-        };
-        let end = if selection.mark < selection.cursor {
-            selection.cursor
-        } else {
-            selection.mark
-        };
+        let (start, end) = selection.in_order();
+        let start_idx = self.buffer.line_to_char(start.row) + start.column;
+        let end_idx = self.buffer.line_to_char(end.row) + end.column;
 
-        if start.row == end.row {
-            let current_line = self.lines[start.row].clone();
-            let (first, second) = current_line.split_at(end.column);
-            let (first, middle) = first.split_at(start.column);
-            self.lines[start.row] = first.to_owned() + second;
+        let deleted_text = self.buffer.slice(start_idx..end_idx).to_string();
+        self.buffer.remove(start_idx..end_idx);
 
-            (middle.to_owned(), start)
-        } else {
-            let mut buf = String::new();
-
-            let current_line = self.lines[end.row].clone();
-            let (first, second) = current_line.split_at(end.column);
-            buf.insert_str(0, first);
-            self.lines.remove(end.row);
-
-            for i in (start.row + 1..end.row).rev() {
-                let current_line = self.lines.remove(i);
-                buf.insert(0, '\n');
-                buf.insert_str(0, &current_line);
-            }
-
-            let current_line = self.lines[start.row].clone();
-            let (first, middle) = current_line.split_at(start.column);
-            buf.insert(0, '\n');
-            buf.insert_str(0, middle);
-            self.lines[start.row] = first.to_owned() + second;
-
-            (buf, start)
-        }
+        (deleted_text, *start)
     }
 
     pub fn remove_text(
@@ -1074,7 +747,7 @@ impl LineBuffer {
 
     /// Get indentation level (number of spaces) of given row
     pub fn get_indentation_level(&self, row: usize) -> usize {
-        let line = &self.lines[row];
+        let line = self.buffer.line(row);
         line.chars().take_while(|c| *c == ' ').count()
     }
 
@@ -1109,11 +782,20 @@ impl LineBuffer {
 
         let mut updated_selection = *selection;
         let tab = " ".repeat(tab_size);
+        let tab_chars: Vec<char> = tab.chars().collect();
         let (start, end) = selection.in_order();
         let (start_new, end_new) = updated_selection.in_order_mut();
+
         for i in start.row..=end.row {
-            let current_line = &self.lines[i];
-            if current_line.starts_with(&tab) {
+            let line_chars: Vec<char> = self
+                .buffer
+                .line(i)
+                .chars()
+                .take(self.get_line_length(i))
+                .collect();
+
+            if line_chars.len() >= tab_size && line_chars.iter().take(tab_size).eq(tab_chars.iter())
+            {
                 self.remove_text(
                     &Selection {
                         cursor: Cursor { row: i, column: 0 },
@@ -1150,28 +832,26 @@ impl LineBuffer {
             return *selection;
         }
 
-        let leading_whitespace_len = |line: &str| {
-            let mut len = 0;
-            for ch in line.chars() {
-                if ch.is_whitespace() {
-                    len += ch.len_utf8();
-                } else {
-                    break;
-                }
-            }
-            len
+        let comment_len = comment_token.chars().count();
+
+        let leading_whitespace_len = |row: usize| {
+            self.buffer
+                .line(row)
+                .chars()
+                .take_while(|ch| ch.is_whitespace() && *ch != '\n' && *ch != '\r')
+                .count()
         };
 
         let shift_cursor_for_insert = |cursor: &mut Cursor, row: usize, column: usize| {
             if cursor.row == row && cursor.column >= column {
-                cursor.column += comment_token.len();
+                cursor.column += comment_len;
             }
         };
 
         let shift_cursor_for_remove = |cursor: &mut Cursor, row: usize, column: usize| {
             if cursor.row == row {
-                if cursor.column > column + comment_token.len() {
-                    cursor.column -= comment_token.len();
+                if cursor.column > column + comment_len {
+                    cursor.column -= comment_len;
                 } else if cursor.column >= column {
                     cursor.column = column;
                 }
@@ -1180,12 +860,18 @@ impl LineBuffer {
 
         let mut updated_selection = *selection;
         let (start, end) = selection.in_order();
-        let indents: Vec<usize> = (start.row..=end.row)
-            .map(|row| leading_whitespace_len(&self.lines[row]))
-            .collect();
+        let indents: Vec<usize> = (start.row..=end.row).map(leading_whitespace_len).collect();
         let uncomment = (start.row..=end.row)
             .zip(indents.iter())
-            .all(|(row, indent)| self.lines[row][*indent..].starts_with(&comment_token));
+            .all(|(row, indent)| {
+                self.buffer
+                    .line(row)
+                    .chars()
+                    .skip(*indent)
+                    .take(comment_len)
+                    .collect::<String>()
+                    == comment_token
+            });
 
         if uncomment {
             for (row, indent) in (start.row..=end.row).zip(indents.iter()) {
@@ -1197,7 +883,7 @@ impl LineBuffer {
                         },
                         mark: Cursor {
                             row,
-                            column: *indent + comment_token.len(),
+                            column: *indent + comment_len,
                         },
                     },
                     lsp_handle,
@@ -1242,35 +928,45 @@ impl LineBuffer {
     /// Adds word to selection and returns updated selection
     pub fn select_word(&self, selection: &Selection) -> Selection {
         let mut updated_selection = *selection;
-        let line = &self.lines[selection.cursor.row];
-        // let mut start = selection.cursor.column;
+        let line_chars: Vec<char> = self
+            .buffer
+            .line(selection.cursor.row)
+            .chars()
+            .take(self.get_line_length(selection.cursor.row))
+            .collect();
         let mut end = selection.cursor.column;
-        // while start > 0 && line.chars().nth(start - 1).unwrap().is_alphanumeric() {
-        //     start -= 1;
-        // }
-        while end < line.len() && line.chars().nth(end).unwrap().is_alphanumeric() {
+        while end < line_chars.len() && line_chars[end].is_alphanumeric() {
             end += 1;
         }
-        // updated_selection.mark.column = start;
         updated_selection.cursor.column = end;
         updated_selection
     }
 
     /// Get word under cursor truncated at the cursor's position
     pub fn get_word_under_cursor(&self, cursor: &Cursor) -> String {
-        let line = &self.lines[cursor.row];
+        let line_chars: Vec<char> = self
+            .buffer
+            .line(cursor.row)
+            .chars()
+            .take(self.get_line_length(cursor.row))
+            .collect();
         let mut start = cursor.column;
-        while start > 0 && line.chars().nth(start - 1).unwrap().is_alphanumeric() {
+        while start > 0 && line_chars[start - 1].is_alphanumeric() {
             start -= 1;
         }
-        line[start..cursor.column].to_string()
+        line_chars[start..cursor.column].iter().collect()
     }
 
     /// Get range of word under cursor truncated at the cursor's position
     pub fn get_word_range_under_cursor(&self, cursor: &Cursor) -> Selection {
-        let line = &self.lines[cursor.row];
+        let line_chars: Vec<char> = self
+            .buffer
+            .line(cursor.row)
+            .chars()
+            .take(self.get_line_length(cursor.row))
+            .collect();
         let mut start = cursor.column;
-        while start > 0 && line.chars().nth(start - 1).unwrap().is_alphanumeric() {
+        while start > 0 && line_chars[start - 1].is_alphanumeric() {
             start -= 1;
         }
         let start = Cursor {

@@ -7,7 +7,7 @@ use crate::{
     ai,
     buffer::{
         instance::{Cursor, Language, Selection},
-        line_buffer::LineBuffer,
+        rope_buffer::RopeBuffer,
     },
     concurrent::cli::{ProgramArgs, run_command, run_piped_commands},
     io::file_io,
@@ -396,7 +396,7 @@ pub fn perform_action(
         Action::SelectTillStartOfWord => {}
         Action::ExtendSelectTillStartOfWord => {}
         Action::CreateSpecialBuffer(display_name) => {
-            let mut buffer = LineBuffer::new(String::new(), None, &state.workspace_folder, true);
+            let mut buffer = RopeBuffer::new(String::new(), None, &state.workspace_folder, true);
             if !display_name.is_empty() {
                 buffer.display_name = Some(display_name);
             }
@@ -414,7 +414,7 @@ pub fn perform_action(
                 state.buffer_idx = Some(*idx);
             } else {
                 let initial_text = file_io::read_file_content(&path).unwrap();
-                let buffer = LineBuffer::new(
+                let buffer = RopeBuffer::new(
                     initial_text.clone(),
                     Some(path.clone()),
                     &state.workspace_folder,
