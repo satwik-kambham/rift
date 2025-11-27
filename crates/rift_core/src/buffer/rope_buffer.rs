@@ -1,4 +1,7 @@
-use std::collections::{HashSet, VecDeque};
+use std::{
+    cmp::{max, min},
+    collections::{HashSet, VecDeque},
+};
 
 use crate::lsp::client::LSPClientHandle;
 
@@ -156,59 +159,106 @@ impl RopeBuffer {
         cursor: &Cursor,
         selection: &Selection,
         params: &VisibleLineParams,
-        extra_segments: Vec<Range>,
+        mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
         unimplemented!()
     }
 
     /// Get line length
     pub fn get_line_length(&self, row: usize) -> usize {
-        unimplemented!()
+        let line = self.buffer.line(row);
+
+        line.chars().take_while(|&c| c != '\n' && c != '\r').count()
     }
 
     /// Get number of lines
     pub fn get_num_lines(&self) -> usize {
-        unimplemented!()
+        self.buffer.len_lines()
     }
 
     /// Move cursor right in insert mode
     pub fn move_cursor_right(&self, cursor: &mut Cursor) {
-        unimplemented!()
+        let line_length = self.get_line_length(cursor.row);
+        if cursor.column == line_length {
+            if cursor.row != self.get_num_lines() - 1 {
+                cursor.column = 0;
+                cursor.row += 1;
+            }
+        } else {
+            cursor.column += 1;
+        }
     }
 
     /// Move cursor left in insert mode
     pub fn move_cursor_left(&self, cursor: &mut Cursor) {
-        unimplemented!()
+        if cursor.column == 0 {
+            if cursor.row != 0 {
+                cursor.row -= 1;
+                cursor.column = self.get_line_length(cursor.row);
+            }
+        } else {
+            cursor.column -= 1;
+        }
     }
 
     /// Move cursor up in insert mode
     pub fn move_cursor_up(&self, cursor: &mut Cursor, column_level: usize) -> usize {
-        unimplemented!()
+        if cursor.row == 0 {
+            cursor.column = 0;
+            cursor.column
+        } else {
+            cursor.row -= 1;
+            if cursor.column > self.get_line_length(cursor.row) {
+                cursor.column = self.get_line_length(cursor.row);
+            } else {
+                cursor.column = max(
+                    min(column_level, self.get_line_length(cursor.row)),
+                    cursor.column,
+                )
+            }
+            column_level
+        }
     }
 
     /// Move cursor down in insert mode
     pub fn move_cursor_down(&self, cursor: &mut Cursor, column_level: usize) -> usize {
-        unimplemented!()
+        if cursor.row == self.get_num_lines() - 1 {
+            cursor.column = self.get_line_length(cursor.row);
+            cursor.column
+        } else {
+            cursor.row += 1;
+            if cursor.column > self.get_line_length(cursor.row) {
+                cursor.column = self.get_line_length(cursor.row);
+            } else {
+                cursor.column = max(
+                    min(column_level, self.get_line_length(cursor.row)),
+                    cursor.column,
+                )
+            }
+            column_level
+        }
     }
 
     /// Move cursor to start of line
     pub fn move_cursor_line_start(&self, cursor: &mut Cursor) {
-        unimplemented!()
+        cursor.column = 0;
     }
 
     /// Move cursor to end of line
     pub fn move_cursor_line_end(&self, cursor: &mut Cursor) {
-        unimplemented!()
+        cursor.column = self.get_line_length(cursor.row);
     }
 
     /// Move cursor to start of buffer
     pub fn move_cursor_buffer_start(&self, cursor: &mut Cursor) {
-        unimplemented!()
+        cursor.row = 0;
+        cursor.column = 0;
     }
 
     /// Move cursor to end of buffer
     pub fn move_cursor_buffer_end(&self, cursor: &mut Cursor) {
-        unimplemented!()
+        cursor.row = self.get_num_lines() - 1;
+        cursor.column = self.get_line_length(cursor.row);
     }
 
     /// Reset buffer
@@ -219,7 +269,21 @@ impl RopeBuffer {
 
     /// Insert text at cursor position and return update cursor position
     pub fn insert_text_no_log(&mut self, text: &str, cursor: &Cursor) -> Cursor {
-        unimplemented!()
+        self.modified = true;
+
+        let mut updated_cursor = *cursor;
+        let mut text_iter = text.split('\n');
+        let current_line_part = text_iter.next().unwrap_or("");
+        updated_cursor.column += current_line_part.len();
+        for segment in text_iter {
+            updated_cursor.row += 1;
+            updated_cursor.column = segment.len();
+        }
+
+        let char_idx = self.buffer.line_to_char(cursor.row) + cursor.column;
+        self.buffer.insert(char_idx, text);
+
+        updated_cursor
     }
 
     pub fn insert_text(
@@ -229,13 +293,80 @@ impl RopeBuffer {
         lsp_handle: &Option<&mut LSPClientHandle>,
         log: bool,
     ) -> Cursor {
-        unimplemented!()
+        let updated_cursor = self.insert_text_no_log(text, cursor);
+
+        if log {
+            self.changes.truncate(self.change_idx);
+            self.changes.push_back(Edit::Insert {
+                start: *cursor,
+                end: updated_cursor,
+                text: text.to_owned(),
+            });
+            self.change_idx = self.changes.len();
+        }
+        self.version += 1;
+
+        if let Some(lsp_handle) = lsp_handle {
+            let sync_kind = if lsp_handle.initialize_capabilities["textDocumentSync"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]
+                    .as_u64()
+                    .unwrap()
+            } else if lsp_handle.initialize_capabilities["textDocumentSync"]["change"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]["change"]
+                    .as_u64()
+                    .unwrap()
+            } else {
+                0
+            };
+
+            if sync_kind != 0 {
+                if sync_kind == 1 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                None,
+                                self.get_content("\n".to_owned()),
+                            )),
+                        )
+                        .unwrap();
+                } else if sync_kind == 2 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                Some(Selection {
+                                    cursor: *cursor,
+                                    mark: *cursor,
+                                }),
+                                text.to_string(),
+                            )),
+                        )
+                        .unwrap();
+                }
+            }
+        }
+
+        updated_cursor
     }
 
     /// Removes the selected text and returns the updated cursor position
     /// and the deleted text
     pub fn remove_text_no_log(&mut self, selection: &Selection) -> (String, Cursor) {
-        unimplemented!()
+        self.modified = true;
+
+        let (start, end) = selection.in_order();
+        let start_idx = self.buffer.line_to_char(start.row) + start.column;
+        let end_idx = self.buffer.line_to_char(end.row) + end.column;
+
+        let deleted_text = self.buffer.slice(start_idx..end_idx).to_string();
+        self.buffer.remove(start_idx..end_idx);
+
+        (deleted_text, *start)
     }
 
     pub fn remove_text(
@@ -244,22 +375,139 @@ impl RopeBuffer {
         lsp_handle: &Option<&mut LSPClientHandle>,
         log: bool,
     ) -> (String, Cursor) {
-        unimplemented!()
+        let (text, cursor) = self.remove_text_no_log(selection);
+
+        let (start, end) = selection.in_order();
+        if log {
+            self.changes.truncate(self.change_idx);
+            self.changes.push_back(Edit::Delete {
+                start: *start,
+                end: *end,
+                text: text.to_owned(),
+            });
+            self.change_idx = self.changes.len();
+        }
+        self.version += 1;
+
+        if let Some(lsp_handle) = lsp_handle {
+            let sync_kind = if lsp_handle.initialize_capabilities["textDocumentSync"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]
+                    .as_u64()
+                    .unwrap()
+            } else if lsp_handle.initialize_capabilities["textDocumentSync"]["change"].is_u64() {
+                lsp_handle.initialize_capabilities["textDocumentSync"]["change"]
+                    .as_u64()
+                    .unwrap()
+            } else {
+                0
+            };
+
+            if sync_kind != 0 {
+                if sync_kind == 1 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                None,
+                                self.get_content("\n".to_owned()),
+                            )),
+                        )
+                        .unwrap();
+                } else if sync_kind == 2 {
+                    lsp_handle
+                        .send_notification_sync(
+                            "textDocument/didChange".to_string(),
+                            Some(LSPClientHandle::did_change_text_document(
+                                self.file_path.clone().unwrap(),
+                                self.version,
+                                Some(*selection),
+                                "".to_string(),
+                            )),
+                        )
+                        .unwrap();
+                }
+            }
+        }
+
+        (text, cursor)
     }
 
     /// Undo
     pub fn undo(&mut self, lsp_handle: &Option<&mut LSPClientHandle>) -> Option<Cursor> {
-        unimplemented!()
+        self.version += 1;
+        if self.change_idx > 0 {
+            self.change_idx -= 1;
+            let edit = self.changes.get(self.change_idx).unwrap();
+            match edit {
+                Edit::Insert {
+                    start,
+                    end,
+                    text: _,
+                } => {
+                    let (_text, cursor) = self.remove_text(
+                        &Selection {
+                            cursor: *start,
+                            mark: *end,
+                        },
+                        lsp_handle,
+                        false,
+                    );
+                    return Some(cursor);
+                }
+                Edit::Delete {
+                    start,
+                    end: _,
+                    text,
+                } => {
+                    let cursor = self.insert_text(&text.clone(), &start.clone(), lsp_handle, false);
+                    return Some(cursor);
+                }
+            }
+        }
+        None
     }
 
     /// Redo
     pub fn redo(&mut self, lsp_handle: &Option<&mut LSPClientHandle>) -> Option<Cursor> {
-        unimplemented!()
+        self.version += 1;
+        if self.change_idx < self.changes.len() {
+            self.change_idx += 1;
+            let edit = self.changes.get(self.change_idx - 1).unwrap();
+            match edit {
+                Edit::Insert {
+                    start,
+                    end: _,
+                    text,
+                } => {
+                    let cursor = self.insert_text(&text.clone(), &start.clone(), lsp_handle, false);
+                    return Some(cursor);
+                }
+                Edit::Delete {
+                    start,
+                    end,
+                    text: _,
+                } => {
+                    let (_text, cursor) = self.remove_text(
+                        &Selection {
+                            cursor: *start,
+                            mark: *end,
+                        },
+                        lsp_handle,
+                        false,
+                    );
+                    return Some(cursor);
+                }
+            }
+        }
+        None
     }
 
     /// Get indentation level (number of spaces) of given row
     pub fn get_indentation_level(&self, row: usize) -> usize {
-        unimplemented!()
+        let line = self.buffer.line(row);
+        line.chars().take_while(|c| *c == ' ').count()
     }
 
     /// Add indentation to the selected lines and returns the updated cursor position
@@ -269,7 +517,17 @@ impl RopeBuffer {
         tab_size: usize,
         lsp_handle: &Option<&mut LSPClientHandle>,
     ) -> Selection {
-        unimplemented!()
+        self.modified = true;
+
+        let mut updated_selection = *selection;
+        let tab = " ".repeat(tab_size);
+        updated_selection.mark.column += tab_size;
+        updated_selection.cursor.column += tab_size;
+        let (start, end) = selection.in_order();
+        for i in start.row..=end.row {
+            self.insert_text(&tab, &Cursor { row: i, column: 0 }, lsp_handle, true);
+        }
+        updated_selection
     }
 
     /// Remove indentation from the selected lines if present and returns the updated cursor position
@@ -279,7 +537,45 @@ impl RopeBuffer {
         tab_size: usize,
         lsp_handle: &Option<&mut LSPClientHandle>,
     ) -> Selection {
-        unimplemented!()
+        self.modified = true;
+
+        let mut updated_selection = *selection;
+        let tab = " ".repeat(tab_size);
+        let tab_chars: Vec<char> = tab.chars().collect();
+        let (start, end) = selection.in_order();
+        let (start_new, end_new) = updated_selection.in_order_mut();
+
+        for i in start.row..=end.row {
+            let line_chars: Vec<char> = self
+                .buffer
+                .line(i)
+                .chars()
+                .take(self.get_line_length(i))
+                .collect();
+
+            if line_chars.len() >= tab_size && line_chars.iter().take(tab_size).eq(tab_chars.iter())
+            {
+                self.remove_text(
+                    &Selection {
+                        cursor: Cursor { row: i, column: 0 },
+                        mark: Cursor {
+                            row: i,
+                            column: tab_size,
+                        },
+                    },
+                    lsp_handle,
+                    true,
+                );
+
+                if i == start.row {
+                    start_new.column = start_new.column.saturating_sub(tab_size);
+                }
+                if i == end.row {
+                    end_new.column = end_new.column.saturating_sub(tab_size);
+                }
+            }
+        }
+        updated_selection
     }
 
     /// Comment/Uncomment the selected lines and return the updated cursor position
@@ -289,26 +585,156 @@ impl RopeBuffer {
         comment_token: String,
         lsp_handle: &Option<&mut LSPClientHandle>,
     ) -> Selection {
-        unimplemented!()
+        self.modified = true;
+
+        if comment_token.is_empty() {
+            return *selection;
+        }
+
+        let comment_len = comment_token.chars().count();
+
+        let leading_whitespace_len = |row: usize| {
+            self.buffer
+                .line(row)
+                .chars()
+                .take_while(|ch| ch.is_whitespace() && *ch != '\n' && *ch != '\r')
+                .count()
+        };
+
+        let shift_cursor_for_insert = |cursor: &mut Cursor, row: usize, column: usize| {
+            if cursor.row == row && cursor.column >= column {
+                cursor.column += comment_len;
+            }
+        };
+
+        let shift_cursor_for_remove = |cursor: &mut Cursor, row: usize, column: usize| {
+            if cursor.row == row {
+                if cursor.column > column + comment_len {
+                    cursor.column -= comment_len;
+                } else if cursor.column >= column {
+                    cursor.column = column;
+                }
+            }
+        };
+
+        let mut updated_selection = *selection;
+        let (start, end) = selection.in_order();
+        let indents: Vec<usize> = (start.row..=end.row).map(leading_whitespace_len).collect();
+        let uncomment = (start.row..=end.row)
+            .zip(indents.iter())
+            .all(|(row, indent)| {
+                self.buffer
+                    .line(row)
+                    .chars()
+                    .skip(*indent)
+                    .take(comment_len)
+                    .collect::<String>()
+                    == comment_token
+            });
+
+        if uncomment {
+            for (row, indent) in (start.row..=end.row).zip(indents.iter()) {
+                self.remove_text(
+                    &Selection {
+                        cursor: Cursor {
+                            row,
+                            column: *indent,
+                        },
+                        mark: Cursor {
+                            row,
+                            column: *indent + comment_len,
+                        },
+                    },
+                    lsp_handle,
+                    true,
+                );
+                shift_cursor_for_remove(&mut updated_selection.cursor, row, *indent);
+                shift_cursor_for_remove(&mut updated_selection.mark, row, *indent);
+            }
+        } else {
+            for (row, indent) in (start.row..=end.row).zip(indents.iter()) {
+                self.insert_text(
+                    &comment_token,
+                    &Cursor {
+                        row,
+                        column: *indent,
+                    },
+                    lsp_handle,
+                    true,
+                );
+                shift_cursor_for_insert(&mut updated_selection.cursor, row, *indent);
+                shift_cursor_for_insert(&mut updated_selection.mark, row, *indent);
+            }
+        }
+
+        updated_selection
     }
 
     /// Adds line to selection and returns updated selection
     pub fn select_line(&self, selection: &Selection) -> Selection {
-        unimplemented!()
+        let mut updated_selection = *selection;
+        if selection.mark.column == 0
+            && selection.cursor.column == self.get_line_length(selection.cursor.row)
+            && selection.cursor.row < self.get_num_lines() - 1
+        {
+            updated_selection.cursor.row += 1;
+        }
+        updated_selection.mark.column = 0;
+        updated_selection.cursor.column = self.get_line_length(updated_selection.cursor.row);
+        updated_selection
     }
 
     /// Adds word to selection and returns updated selection
     pub fn select_word(&self, selection: &Selection) -> Selection {
-        unimplemented!()
+        let mut updated_selection = *selection;
+        let line_chars: Vec<char> = self
+            .buffer
+            .line(selection.cursor.row)
+            .chars()
+            .take(self.get_line_length(selection.cursor.row))
+            .collect();
+        let mut end = selection.cursor.column;
+        while end < line_chars.len() && line_chars[end].is_alphanumeric() {
+            end += 1;
+        }
+        updated_selection.cursor.column = end;
+        updated_selection
     }
 
     /// Get word under cursor truncated at the cursor's position
     pub fn get_word_under_cursor(&self, cursor: &Cursor) -> String {
-        unimplemented!()
+        let line_chars: Vec<char> = self
+            .buffer
+            .line(cursor.row)
+            .chars()
+            .take(self.get_line_length(cursor.row))
+            .collect();
+        let mut start = cursor.column;
+        while start > 0 && line_chars[start - 1].is_alphanumeric() {
+            start -= 1;
+        }
+        line_chars[start..cursor.column].iter().collect()
     }
 
     /// Get range of word under cursor truncated at the cursor's position
     pub fn get_word_range_under_cursor(&self, cursor: &Cursor) -> Selection {
-        unimplemented!()
+        let line_chars: Vec<char> = self
+            .buffer
+            .line(cursor.row)
+            .chars()
+            .take(self.get_line_length(cursor.row))
+            .collect();
+        let mut start = cursor.column;
+        while start > 0 && line_chars[start - 1].is_alphanumeric() {
+            start -= 1;
+        }
+        let start = Cursor {
+            row: cursor.row,
+            column: start,
+        };
+        Selection {
+            cursor: *cursor,
+            mark: start,
+        }
     }
 }
