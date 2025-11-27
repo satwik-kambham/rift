@@ -515,10 +515,10 @@ impl RopeBuffer {
         let mut updated_cursor = *cursor;
         let mut text_iter = text.split('\n');
         let current_line_part = text_iter.next().unwrap_or("");
-        updated_cursor.column += current_line_part.len();
+        updated_cursor.column += current_line_part.chars().count();
         for segment in text_iter {
             updated_cursor.row += 1;
-            updated_cursor.column = segment.len();
+            updated_cursor.column = segment.chars().count();
         }
 
         let char_idx = self.buffer.line_to_char(cursor.row) + cursor.column;
