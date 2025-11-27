@@ -9,7 +9,7 @@ use crate::{
     ai::AIState,
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
-        line_buffer::{HighlightedText, LineBuffer},
+        rope_buffer::{HighlightedText, RopeBuffer},
     },
     concurrent::{AsyncHandle, AsyncResult},
     keybinds::KeybindHandler,
@@ -38,7 +38,7 @@ pub struct EditorState {
     pub rsl_sender: mpsc::Sender<String>,
     pub file_watcher: RecommendedWatcher,
     pub preferences: Preferences,
-    pub buffers: HashMap<u32, LineBuffer>,
+    pub buffers: HashMap<u32, RopeBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
     next_id: u32,
     pub workspace_folder: String,
@@ -128,7 +128,7 @@ impl EditorState {
         }
     }
 
-    pub fn add_buffer(&mut self, buffer: LineBuffer) -> u32 {
+    pub fn add_buffer(&mut self, buffer: RopeBuffer) -> u32 {
         if let Some((idx, _)) = self
             .buffers
             .iter()
@@ -193,14 +193,14 @@ impl EditorState {
         }
     }
 
-    pub fn get_buffer_by_id(&self, id: u32) -> (&LineBuffer, &BufferInstance) {
+    pub fn get_buffer_by_id(&self, id: u32) -> (&RopeBuffer, &BufferInstance) {
         (
             self.buffers.get(&id).unwrap(),
             self.instances.get(&id).unwrap(),
         )
     }
 
-    pub fn get_buffer_by_id_mut(&mut self, id: u32) -> (&mut LineBuffer, &mut BufferInstance) {
+    pub fn get_buffer_by_id_mut(&mut self, id: u32) -> (&mut RopeBuffer, &mut BufferInstance) {
         (
             self.buffers.get_mut(&id).unwrap(),
             self.instances.get_mut(&id).unwrap(),

@@ -6,10 +6,12 @@ use std::{
 use crate::lsp::client::LSPClientHandle;
 
 use super::highlight::{TreeSitterParams, build_highlight_params, detect_language};
-use super::instance::{Attribute, Cursor, Edit, GutterInfo, Language, Range, Selection};
+use super::instance::{
+    Attribute, Cursor, Edit, GutterInfo, HighlightType, Language, Range, Selection,
+};
 
 use ropey::Rope;
-use tree_sitter_highlight::Highlighter;
+use tree_sitter_highlight::{HighlightEvent, Highlighter};
 
 pub struct RopeBuffer {
     file_path: Option<String>,
@@ -161,7 +163,246 @@ impl RopeBuffer {
         params: &VisibleLineParams,
         mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
-        unimplemented!()
+        let max_characters = params.max_characters.saturating_sub(3).max(1);
+        let mut segments = vec![];
+        segments.append(&mut extra_segments);
+
+        let num_lines = self.get_num_lines();
+        let mut range_start = scroll.row.min(num_lines.saturating_sub(1));
+        let mut range_end = range_start + params.visible_lines + 3;
+
+        if !self.special {
+            if cursor < scroll {
+                range_start = cursor.row;
+                range_end = range_start + params.visible_lines;
+            } else if cursor.row >= scroll.row + params.visible_lines {
+                range_end = cursor.row + 1;
+                range_start = range_end.saturating_sub(params.visible_lines);
+            }
+        }
+
+        let mut gutter_info = vec![];
+        let end_line = range_end.min(num_lines);
+        for line_idx in range_start..end_line {
+            let line = self.buffer.line(line_idx);
+            let line_length = self.get_line_length(line_idx);
+            let mut eol_len = line.len_chars().saturating_sub(line_length);
+            if eol_len == 0 {
+                eol_len = 1;
+            }
+
+            let line_start = self.buffer.line_to_char(line_idx);
+            if line_length == 0 {
+                gutter_info.push(GutterInfo {
+                    start: Cursor {
+                        row: line_idx,
+                        column: 0,
+                    },
+                    end: 0,
+                    wrapped: false,
+                    wrap_end: true,
+                    start_byte: line_start,
+                    end_byte: line_start + eol_len,
+                });
+                continue;
+            }
+
+            let mut start = 0;
+            while start < line_length {
+                let end = (start + max_characters).min(line_length);
+                let wrap_end = end == line_length;
+                let end_byte = line_start + end + if wrap_end { eol_len } else { 0 };
+                gutter_info.push(GutterInfo {
+                    start: Cursor {
+                        row: line_idx,
+                        column: start,
+                    },
+                    end,
+                    wrapped: start != 0,
+                    wrap_end,
+                    start_byte: line_start + start,
+                    end_byte,
+                });
+                start = end;
+            }
+        }
+
+        for gutter_line in &gutter_info {
+            let visible_end = if gutter_line.end_byte > gutter_line.start_byte {
+                gutter_line.end_byte - 1
+            } else {
+                gutter_line.start_byte
+            };
+            segments.push(Range {
+                start: gutter_line.start_byte,
+                end: visible_end,
+                attributes: HashSet::from([Attribute::Visible]),
+            });
+        }
+
+        let mut relative_cursor = Cursor {
+            row: 0,
+            column: cursor.column,
+        };
+
+        if !self.special {
+            let mut cursor_idx: usize = 0;
+            for line_info in &gutter_info {
+                if cursor.row == line_info.start.row
+                    && cursor.column >= line_info.start.column
+                    && (cursor.column < line_info.end
+                        || (cursor.column == line_info.end && line_info.wrap_end))
+                {
+                    relative_cursor.column -= line_info.start.column;
+                    break;
+                }
+                cursor_idx += 1;
+            }
+
+            if cursor < scroll {
+                range_start = cursor_idx.saturating_sub(1);
+                range_end = range_start + params.visible_lines;
+            } else if cursor.row >= scroll.row + params.visible_lines {
+                range_end = cursor_idx + 1;
+                range_start = range_end.saturating_sub(params.visible_lines);
+            } else {
+                range_start = 0;
+                range_end = params.visible_lines;
+                if cursor_idx >= params.visible_lines {
+                    range_end = cursor_idx + 1;
+                    range_start = range_end.saturating_sub(params.visible_lines);
+                }
+            }
+
+            range_end = gutter_info.len().min(range_end);
+            relative_cursor.row = cursor_idx - range_start;
+
+            if !gutter_info.is_empty() {
+                scroll.row = gutter_info[range_start].start.row;
+                scroll.column = gutter_info[range_start].start.column;
+            }
+
+            let (selection_start, selection_end) = selection.in_order();
+            if selection_start != selection_end {
+                segments.push(Range {
+                    start: self.byte_index_from_cursor(selection_start),
+                    end: self.byte_index_from_cursor(selection_end),
+                    attributes: HashSet::from([Attribute::Select]),
+                });
+            }
+
+            segments.push(Range {
+                start: self.byte_index_from_cursor(cursor),
+                end: self.byte_index_from_cursor(cursor),
+                attributes: HashSet::from([Attribute::Cursor]),
+            });
+        } else {
+            range_start = 0;
+            range_end = params.visible_lines;
+            range_end = gutter_info.len().min(range_end);
+            if !gutter_info.is_empty() {
+                scroll.row = gutter_info[range_start].start.row;
+                scroll.column = gutter_info[range_start].start.column;
+            }
+        }
+
+        if let Some(highlight_params) = &self.highlight_params {
+            let mut highlight_type = HighlightType::None;
+
+            if let (Some(first), Some(last)) = (gutter_info.first(), gutter_info.last()) {
+                let start_char = self.buffer.line_to_char(first.start.row);
+                let end_line_idx = (last.start.row + 1).min(self.buffer.len_lines());
+                let end_char = self.buffer.line_to_char(end_line_idx);
+                let content = self.buffer.slice(start_char..end_char).to_string();
+
+                let highlights = self
+                    .highlighter
+                    .highlight(
+                        &highlight_params.language_config,
+                        content.as_bytes(),
+                        None,
+                        |_| None,
+                    )
+                    .unwrap();
+
+                for event in highlights {
+                    match event.unwrap() {
+                        HighlightEvent::Source { start, end } => {
+                            let start = content[..start].chars().count() + start_char;
+                            let end = content[..end].chars().count() + start_char;
+                            if end >= first.start_byte && start <= last.end_byte {
+                                segments.push(Range {
+                                    start,
+                                    end: end.saturating_sub(1),
+                                    attributes: HashSet::from([Attribute::Highlight(
+                                        highlight_type,
+                                    )]),
+                                });
+                            }
+                        }
+                        HighlightEvent::HighlightStart(s) => {
+                            highlight_type = highlight_params.highlight_map
+                                [&highlight_params.highlight_names[s.0]];
+                        }
+                        HighlightEvent::HighlightEnd => {
+                            highlight_type = HighlightType::None;
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut split_segments = RopeBuffer::split_ranges(segments);
+        let mut split_segments_iter = split_segments.iter_mut().peekable();
+        let mut lines = vec![];
+        let mut highlighted_line = vec![];
+
+        while split_segments_iter.next_if(|s| s.start < gutter_info.first().unwrap().start_byte).is_some()
+        {
+        }
+
+        for line_info in &gutter_info {
+            while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {
+                let line_end = self.get_line_length(line_info.start.row);
+                let line_start = self.buffer.line_to_char(line_info.start.row);
+                let seg_start_in_line =
+                    line_info.start.column + segment.start.saturating_sub(line_info.start_byte);
+                let mut seg_end_in_line =
+                    line_info.start.column + (segment.end.saturating_sub(line_info.start_byte) + 1);
+                if seg_end_in_line > line_end {
+                    seg_end_in_line = line_end;
+                }
+                if seg_end_in_line < seg_start_in_line {
+                    seg_end_in_line = seg_start_in_line;
+                }
+
+                let mut buffer_segment = self
+                    .buffer
+                    .slice((line_start + seg_start_in_line)..(line_start + seg_end_in_line))
+                    .to_string();
+                if segment.attributes.contains(&Attribute::Cursor) && buffer_segment.is_empty() {
+                    buffer_segment.push(' ');
+                }
+                let attributes = segment.attributes.clone();
+                highlighted_line.push((buffer_segment, attributes));
+                if segment.end == line_info.end_byte.saturating_sub(1) {
+                    lines.push(highlighted_line);
+                    highlighted_line = vec![];
+                }
+            }
+        }
+
+        (
+            lines
+                .get(range_start..range_end)
+                .unwrap_or(&lines[range_start..])
+                .to_vec(),
+            relative_cursor,
+            gutter_info
+                .get(range_start..range_end)
+                .unwrap_or(&gutter_info[range_start..])
+                .to_vec(),
+        )
     }
 
     /// Get line length

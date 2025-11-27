@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 use clap::Parser;
 
 use crate::{
-    buffer::{instance::Language, line_buffer::LineBuffer},
+    buffer::{instance::Language, rope_buffer::RopeBuffer},
     io::file_io,
     lsp::client::LSPClientHandle,
     state::EditorState,
@@ -48,7 +48,7 @@ pub fn process_cli_args(
     } else {
         state.workspace_folder = path.parent().unwrap().to_str().unwrap().to_string();
         let initial_text = file_io::read_file_content(path.to_str().unwrap()).unwrap();
-        let buffer = LineBuffer::new(
+        let buffer = RopeBuffer::new(
             initial_text.clone(),
             Some(path.to_str().unwrap().to_string()),
             &state.workspace_folder,
