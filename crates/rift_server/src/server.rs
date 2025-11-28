@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, time::Duration};
 
 use axum::{
     extract::ConnectInfo,
@@ -124,7 +124,7 @@ impl Server {
             }
 
             // Run action requests
-            if let Ok(action_request) = self.state.event_reciever.try_recv() {
+            while let Ok(action_request) = self.state.event_reciever.try_recv() {
                 let result = self.perform_action(action_request.action);
                 action_request.response_tx.send(result).unwrap();
                 self.state.update_view = true;
@@ -151,6 +151,8 @@ impl Server {
 
                 self.state.update_view = false;
             }
+
+            std::thread::sleep(Duration::from_millis(1));
         }
     }
 }

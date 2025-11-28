@@ -93,7 +93,7 @@ impl App {
                     self.state.update_view = true;
                 }
 
-                if let Ok(action_request) = self.state.event_reciever.try_recv() {
+                while let Ok(action_request) = self.state.event_reciever.try_recv() {
                     let result = self.perform_action(action_request.action);
                     action_request.response_tx.send(result).unwrap();
                     self.state.update_view = true;
@@ -593,6 +593,8 @@ impl App {
                     }
                 }
             }
+
+            std::thread::sleep(Duration::from_millis(1));
         }
         Ok(())
     }
