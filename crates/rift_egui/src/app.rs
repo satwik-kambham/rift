@@ -243,6 +243,7 @@ impl App {
                     .unwrap_or_default();
                     action_request.response_tx.send(result).unwrap();
                     self.state.update_view = true;
+                    std::thread::sleep(Duration::from_millis(10));
                 }
 
                 // Handle file watcher events
@@ -428,7 +429,5 @@ impl App {
                     });
                 });
         }
-
-        std::thread::sleep(Duration::from_millis(1));
     }
 }
