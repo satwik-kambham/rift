@@ -1,0 +1,11 @@
+[package]
+name = "rift_ipc"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/satwik-kambham/rift"
+authors = ["Satwik Kambham"]
+publish = false
+
+[dependencies]
+bincode = { workspace = true }

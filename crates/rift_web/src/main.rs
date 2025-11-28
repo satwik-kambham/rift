@@ -1,38 +1,9 @@
+pub mod app;
+pub mod command_dispatcher;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     println!("Hello, world!");
-}
-
-pub struct TemplateApp {
-    label: String,
-}
-
-impl Default for TemplateApp {
-    fn default() -> Self {
-        Self {
-            label: "Hello World!".to_owned(),
-        }
-    }
-}
-
-impl TemplateApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        Default::default()
-    }
-}
-
-impl eframe::App for TemplateApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("eframe template");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
-            ui.separator();
-        });
-    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -57,7 +28,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(TemplateApp::new(cc)))),
+                Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
             )
             .await;
 

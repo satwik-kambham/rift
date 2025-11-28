@@ -3866,6 +3866,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rift_ipc"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+]
+
+[[package]]
 name = "rift_rpc"
 version = "0.1.0"
 dependencies = [
