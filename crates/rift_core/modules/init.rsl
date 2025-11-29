@@ -353,10 +353,24 @@ fn fuzzyFileFinderClearInput() {
     setBufferInput(fuzzyFileFinderId, fuzzyFileFinderInput)
 }
 
-fn  fuzzyFileFinderCycleIndex() {
-    fuzzySelectedEntry = fuzzySelectedEntry + 1
+fn fuzzyFileFinderMoveSelection(delta) {
+    if arrayLen(fuzzyFileFinderResults) == 0 {
+        fuzzySelectedEntry = 0
+        renderFuzzyFileFinder()
+        return null
+    }
+    fuzzySelectedEntry = fuzzySelectedEntry + delta
+    if fuzzySelectedEntry < 0 { fuzzySelectedEntry = arrayLen(fuzzyFileFinderResults) - 1 }
     if fuzzySelectedEntry >= arrayLen(fuzzyFileFinderResults) { fuzzySelectedEntry = 0 }
     renderFuzzyFileFinder()
+}
+
+fn fuzzyFileFinderNext() {
+    fuzzyFileFinderMoveSelection(1)
+}
+
+fn fuzzyFileFinderPrevious() {
+    fuzzyFileFinderMoveSelection(-1)
 }
 
 fn fuzzyFileFinderSelect() {
@@ -381,7 +395,9 @@ fn createFuzzyFileFinder() {
         fuzzyFileFinderId = bufferId
         registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderClearInput)
-        registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderCycleIndex)
+        registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderNext)
+        registerBufferKeybind(bufferId, "ins down", fuzzyFileFinderNext)
+        registerBufferKeybind(bufferId, "ins up", fuzzyFileFinderPrevious)
         registerBufferKeybind(bufferId, "ins enter", fuzzyFileFinderSelect)
         registerBufferKeybind(bufferId, "ins escape", fuzzyFileFinderEscape)
         registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
