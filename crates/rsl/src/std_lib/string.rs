@@ -14,3 +14,8 @@ pub fn string_split_lines(arguments: Vec<Primitive>) -> Primitive {
         .collect();
     Primitive::Array(Rc::new(RefCell::new(Array::new(lines))))
 }
+
+pub fn string_len(arguments: Vec<Primitive>) -> Primitive {
+    let string = args!(arguments; string: String);
+    Primitive::Number(string.chars().count() as f32)
+}

@@ -997,98 +997,10 @@ pub fn perform_action(
             );
         }
         Action::SearchWorkspace => {
-            state.modal.open();
-            state
-                .modal
-                .set_modal_on_input(|input, state, _lsp_handles| {
-                    if !input.trim().is_empty() {
-                        run_command(
-                            ProgramArgs {
-                                program: "rg".into(),
-                                args: vec![
-                                    "--json".to_string(),
-                                    input.clone(),
-                                    state.workspace_folder.clone(),
-                                ],
-                            },
-                            |result, state, _lsp_handle| {
-                                let results: Vec<&str> = result.trim().lines().collect();
-                                let mut matches: Vec<(String, String)> = vec![];
-                                for result in results {
-                                    let line_match: serde_json::Value =
-                                        serde_json::from_str(result).unwrap();
-                                    if line_match["type"] == "match" {
-                                        let file_path =
-                                            line_match["data"]["path"]["text"].as_str().unwrap();
-                                        let row =
-                                            line_match["data"]["line_number"].as_u64().unwrap() - 1;
-                                        let submatches =
-                                            line_match["data"]["submatches"].as_array().unwrap();
-                                        let line = line_match["data"]["lines"]["text"]
-                                            .as_str()
-                                            .unwrap()
-                                            .to_string();
-                                        for submatch in submatches {
-                                            let start = submatch["start"].as_u64().unwrap();
-                                            let end = submatch["end"].as_u64().unwrap();
-                                            let mut line = line.clone();
-                                            line.insert(end.try_into().unwrap(), '<');
-                                            line.insert(start.try_into().unwrap(), '>');
-                                            let line = line.trim();
-                                            matches.push((
-                                                format!("{} {}: {}", file_path, row, line),
-                                                serde_json::to_string(&serde_json::json!({
-                                                    "file_path": file_path,
-                                                    "row": row,
-                                                    "start": start,
-                                                    "end": end,
-                                                }))
-                                                .unwrap(),
-                                            ));
-                                        }
-                                    }
-                                }
-                                state.modal.options = matches;
-                            },
-                            &state.rt,
-                            state.async_handle.sender.clone(),
-                            state.workspace_folder.clone(),
-                        );
-                    }
-                });
-            state.modal.set_modal_on_select(
-                |_input, selection, _alt_select, state, lsp_handles| {
-                    let pattern_match: serde_json::Value =
-                        serde_json::from_str(&selection.1).unwrap();
-                    let file_path = pattern_match["file_path"].as_str().unwrap();
-                    let row = pattern_match["row"].as_u64().unwrap();
-                    let start = pattern_match["start"].as_u64().unwrap();
-                    let end = pattern_match["end"].as_u64().unwrap();
-                    let mut path = path::PathBuf::from(file_path);
-                    if path.is_relative() {
-                        path = std::path::absolute(path).unwrap();
-                    }
-                    perform_action(
-                        Action::CreateBufferFromFile(path.to_str().unwrap().to_string()),
-                        state,
-                        lsp_handles,
-                    );
-                    perform_action(
-                        Action::Select(Selection {
-                            cursor: Cursor {
-                                row: row.try_into().unwrap(),
-                                column: end.try_into().unwrap(),
-                            },
-                            mark: Cursor {
-                                row: row.try_into().unwrap(),
-                                column: start.try_into().unwrap(),
-                            },
-                        }),
-                        state,
-                        lsp_handles,
-                    );
-                    state.modal.close();
-                },
+            perform_action(
+                Action::RunSource("createWorkspaceSearch()".to_string()),
+                state,
+                lsp_handles,
             );
         }
         Action::WorkspaceDiagnostics => {

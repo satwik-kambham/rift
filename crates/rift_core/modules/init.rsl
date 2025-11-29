@@ -409,3 +409,190 @@ fn createFuzzyFileFinder() {
 }
 
 registerGlobalKeybind("nor space f", createFuzzyFileFinder)
+
+############
+
+# Workspace Search
+
+workspaceSearchId = -1
+workspaceSearchInput = ""
+workspaceSearchResults = createArray()
+workspaceSearchSelectedEntry = 0
+workspaceSearchPreviousBufferId = -1
+
+fn renderWorkspaceSearch() {
+    content = "\n------\n" + workspaceSearchInput + "\n------\n"
+    if arrayLen(workspaceSearchResults) == 0 {
+        content = content + "\n   No matches"
+    }
+    i = 0
+    loop {
+        if i >= arrayLen(workspaceSearchResults) { break }
+        result = arrayGet(workspaceSearchResults, i)
+        display = tableGet(result, "display")
+        if workspaceSearchSelectedEntry == i {
+            content = content + "\n > " + display
+        } if workspaceSearchSelectedEntry != i {
+            content = content + "\n   " + display
+        }
+        i = i + 1
+    }
+    setBufferContent(workspaceSearchId, content)
+}
+
+fn workspaceSearchClearInput() {
+    workspaceSearchInput = ""
+    setBufferInput(workspaceSearchId, workspaceSearchInput)
+}
+
+fn workspaceSearchUpdateResults() {
+    workspaceSearchResults = createArray()
+    if stringLen(workspaceSearchInput) <= 1 {
+        workspaceSearchSelectedEntry = 0
+        renderWorkspaceSearch()
+        return null
+    }
+
+    results = runShellCommand("rg --json --color=never --smart-case --max-count 100 \"" + workspaceSearchInput + "\"", getWorkspaceDir())
+    lines = stringSplitLines(tableGet(results, "stdout"))
+
+    i = 0
+    loop {
+        if i >= arrayLen(lines) { break }
+        line = arrayGet(lines, i)
+        if line != "" {
+            rgResult = fromJson(line)
+            if tableGet(rgResult, "type") == "match" {
+                data = tableGet(rgResult, "data")
+                filePath = tableGet(tableGet(data, "path"), "text")
+                row = tableGet(data, "line_number") - 1
+                lineText = tableGet(tableGet(data, "lines"), "text")
+                lineParts = stringSplitLines(lineText)
+                if arrayLen(lineParts) > 0 {
+                    lineText = arrayGet(lineParts, 0)
+                }
+                submatches = tableGet(data, "submatches")
+                j = 0
+                loop {
+                    if j >= arrayLen(submatches) { break }
+                    submatch = arrayGet(submatches, j)
+                    start = tableGet(submatch, "start")
+                    end = tableGet(submatch, "end")
+
+                    display = filePath + ":" + toJson(row) + ":" + toJson(start) + " " + lineText
+
+                    entry = createTable()
+                    tableSet(entry, "file_path", filePath)
+                    tableSet(entry, "row", row)
+                    tableSet(entry, "start", start)
+                    tableSet(entry, "end", end)
+                    tableSet(entry, "display", display)
+                    arrayPushBack(workspaceSearchResults, entry)
+                    j = j + 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    workspaceSearchSelectedEntry = 0
+    renderWorkspaceSearch()
+}
+
+fn workspaceSearchInputUpdated() {
+    workspaceSearchInput = getBufferInput(workspaceSearchId)
+    workspaceSearchUpdateResults()
+}
+
+fn workspaceSearchAddSpace() {
+    workspaceSearchInput = getBufferInput(workspaceSearchId)
+    workspaceSearchInput = workspaceSearchInput + " "
+    setBufferInput(workspaceSearchId, workspaceSearchInput)
+    renderWorkspaceSearch()
+}
+
+fn workspaceSearchMoveSelection(delta) {
+    if arrayLen(workspaceSearchResults) == 0 {
+        workspaceSearchSelectedEntry = 0
+        renderWorkspaceSearch()
+        return null
+    }
+    workspaceSearchSelectedEntry = workspaceSearchSelectedEntry + delta
+    if workspaceSearchSelectedEntry < 0 { workspaceSearchSelectedEntry = arrayLen(workspaceSearchResults) - 1 }
+    if workspaceSearchSelectedEntry >= arrayLen(workspaceSearchResults) { workspaceSearchSelectedEntry = 0 }
+    renderWorkspaceSearch()
+}
+
+fn workspaceSearchNext() {
+    workspaceSearchMoveSelection(1)
+}
+
+fn workspaceSearchPrevious() {
+    workspaceSearchMoveSelection(-1)
+}
+
+fn workspaceSearchSelect() {
+    if workspaceSearchSelectedEntry < arrayLen(workspaceSearchResults) {
+        selection = arrayGet(workspaceSearchResults, workspaceSearchSelectedEntry)
+        path = tableGet(selection, "file_path")
+        row = tableGet(selection, "row")
+        start = tableGet(selection, "start")
+        end = tableGet(selection, "end")
+
+        openFile(path)
+        runAction("quit-insert-mode")
+        runAction("go-to-buffer-start")
+
+        i = 0
+        loop {
+            if i >= row { break }
+            runAction("move-cursor-down")
+            i = i + 1
+        }
+
+        runAction("move-cursor-line-start")
+
+        j = 0
+        loop {
+            if j >= start { break }
+            runAction("move-cursor-right")
+            j = j + 1
+        }
+
+        length = end - start
+        k = 0
+        loop {
+            if k >= length { break }
+            runAction("extend-cursor-right")
+            k = k + 1
+        }
+
+        runAction("quit-insert-mode")
+    }
+}
+
+fn workspaceSearchEscape() {
+    if workspaceSearchPreviousBufferId != -1 {
+        setActiveBuffer(workspaceSearchPreviousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn createWorkspaceSearch() {
+    workspaceSearchPreviousBufferId = getActiveBuffer()
+    if workspaceSearchId == -1 {
+        bufferId = createSpecialBuffer("Workspace Search")
+        workspaceSearchId = bufferId
+        registerBufferKeybind(bufferId, "ins space", workspaceSearchAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", workspaceSearchClearInput)
+        registerBufferKeybind(bufferId, "ins tab", workspaceSearchNext)
+        registerBufferKeybind(bufferId, "ins down", workspaceSearchNext)
+        registerBufferKeybind(bufferId, "ins up", workspaceSearchPrevious)
+        registerBufferKeybind(bufferId, "ins enter", workspaceSearchSelect)
+        registerBufferKeybind(bufferId, "ins escape", workspaceSearchEscape)
+        registerBufferInputHook(bufferId, workspaceSearchInputUpdated)
+    }
+    workspaceSearchClearInput()
+    setActiveBuffer(workspaceSearchId)
+    workspaceSearchUpdateResults()
+    runAction("enter-insert-mode")
+}

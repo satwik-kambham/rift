@@ -53,6 +53,7 @@ impl RSL {
         environment.register_native_function("tableKeys", std_lib::table::table_keys);
         environment
             .register_native_function("stringSplitLines", std_lib::string::string_split_lines);
+        environment.register_native_function("stringLen", std_lib::string::string_len);
         environment.register_native_function("getRequest", std_lib::web_requests::get_request);
         environment.register_native_function("postRequest", std_lib::web_requests::post_request);
         environment.register_native_function(

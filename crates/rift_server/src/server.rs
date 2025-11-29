@@ -152,7 +152,6 @@ impl Server {
 
                 self.state.update_view = false;
             }
-
         }
     }
 }
