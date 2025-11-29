@@ -22,6 +22,11 @@ TUI Frontend:
 - Tree sitter syntax highlighting
 - LSP Integration
 
+## Documentation
+
+- RSL quick start: [docs/rsl-quickstart.md](docs/rsl-quickstart.md)
+- Additional guides live in the `docs/` directory.
+
 ## Build instructions
 
 1. Install rust

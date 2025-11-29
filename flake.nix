@@ -89,6 +89,7 @@
             ./Cargo.lock
             ./crates/rift_core
             ./crates/rift_rpc
+            ./crates/rift_ipc
             ./crates/rsl
             ./crates/rift_egui
             ./crates/rift_tui
