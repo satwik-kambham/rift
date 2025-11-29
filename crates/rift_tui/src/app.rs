@@ -97,6 +97,7 @@ impl App {
                     let result = self.perform_action(action_request.action);
                     action_request.response_tx.send(result).unwrap();
                     self.state.update_view = true;
+                    std::thread::sleep(Duration::from_millis(3));
                 }
 
                 // Handle file watcher events
@@ -594,7 +595,6 @@ impl App {
                 }
             }
 
-            std::thread::sleep(Duration::from_millis(1));
         }
         Ok(())
     }

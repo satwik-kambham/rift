@@ -128,6 +128,7 @@ impl Server {
                 let result = self.perform_action(action_request.action);
                 action_request.response_tx.send(result).unwrap();
                 self.state.update_view = true;
+                std::thread::sleep(Duration::from_millis(10));
             }
 
             // Handle file watcher events
@@ -152,7 +153,6 @@ impl Server {
                 self.state.update_view = false;
             }
 
-            std::thread::sleep(Duration::from_millis(1));
         }
     }
 }
