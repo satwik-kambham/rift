@@ -136,7 +136,6 @@ pub enum Action {
     SearchWorkspace,
     GetWorkspaceDiagnostics,
     WorkspaceDiagnostics,
-    LocationModal(Vec<(String, Selection)>),
     RunAction(String),
     OpenCommandDispatcher,
     FIMCompletion,
@@ -1048,37 +1047,6 @@ pub fn perform_action(
                 Action::RunSource("createWorkspaceDiagnostics()".to_string()),
                 state,
                 lsp_handles,
-            );
-        }
-        Action::LocationModal(locations) => {
-            state.modal.open();
-            let mut location_input: Vec<(String, String)> = vec![];
-            for (file_path, range) in locations {
-                location_input.push((
-                    format!("{}:{}-{}", file_path, range.cursor.row, range.cursor.column),
-                    serde_json::to_string(&serde_json::json!({
-                        "file_path": file_path,
-                        "range": range,
-                    }))
-                    .unwrap(),
-                ));
-            }
-            state.modal.options = location_input;
-            state.modal.set_modal_on_select(
-                |_input, selection, _alt_select, state, lsp_handles| {
-                    let selection: serde_json::Value = serde_json::from_str(&selection.1).unwrap();
-                    let file_path = selection["file_path"].as_str().unwrap().to_string();
-                    let range: Selection =
-                        serde_json::from_value(selection["range"].clone()).unwrap();
-
-                    perform_action(
-                        Action::CreateBufferFromFile(file_path.clone()),
-                        state,
-                        lsp_handles,
-                    );
-                    perform_action(Action::Select(range), state, lsp_handles);
-                    state.modal.close();
-                },
             );
         }
         Action::RunAction(action_name) => {
