@@ -310,6 +310,14 @@ impl Expression for FunctionCallExpression {
                                 .unwrap();
                             Primitive::Number(buffer_id as f32)
                         }
+                        "listBuffers" => {
+                            let buffers = rsl
+                                .rift_rpc_client
+                                .list_buffers(context::Context::current())
+                                .await
+                                .unwrap();
+                            Primitive::String(buffers)
+                        }
                         "registerGlobalKeybind" => {
                             let (definition, function_id) =
                                 args!(parameters; definition: String, function_id: Function);

@@ -412,6 +412,193 @@ registerGlobalKeybind("nor space f", createFuzzyFileFinder)
 
 ############
 
+# Switch Buffer
+
+switchBufferId = -1
+switchBufferInput = ""
+switchBufferResults = createArray()
+switchBufferBuffers = createArray()
+switchBufferSelectedEntry = 0
+switchBufferSelectedId = -1
+switchBufferPreviousBufferId = -1
+switchBufferInitialActiveId = -1
+
+fn switchBufferDisplay(entry) {
+    display = tableGet(entry, "display_name")
+    if tableGet(entry, "special") {
+        display = "[special] " + display
+    }
+    if tableGet(entry, "modified") {
+        display = display + " *"
+    }
+    if tableGet(entry, "is_active") {
+        display = display + " (active)"
+    }
+    return display
+}
+
+fn renderSwitchBuffer() {
+    content = "\n------\n" + switchBufferInput + "\n------\n"
+    if arrayLen(switchBufferResults) == 0 {
+        content = content + "\n   No buffers"
+    }
+    i = 0
+    loop {
+        if i >= arrayLen(switchBufferResults) { break }
+        entry = arrayGet(switchBufferResults, i)
+        display = switchBufferDisplay(entry)
+        if switchBufferSelectedEntry == i {
+            content = content + "\n > " + display
+        } if switchBufferSelectedEntry != i {
+            content = content + "\n   " + display
+        }
+        i = i + 1
+    }
+    setBufferContent(switchBufferId, content)
+}
+
+fn switchBufferLoadBuffers() {
+    buffers = listBuffers()
+    switchBufferBuffers = fromJson(buffers)
+}
+
+fn switchBufferUpdateSelectionFromId(targetId) {
+    if arrayLen(switchBufferResults) == 0 {
+        switchBufferSelectedEntry = 0
+        switchBufferSelectedId = -1
+        renderSwitchBuffer()
+        return null
+    }
+
+    switchBufferSelectedEntry = 0
+    i = 0
+    loop {
+        if i >= arrayLen(switchBufferResults) { break }
+        entry = arrayGet(switchBufferResults, i)
+        if tableGet(entry, "id") == targetId {
+            switchBufferSelectedEntry = i
+            break
+        }
+        i = i + 1
+    }
+
+    selectedEntry = arrayGet(switchBufferResults, switchBufferSelectedEntry)
+    switchBufferSelectedId = tableGet(selectedEntry, "id")
+    renderSwitchBuffer()
+}
+
+fn switchBufferUpdateResults() {
+    switchBufferLoadBuffers()
+
+    previousSelectionId = switchBufferSelectedId
+    if previousSelectionId == -1 {
+        previousSelectionId = switchBufferInitialActiveId
+    }
+
+    query = stringToLower(switchBufferInput)
+    switchBufferResults = createArray()
+
+    i = 0
+    loop {
+        if i >= arrayLen(switchBufferBuffers) { break }
+        entry = arrayGet(switchBufferBuffers, i)
+        name = stringToLower(tableGet(entry, "display_name"))
+        if stringLen(query) == 0 or stringContains(name, query) {
+            arrayPushBack(switchBufferResults, entry)
+        }
+        i = i + 1
+    }
+
+    switchBufferSelectedId = -1
+    switchBufferSelectedEntry = 0
+    switchBufferUpdateSelectionFromId(previousSelectionId)
+}
+
+fn switchBufferInputUpdated() {
+    switchBufferInput = getBufferInput(switchBufferId)
+    switchBufferUpdateResults()
+}
+
+fn switchBufferAddSpace() {
+    switchBufferInput = getBufferInput(switchBufferId)
+    switchBufferInput = switchBufferInput + " "
+    setBufferInput(switchBufferId, switchBufferInput)
+    renderSwitchBuffer()
+}
+
+fn switchBufferClearInput() {
+    switchBufferInput = ""
+    setBufferInput(switchBufferId, switchBufferInput)
+    renderSwitchBuffer()
+}
+
+fn switchBufferMoveSelection(delta) {
+    if arrayLen(switchBufferResults) == 0 {
+        switchBufferSelectedEntry = 0
+        switchBufferSelectedId = -1
+        renderSwitchBuffer()
+        return null
+    }
+    switchBufferSelectedEntry = switchBufferSelectedEntry + delta
+    if switchBufferSelectedEntry < 0 { switchBufferSelectedEntry = arrayLen(switchBufferResults) - 1 }
+    if switchBufferSelectedEntry >= arrayLen(switchBufferResults) { switchBufferSelectedEntry = 0 }
+    entry = arrayGet(switchBufferResults, switchBufferSelectedEntry)
+    switchBufferSelectedId = tableGet(entry, "id")
+    renderSwitchBuffer()
+}
+
+fn switchBufferNext() {
+    switchBufferMoveSelection(1)
+}
+
+fn switchBufferPrevious() {
+    switchBufferMoveSelection(-1)
+}
+
+fn switchBufferSelect() {
+    if switchBufferSelectedEntry < arrayLen(switchBufferResults) {
+        selection = arrayGet(switchBufferResults, switchBufferSelectedEntry)
+        bufferId = tableGet(selection, "id")
+        setActiveBuffer(bufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn switchBufferEscape() {
+    if switchBufferPreviousBufferId != -1 {
+        setActiveBuffer(switchBufferPreviousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn createSwitchBuffer() {
+    switchBufferPreviousBufferId = getActiveBuffer()
+    switchBufferInitialActiveId = switchBufferPreviousBufferId
+    switchBufferSelectedId = -1
+
+    if switchBufferId == -1 {
+        bufferId = createSpecialBuffer("Switch Buffer")
+        switchBufferId = bufferId
+        registerBufferKeybind(bufferId, "ins space", switchBufferAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", switchBufferClearInput)
+        registerBufferKeybind(bufferId, "ins tab", switchBufferNext)
+        registerBufferKeybind(bufferId, "ins down", switchBufferNext)
+        registerBufferKeybind(bufferId, "ins up", switchBufferPrevious)
+        registerBufferKeybind(bufferId, "ins enter", switchBufferSelect)
+        registerBufferKeybind(bufferId, "ins escape", switchBufferEscape)
+        registerBufferInputHook(bufferId, switchBufferInputUpdated)
+    }
+
+    switchBufferClearInput()
+    switchBufferUpdateResults()
+    setActiveBuffer(switchBufferId)
+    runAction("enter-insert-mode")
+}
+
+registerGlobalKeybind("nor space b", createSwitchBuffer)
+
+############
+
 # Workspace Search
 
 workspaceSearchId = -1

@@ -12,5 +12,6 @@ pub trait RiftRPC {
     async fn get_workspace_dir() -> String;
     async fn run_action(action: String) -> String;
     async fn get_active_buffer() -> u32;
+    async fn list_buffers() -> String;
     async fn open_file(path: String);
 }

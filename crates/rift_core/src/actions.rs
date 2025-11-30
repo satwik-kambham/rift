@@ -16,6 +16,15 @@ use crate::{
     state::{EditorState, Mode},
 };
 
+#[derive(serde::Serialize)]
+struct BufferListEntry {
+    id: u32,
+    display_name: String,
+    special: bool,
+    modified: bool,
+    is_active: bool,
+}
+
 #[derive(Debug, Clone, EnumIter, EnumMessage, EnumString, VariantNames)]
 #[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum Action {
@@ -57,7 +66,7 @@ pub enum Action {
     CreateBufferFromFile(String),
     CreateSpecialBuffer(String),
     OpenFile(String),
-    SwitchBuffer,
+    ListBuffers,
     FormatCurrentBuffer,
     MoveCursorDown,
     MoveCursorUp,
@@ -479,38 +488,21 @@ pub fn perform_action(
                 lsp_handles,
             );
         }
-        Action::SwitchBuffer => {
-            state.modal.open();
-            state.modal.options = state
+        Action::ListBuffers => {
+            let mut entries: Vec<BufferListEntry> = state
                 .buffers
                 .iter()
-                .map(|(idx, buffer)| {
-                    let label = buffer.display_name.clone().unwrap_or(idx.to_string());
-                    (label, idx.to_string())
+                .map(|(idx, buffer)| BufferListEntry {
+                    id: *idx,
+                    display_name: buffer.display_name.clone().unwrap_or(idx.to_string()),
+                    special: buffer.special,
+                    modified: buffer.modified,
+                    is_active: Some(*idx) == state.buffer_idx,
                 })
                 .collect();
-            state
-                .modal
-                .set_modal_on_input(|input, state, _lsp_handles| {
-                    state.modal.options = state
-                        .buffers
-                        .iter()
-                        .filter_map(|(idx, buffer)| {
-                            let label = buffer.display_name.clone().unwrap_or(idx.to_string());
-                            if label.contains(input) {
-                                Some((label, idx.to_string()))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                });
-            state.modal.set_modal_on_select(
-                |_input, selection, _alt_select, state, _lsp_handles| {
-                    state.buffer_idx = Some(selection.1.parse().unwrap());
-                    state.modal.close();
-                },
-            );
+            entries.sort_by_key(|entry| entry.id);
+
+            return Some(serde_json::to_string(&entries).unwrap());
         }
         Action::FormatCurrentBuffer => {
             let lsp_handle = if state.buffer_idx.is_some() {

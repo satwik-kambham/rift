@@ -19,3 +19,13 @@ pub fn string_len(arguments: Vec<Primitive>) -> Primitive {
     let string = args!(arguments; string: String);
     Primitive::Number(string.chars().count() as f32)
 }
+
+pub fn string_contains(arguments: Vec<Primitive>) -> Primitive {
+    let (string, pattern) = args!(arguments; string: String, pattern: String);
+    Primitive::Boolean(string.contains(&pattern))
+}
+
+pub fn string_to_lower(arguments: Vec<Primitive>) -> Primitive {
+    let string = args!(arguments; string: String);
+    Primitive::String(string.to_lowercase())
+}

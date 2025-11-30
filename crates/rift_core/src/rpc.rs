@@ -131,6 +131,10 @@ impl RiftRPC for RPCHandle {
             .parse()
             .unwrap_or_default()
     }
+
+    async fn list_buffers(self, _context: tarpc::context::Context) -> String {
+        self.send_action_request(Action::ListBuffers).await
+    }
 }
 
 pub async fn start_rpc_server(
