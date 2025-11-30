@@ -6,7 +6,6 @@ use tokio::sync::mpsc;
 
 use crate::{
     actions::{Action, ReferenceEntry, perform_action},
-    ai::AIState,
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
         rope_buffer::{HighlightedText, RopeBuffer},
@@ -61,7 +60,6 @@ pub struct EditorState {
     pub completion_menu: CompletionMenu,
     pub signature_information: SignatureInformation,
     pub keybind_handler: KeybindHandler,
-    pub ai_state: AIState,
     pub log_messages: Vec<String>,
     pub register: String,
 }
@@ -126,7 +124,6 @@ impl EditorState {
             completion_menu: CompletionMenu::new(5),
             signature_information: SignatureInformation::default(),
             keybind_handler: KeybindHandler::default(),
-            ai_state: AIState::default(),
             log_messages: vec![],
             register: String::new(),
         }

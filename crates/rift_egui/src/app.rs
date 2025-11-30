@@ -21,7 +21,6 @@ use rift_core::{
 use crate::{
     command_dispatcher::CommandDispatcher,
     components::{
-        ai_panel::AIPanel,
         completion_menu::{CompletionMenuPosition, CompletionMenuWidget},
         diagnostics_overlay::show_diagnostics_overlay,
         file_explorer::FileExplorer,
@@ -39,7 +38,6 @@ pub struct App {
     lsp_handles: HashMap<Language, LSPClientHandle>,
     completion_menu: CompletionMenuWidget,
     file_explorer: FileExplorer,
-    ai_panel: AIPanel,
     first_frame: bool,
 }
 
@@ -59,7 +57,6 @@ impl App {
             font_definitions,
             lsp_handles,
             file_explorer: FileExplorer::new(),
-            ai_panel: AIPanel::default(),
             first_frame: true,
         }
     }
@@ -166,9 +163,6 @@ impl App {
 
         self.file_explorer
             .show(ctx, &mut self.state, &mut self.lsp_handles);
-
-        self.ai_panel
-            .show(ctx, &mut self.state, &mut self.lsp_handles, true);
 
         egui::SidePanel::left("gutter")
             .resizable(true)

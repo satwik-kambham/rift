@@ -43,7 +43,6 @@ pub struct Preferences {
     pub editor_padding: i8,
     pub trigger_completion_on_type: bool,
     pub show_file_explorer: bool,
-    pub show_ai_panel: bool,
     pub no_lsp: bool,
 }
 
@@ -71,7 +70,6 @@ impl Default for Preferences {
             editor_padding: 4,
             trigger_completion_on_type: true,
             show_file_explorer: false,
-            show_ai_panel: false,
             no_lsp: false,
         }
     }

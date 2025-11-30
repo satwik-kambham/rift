@@ -9,7 +9,6 @@ use copypasta::ClipboardProvider;
 use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
 
 use crate::{
-    ai,
     buffer::{
         instance::{Cursor, Language, Selection},
         rope_buffer::RopeBuffer,
@@ -156,13 +155,11 @@ pub enum Action {
     WorkspaceDiagnostics,
     RunAction(String),
     OpenCommandDispatcher,
-    FIMCompletion,
     KeybindHelp,
     IncreaseFontSize,
     DecreaseFontSize,
     ScrollDown,
     ScrollUp,
-    SetSystemPrompt(String),
     Log(String),
     RegisterGlobalKeybind(String, String),
     RegisterBufferKeybind(u32, String, String),
@@ -1087,9 +1084,6 @@ pub fn perform_action(
                 lsp_handles,
             );
         }
-        Action::FIMCompletion => {
-            ai::ollama_fim(state);
-        }
         Action::KeybindHelp => {
             let help_content = state
                 .keybind_handler
@@ -1113,17 +1107,6 @@ pub fn perform_action(
         Action::ScrollDown => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             instance.scroll.row = instance.scroll.row.saturating_add(1);
-        }
-        Action::SetSystemPrompt(template_name) => {
-            let system_prompt = ai::get_system_prompt(&template_name, state);
-            let history = vec![ai::LLMChatMessage {
-                role: "system".into(),
-                content: Some(system_prompt),
-                tool_calls: None,
-                name: None,
-                tool_call_id: None,
-            }];
-            state.ai_state.chat_state.history = history;
         }
         Action::Log(message) => {
             state.log_messages.push(message);
