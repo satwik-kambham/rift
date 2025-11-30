@@ -31,8 +31,8 @@ pub struct RopeBuffer {
 
 pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
 pub struct VisibleLineParams {
-    pub visible_lines: usize,
-    pub max_characters: usize,
+    pub viewport_rows: usize,
+    pub viewport_columns: usize,
     pub eol_sequence: String,
 }
 
@@ -163,21 +163,21 @@ impl RopeBuffer {
         params: &VisibleLineParams,
         mut extra_segments: Vec<Range>,
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
-        let max_characters = params.max_characters.saturating_sub(3).max(1);
+        let max_characters = params.viewport_columns.saturating_sub(3).max(1);
         let mut segments = vec![];
         segments.append(&mut extra_segments);
 
         let num_lines = self.get_num_lines();
         let mut range_start = scroll.row.min(num_lines.saturating_sub(1));
-        let mut range_end = range_start + params.visible_lines + 3;
+        let mut range_end = range_start + params.viewport_rows + 3;
 
         if !self.special {
             if cursor < scroll {
                 range_start = cursor.row;
-                range_end = range_start + params.visible_lines;
-            } else if cursor.row >= scroll.row + params.visible_lines {
+                range_end = range_start + params.viewport_rows;
+            } else if cursor.row >= scroll.row + params.viewport_rows {
                 range_end = cursor.row + 1;
-                range_start = range_end.saturating_sub(params.visible_lines);
+                range_start = range_end.saturating_sub(params.viewport_rows);
             }
         }
 
@@ -261,16 +261,16 @@ impl RopeBuffer {
 
             if cursor < scroll {
                 range_start = cursor_idx.saturating_sub(1);
-                range_end = range_start + params.visible_lines;
-            } else if cursor.row >= scroll.row + params.visible_lines {
+                range_end = range_start + params.viewport_rows;
+            } else if cursor.row >= scroll.row + params.viewport_rows {
                 range_end = cursor_idx + 1;
-                range_start = range_end.saturating_sub(params.visible_lines);
+                range_start = range_end.saturating_sub(params.viewport_rows);
             } else {
                 range_start = 0;
-                range_end = params.visible_lines;
-                if cursor_idx >= params.visible_lines {
+                range_end = params.viewport_rows;
+                if cursor_idx >= params.viewport_rows {
                     range_end = cursor_idx + 1;
-                    range_start = range_end.saturating_sub(params.visible_lines);
+                    range_start = range_end.saturating_sub(params.viewport_rows);
                 }
             }
 
@@ -298,7 +298,7 @@ impl RopeBuffer {
             });
         } else {
             range_start = 0;
-            range_end = params.visible_lines;
+            range_end = params.viewport_rows;
             range_end = gutter_info.len().min(range_end);
             if !gutter_info.is_empty() {
                 scroll.row = gutter_info[range_start].start.row;

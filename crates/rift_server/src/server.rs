@@ -148,7 +148,7 @@ impl Server {
             // Update view and send to websocket connection
             if self.state.update_view {
                 // self.state.relative_cursor =
-                //     update_visible_lines(&mut self.state, visible_lines, max_characters);
+                //     update_visible_lines(&mut self.state, viewport_rows, viewport_columns);
 
                 self.state.update_view = false;
             }

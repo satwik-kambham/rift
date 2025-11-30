@@ -10,8 +10,8 @@ use crate::{
 
 pub fn update_visible_lines(
     state: &mut EditorState,
-    visible_lines: usize,
-    max_characters: usize,
+    viewport_rows: usize,
+    viewport_columns: usize,
 ) -> Cursor {
     if state.buffer_idx.is_some() {
         let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
@@ -50,8 +50,8 @@ pub fn update_visible_lines(
 
         let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
         let visible_line_params = VisibleLineParams {
-            visible_lines,
-            max_characters,
+            viewport_rows,
+            viewport_columns,
             eol_sequence: "\n".into(),
         };
         let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(

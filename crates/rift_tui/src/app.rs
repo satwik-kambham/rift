@@ -68,15 +68,15 @@ impl App {
                     .constraints([Constraint::Length(7), Constraint::Fill(1)])
                     .split(v_layout[0]);
 
-                let visible_lines = h_layout[1].height as usize;
-                let max_characters = h_layout[1].width as usize;
+                let viewport_rows = h_layout[1].height as usize;
+                let viewport_columns = h_layout[1].width as usize;
 
                 // Update if resized
-                if visible_lines != self.state.visible_lines
-                    || max_characters != self.state.max_characters
+                if viewport_rows != self.state.viewport_rows
+                    || viewport_columns != self.state.viewport_columns
                 {
-                    self.state.visible_lines = visible_lines;
-                    self.state.max_characters = max_characters;
+                    self.state.viewport_rows = viewport_rows;
+                    self.state.viewport_columns = viewport_columns;
                     self.state.update_view = true;
                 }
 
@@ -107,8 +107,11 @@ impl App {
                 if self.state.buffer_idx.is_some() {
                     // Compute view if updated
                     if self.state.update_view {
-                        self.state.relative_cursor =
-                            update_visible_lines(&mut self.state, visible_lines, max_characters);
+                        self.state.relative_cursor = update_visible_lines(
+                            &mut self.state,
+                            viewport_rows,
+                            viewport_columns,
+                        );
                         self.state.update_view = false;
                     }
 
@@ -308,7 +311,7 @@ impl App {
                 // Render signature information
                 if self.state.signature_information.should_render()
                     && self.state.relative_cursor.row > 1
-                    && self.state.relative_cursor.row < self.state.visible_lines - 1
+                    && self.state.relative_cursor.row < self.state.viewport_rows - 1
                 {
                     let popup_area = Rect {
                         x: self.state.relative_cursor.column as u16 + h_layout[1].x + 1,
@@ -336,7 +339,7 @@ impl App {
 
                 // Render Completion Items
                 if self.state.completion_menu.active {
-                    let offset_y = if visible_lines - self.state.completion_menu.max_items - 1
+                    let offset_y = if viewport_rows - self.state.completion_menu.max_items - 1
                         < self.state.relative_cursor.row
                     {
                         self.state.completion_menu.max_items as u16

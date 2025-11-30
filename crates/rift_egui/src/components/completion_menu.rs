@@ -20,7 +20,7 @@ pub struct CompletionMenuPosition {
     pub char_width: f32,
     pub char_height: f32,
     pub top_left: egui::Pos2,
-    pub visible_lines: usize,
+    pub viewport_rows: usize,
 }
 
 impl CompletionMenuWidget {
@@ -46,7 +46,7 @@ impl CompletionMenuWidget {
                     + position.char_height
                     + state.preferences.editor_padding as f32,
             };
-            let pivot = if position.visible_lines - 7 < state.relative_cursor.row {
+            let pivot = if position.viewport_rows - 7 < state.relative_cursor.row {
                 egui::Align2::LEFT_BOTTOM
             } else {
                 egui::Align2::LEFT_TOP

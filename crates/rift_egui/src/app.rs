@@ -152,8 +152,8 @@ impl App {
             };
         });
 
-        let mut visible_lines = 0;
-        let mut max_characters = 0;
+        let mut viewport_rows = 0;
+        let mut viewport_columns = 0;
 
         show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
         let (char_width, char_height) = show_status_line(ctx, &mut self.state);
@@ -206,8 +206,8 @@ impl App {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
                 let top_left = rect.left_top();
-                visible_lines = (rect.height() / char_height).floor() as usize;
-                max_characters = (rect.width() / char_width).floor() as usize;
+                viewport_rows = (rect.height() / char_height).floor() as usize;
+                viewport_columns = (rect.width() / char_width).floor() as usize;
 
                 // Run async callbacks
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
@@ -241,18 +241,18 @@ impl App {
                 handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
 
                 // Update on resize
-                if visible_lines != self.state.visible_lines
-                    || max_characters != self.state.max_characters
+                if viewport_rows != self.state.viewport_rows
+                    || viewport_columns != self.state.viewport_columns
                 {
-                    self.state.visible_lines = visible_lines;
-                    self.state.max_characters = max_characters;
+                    self.state.viewport_rows = viewport_rows;
+                    self.state.viewport_columns = viewport_columns;
                     self.state.update_view = true;
                 }
 
                 // Update rendered lines
                 if self.state.update_view {
                     self.state.relative_cursor =
-                        update_visible_lines(&mut self.state, visible_lines, max_characters);
+                        update_visible_lines(&mut self.state, viewport_rows, viewport_columns);
                     self.state.update_view = false;
                 }
 
@@ -362,7 +362,7 @@ impl App {
                     char_width,
                     char_height,
                     top_left,
-                    visible_lines,
+                    viewport_rows,
                 };
                 self.completion_menu.show(
                     completion_position,
