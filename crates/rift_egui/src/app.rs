@@ -241,11 +241,10 @@ impl App {
                 handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
 
                 // Update on resize
-                if viewport_rows != self.state.viewport_rows
-                    || viewport_columns != self.state.viewport_columns
+                if self
+                    .state
+                    .set_viewport_size(viewport_rows, viewport_columns)
                 {
-                    self.state.viewport_rows = viewport_rows;
-                    self.state.viewport_columns = viewport_columns;
                     self.state.update_view = true;
                 }
 

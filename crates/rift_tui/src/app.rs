@@ -72,11 +72,10 @@ impl App {
                 let viewport_columns = h_layout[1].width as usize;
 
                 // Update if resized
-                if viewport_rows != self.state.viewport_rows
-                    || viewport_columns != self.state.viewport_columns
+                if self
+                    .state
+                    .set_viewport_size(viewport_rows, viewport_columns)
                 {
-                    self.state.viewport_rows = viewport_rows;
-                    self.state.viewport_columns = viewport_columns;
                     self.state.update_view = true;
                 }
 
@@ -107,11 +106,8 @@ impl App {
                 if self.state.buffer_idx.is_some() {
                     // Compute view if updated
                     if self.state.update_view {
-                        self.state.relative_cursor = update_visible_lines(
-                            &mut self.state,
-                            viewport_rows,
-                            viewport_columns,
-                        );
+                        self.state.relative_cursor =
+                            update_visible_lines(&mut self.state, viewport_rows, viewport_columns);
                         self.state.update_view = false;
                     }
 
@@ -311,7 +307,7 @@ impl App {
                 // Render signature information
                 if self.state.signature_information.should_render()
                     && self.state.relative_cursor.row > 1
-                    && self.state.relative_cursor.row < self.state.viewport_rows - 1
+                    && self.state.relative_cursor.row < self.state.viewport_rows().saturating_sub(1)
                 {
                     let popup_area = Rect {
                         x: self.state.relative_cursor.column as u16 + h_layout[1].x + 1,

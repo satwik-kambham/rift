@@ -42,8 +42,8 @@ pub struct EditorState {
     next_id: u32,
     pub workspace_folder: String,
     pub current_folder: String,
-    pub viewport_rows: usize,
-    pub viewport_columns: usize,
+    viewport_rows: usize,
+    viewport_columns: usize,
     pub mode: Mode,
     pub update_view: bool,
     pub highlighted_text: HighlightedText,
@@ -127,6 +127,23 @@ impl EditorState {
             log_messages: vec![],
             register: String::new(),
         }
+    }
+
+    pub fn viewport_rows(&self) -> usize {
+        self.viewport_rows
+    }
+
+    pub fn viewport_columns(&self) -> usize {
+        self.viewport_columns
+    }
+
+    pub fn set_viewport_size(&mut self, rows: usize, columns: usize) -> bool {
+        let changed = self.viewport_rows != rows || self.viewport_columns != columns;
+        if changed {
+            self.viewport_rows = rows;
+            self.viewport_columns = columns;
+        }
+        changed
     }
 
     pub fn add_buffer(&mut self, buffer: RopeBuffer) -> u32 {
