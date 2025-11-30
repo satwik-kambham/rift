@@ -6,6 +6,7 @@ use std::{
 };
 
 use copypasta::ClipboardProvider;
+use serde_json::json;
 use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
 
 use crate::{
@@ -79,6 +80,7 @@ pub enum Action {
     SetBufferContent(u32, String),
     InsertBufferInput(String),
     GetWorkspaceDir,
+    GetViewportSize,
     GetBufferInput(u32),
     SetBufferInput(u32, String),
     InsertTextAtCursor(String),
@@ -192,6 +194,13 @@ pub fn perform_action(
         }
         Action::GetWorkspaceDir => {
             return Some(state.workspace_folder.clone());
+        }
+        Action::GetViewportSize => {
+            let size = json!({
+                "rows": state.viewport_rows(),
+                "columns": state.viewport_columns(),
+            });
+            return Some(size.to_string());
         }
         Action::GetBufferInput(buffer_id) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);

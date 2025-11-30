@@ -1,6 +1,8 @@
 # Dashboard
 
 dashboardId = -1
+viewportRows = 0
+viewportColumns = 0
 dashboardText = "
 Welcome to rift!
 
@@ -14,15 +16,38 @@ space F - File Explorer
 space b - Switch Buffer
 "
 
+fn renderDashboard() {
+    if dashboardId == -1 { return null }
+    content = dashboardText + "\nViewport: " + toString(viewportRows) + " x " + toString(viewportColumns)
+    setBufferContent(dashboardId, content)
+}
+
+fn setViewportSize(rows, columns) {
+    viewportRows = rows
+    viewportColumns = columns
+    renderDashboard()
+}
+
+fn refreshViewportSize() {
+    size = fromJson(getViewportSize())
+    setViewportSize(tableGet(size, "rows"), tableGet(size, "columns"))
+}
+
+fn onViewportSizeChanged(rows, columns) {
+    setViewportSize(rows, columns)
+}
+
 fn createDashboardBuffer() {
     if dashboardId == -1 {
         bufferId = createSpecialBuffer("Dashboard")
-        setBufferContent(bufferId, dashboardText)
+        dashboardId = bufferId
         setActiveBuffer(bufferId)
     }
+    renderDashboard()
 }
 
 createDashboardBuffer()
+refreshViewportSize()
 
 #################
 

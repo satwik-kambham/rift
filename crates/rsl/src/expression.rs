@@ -333,6 +333,10 @@ fn execute_rpc_call(identifier: &str, parameters: Vec<Primitive>, rsl: &mut RSL)
                 let diagnostics = client.get_workspace_diagnostics(ctx).await.unwrap();
                 Primitive::String(diagnostics)
             }
+            "getViewportSize" => {
+                let size = client.get_viewport_size(ctx).await.unwrap();
+                Primitive::String(size)
+            }
             "selectRange" => {
                 let selection = args!(parameters; selection: String);
                 client.select_range(ctx, selection).await.unwrap();

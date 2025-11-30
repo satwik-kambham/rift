@@ -8,7 +8,7 @@ use egui::{
     text::LayoutJob,
 };
 use rift_core::{
-    actions::perform_action,
+    actions::{Action, perform_action},
     buffer::instance::{Attribute, HighlightType, Language},
     cli::{CLIArgs, process_cli_args},
     io::file_io::handle_file_event,
@@ -246,6 +246,14 @@ impl App {
                     .set_viewport_size(viewport_rows, viewport_columns)
                 {
                     self.state.update_view = true;
+                    let _ = perform_action(
+                        Action::RunSource(format!(
+                            "onViewportSizeChanged({}, {})",
+                            viewport_rows, viewport_columns
+                        )),
+                        &mut self.state,
+                        &mut self.lsp_handles,
+                    );
                 }
 
                 // Update rendered lines

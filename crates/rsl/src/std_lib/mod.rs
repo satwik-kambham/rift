@@ -45,6 +45,11 @@ pub fn print(arguments: Vec<Primitive>) -> Primitive {
     Primitive::Null
 }
 
+pub fn to_string(arguments: Vec<Primitive>) -> Primitive {
+    let value = args!(arguments; value);
+    Primitive::String(format!("{}", value))
+}
+
 pub fn to_json(arguments: Vec<Primitive>) -> Primitive {
     let argument = args!(arguments; argument);
     let serialized = serde_json::to_string(&argument).unwrap();

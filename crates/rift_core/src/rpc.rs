@@ -157,6 +157,10 @@ impl RiftRPC for RPCHandle {
             .await
     }
 
+    async fn get_viewport_size(self, _context: tarpc::context::Context) -> String {
+        self.send_action_request(Action::GetViewportSize).await
+    }
+
     async fn select_range(self, _context: tarpc::context::Context, selection: String) {
         match parse_selection(&selection) {
             Some(selection) => {
