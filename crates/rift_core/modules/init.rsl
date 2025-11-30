@@ -1376,3 +1376,110 @@ fn createGoToReferences() {
     setActiveBuffer(goToReferencesId)
     runAction("enter-insert-mode")
 }
+
+############
+
+# Info Modal
+
+infoModalId = -1
+infoModalPreviousBufferId = -1
+infoModalLines = createArray()
+infoModalScroll = 0
+infoModalActive = false
+infoModalPageSize = 48
+
+fn infoModalClampScroll() {
+    maxScroll = arrayLen(infoModalLines) - infoModalPageSize
+    if maxScroll < 0 { maxScroll = 0 }
+    if infoModalScroll < 0 { infoModalScroll = 0 }
+    if infoModalScroll > maxScroll { infoModalScroll = maxScroll }
+}
+
+fn infoModalRender() {
+    infoModalClampScroll()
+    content = "Info Modal (esc to close, up/down to scroll)\n------\n"
+
+    totalLines = arrayLen(infoModalLines)
+    if totalLines == 0 {
+        content = content + "\n   No information available"
+        setBufferContent(infoModalId, content)
+        return null
+    }
+
+    start = infoModalScroll
+    end = start + infoModalPageSize
+    if end > totalLines { end = totalLines }
+
+    i = start
+    loop {
+        if i >= end { break }
+        content = content + "\n" + arrayGet(infoModalLines, i)
+        i = i + 1
+    }
+
+    if end < totalLines {
+        remaining = totalLines - end
+        content = content + "\n\n... (" + toJson(remaining) + " more lines)"
+    }
+
+    setBufferContent(infoModalId, content)
+}
+
+fn infoModalEnsureBuffer() {
+    if infoModalId == -1 {
+        bufferId = createSpecialBuffer("Info")
+        infoModalId = bufferId
+        registerBufferKeybind(bufferId, "ins escape", infoModalClose)
+        registerBufferKeybind(bufferId, "ins up", infoModalScrollUp)
+        registerBufferKeybind(bufferId, "ins down", infoModalScrollDown)
+        registerBufferKeybind(bufferId, "ins pageup", infoModalPageUp)
+        registerBufferKeybind(bufferId, "ins pagedown", infoModalPageDown)
+    }
+}
+
+fn infoModalOpen(content) {
+    infoModalEnsureBuffer()
+    if !infoModalActive {
+        infoModalPreviousBufferId = getActiveBuffer()
+    }
+    infoModalActive = true
+    infoModalLines = stringSplitLines(content)
+    infoModalScroll = 0
+    infoModalRender()
+    setActiveBuffer(infoModalId)
+    setBufferInput(infoModalId, "")
+    runAction("enter-insert-mode")
+}
+
+fn infoModalClose() {
+    infoModalActive = false
+    infoModalScroll = 0
+    if infoModalPreviousBufferId != -1 {
+        setActiveBuffer(infoModalPreviousBufferId)
+    }
+    runAction("quit-insert-mode")
+}
+
+fn infoModalScrollUp() {
+    if !infoModalActive { return null }
+    infoModalScroll = infoModalScroll - 1
+    infoModalRender()
+}
+
+fn infoModalScrollDown() {
+    if !infoModalActive { return null }
+    infoModalScroll = infoModalScroll + 1
+    infoModalRender()
+}
+
+fn infoModalPageUp() {
+    if !infoModalActive { return null }
+    infoModalScroll = infoModalScroll - infoModalPageSize
+    infoModalRender()
+}
+
+fn infoModalPageDown() {
+    if !infoModalActive { return null }
+    infoModalScroll = infoModalScroll + infoModalPageSize
+    infoModalRender()
+}

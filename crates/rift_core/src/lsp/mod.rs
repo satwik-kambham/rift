@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use client::LSPClientHandle;
 
 use crate::{
-    actions::{Action, ReferenceEntry, perform_action},
+    actions::{Action, ReferenceEntry, open_info_modal_in_rsl, perform_action},
     buffer::instance::{Cursor, Language, Selection},
     io::file_io,
     state::EditorState,
@@ -75,7 +75,7 @@ pub fn handle_lsp_messages(
                             .as_str()
                             .unwrap_or_default()
                             .to_string();
-                        state.info_modal.open(message);
+                        open_info_modal_in_rsl(state, lsp_handles, &message);
                     } else if lsp_handle.id_method[&response.id] == "textDocument/completion"
                         && response.result.is_some()
                     {

@@ -47,6 +47,23 @@ pub struct ReferenceEntry {
     pub preview: String,
 }
 
+fn rsl_string_literal(value: &str) -> String {
+    serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_string())
+}
+
+pub fn open_info_modal_in_rsl(
+    state: &mut EditorState,
+    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
+    content: &str,
+) {
+    let serialized = rsl_string_literal(content);
+    perform_action(
+        Action::RunSource(format!("infoModalOpen({})", serialized)),
+        state,
+        lsp_handles,
+    );
+}
+
 fn diagnostic_severity_label(severity: &DiagnosticSeverity) -> &'static str {
     match severity {
         DiagnosticSeverity::Hint => "Hint",
@@ -1081,7 +1098,7 @@ pub fn perform_action(
                 .map(|keybind| keybind.definition.clone())
                 .collect::<Vec<_>>()
                 .join("\n");
-            state.info_modal.open(help_content);
+            open_info_modal_in_rsl(state, lsp_handles, &help_content);
         }
         Action::IncreaseFontSize => {
             state.preferences.editor_font_size += 1;
