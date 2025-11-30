@@ -127,9 +127,15 @@ pub fn get_env_var(arguments: Vec<Primitive>) -> Primitive {
 pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {
     let (command, workspace_dir) = args!(arguments; command: String, workspace_dir: String);
 
-    match Command::new("sh")
-        .arg("-c")
-        .arg(command)
+    let (shell, flag) = if cfg!(windows) {
+        ("cmd", "/C")
+    } else {
+        ("sh", "-c")
+    };
+
+    match Command::new(shell)
+        .arg(flag)
+        .arg(&command)
         .current_dir(workspace_dir)
         .output()
     {
@@ -137,8 +143,10 @@ pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {
             let mut table = Table::new();
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let status = output.status.code().unwrap_or(-1) as f32;
             table.set_value("stdout".to_string(), Primitive::String(stdout));
             table.set_value("stderr".to_string(), Primitive::String(stderr));
+            table.set_value("status".to_string(), Primitive::Number(status));
             Primitive::Table(Rc::new(RefCell::new(table)))
         }
         Err(e) => Primitive::Error(format!("Error executing command: {}", e)),
