@@ -1,4 +1,9 @@
-use std::{collections::HashMap, path, str::FromStr};
+use std::{
+    collections::HashMap,
+    path,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 use copypasta::ClipboardProvider;
 use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
@@ -11,8 +16,7 @@ use crate::{
     },
     concurrent::cli::{ProgramArgs, run_command, run_piped_commands},
     io::file_io,
-    lsp::client::LSPClientHandle,
-    lsp::types::DiagnosticSeverity,
+    lsp::{self, client::LSPClientHandle, types::DiagnosticSeverity},
     preferences::Preferences,
     state::{EditorState, Mode},
 };
@@ -34,6 +38,13 @@ struct WorkspaceDiagnosticEntry {
     source: String,
     code: String,
     range: Selection,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct ReferenceEntry {
+    pub file_path: String,
+    pub range: Selection,
+    pub preview: String,
 }
 
 fn diagnostic_severity_label(severity: &DiagnosticSeverity) -> &'static str {
@@ -108,6 +119,7 @@ pub enum Action {
     LSPSignatureHelp,
     GoToDefinition,
     GoToReferences,
+    GetReferences,
     DeletePreviousCharacter,
     DeleteNextCharacter,
     DeleteSelection,
@@ -720,24 +732,11 @@ pub fn perform_action(
             }
         }
         Action::GoToReferences => {
-            let lsp_handle = if state.buffer_idx.is_some() {
-                let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-                &mut lsp_handles.get_mut(&buffer.language)
-            } else {
-                &mut None
-            };
-            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            if let Some(lsp_handle) = lsp_handle {
-                lsp_handle
-                    .send_request_sync(
-                        "textDocument/references".to_string(),
-                        Some(LSPClientHandle::go_to_references_request(
-                            buffer.file_path().cloned().unwrap(),
-                            instance.cursor,
-                        )),
-                    )
-                    .unwrap();
-            }
+            perform_action(
+                Action::RunSource("createGoToReferences()".to_string()),
+                state,
+                lsp_handles,
+            );
         }
         Action::DeletePreviousCharacter => {
             let lsp_handle = if state.buffer_idx.is_some() {
@@ -1015,6 +1014,54 @@ pub fn perform_action(
                 state,
                 lsp_handles,
             );
+        }
+        Action::GetReferences => {
+            if state.buffer_idx.is_some() {
+                let buffer_id = state.buffer_idx.unwrap();
+                let Some((file_path, language, cursor)) = ({
+                    let (buffer, instance) = state.get_buffer_by_id(buffer_id);
+                    buffer
+                        .file_path()
+                        .cloned()
+                        .map(|path| (path, buffer.language, instance.cursor))
+                }) else {
+                    state.references.clear();
+                    return Some("[]".to_string());
+                };
+
+                state.references.clear();
+                let current_version = state.references_version;
+
+                let request_sent = if let Some(lsp_handle) = lsp_handles.get_mut(&language) {
+                    lsp_handle
+                        .send_request_sync(
+                            "textDocument/references".to_string(),
+                            Some(LSPClientHandle::go_to_references_request(
+                                file_path.clone(),
+                                cursor,
+                            )),
+                        )
+                        .is_ok()
+                } else {
+                    false
+                };
+
+                if request_sent {
+                    let start = Instant::now();
+                    while state.references_version == current_version
+                        && start.elapsed() < Duration::from_secs(1)
+                    {
+                        lsp::handle_lsp_messages(state, lsp_handles);
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                } else {
+                    tracing::warn!("Failed to send LSP references request for {}", file_path);
+                }
+            } else {
+                state.references.clear();
+            }
+
+            return Some(serde_json::to_string(&state.references).unwrap());
         }
         Action::GetWorkspaceDiagnostics => {
             let mut workspace_diagnostics: Vec<WorkspaceDiagnosticEntry> = vec![];

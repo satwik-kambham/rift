@@ -947,3 +947,153 @@ fn createWorkspaceDiagnostics() {
     setActiveBuffer(workspaceDiagnosticsId)
     runAction("enter-insert-mode")
 }
+
+############
+
+# Go To References
+
+goToReferencesId = -1
+goToReferencesInput = ""
+goToReferencesAll = createArray()
+goToReferencesResults = createArray()
+goToReferencesSelectedEntry = 0
+goToReferencesPreviousBufferId = -1
+
+fn goToReferencesDisplay(entry) {
+    filePath = tableGet(entry, "file_path")
+    range = tableGet(entry, "range")
+    mark = tableGet(range, "mark")
+    row = tableGet(mark, "row") + 1
+    column = tableGet(mark, "column") + 1
+    preview = tableGet(entry, "preview")
+
+    location = filePath + ":" + toJson(row) + ":" + toJson(column)
+    if stringLen(preview) > 0 {
+        return location + " " + preview
+    }
+    return location
+}
+
+fn renderGoToReferences() {
+    content = "\n------\n" + goToReferencesInput + "\n------\n"
+    if arrayLen(goToReferencesResults) == 0 {
+        content = content + "\n   No references"
+    }
+    i = 0
+    loop {
+        if i >= arrayLen(goToReferencesResults) { break }
+        entry = arrayGet(goToReferencesResults, i)
+        display = goToReferencesDisplay(entry)
+        if goToReferencesSelectedEntry == i {
+            content = content + "\n > " + display
+        } if goToReferencesSelectedEntry != i {
+            content = content + "\n   " + display
+        }
+        i = i + 1
+    }
+    setBufferContent(goToReferencesId, content)
+}
+
+fn goToReferencesFilterResults() {
+    goToReferencesResults = createArray()
+    query = stringToLower(goToReferencesInput)
+
+    i = 0
+    loop {
+        if i >= arrayLen(goToReferencesAll) { break }
+        entry = arrayGet(goToReferencesAll, i)
+
+        filePath = stringToLower(tableGet(entry, "file_path"))
+        preview = stringToLower(tableGet(entry, "preview"))
+
+        if stringLen(query) == 0 or stringContains(filePath, query) or stringContains(preview, query) {
+            arrayPushBack(goToReferencesResults, entry)
+        }
+        i = i + 1
+    }
+
+    goToReferencesSelectedEntry = 0
+    renderGoToReferences()
+}
+
+fn goToReferencesInputUpdated() {
+    goToReferencesInput = getBufferInput(goToReferencesId)
+    goToReferencesFilterResults()
+}
+
+fn goToReferencesAddSpace() {
+    goToReferencesInput = getBufferInput(goToReferencesId)
+    goToReferencesInput = goToReferencesInput + " "
+    setBufferInput(goToReferencesId, goToReferencesInput)
+    renderGoToReferences()
+}
+
+fn goToReferencesClearInput() {
+    goToReferencesInput = ""
+    setBufferInput(goToReferencesId, goToReferencesInput)
+}
+
+fn goToReferencesMoveSelection(delta) {
+    if arrayLen(goToReferencesResults) == 0 {
+        goToReferencesSelectedEntry = 0
+        renderGoToReferences()
+        return null
+    }
+    goToReferencesSelectedEntry = goToReferencesSelectedEntry + delta
+    if goToReferencesSelectedEntry < 0 { goToReferencesSelectedEntry = arrayLen(goToReferencesResults) - 1 }
+    if goToReferencesSelectedEntry >= arrayLen(goToReferencesResults) { goToReferencesSelectedEntry = 0 }
+    renderGoToReferences()
+}
+
+fn goToReferencesNext() {
+    goToReferencesMoveSelection(1)
+}
+
+fn goToReferencesPrevious() {
+    goToReferencesMoveSelection(-1)
+}
+
+fn goToReferencesSelect() {
+    if goToReferencesSelectedEntry < arrayLen(goToReferencesResults) {
+        entry = arrayGet(goToReferencesResults, goToReferencesSelectedEntry)
+        path = tableGet(entry, "file_path")
+        range = tableGet(entry, "range")
+
+        openFile(path)
+        runAction("quit-insert-mode")
+        selectRange(toJson(range))
+    }
+}
+
+fn goToReferencesEscape() {
+    if goToReferencesPreviousBufferId != -1 {
+        setActiveBuffer(goToReferencesPreviousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn goToReferencesReload() {
+    references = getReferences()
+    goToReferencesAll = fromJson(references)
+    goToReferencesFilterResults()
+}
+
+fn createGoToReferences() {
+    goToReferencesPreviousBufferId = getActiveBuffer()
+    if goToReferencesId == -1 {
+        bufferId = createSpecialBuffer("References")
+        goToReferencesId = bufferId
+        registerBufferKeybind(bufferId, "ins space", goToReferencesAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", goToReferencesClearInput)
+        registerBufferKeybind(bufferId, "ins tab", goToReferencesNext)
+        registerBufferKeybind(bufferId, "ins down", goToReferencesNext)
+        registerBufferKeybind(bufferId, "ins up", goToReferencesPrevious)
+        registerBufferKeybind(bufferId, "ins enter", goToReferencesSelect)
+        registerBufferKeybind(bufferId, "ins escape", goToReferencesEscape)
+        registerBufferInputHook(bufferId, goToReferencesInputUpdated)
+    }
+    goToReferencesClearInput()
+    goToReferencesReload()
+    setActiveBuffer(goToReferencesId)
+    runAction("enter-insert-mode")
+}

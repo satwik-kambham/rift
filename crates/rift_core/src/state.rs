@@ -5,7 +5,7 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyR
 use tokio::sync::mpsc;
 
 use crate::{
-    actions::{Action, perform_action},
+    actions::{Action, ReferenceEntry, perform_action},
     ai::AIState,
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
@@ -53,6 +53,8 @@ pub struct EditorState {
     pub buffer_idx: Option<u32>,
     pub clipboard_ctx: Option<ClipboardContext>,
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
+    pub references: Vec<ReferenceEntry>,
+    pub references_version: usize,
     pub modal: Modal,
     pub diagnostics_overlay: DiagnosticsOverlay,
     pub info_modal: InfoModal,
@@ -117,6 +119,8 @@ impl EditorState {
             update_view: true,
             clipboard_ctx: ClipboardContext::new().ok(),
             diagnostics: HashMap::new(),
+            references: vec![],
+            references_version: 0,
             diagnostics_overlay: DiagnosticsOverlay::default(),
             info_modal: InfoModal::default(),
             completion_menu: CompletionMenu::new(5),

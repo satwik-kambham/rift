@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use client::LSPClientHandle;
 
 use crate::{
-    actions::{Action, perform_action},
+    actions::{Action, ReferenceEntry, perform_action},
     buffer::instance::{Cursor, Language, Selection},
+    io::file_io,
     state::EditorState,
 };
 
@@ -35,6 +36,18 @@ pub fn parse_range(range: &serde_json::Value) -> Selection {
             column: range["start"]["character"].as_u64().unwrap() as usize,
         },
     }
+}
+
+fn reference_preview(file_path: &str, range: &Selection) -> String {
+    file_io::read_file_content(file_path)
+        .ok()
+        .and_then(|content| {
+            content
+                .lines()
+                .nth(range.mark.row)
+                .map(|line| line.trim_end().to_string())
+        })
+        .unwrap_or_default()
 }
 
 pub fn handle_lsp_messages(
@@ -168,13 +181,20 @@ pub fn handle_lsp_messages(
                     } else if lsp_handle.id_method[&response.id] == "textDocument/references"
                         && response.result.is_some()
                     {
-                        let mut locations = vec![];
-                        for location in response.result.unwrap().as_array().unwrap() {
-                            let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
-                            let range = parse_range(&location["range"]);
-                            locations.push((uri, range));
+                        let mut references = vec![];
+                        if let Some(locations) = response.result.unwrap().as_array() {
+                            for location in locations {
+                                let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
+                                let range = parse_range(&location["range"]);
+                                references.push(ReferenceEntry {
+                                    preview: reference_preview(&uri, &range),
+                                    file_path: uri,
+                                    range,
+                                });
+                            }
                         }
-                        perform_action(Action::LocationModal(locations), state, lsp_handles);
+                        state.references = references;
+                        state.references_version = state.references_version.saturating_add(1);
                     } else {
                         let message = format!(
                             "---Response to: {}({})\n\n{:#?}---\n",

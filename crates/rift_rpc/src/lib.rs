@@ -13,6 +13,7 @@ pub trait RiftRPC {
     async fn run_action(action: String) -> String;
     async fn get_active_buffer() -> u32;
     async fn list_buffers() -> String;
+    async fn get_references() -> String;
     async fn get_workspace_diagnostics() -> String;
     async fn select_range(selection: String);
     async fn open_file(path: String);
