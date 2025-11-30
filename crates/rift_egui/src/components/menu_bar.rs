@@ -44,7 +44,11 @@ pub fn show_menu_bar(
                 });
                 ui.menu_button("View", |ui| {
                     if ui.button("Fuzzy Find File").clicked() {
-                        perform_action(Action::FuzzyFindFile(false), state, lsp_handles);
+                        perform_action(
+                            Action::RunSource("createFuzzyFileFinder()".to_string()),
+                            state,
+                            lsp_handles,
+                        );
                     }
                     if ui.button("Search Workspace").clicked() {
                         perform_action(Action::SearchWorkspace, state, lsp_handles);

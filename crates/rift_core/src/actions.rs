@@ -14,7 +14,7 @@ use crate::{
         instance::{Cursor, Language, Selection},
         rope_buffer::RopeBuffer,
     },
-    concurrent::cli::{ProgramArgs, run_command, run_piped_commands},
+    concurrent::cli::{ProgramArgs, run_command},
     io::file_io,
     lsp::{self, client::LSPClientHandle, types::DiagnosticSeverity},
     preferences::Preferences,
@@ -132,7 +132,6 @@ pub enum Action {
     CutToClipboard,
     PasteFromRegister,
     PasteFromClipboard,
-    FuzzyFindFile(bool),
     SearchWorkspace,
     GetWorkspaceDiagnostics,
     WorkspaceDiagnostics,
@@ -930,83 +929,6 @@ pub fn perform_action(
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
             }
-        }
-        Action::FuzzyFindFile(_respect_ignore) => {
-            run_piped_commands(
-                vec![
-                    ProgramArgs {
-                        program: "fd".into(),
-                        args: vec![
-                            "--type".to_string(),
-                            "f".to_string(),
-                            "--strip-cwd-prefix".to_string(),
-                            "--full-path".to_string(),
-                            state.workspace_folder.clone(),
-                        ],
-                    },
-                    ProgramArgs {
-                        program: "fzf".into(),
-                        args: vec!["-f".to_string(), "".to_string()],
-                    },
-                ],
-                |result, state, _lsp_handles| {
-                    let results: Vec<&str> = result.trim().lines().collect();
-                    state.modal.open();
-                    state.modal.options = results
-                        .iter()
-                        .map(|path| (path.to_string(), path.to_string()))
-                        .collect();
-                    state
-                        .modal
-                        .set_modal_on_input(|input, state, _lsp_handles| {
-                            run_piped_commands(
-                                vec![
-                                    ProgramArgs {
-                                        program: "fd".into(),
-                                        args: vec![
-                                            "--type".to_string(),
-                                            "f".to_string(),
-                                            "--strip-cwd-prefix".to_string(),
-                                            "--full-path".to_string(),
-                                            state.workspace_folder.clone(),
-                                        ],
-                                    },
-                                    ProgramArgs {
-                                        program: "fzf".into(),
-                                        args: vec!["-f".to_string(), input.to_string()],
-                                    },
-                                ],
-                                |result, state, _lsp_handle| {
-                                    let results: Vec<&str> = result.trim().lines().collect();
-                                    state.modal.options = results
-                                        .iter()
-                                        .map(|path| (path.to_string(), path.to_string()))
-                                        .collect();
-                                },
-                                &state.rt,
-                                state.async_handle.sender.clone(),
-                                state.workspace_folder.clone(),
-                            );
-                        });
-                    state.modal.set_modal_on_select(
-                        |_input, selection, _alt_select, state, lsp_handles| {
-                            let mut path = path::PathBuf::from(selection.0.clone());
-                            if path.is_relative() {
-                                path = std::path::absolute(path).unwrap();
-                            }
-                            perform_action(
-                                Action::CreateBufferFromFile(path.to_str().unwrap().to_string()),
-                                state,
-                                lsp_handles,
-                            );
-                            state.modal.close();
-                        },
-                    );
-                },
-                &state.rt,
-                state.async_handle.sender.clone(),
-                state.workspace_folder.clone(),
-            );
         }
         Action::SearchWorkspace => {
             perform_action(
