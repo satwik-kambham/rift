@@ -23,7 +23,6 @@ use crate::{
     components::{
         completion_menu::{CompletionMenuPosition, CompletionMenuWidget},
         diagnostics_overlay::show_diagnostics_overlay,
-        file_explorer::FileExplorer,
         menu_bar::show_menu_bar,
         signature_information::show_signature_information,
         status_line::show_status_line,
@@ -37,7 +36,6 @@ pub struct App {
     font_definitions: FontDefinitions,
     lsp_handles: HashMap<Language, LSPClientHandle>,
     completion_menu: CompletionMenuWidget,
-    file_explorer: FileExplorer,
     first_frame: bool,
 }
 
@@ -56,7 +54,6 @@ impl App {
             state,
             font_definitions,
             lsp_handles,
-            file_explorer: FileExplorer::new(),
             first_frame: true,
         }
     }
@@ -160,9 +157,6 @@ impl App {
 
         show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
         let (char_width, char_height) = show_status_line(ctx, &mut self.state);
-
-        self.file_explorer
-            .show(ctx, &mut self.state, &mut self.lsp_handles);
 
         egui::SidePanel::left("gutter")
             .resizable(true)

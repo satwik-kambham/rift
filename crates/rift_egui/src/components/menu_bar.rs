@@ -143,10 +143,6 @@ pub fn show_menu_bar(
                         &mut state.preferences.trigger_completion_on_type,
                         "Trigger Completions",
                     );
-                    ui.checkbox(
-                        &mut state.preferences.show_file_explorer,
-                        "Show File Explorer",
-                    );
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.button("Keybind Help").clicked() {

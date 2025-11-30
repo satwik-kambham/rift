@@ -42,7 +42,6 @@ pub struct Preferences {
     pub gutter_padding: i8,
     pub editor_padding: i8,
     pub trigger_completion_on_type: bool,
-    pub show_file_explorer: bool,
     pub no_lsp: bool,
 }
 
@@ -69,7 +68,6 @@ impl Default for Preferences {
             gutter_padding: 4,
             editor_padding: 4,
             trigger_completion_on_type: true,
-            show_file_explorer: false,
             no_lsp: false,
         }
     }
