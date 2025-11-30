@@ -2,6 +2,7 @@ use crate::token::Token;
 
 pub struct Scanner {
     source: String,
+    // Byte offsets into source; we iterate via char_indices to stay UTF-8 safe.
     start: usize,
     current: usize,
     tokens: Vec<Token>,
@@ -142,19 +143,35 @@ impl Scanner {
     }
 
     fn advance(&mut self) -> char {
-        self.current += 1;
-        self.source.chars().nth(self.current - 1).unwrap()
+        // Use char_indices to get the current char and next byte offset.
+        let mut iter = self.source[self.current..].char_indices();
+        let (_, ch) = iter.next().unwrap();
+        if let Some((next_offset, _)) = iter.next() {
+            self.current += next_offset;
+        } else {
+            // Reached the last char; move to end.
+            self.current = self.source.len();
+        }
+        ch
     }
 
     fn match_token(&mut self, expected: char) -> bool {
         if self.is_at_eof() {
             return false;
         }
-        if self.source.chars().nth(self.current).unwrap() != expected {
+
+        let mut iter = self.source[self.current..].char_indices();
+        let (_, ch) = iter.next().unwrap();
+        if ch != expected {
             return false;
         }
 
-        self.current += 1;
+        if let Some((next_offset, _)) = iter.next() {
+            self.current += next_offset;
+        } else {
+            self.current = self.source.len();
+        }
+
         true
     }
 
@@ -166,13 +183,36 @@ impl Scanner {
         if self.is_at_eof() {
             return '\0';
         }
-        self.source.chars().nth(self.current).unwrap()
+        self.source[self.current..].chars().next().unwrap()
     }
 
     fn peek_n(&self, n: usize) -> char {
-        if self.current + n >= self.source.len() {
-            return '\0';
+        let mut iter = self.source[self.current..].chars();
+        for _ in 0..n {
+            iter.next();
         }
-        self.source.chars().nth(self.current + n).unwrap()
+        iter.next().unwrap_or('\0')
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scans_utf8_in_strings_and_comments() {
+        let mut scanner = Scanner::new("print(\"héllo 😊\") #🙂\n1".to_string());
+        let tokens = scanner.scan();
+
+        let expected = vec![
+            Token::Identifier("print".into()),
+            Token::LeftParentheses,
+            Token::String("héllo 😊".into()),
+            Token::RightParentheses,
+            Token::Number(1.0),
+            Token::EOF,
+        ];
+
+        assert_eq!(tokens, expected);
     }
 }

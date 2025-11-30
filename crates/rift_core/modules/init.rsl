@@ -33,6 +33,38 @@ fn refreshViewportSize() {
     setViewportSize(tableGet(size, "rows"), tableGet(size, "columns"))
 }
 
+fn viewportVisibleRows(reservedLines) {
+    # Keep a reasonable default even if the viewport has not reported yet.
+    available = viewportRows - reservedLines
+    if available < 5 { available = 5 }
+    return available
+}
+
+fn viewportWindow(selectedIndex, totalItems, reservedLines) {
+    window = createTable()
+    if totalItems <= 0 {
+        tableSet(window, "start", 0)
+        tableSet(window, "end", 0)
+        return window
+    }
+
+    visible = viewportVisibleRows(reservedLines)
+    if visible > totalItems { visible = totalItems }
+
+    start = selectedIndex - (visible / 2)
+    if start < 0 { start = 0 }
+    end = start + visible
+    if end > totalItems {
+        end = totalItems
+        start = end - visible
+        if start < 0 { start = 0 }
+    }
+
+    tableSet(window, "start", start)
+    tableSet(window, "end", end)
+    return window
+}
+
 fn onViewportSizeChanged(rows, columns) {
     setViewportSize(rows, columns)
 }
@@ -336,18 +368,32 @@ fuzzySelectedEntry = 0
 fuzzyFileFinderPreviousBufferId = -1
 
 fn renderFuzzyFileFinder() {
-    content = "\n------\n" + fuzzyFileFinderInput + "\n------\n"
-    i = 0
+    content = "🔎 Fuzzy File Finder\n╭─ Query ─────────────────\n" + fuzzyFileFinderInput + "\n╰─ Matches ───────────────"
+    total = arrayLen(fuzzyFileFinderResults)
+    if total == 0 {
+        content = content + "\n   No files found"
+        setBufferContent(fuzzyFileFinderId, content)
+        return null
+    }
+
+    window = viewportWindow(fuzzySelectedEntry, total, 5)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
     loop {
-        if i >= arrayLen(fuzzyFileFinderResults) { break }
+        if i >= end { break }
         result = arrayGet(fuzzyFileFinderResults, i)
-        if fuzzySelectedEntry == i {
-            content = content + "\n > " + result            
-        } if fuzzySelectedEntry != i {
-            content = content + "\n   " + result 
-        }
+        prefix = "•"
+        if fuzzySelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + result
         i = i + 1
     }
+
+    if end < total { content = content + "\n   ⋯" }
+
     setBufferContent(fuzzyFileFinderId, content)
 }
 
@@ -463,22 +509,33 @@ fn switchBufferDisplay(entry) {
 }
 
 fn renderSwitchBuffer() {
-    content = "\n------\n" + switchBufferInput + "\n------\n"
-    if arrayLen(switchBufferResults) == 0 {
+    content = "🗂 Switch Buffer\n╭─ Filter ──────────────\n" + switchBufferInput + "\n╰─ Buffers ─────────────"
+    total = arrayLen(switchBufferResults)
+    if total == 0 {
         content = content + "\n   No buffers"
+        setBufferContent(switchBufferId, content)
+        return null
     }
-    i = 0
+
+    window = viewportWindow(switchBufferSelectedEntry, total, 5)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
     loop {
-        if i >= arrayLen(switchBufferResults) { break }
+        if i >= end { break }
         entry = arrayGet(switchBufferResults, i)
         display = switchBufferDisplay(entry)
-        if switchBufferSelectedEntry == i {
-            content = content + "\n > " + display
-        } if switchBufferSelectedEntry != i {
-            content = content + "\n   " + display
-        }
+        prefix = "•"
+        if switchBufferSelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + display
         i = i + 1
     }
+
+    if end < total { content = content + "\n   ⋯" }
+
     setBufferContent(switchBufferId, content)
 }
 
@@ -633,22 +690,33 @@ workspaceSearchSelectedEntry = 0
 workspaceSearchPreviousBufferId = -1
 
 fn renderWorkspaceSearch() {
-    content = "\n------\n" + workspaceSearchInput + "\n------\n"
-    if arrayLen(workspaceSearchResults) == 0 {
+    content = "🔍 Workspace Search\n╭─ Query ───────────────\n" + workspaceSearchInput + "\n╰─ Matches ─────────────"
+    total = arrayLen(workspaceSearchResults)
+    if total == 0 {
         content = content + "\n   No matches"
+        setBufferContent(workspaceSearchId, content)
+        return null
     }
-    i = 0
+
+    window = viewportWindow(workspaceSearchSelectedEntry, total, 5)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
     loop {
-        if i >= arrayLen(workspaceSearchResults) { break }
+        if i >= end { break }
         result = arrayGet(workspaceSearchResults, i)
         display = tableGet(result, "display")
-        if workspaceSearchSelectedEntry == i {
-            content = content + "\n > " + display
-        } if workspaceSearchSelectedEntry != i {
-            content = content + "\n   " + display
-        }
+        prefix = "•"
+        if workspaceSearchSelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + display
         i = i + 1
     }
+
+    if end < total { content = content + "\n   ⋯" }
+
     setBufferContent(workspaceSearchId, content)
 }
 
@@ -848,22 +916,33 @@ fn workspaceDiagnosticsDisplay(entry) {
 }
 
 fn renderWorkspaceDiagnostics() {
-    content = "\n------\n" + workspaceDiagnosticsInput + "\n------\n"
-    if arrayLen(workspaceDiagnosticsResults) == 0 {
+    content = "🩺 Diagnostics\n╭─ Filter ──────────────\n" + workspaceDiagnosticsInput + "\n╰─ Issues ──────────────"
+    total = arrayLen(workspaceDiagnosticsResults)
+    if total == 0 {
         content = content + "\n   No diagnostics"
+        setBufferContent(workspaceDiagnosticsId, content)
+        return null
     }
-    i = 0
+
+    window = viewportWindow(workspaceDiagnosticsSelectedEntry, total, 5)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
     loop {
-        if i >= arrayLen(workspaceDiagnosticsResults) { break }
+        if i >= end { break }
         entry = arrayGet(workspaceDiagnosticsResults, i)
         display = workspaceDiagnosticsDisplay(entry)
-        if workspaceDiagnosticsSelectedEntry == i {
-            content = content + "\n > " + display
-        } if workspaceDiagnosticsSelectedEntry != i {
-            content = content + "\n   " + display
-        }
+        prefix = "•"
+        if workspaceDiagnosticsSelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + display
         i = i + 1
     }
+
+    if end < total { content = content + "\n   ⋯" }
+
     setBufferContent(workspaceDiagnosticsId, content)
 }
 
@@ -985,21 +1064,32 @@ commandDispatcherSelectedEntry = 0
 commandDispatcherPreviousBufferId = -1
 
 fn renderCommandDispatcher() {
-    content = "\n------\n" + commandDispatcherInput + "\n------\n"
-    if arrayLen(commandDispatcherResults) == 0 {
+    content = "⚡ Command Palette\n╭─ Filter ──────────────\n" + commandDispatcherInput + "\n╰─ Commands ────────────"
+    total = arrayLen(commandDispatcherResults)
+    if total == 0 {
         content = content + "\n   No commands"
+        setBufferContent(commandDispatcherId, content)
+        return null
     }
-    i = 0
+
+    window = viewportWindow(commandDispatcherSelectedEntry, total, 5)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
     loop {
-        if i >= arrayLen(commandDispatcherResults) { break }
+        if i >= end { break }
         action = arrayGet(commandDispatcherResults, i)
-        if commandDispatcherSelectedEntry == i {
-            content = content + "\n > " + action
-        } if commandDispatcherSelectedEntry != i {
-            content = content + "\n   " + action
-        }
+        prefix = "•"
+        if commandDispatcherSelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + action
         i = i + 1
     }
+
+    if end < total { content = content + "\n   ⋯" }
+
     setBufferContent(commandDispatcherId, content)
 }
 
@@ -1131,22 +1221,33 @@ fn goToDefinitionDisplay(entry) {
 }
 
 fn renderGoToDefinition() {
-    content = "\n------\n" + goToDefinitionInput + "\n------\n"
-    if arrayLen(goToDefinitionResults) == 0 {
+    content = "📌 Definitions\n╭─ Filter ──────────────\n" + goToDefinitionInput + "\n╰─ Locations ───────────"
+    total = arrayLen(goToDefinitionResults)
+    if total == 0 {
         content = content + "\n   No definitions"
+        setBufferContent(goToDefinitionId, content)
+        return null
     }
-    i = 0
+
+    window = viewportWindow(goToDefinitionSelectedEntry, total, 5)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
     loop {
-        if i >= arrayLen(goToDefinitionResults) { break }
+        if i >= end { break }
         entry = arrayGet(goToDefinitionResults, i)
         display = goToDefinitionDisplay(entry)
-        if goToDefinitionSelectedEntry == i {
-            content = content + "\n > " + display
-        } if goToDefinitionSelectedEntry != i {
-            content = content + "\n   " + display
-        }
+        prefix = "•"
+        if goToDefinitionSelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + display
         i = i + 1
     }
+
+    if end < total { content = content + "\n   ⋯" }
+
     setBufferContent(goToDefinitionId, content)
 }
 
@@ -1279,22 +1380,33 @@ fn goToReferencesDisplay(entry) {
 }
 
 fn renderGoToReferences() {
-    content = "\n------\n" + goToReferencesInput + "\n------\n"
-    if arrayLen(goToReferencesResults) == 0 {
+    content = "🔗 References\n╭─ Filter ──────────────\n" + goToReferencesInput + "\n╰─ Locations ───────────"
+    total = arrayLen(goToReferencesResults)
+    if total == 0 {
         content = content + "\n   No references"
+        setBufferContent(goToReferencesId, content)
+        return null
     }
-    i = 0
+
+    window = viewportWindow(goToReferencesSelectedEntry, total, 5)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
     loop {
-        if i >= arrayLen(goToReferencesResults) { break }
+        if i >= end { break }
         entry = arrayGet(goToReferencesResults, i)
         display = goToReferencesDisplay(entry)
-        if goToReferencesSelectedEntry == i {
-            content = content + "\n > " + display
-        } if goToReferencesSelectedEntry != i {
-            content = content + "\n   " + display
-        }
+        prefix = "•"
+        if goToReferencesSelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + display
         i = i + 1
     }
+
+    if end < total { content = content + "\n   ⋯" }
+
     setBufferContent(goToReferencesId, content)
 }
 
