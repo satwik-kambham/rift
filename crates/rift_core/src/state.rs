@@ -57,7 +57,6 @@ pub struct EditorState {
     pub references_version: usize,
     pub definitions: Vec<ReferenceEntry>,
     pub definitions_version: usize,
-    pub modal: Modal,
     pub diagnostics_overlay: DiagnosticsOverlay,
     pub info_modal: InfoModal,
     pub completion_menu: CompletionMenu,
@@ -116,7 +115,6 @@ impl EditorState {
             highlighted_text: vec![],
             gutter_info: vec![],
             buffer_idx: None,
-            modal: Modal::default(),
             relative_cursor: Cursor { row: 0, column: 0 },
             update_view: true,
             clipboard_ctx: ClipboardContext::new().ok(),
@@ -254,105 +252,6 @@ impl EditorState {
             }
         }
         None
-    }
-}
-
-type ModalOnInput =
-    fn(&String, state: &mut EditorState, lsp_handles: &mut HashMap<Language, LSPClientHandle>);
-
-type ModalOnSelect = fn(
-    String,
-    &(String, String),
-    bool,
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-);
-
-pub struct Modal {
-    pub open: bool,
-    pub input: String,
-    pub options: Vec<(String, String)>,
-    pub selection: Option<usize>,
-    pub on_input: Option<ModalOnInput>,
-    pub on_select: Option<ModalOnSelect>,
-}
-
-impl Modal {
-    pub fn new() -> Self {
-        Self {
-            open: false,
-            input: String::new(),
-            options: vec![],
-            selection: None,
-            on_input: None,
-            on_select: None,
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.input = String::new();
-        self.options = vec![];
-        self.selection = None;
-        self.on_input = None;
-        self.on_select = None;
-    }
-
-    pub fn set_modal_on_input(&mut self, on_input: ModalOnInput) {
-        self.on_input = Some(on_input);
-    }
-
-    pub fn set_modal_on_select(&mut self, on_select: ModalOnSelect) {
-        self.on_select = Some(on_select);
-    }
-
-    pub fn set_input(&mut self, input: String) {
-        self.input = input;
-
-        if !self.options.is_empty() {
-            self.selection = Some(0);
-        } else {
-            self.selection = None;
-        }
-    }
-
-    pub fn open(&mut self) {
-        self.open = true;
-        self.clear();
-    }
-
-    pub fn close(&mut self) {
-        self.open = false;
-        self.clear();
-    }
-
-    pub fn select_next(&mut self) {
-        if !self.options.is_empty() {
-            if self.selection.is_none() {
-                self.selection = Some(0);
-            } else if self.selection.unwrap() < self.options.len() - 1 {
-                self.selection = Some(self.selection.unwrap() + 1);
-            } else {
-                self.selection = Some(0);
-            }
-        }
-    }
-
-    pub fn select_prev(&mut self) {
-        if !self.options.is_empty() {
-            if self.selection.is_none() {
-                self.selection = Some(self.options.len() - 1);
-            } else if self.selection.unwrap() > 0 {
-                self.selection = Some(self.selection.unwrap() - 1);
-            } else {
-                self.selection = Some(self.options.len() - 1);
-            }
-        }
-    }
-}
-
-impl Default for Modal {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

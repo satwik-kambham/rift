@@ -399,35 +399,5 @@ impl App {
         if self.state.diagnostics_overlay.should_render() {
             show_diagnostics_overlay(ctx, &self.state);
         }
-
-        if self.state.modal.open {
-            egui::Window::new("modal")
-                .movable(false)
-                .order(egui::Order::Foreground)
-                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .resizable(true)
-                .collapsible(false)
-                .title_bar(false)
-                .show(ctx, |ui| {
-                    ui.label(&self.state.modal.input);
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        for (idx, entry) in self.state.modal.options.iter().enumerate() {
-                            ui.label(
-                                RichText::new(&entry.0)
-                                    .color(
-                                        if self.state.modal.selection.is_some()
-                                            && idx == self.state.modal.selection.unwrap()
-                                        {
-                                            self.state.preferences.theme.modal_active
-                                        } else {
-                                            self.state.preferences.theme.modal_text
-                                        },
-                                    )
-                                    .size(self.state.preferences.ui_font_size as f32),
-                            );
-                        }
-                    });
-                });
-        }
     }
 }

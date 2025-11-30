@@ -30,7 +30,6 @@ pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
 pub struct App {
     pub state: EditorState,
     pub lsp_handles: HashMap<Language, LSPClientHandle>,
-    pub modal_list_state: widgets::ListState,
     pub info_modal_scroll: u16,
     first_frame: bool,
 }
@@ -45,7 +44,6 @@ impl App {
         Self {
             state,
             lsp_handles,
-            modal_list_state: widgets::ListState::default(),
             info_modal_scroll: 0,
             first_frame: true,
         }
@@ -338,55 +336,6 @@ impl App {
                     frame.render_widget(signature_information, popup_area);
                 }
 
-                // Render Modal
-                if self.state.modal.open {
-                    let popup_area = Rect {
-                        x: 4,
-                        y: 2,
-                        width: frame.area().width - 8,
-                        height: frame.area().height - 4,
-                    };
-                    let modal_block = widgets::Block::default()
-                        .borders(widgets::Borders::ALL)
-                        .border_style(
-                            Style::new()
-                                .fg(color_from_rgb(self.state.preferences.theme.ui_bg_stroke)),
-                        )
-                        .style(
-                            Style::new()
-                                .bg(color_from_rgb(self.state.preferences.theme.modal_bg))
-                                .fg(color_from_rgb(self.state.preferences.theme.modal_text)),
-                        );
-
-                    let modal_layout = Layout::vertical([
-                        Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Min(1),
-                    ])
-                    .split(modal_block.inner(popup_area));
-                    let modal_list = self
-                        .state
-                        .modal
-                        .options
-                        .iter()
-                        .map(|option| option.0.clone())
-                        .collect::<widgets::List>()
-                        .highlight_spacing(widgets::HighlightSpacing::Always)
-                        .highlight_symbol(" > ")
-                        .highlight_style(
-                            Style::new()
-                                .fg(color_from_rgb(self.state.preferences.theme.modal_primary)),
-                        );
-                    frame.render_widget(widgets::Clear, popup_area);
-                    frame.render_widget(modal_block, popup_area);
-                    frame.render_widget(&self.state.modal.input, modal_layout[0]);
-                    frame.render_stateful_widget(
-                        modal_list,
-                        modal_layout[2],
-                        &mut self.modal_list_state,
-                    );
-                }
-
                 // Render Completion Items
                 if self.state.completion_menu.active {
                     let offset_y = if visible_lines - self.state.completion_menu.max_items - 1
@@ -469,46 +418,6 @@ impl App {
                             self.info_modal_scroll = self.info_modal_scroll.saturating_sub(1);
                         } else if key.code == KeyCode::Down {
                             self.info_modal_scroll = self.info_modal_scroll.saturating_add(1);
-                        }
-                    } else if self.state.modal.open {
-                        if let KeyCode::Char(char) = key.code {
-                            let mut input = self.state.modal.input.clone();
-                            input.push(char);
-                            self.state.modal.set_input(input.clone());
-                            if let Some(on_input) = self.state.modal.on_input {
-                                on_input(&input, &mut self.state, &mut self.lsp_handles);
-                            }
-                            self.modal_list_state.select(self.state.modal.selection);
-                        } else if key.code == KeyCode::Tab {
-                            self.state.modal.select_next();
-                            self.modal_list_state.select(self.state.modal.selection);
-                        } else if key.code == KeyCode::Backspace {
-                            let mut input = self.state.modal.input.clone();
-                            input.pop();
-                            self.state.modal.set_input(input.clone());
-                            if let Some(on_input) = self.state.modal.on_input {
-                                on_input(&input, &mut self.state, &mut self.lsp_handles);
-                            }
-                            self.modal_list_state.select(None);
-                        } else if key.code == KeyCode::Enter {
-                            if let Some(on_select) = self.state.modal.on_select
-                                && let Some(selection) = self.state.modal.selection
-                            {
-                                let alt = key.modifiers.contains(KeyModifiers::ALT);
-                                let options =
-                                    self.state.modal.options.get(selection).unwrap().clone();
-                                on_select(
-                                    self.state.modal.input.clone(),
-                                    &options,
-                                    alt,
-                                    &mut self.state,
-                                    &mut self.lsp_handles,
-                                );
-                            }
-                            self.modal_list_state.select(None);
-                        } else if key.code == KeyCode::Esc {
-                            self.state.modal.close();
-                            self.modal_list_state.select(None);
                         }
                     } else {
                         if !(self.state.completion_menu.active
