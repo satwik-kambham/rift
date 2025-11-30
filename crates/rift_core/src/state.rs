@@ -58,7 +58,6 @@ pub struct EditorState {
     pub definitions: Vec<ReferenceEntry>,
     pub definitions_version: usize,
     pub diagnostics_overlay: DiagnosticsOverlay,
-    pub info_modal: InfoModal,
     pub completion_menu: CompletionMenu,
     pub signature_information: SignatureInformation,
     pub keybind_handler: KeybindHandler,
@@ -124,7 +123,6 @@ impl EditorState {
             definitions: vec![],
             definitions_version: 0,
             diagnostics_overlay: DiagnosticsOverlay::default(),
-            info_modal: InfoModal::default(),
             completion_menu: CompletionMenu::new(5),
             signature_information: SignatureInformation::default(),
             keybind_handler: KeybindHandler::default(),
@@ -294,35 +292,6 @@ impl SignatureInformation {
 }
 
 impl Default for SignatureInformation {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub struct InfoModal {
-    pub active: bool,
-    pub content: String,
-}
-
-impl InfoModal {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            content: String::new(),
-        }
-    }
-
-    pub fn open(&mut self, content: String) {
-        self.content = content;
-        self.active = true;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-    }
-}
-
-impl Default for InfoModal {
     fn default() -> Self {
         Self::new()
     }

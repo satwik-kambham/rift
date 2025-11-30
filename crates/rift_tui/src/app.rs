@@ -30,7 +30,6 @@ pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
 pub struct App {
     pub state: EditorState,
     pub lsp_handles: HashMap<Language, LSPClientHandle>,
-    pub info_modal_scroll: u16,
     first_frame: bool,
 }
 
@@ -44,7 +43,6 @@ impl App {
         Self {
             state,
             lsp_handles,
-            info_modal_scroll: 0,
             first_frame: true,
         }
     }
@@ -375,33 +373,6 @@ impl App {
                     list_state.select(self.state.completion_menu.selection);
                     frame.render_stateful_widget(completion_list, popup_area, &mut list_state);
                 }
-
-                // Render Info Modal
-                if self.state.info_modal.active {
-                    let popup_area = Rect {
-                        x: 4,
-                        y: 2,
-                        width: frame.area().width - 8,
-                        height: frame.area().height - 4,
-                    };
-                    let info_modal_block = widgets::Block::default()
-                        .borders(widgets::Borders::ALL)
-                        .border_style(
-                            Style::new()
-                                .fg(color_from_rgb(self.state.preferences.theme.ui_bg_stroke)),
-                        )
-                        .style(
-                            Style::new()
-                                .bg(color_from_rgb(self.state.preferences.theme.modal_bg))
-                                .fg(color_from_rgb(self.state.preferences.theme.modal_text)),
-                        );
-                    let content = widgets::Paragraph::new(&*self.state.info_modal.content)
-                        .block(info_modal_block)
-                        .wrap(widgets::Wrap { trim: false })
-                        .scroll((self.info_modal_scroll, 0));
-                    frame.render_widget(widgets::Clear, popup_area);
-                    frame.render_widget(content, popup_area);
-                }
             })?;
 
             // Handle keyboard events
@@ -410,95 +381,84 @@ impl App {
             {
                 self.state.update_view = true;
                 if key.kind == KeyEventKind::Press {
-                    if self.state.info_modal.active {
-                        if key.code == KeyCode::Esc {
-                            self.state.info_modal.close();
-                            self.info_modal_scroll = 0;
-                        } else if key.code == KeyCode::Up {
-                            self.info_modal_scroll = self.info_modal_scroll.saturating_sub(1);
-                        } else if key.code == KeyCode::Down {
-                            self.info_modal_scroll = self.info_modal_scroll.saturating_add(1);
-                        }
-                    } else {
-                        if !(self.state.completion_menu.active
-                            && (key.code == KeyCode::Tab || key.code == KeyCode::Enter))
-                        {
-                            let keybind = match key.code {
-                                KeyCode::Backspace => "Backspace",
-                                KeyCode::Enter => "Enter",
-                                KeyCode::Left => "Left",
-                                KeyCode::Right => "Right",
-                                KeyCode::Up => "Up",
-                                KeyCode::Down => "Down",
-                                KeyCode::Home => "Home",
-                                KeyCode::End => "End",
-                                KeyCode::PageUp => "PageUp",
-                                KeyCode::PageDown => "PageDown",
-                                KeyCode::Tab => "Tab",
-                                KeyCode::Delete => "Delete",
-                                KeyCode::Insert => "Insert",
-                                KeyCode::F(n) => match n {
-                                    1 => "F1",
-                                    2 => "F2",
-                                    3 => "F3",
-                                    4 => "F4",
-                                    5 => "F5",
-                                    6 => "F6",
-                                    7 => "F7",
-                                    8 => "F8",
-                                    9 => "F9",
-                                    10 => "F10",
-                                    11 => "F11",
-                                    12 => "F12",
-                                    _ => "",
-                                },
-                                KeyCode::Char(c) => {
-                                    if c == ' ' {
-                                        "Space"
-                                    } else if c.is_ascii() {
-                                        &c.to_string()
-                                    } else {
-                                        ""
-                                    }
-                                }
-                                KeyCode::Esc => "Escape",
+                    if !(self.state.completion_menu.active
+                        && (key.code == KeyCode::Tab || key.code == KeyCode::Enter))
+                    {
+                        let keybind = match key.code {
+                            KeyCode::Backspace => "Backspace",
+                            KeyCode::Enter => "Enter",
+                            KeyCode::Left => "Left",
+                            KeyCode::Right => "Right",
+                            KeyCode::Up => "Up",
+                            KeyCode::Down => "Down",
+                            KeyCode::Home => "Home",
+                            KeyCode::End => "End",
+                            KeyCode::PageUp => "PageUp",
+                            KeyCode::PageDown => "PageDown",
+                            KeyCode::Tab => "Tab",
+                            KeyCode::Delete => "Delete",
+                            KeyCode::Insert => "Insert",
+                            KeyCode::F(n) => match n {
+                                1 => "F1",
+                                2 => "F2",
+                                3 => "F3",
+                                4 => "F4",
+                                5 => "F5",
+                                6 => "F6",
+                                7 => "F7",
+                                8 => "F8",
+                                9 => "F9",
+                                10 => "F10",
+                                11 => "F11",
+                                12 => "F12",
                                 _ => "",
-                            };
-                            let mut modifiers_set = HashSet::new();
-                            if key.modifiers.contains(KeyModifiers::ALT) {
-                                modifiers_set.insert("m".to_string());
-                            } else if key.modifiers.contains(KeyModifiers::CONTROL) {
-                                modifiers_set.insert("c".to_string());
-                            } else if key.modifiers.contains(KeyModifiers::SHIFT) {
-                                modifiers_set.insert("s".to_string());
+                            },
+                            KeyCode::Char(c) => {
+                                if c == ' ' {
+                                    "Space"
+                                } else if c.is_ascii() {
+                                    &c.to_string()
+                                } else {
+                                    ""
+                                }
                             }
-
-                            if let Some(action) = self.state.keybind_handler.handle_input(
-                                self.state.buffer_idx,
-                                self.state.is_active_buffer_special(),
-                                self.state.mode.clone(),
-                                keybind.to_string(),
-                                modifiers_set,
-                            ) {
-                                perform_action(action, &mut self.state, &mut self.lsp_handles);
-                            }
+                            KeyCode::Esc => "Escape",
+                            _ => "",
+                        };
+                        let mut modifiers_set = HashSet::new();
+                        if key.modifiers.contains(KeyModifiers::ALT) {
+                            modifiers_set.insert("m".to_string());
+                        } else if key.modifiers.contains(KeyModifiers::CONTROL) {
+                            modifiers_set.insert("c".to_string());
+                        } else if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            modifiers_set.insert("s".to_string());
                         }
 
-                        if self.state.completion_menu.active {
-                            if key.code == KeyCode::Esc {
-                                self.state.completion_menu.close();
-                                self.state.signature_information.content = String::new();
-                            } else if key.code == KeyCode::Tab {
-                                self.state.completion_menu.select_next();
-                            } else if key.code == KeyCode::Enter {
-                                let completion_item = self.state.completion_menu.select();
-                                CompletionMenu::on_select(
-                                    completion_item,
-                                    &mut self.state,
-                                    &mut self.lsp_handles,
-                                );
-                                self.state.signature_information.content = String::new();
-                            }
+                        if let Some(action) = self.state.keybind_handler.handle_input(
+                            self.state.buffer_idx,
+                            self.state.is_active_buffer_special(),
+                            self.state.mode.clone(),
+                            keybind.to_string(),
+                            modifiers_set,
+                        ) {
+                            perform_action(action, &mut self.state, &mut self.lsp_handles);
+                        }
+                    }
+
+                    if self.state.completion_menu.active {
+                        if key.code == KeyCode::Esc {
+                            self.state.completion_menu.close();
+                            self.state.signature_information.content = String::new();
+                        } else if key.code == KeyCode::Tab {
+                            self.state.completion_menu.select_next();
+                        } else if key.code == KeyCode::Enter {
+                            let completion_item = self.state.completion_menu.select();
+                            CompletionMenu::on_select(
+                                completion_item,
+                                &mut self.state,
+                                &mut self.lsp_handles,
+                            );
+                            self.state.signature_information.content = String::new();
                         }
                     }
                 }

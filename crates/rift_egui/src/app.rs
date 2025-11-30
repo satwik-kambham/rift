@@ -25,7 +25,6 @@ use crate::{
         completion_menu::{CompletionMenuPosition, CompletionMenuWidget},
         diagnostics_overlay::show_diagnostics_overlay,
         file_explorer::FileExplorer,
-        info_modal::InfoModalWidget,
         menu_bar::show_menu_bar,
         signature_information::show_signature_information,
         status_line::show_status_line,
@@ -38,7 +37,6 @@ pub struct App {
     state: EditorState,
     font_definitions: FontDefinitions,
     lsp_handles: HashMap<Language, LSPClientHandle>,
-    info_modal: InfoModalWidget,
     completion_menu: CompletionMenuWidget,
     file_explorer: FileExplorer,
     ai_panel: AIPanel,
@@ -60,7 +58,6 @@ impl App {
             state,
             font_definitions,
             lsp_handles,
-            info_modal: InfoModalWidget::default(),
             file_explorer: FileExplorer::new(),
             ai_panel: AIPanel::default(),
             first_frame: true,
@@ -368,7 +365,7 @@ impl App {
                 }
 
                 // Handle keyboard events
-                if !(self.state.info_modal.active || ctx.wants_keyboard_input()) {
+                if !ctx.wants_keyboard_input() {
                     self.dispatcher
                         .show(ui, &mut self.state, &mut self.lsp_handles);
                 }
@@ -392,9 +389,6 @@ impl App {
                     show_signature_information(char_width, char_height, top_left, ctx, &self.state);
                 }
             });
-
-        // Render modals and other widgets
-        self.info_modal.show(ctx, &mut self.state);
 
         if self.state.diagnostics_overlay.should_render() {
             show_diagnostics_overlay(ctx, &self.state);
