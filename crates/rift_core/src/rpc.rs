@@ -1,4 +1,5 @@
 use futures::prelude::*;
+use serde_json::Value;
 use tarpc::server::Channel;
 
 use tokio::sync::mpsc;
@@ -6,7 +7,10 @@ use tokio::sync::oneshot;
 
 use rift_rpc::RiftRPC;
 
-use crate::{actions::Action, buffer::instance::Selection};
+use crate::{
+    actions::Action,
+    buffer::instance::{Cursor, Selection},
+};
 
 pub struct RPCRequest {
     pub action: Action,
@@ -142,10 +146,11 @@ impl RiftRPC for RPCHandle {
     }
 
     async fn select_range(self, _context: tarpc::context::Context, selection: String) {
-        if let Ok(selection) = serde_json::from_str::<Selection>(&selection) {
-            self.send_action_request(Action::Select(selection)).await;
-        } else {
-            tracing::warn!("Failed to parse selection for select_range RPC");
+        match parse_selection(&selection) {
+            Some(selection) => {
+                self.send_action_request(Action::Select(selection)).await;
+            }
+            None => tracing::warn!("Failed to parse selection for select_range RPC"),
         }
     }
 }
@@ -171,4 +176,41 @@ pub async fn start_rpc_server(
     );
 
     client_transport
+}
+
+fn parse_selection(selection: &str) -> Option<Selection> {
+    serde_json::from_str(selection).ok().or_else(|| {
+        serde_json::from_str::<Value>(selection)
+            .ok()
+            .and_then(selection_from_value)
+    })
+}
+
+fn selection_from_value(value: Value) -> Option<Selection> {
+    let cursor = value.get("cursor")?;
+    let mark = value.get("mark")?;
+    Some(Selection {
+        cursor: cursor_from_value(cursor)?,
+        mark: cursor_from_value(mark)?,
+    })
+}
+
+fn cursor_from_value(value: &Value) -> Option<Cursor> {
+    Some(Cursor {
+        row: number_to_usize(value.get("row")?)?,
+        column: number_to_usize(value.get("column")?)?,
+    })
+}
+
+fn number_to_usize(value: &Value) -> Option<usize> {
+    if let Some(number) = value.as_u64() {
+        return Some(number as usize);
+    }
+
+    let float = value.as_f64()?;
+    if float >= 0.0 && float.fract() == 0.0 {
+        Some(float as usize)
+    } else {
+        None
+    }
 }
