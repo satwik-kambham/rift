@@ -326,6 +326,14 @@ impl Expression for FunctionCallExpression {
                                 .unwrap();
                             Primitive::String(references)
                         }
+                        "getDefinitions" => {
+                            let definitions = rsl
+                                .rift_rpc_client
+                                .get_definitions(context::Context::current())
+                                .await
+                                .unwrap();
+                            Primitive::String(definitions)
+                        }
                         "getWorkspaceDiagnostics" => {
                             let diagnostics = rsl
                                 .rift_rpc_client

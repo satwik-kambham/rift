@@ -118,6 +118,7 @@ pub enum Action {
     LSPCompletion,
     LSPSignatureHelp,
     GoToDefinition,
+    GetDefinitions,
     GoToReferences,
     GetReferences,
     DeletePreviousCharacter,
@@ -711,24 +712,64 @@ pub fn perform_action(
             }
         }
         Action::GoToDefinition => {
+            perform_action(
+                Action::RunSource("createGoToDefinition()".to_string()),
+                state,
+                lsp_handles,
+            );
+        }
+        Action::GetDefinitions => {
             let lsp_handle = if state.buffer_idx.is_some() {
                 let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
                 &mut lsp_handles.get_mut(&buffer.language)
             } else {
                 &mut None
             };
-            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            if let Some(lsp_handle) = lsp_handle {
-                lsp_handle
-                    .send_request_sync(
-                        "textDocument/definition".to_string(),
-                        Some(LSPClientHandle::go_to_definition_request(
-                            buffer.file_path().cloned().unwrap(),
-                            instance.cursor,
-                        )),
-                    )
-                    .unwrap();
+            if let Some(buffer_idx) = state.buffer_idx {
+                let Some((file_path, cursor)) = ({
+                    let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
+                    buffer
+                        .file_path()
+                        .cloned()
+                        .map(|path| (path, instance.cursor))
+                }) else {
+                    state.definitions.clear();
+                    return Some("[]".to_string());
+                };
+
+                state.definitions.clear();
+                let current_version = state.definitions_version;
+
+                let request_sent = if let Some(lsp_handle) = lsp_handle {
+                    lsp_handle
+                        .send_request_sync(
+                            "textDocument/definition".to_string(),
+                            Some(LSPClientHandle::go_to_definition_request(
+                                file_path.clone(),
+                                cursor,
+                            )),
+                        )
+                        .is_ok()
+                } else {
+                    false
+                };
+
+                if request_sent {
+                    let start = Instant::now();
+                    while state.definitions_version == current_version
+                        && start.elapsed() < Duration::from_secs(1)
+                    {
+                        lsp::handle_lsp_messages(state, lsp_handles);
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                } else {
+                    tracing::warn!("Failed to send LSP definitions request for {}", file_path);
+                }
+            } else {
+                state.definitions.clear();
             }
+
+            return Some(serde_json::to_string(&state.definitions).unwrap());
         }
         Action::GoToReferences => {
             perform_action(

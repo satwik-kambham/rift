@@ -140,6 +140,10 @@ impl RiftRPC for RPCHandle {
         self.send_action_request(Action::ListBuffers).await
     }
 
+    async fn get_definitions(self, _context: tarpc::context::Context) -> String {
+        self.send_action_request(Action::GetDefinitions).await
+    }
+
     async fn get_references(self, _context: tarpc::context::Context) -> String {
         self.send_action_request(Action::GetReferences).await
     }

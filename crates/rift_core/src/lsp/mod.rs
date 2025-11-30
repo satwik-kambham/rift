@@ -163,21 +163,26 @@ pub fn handle_lsp_messages(
                     } else if lsp_handle.id_method[&response.id] == "textDocument/definition"
                         && response.result.is_some()
                     {
-                        if response.result.as_ref().unwrap().is_array() {
-                            let mut locations = vec![];
-                            for location in response.result.unwrap().as_array().unwrap() {
-                                let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
-                                let range = parse_range(&location["range"]);
-                                locations.push((uri, range));
-                            }
-                            perform_action(Action::LocationModal(locations), state, lsp_handles);
+                        let result = response.result.unwrap();
+                        let locations = if let Some(array) = result.as_array() {
+                            array.clone()
                         } else {
-                            let location = response.result.unwrap();
+                            vec![result]
+                        };
+
+                        let mut definitions = vec![];
+                        for location in locations {
                             let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
                             let range = parse_range(&location["range"]);
-                            perform_action(Action::CreateBufferFromFile(uri), state, lsp_handles);
-                            perform_action(Action::Select(range), state, lsp_handles);
+                            definitions.push(ReferenceEntry {
+                                preview: reference_preview(&uri, &range),
+                                file_path: uri,
+                                range,
+                            });
                         }
+
+                        state.definitions = definitions;
+                        state.definitions_version = state.definitions_version.saturating_add(1);
                     } else if lsp_handle.id_method[&response.id] == "textDocument/references"
                         && response.result.is_some()
                     {

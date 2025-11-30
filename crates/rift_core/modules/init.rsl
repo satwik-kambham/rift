@@ -950,6 +950,154 @@ fn createWorkspaceDiagnostics() {
 
 ############
 
+# Go To Definition
+
+goToDefinitionId = -1
+goToDefinitionInput = ""
+goToDefinitionAll = createArray()
+goToDefinitionResults = createArray()
+goToDefinitionSelectedEntry = 0
+goToDefinitionPreviousBufferId = -1
+
+fn goToDefinitionDisplay(entry) {
+    filePath = tableGet(entry, "file_path")
+    range = tableGet(entry, "range")
+    mark = tableGet(range, "mark")
+    row = tableGet(mark, "row") + 1
+    column = tableGet(mark, "column") + 1
+    preview = tableGet(entry, "preview")
+
+    location = filePath + ":" + toJson(row) + ":" + toJson(column)
+    if stringLen(preview) > 0 {
+        return location + " " + preview
+    }
+    return location
+}
+
+fn renderGoToDefinition() {
+    content = "\n------\n" + goToDefinitionInput + "\n------\n"
+    if arrayLen(goToDefinitionResults) == 0 {
+        content = content + "\n   No definitions"
+    }
+    i = 0
+    loop {
+        if i >= arrayLen(goToDefinitionResults) { break }
+        entry = arrayGet(goToDefinitionResults, i)
+        display = goToDefinitionDisplay(entry)
+        if goToDefinitionSelectedEntry == i {
+            content = content + "\n > " + display
+        } if goToDefinitionSelectedEntry != i {
+            content = content + "\n   " + display
+        }
+        i = i + 1
+    }
+    setBufferContent(goToDefinitionId, content)
+}
+
+fn goToDefinitionFilterResults() {
+    goToDefinitionResults = createArray()
+    query = stringToLower(goToDefinitionInput)
+
+    i = 0
+    loop {
+        if i >= arrayLen(goToDefinitionAll) { break }
+        entry = arrayGet(goToDefinitionAll, i)
+
+        filePath = stringToLower(tableGet(entry, "file_path"))
+        preview = stringToLower(tableGet(entry, "preview"))
+
+        if stringLen(query) == 0 or stringContains(filePath, query) or stringContains(preview, query) {
+            arrayPushBack(goToDefinitionResults, entry)
+        }
+        i = i + 1
+    }
+
+    goToDefinitionSelectedEntry = 0
+    renderGoToDefinition()
+}
+
+fn goToDefinitionInputUpdated() {
+    goToDefinitionInput = getBufferInput(goToDefinitionId)
+    goToDefinitionFilterResults()
+}
+
+fn goToDefinitionAddSpace() {
+    goToDefinitionInput = getBufferInput(goToDefinitionId)
+    goToDefinitionInput = goToDefinitionInput + " "
+    setBufferInput(goToDefinitionId, goToDefinitionInput)
+    renderGoToDefinition()
+}
+
+fn goToDefinitionClearInput() {
+    goToDefinitionInput = ""
+    setBufferInput(goToDefinitionId, goToDefinitionInput)
+}
+
+fn goToDefinitionMoveSelection(delta) {
+    if arrayLen(goToDefinitionResults) == 0 {
+        goToDefinitionSelectedEntry = 0
+        renderGoToDefinition()
+        return null
+    }
+    goToDefinitionSelectedEntry = goToDefinitionSelectedEntry + delta
+    if goToDefinitionSelectedEntry < 0 { goToDefinitionSelectedEntry = arrayLen(goToDefinitionResults) - 1 }
+    if goToDefinitionSelectedEntry >= arrayLen(goToDefinitionResults) { goToDefinitionSelectedEntry = 0 }
+    renderGoToDefinition()
+}
+
+fn goToDefinitionNext() {
+    goToDefinitionMoveSelection(1)
+}
+
+fn goToDefinitionPrevious() {
+    goToDefinitionMoveSelection(-1)
+}
+
+fn goToDefinitionSelect() {
+    if goToDefinitionSelectedEntry < arrayLen(goToDefinitionResults) {
+        entry = arrayGet(goToDefinitionResults, goToDefinitionSelectedEntry)
+        path = tableGet(entry, "file_path")
+        range = tableGet(entry, "range")
+
+        openFile(path)
+        runAction("quit-insert-mode")
+        selectRange(toJson(range))
+    }
+}
+
+fn goToDefinitionEscape() {
+    if goToDefinitionPreviousBufferId != -1 {
+        setActiveBuffer(goToDefinitionPreviousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn goToDefinitionReload() {
+    definitions = getDefinitions()
+    goToDefinitionAll = fromJson(definitions)
+    goToDefinitionFilterResults()
+}
+
+fn createGoToDefinition() {
+    goToDefinitionPreviousBufferId = getActiveBuffer()
+    if goToDefinitionId == -1 {
+        bufferId = createSpecialBuffer("Definitions")
+        goToDefinitionId = bufferId
+        registerBufferKeybind(bufferId, "ins space", goToDefinitionAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", goToDefinitionClearInput)
+        registerBufferKeybind(bufferId, "ins tab", goToDefinitionNext)
+        registerBufferKeybind(bufferId, "ins down", goToDefinitionNext)
+        registerBufferKeybind(bufferId, "ins up", goToDefinitionPrevious)
+        registerBufferKeybind(bufferId, "ins enter", goToDefinitionSelect)
+        registerBufferKeybind(bufferId, "ins escape", goToDefinitionEscape)
+        registerBufferInputHook(bufferId, goToDefinitionInputUpdated)
+    }
+    goToDefinitionClearInput()
+    goToDefinitionReload()
+    setActiveBuffer(goToDefinitionId)
+    runAction("enter-insert-mode")
+}
+
 # Go To References
 
 goToReferencesId = -1
