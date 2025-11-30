@@ -6,7 +6,7 @@ use tokio::sync::oneshot;
 
 use rift_rpc::RiftRPC;
 
-use crate::actions::Action;
+use crate::{actions::Action, buffer::instance::Selection};
 
 pub struct RPCRequest {
     pub action: Action,
@@ -134,6 +134,19 @@ impl RiftRPC for RPCHandle {
 
     async fn list_buffers(self, _context: tarpc::context::Context) -> String {
         self.send_action_request(Action::ListBuffers).await
+    }
+
+    async fn get_workspace_diagnostics(self, _context: tarpc::context::Context) -> String {
+        self.send_action_request(Action::GetWorkspaceDiagnostics)
+            .await
+    }
+
+    async fn select_range(self, _context: tarpc::context::Context, selection: String) {
+        if let Ok(selection) = serde_json::from_str::<Selection>(&selection) {
+            self.send_action_request(Action::Select(selection)).await;
+        } else {
+            tracing::warn!("Failed to parse selection for select_range RPC");
+        }
     }
 }
 

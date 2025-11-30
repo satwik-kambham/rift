@@ -783,3 +783,167 @@ fn createWorkspaceSearch() {
     workspaceSearchUpdateResults()
     runAction("enter-insert-mode")
 }
+
+############
+
+# Workspace Diagnostics
+
+workspaceDiagnosticsId = -1
+workspaceDiagnosticsInput = ""
+workspaceDiagnosticsAll = createArray()
+workspaceDiagnosticsResults = createArray()
+workspaceDiagnosticsSelectedEntry = 0
+workspaceDiagnosticsPreviousBufferId = -1
+
+fn workspaceDiagnosticsDisplay(entry) {
+    filePath = tableGet(entry, "file_path")
+    range = tableGet(entry, "range")
+    mark = tableGet(range, "mark")
+    row = tableGet(mark, "row") + 1
+    column = tableGet(mark, "column") + 1
+    severity = tableGet(entry, "severity")
+    source = tableGet(entry, "source")
+    code = tableGet(entry, "code")
+    message = tableGet(entry, "message")
+
+    if source == "null" { source = "" }
+    if code == "null" { code = "" }
+
+    location = filePath + ":" + toJson(row) + ":" + toJson(column)
+    details = source
+    if stringLen(code) > 0 {
+        details = details + " " + code
+    }
+
+    if stringLen(details) > 0 {
+        return "[" + severity + "] " + location + " (" + details + ") " + message
+    }
+
+    return "[" + severity + "] " + location + " " + message
+}
+
+fn renderWorkspaceDiagnostics() {
+    content = "\n------\n" + workspaceDiagnosticsInput + "\n------\n"
+    if arrayLen(workspaceDiagnosticsResults) == 0 {
+        content = content + "\n   No diagnostics"
+    }
+    i = 0
+    loop {
+        if i >= arrayLen(workspaceDiagnosticsResults) { break }
+        entry = arrayGet(workspaceDiagnosticsResults, i)
+        display = workspaceDiagnosticsDisplay(entry)
+        if workspaceDiagnosticsSelectedEntry == i {
+            content = content + "\n > " + display
+        } if workspaceDiagnosticsSelectedEntry != i {
+            content = content + "\n   " + display
+        }
+        i = i + 1
+    }
+    setBufferContent(workspaceDiagnosticsId, content)
+}
+
+fn workspaceDiagnosticsFilterResults() {
+    workspaceDiagnosticsResults = createArray()
+    query = stringToLower(workspaceDiagnosticsInput)
+
+    i = 0
+    loop {
+        if i >= arrayLen(workspaceDiagnosticsAll) { break }
+        entry = arrayGet(workspaceDiagnosticsAll, i)
+
+        message = stringToLower(tableGet(entry, "message"))
+        filePath = stringToLower(tableGet(entry, "file_path"))
+        severity = stringToLower(tableGet(entry, "severity"))
+        source = stringToLower(tableGet(entry, "source"))
+
+        if stringLen(query) == 0 or stringContains(message, query) or stringContains(filePath, query) or stringContains(severity, query) or stringContains(source, query) {
+            arrayPushBack(workspaceDiagnosticsResults, entry)
+        }
+        i = i + 1
+    }
+
+    workspaceDiagnosticsSelectedEntry = 0
+    renderWorkspaceDiagnostics()
+}
+
+fn workspaceDiagnosticsInputUpdated() {
+    workspaceDiagnosticsInput = getBufferInput(workspaceDiagnosticsId)
+    workspaceDiagnosticsFilterResults()
+}
+
+fn workspaceDiagnosticsAddSpace() {
+    workspaceDiagnosticsInput = getBufferInput(workspaceDiagnosticsId)
+    workspaceDiagnosticsInput = workspaceDiagnosticsInput + " "
+    setBufferInput(workspaceDiagnosticsId, workspaceDiagnosticsInput)
+    renderWorkspaceDiagnostics()
+}
+
+fn workspaceDiagnosticsClearInput() {
+    workspaceDiagnosticsInput = ""
+    setBufferInput(workspaceDiagnosticsId, workspaceDiagnosticsInput)
+}
+
+fn workspaceDiagnosticsMoveSelection(delta) {
+    if arrayLen(workspaceDiagnosticsResults) == 0 {
+        workspaceDiagnosticsSelectedEntry = 0
+        renderWorkspaceDiagnostics()
+        return null
+    }
+    workspaceDiagnosticsSelectedEntry = workspaceDiagnosticsSelectedEntry + delta
+    if workspaceDiagnosticsSelectedEntry < 0 { workspaceDiagnosticsSelectedEntry = arrayLen(workspaceDiagnosticsResults) - 1 }
+    if workspaceDiagnosticsSelectedEntry >= arrayLen(workspaceDiagnosticsResults) { workspaceDiagnosticsSelectedEntry = 0 }
+    renderWorkspaceDiagnostics()
+}
+
+fn workspaceDiagnosticsNext() {
+    workspaceDiagnosticsMoveSelection(1)
+}
+
+fn workspaceDiagnosticsPrevious() {
+    workspaceDiagnosticsMoveSelection(-1)
+}
+
+fn workspaceDiagnosticsSelect() {
+    if workspaceDiagnosticsSelectedEntry < arrayLen(workspaceDiagnosticsResults) {
+        entry = arrayGet(workspaceDiagnosticsResults, workspaceDiagnosticsSelectedEntry)
+        path = tableGet(entry, "file_path")
+        range = tableGet(entry, "range")
+
+        openFile(path)
+        runAction("quit-insert-mode")
+        selectRange(toJson(range))
+    }
+}
+
+fn workspaceDiagnosticsEscape() {
+    if workspaceDiagnosticsPreviousBufferId != -1 {
+        setActiveBuffer(workspaceDiagnosticsPreviousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn workspaceDiagnosticsReload() {
+    diagnostics = getWorkspaceDiagnostics()
+    workspaceDiagnosticsAll = fromJson(diagnostics)
+    workspaceDiagnosticsFilterResults()
+}
+
+fn createWorkspaceDiagnostics() {
+    workspaceDiagnosticsPreviousBufferId = getActiveBuffer()
+    if workspaceDiagnosticsId == -1 {
+        bufferId = createSpecialBuffer("Workspace Diagnostics")
+        workspaceDiagnosticsId = bufferId
+        registerBufferKeybind(bufferId, "ins space", workspaceDiagnosticsAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", workspaceDiagnosticsClearInput)
+        registerBufferKeybind(bufferId, "ins tab", workspaceDiagnosticsNext)
+        registerBufferKeybind(bufferId, "ins down", workspaceDiagnosticsNext)
+        registerBufferKeybind(bufferId, "ins up", workspaceDiagnosticsPrevious)
+        registerBufferKeybind(bufferId, "ins enter", workspaceDiagnosticsSelect)
+        registerBufferKeybind(bufferId, "ins escape", workspaceDiagnosticsEscape)
+        registerBufferInputHook(bufferId, workspaceDiagnosticsInputUpdated)
+    }
+    workspaceDiagnosticsClearInput()
+    workspaceDiagnosticsReload()
+    setActiveBuffer(workspaceDiagnosticsId)
+    runAction("enter-insert-mode")
+}

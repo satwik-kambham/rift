@@ -318,6 +318,22 @@ impl Expression for FunctionCallExpression {
                                 .unwrap();
                             Primitive::String(buffers)
                         }
+                        "getWorkspaceDiagnostics" => {
+                            let diagnostics = rsl
+                                .rift_rpc_client
+                                .get_workspace_diagnostics(context::Context::current())
+                                .await
+                                .unwrap();
+                            Primitive::String(diagnostics)
+                        }
+                        "selectRange" => {
+                            let selection = args!(parameters; selection: String);
+                            rsl.rift_rpc_client
+                                .select_range(context::Context::current(), selection)
+                                .await
+                                .unwrap();
+                            Primitive::Null
+                        }
                         "registerGlobalKeybind" => {
                             let (definition, function_id) =
                                 args!(parameters; definition: String, function_id: Function);

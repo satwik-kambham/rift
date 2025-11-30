@@ -12,6 +12,7 @@ use crate::{
     concurrent::cli::{ProgramArgs, run_command, run_piped_commands},
     io::file_io,
     lsp::client::LSPClientHandle,
+    lsp::types::DiagnosticSeverity,
     preferences::Preferences,
     state::{EditorState, Mode},
 };
@@ -23,6 +24,25 @@ struct BufferListEntry {
     special: bool,
     modified: bool,
     is_active: bool,
+}
+
+#[derive(serde::Serialize)]
+struct WorkspaceDiagnosticEntry {
+    file_path: String,
+    message: String,
+    severity: String,
+    source: String,
+    code: String,
+    range: Selection,
+}
+
+fn diagnostic_severity_label(severity: &DiagnosticSeverity) -> &'static str {
+    match severity {
+        DiagnosticSeverity::Hint => "Hint",
+        DiagnosticSeverity::Information => "Information",
+        DiagnosticSeverity::Warning => "Warning",
+        DiagnosticSeverity::Error => "Error",
+    }
 }
 
 #[derive(Debug, Clone, EnumIter, EnumMessage, EnumString, VariantNames)]
@@ -102,6 +122,7 @@ pub enum Action {
     PasteFromClipboard,
     FuzzyFindFile(bool),
     SearchWorkspace,
+    GetWorkspaceDiagnostics,
     WorkspaceDiagnostics,
     LocationModal(Vec<(String, Selection)>),
     RunAction(String),
@@ -995,76 +1016,28 @@ pub fn perform_action(
                 lsp_handles,
             );
         }
-        Action::WorkspaceDiagnostics => {
-            state.modal.open();
-            let mut workspace_diagnostics: Vec<(String, String)> = vec![];
+        Action::GetWorkspaceDiagnostics => {
+            let mut workspace_diagnostics: Vec<WorkspaceDiagnosticEntry> = vec![];
             for (file_path, diagnostics) in &state.diagnostics {
-                for (idx, diagnostic) in diagnostics.diagnostics.iter().enumerate() {
-                    workspace_diagnostics.push((
-                        diagnostic.message.clone(),
-                        serde_json::to_string(&serde_json::json!({
-                            "file_path": file_path,
-                            "idx": idx,
-                        }))
-                        .unwrap(),
-                    ));
+                for diagnostic in diagnostics.diagnostics.iter() {
+                    workspace_diagnostics.push(WorkspaceDiagnosticEntry {
+                        file_path: file_path.clone(),
+                        message: diagnostic.message.clone(),
+                        severity: diagnostic_severity_label(&diagnostic.severity).to_string(),
+                        source: diagnostic.source.clone(),
+                        code: diagnostic.code.clone(),
+                        range: diagnostic.range,
+                    });
                 }
             }
-            state.modal.options = workspace_diagnostics;
-            state
-                .modal
-                .set_modal_on_input(|input, state, _lsp_handles| {
-                    let mut workspace_diagnostics: Vec<(String, String)> = vec![];
-                    for (file_path, diagnostics) in &state.diagnostics {
-                        for (idx, diagnostic) in diagnostics.diagnostics.iter().enumerate() {
-                            if diagnostic.message.contains(input) {
-                                workspace_diagnostics.push((
-                                    diagnostic.message.clone(),
-                                    serde_json::to_string(&serde_json::json!({
-                                        "file_path": file_path,
-                                        "idx": idx,
-                                    }))
-                                    .unwrap(),
-                                ));
-                            }
-                        }
-                    }
-                    state.modal.options = workspace_diagnostics;
-                });
-            state.modal.set_modal_on_select(
-                |_input, selection, _alt_select, state, lsp_handles| {
-                    let selection: serde_json::Value = serde_json::from_str(&selection.1).unwrap();
-                    let file_path = selection["file_path"].as_str().unwrap().to_string();
 
-                    #[cfg(target_os = "windows")]
-                    let file_path = file_path.to_lowercase();
-
-                    let diagnostic_idx: usize =
-                        selection["idx"].as_u64().unwrap().try_into().unwrap();
-
-                    perform_action(
-                        Action::CreateBufferFromFile(file_path.clone()),
-                        state,
-                        lsp_handles,
-                    );
-                    let diagnostics = state.diagnostics.get(&file_path).unwrap();
-                    let diagnostic = &diagnostics.diagnostics[diagnostic_idx];
-                    perform_action(
-                        Action::Select(Selection {
-                            cursor: Cursor {
-                                row: diagnostic.range.cursor.row,
-                                column: diagnostic.range.cursor.column,
-                            },
-                            mark: Cursor {
-                                row: diagnostic.range.mark.row,
-                                column: diagnostic.range.mark.column,
-                            },
-                        }),
-                        state,
-                        lsp_handles,
-                    );
-                    state.modal.close();
-                },
+            return Some(serde_json::to_string(&workspace_diagnostics).unwrap());
+        }
+        Action::WorkspaceDiagnostics => {
+            perform_action(
+                Action::RunSource("createWorkspaceDiagnostics()".to_string()),
+                state,
+                lsp_handles,
             );
         }
         Action::LocationModal(locations) => {
