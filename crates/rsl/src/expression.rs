@@ -318,6 +318,14 @@ impl Expression for FunctionCallExpression {
                                 .unwrap();
                             Primitive::String(buffers)
                         }
+                        "getActions" => {
+                            let actions = rsl
+                                .rift_rpc_client
+                                .get_actions(context::Context::current())
+                                .await
+                                .unwrap();
+                            Primitive::String(actions)
+                        }
                         "getReferences" => {
                             let references = rsl
                                 .rift_rpc_client

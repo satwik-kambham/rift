@@ -950,6 +950,137 @@ fn createWorkspaceDiagnostics() {
 
 ############
 
+# Command Dispatcher
+
+commandDispatcherId = -1
+commandDispatcherInput = ""
+commandDispatcherAll = createArray()
+commandDispatcherResults = createArray()
+commandDispatcherSelectedEntry = 0
+commandDispatcherPreviousBufferId = -1
+
+fn renderCommandDispatcher() {
+    content = "\n------\n" + commandDispatcherInput + "\n------\n"
+    if arrayLen(commandDispatcherResults) == 0 {
+        content = content + "\n   No commands"
+    }
+    i = 0
+    loop {
+        if i >= arrayLen(commandDispatcherResults) { break }
+        action = arrayGet(commandDispatcherResults, i)
+        if commandDispatcherSelectedEntry == i {
+            content = content + "\n > " + action
+        } if commandDispatcherSelectedEntry != i {
+            content = content + "\n   " + action
+        }
+        i = i + 1
+    }
+    setBufferContent(commandDispatcherId, content)
+}
+
+fn commandDispatcherFilterResults() {
+    commandDispatcherResults = createArray()
+    query = stringToLower(commandDispatcherInput)
+
+    i = 0
+    loop {
+        if i >= arrayLen(commandDispatcherAll) { break }
+        action = arrayGet(commandDispatcherAll, i)
+        actionLower = stringToLower(action)
+
+        if stringLen(query) == 0 or stringContains(actionLower, query) {
+            arrayPushBack(commandDispatcherResults, action)
+        }
+        i = i + 1
+    }
+
+    commandDispatcherSelectedEntry = 0
+    renderCommandDispatcher()
+}
+
+fn commandDispatcherInputUpdated() {
+    commandDispatcherInput = getBufferInput(commandDispatcherId)
+    commandDispatcherFilterResults()
+}
+
+fn commandDispatcherAddSpace() {
+    commandDispatcherInput = getBufferInput(commandDispatcherId)
+    commandDispatcherInput = commandDispatcherInput + " "
+    setBufferInput(commandDispatcherId, commandDispatcherInput)
+    renderCommandDispatcher()
+}
+
+fn commandDispatcherClearInput() {
+    commandDispatcherInput = ""
+    setBufferInput(commandDispatcherId, commandDispatcherInput)
+}
+
+fn commandDispatcherMoveSelection(delta) {
+    if arrayLen(commandDispatcherResults) == 0 {
+        commandDispatcherSelectedEntry = 0
+        renderCommandDispatcher()
+        return null
+    }
+    commandDispatcherSelectedEntry = commandDispatcherSelectedEntry + delta
+    if commandDispatcherSelectedEntry < 0 { commandDispatcherSelectedEntry = arrayLen(commandDispatcherResults) - 1 }
+    if commandDispatcherSelectedEntry >= arrayLen(commandDispatcherResults) { commandDispatcherSelectedEntry = 0 }
+    renderCommandDispatcher()
+}
+
+fn commandDispatcherNext() {
+    commandDispatcherMoveSelection(1)
+}
+
+fn commandDispatcherPrevious() {
+    commandDispatcherMoveSelection(-1)
+}
+
+fn commandDispatcherSelect() {
+    if commandDispatcherSelectedEntry < arrayLen(commandDispatcherResults) {
+        action = arrayGet(commandDispatcherResults, commandDispatcherSelectedEntry)
+        if commandDispatcherPreviousBufferId != -1 {
+            setActiveBuffer(commandDispatcherPreviousBufferId)
+        }
+        runAction("quit-insert-mode")
+        runAction(action)
+    }
+}
+
+fn commandDispatcherEscape() {
+    if commandDispatcherPreviousBufferId != -1 {
+        setActiveBuffer(commandDispatcherPreviousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn commandDispatcherReload() {
+    actions = getActions()
+    commandDispatcherAll = fromJson(actions)
+    commandDispatcherFilterResults()
+}
+
+fn createCommandDispatcher() {
+    commandDispatcherPreviousBufferId = getActiveBuffer()
+    if commandDispatcherId == -1 {
+        bufferId = createSpecialBuffer("Command Dispatcher")
+        commandDispatcherId = bufferId
+        registerBufferKeybind(bufferId, "ins space", commandDispatcherAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", commandDispatcherClearInput)
+        registerBufferKeybind(bufferId, "ins tab", commandDispatcherNext)
+        registerBufferKeybind(bufferId, "ins down", commandDispatcherNext)
+        registerBufferKeybind(bufferId, "ins up", commandDispatcherPrevious)
+        registerBufferKeybind(bufferId, "ins enter", commandDispatcherSelect)
+        registerBufferKeybind(bufferId, "ins escape", commandDispatcherEscape)
+        registerBufferInputHook(bufferId, commandDispatcherInputUpdated)
+    }
+    commandDispatcherClearInput()
+    commandDispatcherReload()
+    setActiveBuffer(commandDispatcherId)
+    runAction("enter-insert-mode")
+}
+
+############
+
 # Go To Definition
 
 goToDefinitionId = -1

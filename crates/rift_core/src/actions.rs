@@ -98,6 +98,7 @@ pub enum Action {
     CreateSpecialBuffer(String),
     OpenFile(String),
     ListBuffers,
+    GetActions,
     FormatCurrentBuffer,
     MoveCursorDown,
     MoveCursorUp,
@@ -535,6 +536,14 @@ pub fn perform_action(
             entries.sort_by_key(|entry| entry.id);
 
             return Some(serde_json::to_string(&entries).unwrap());
+        }
+        Action::GetActions => {
+            let actions: Vec<String> = Action::VARIANTS
+                .iter()
+                .map(|action| action.to_string())
+                .collect();
+
+            return Some(serde_json::to_string(&actions).unwrap());
         }
         Action::FormatCurrentBuffer => {
             let lsp_handle = if state.buffer_idx.is_some() {
@@ -1055,32 +1064,11 @@ pub fn perform_action(
             }
         }
         Action::OpenCommandDispatcher => {
-            if matches!(state.mode, Mode::Normal) {
-                state.modal.open();
-                let mut actions: Vec<(String, String)> = vec![];
-                for action in Action::VARIANTS {
-                    actions.push((action.to_string(), action.to_string()));
-                }
-                state.modal.options = actions;
-                state
-                    .modal
-                    .set_modal_on_input(|input, state, _lsp_handles| {
-                        let mut actions: Vec<(String, String)> = vec![];
-                        for action in Action::VARIANTS {
-                            if action.contains(input) {
-                                actions.push((action.to_string(), action.to_string()));
-                            }
-                        }
-                        state.modal.options = actions;
-                    });
-                state.modal.set_modal_on_select(
-                    |_input, selection, _alt_select, state, lsp_handles| {
-                        state.modal.close();
-                        let action = Action::from_str(&selection.1).unwrap();
-                        perform_action(action, state, lsp_handles);
-                    },
-                );
-            }
+            perform_action(
+                Action::RunSource("createCommandDispatcher()".to_string()),
+                state,
+                lsp_handles,
+            );
         }
         Action::FIMCompletion => {
             ai::ollama_fim(state);
