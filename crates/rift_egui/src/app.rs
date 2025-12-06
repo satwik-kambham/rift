@@ -154,47 +154,50 @@ impl App {
 
         let mut viewport_rows = 0;
         let mut viewport_columns = 0;
+        let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
 
         show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
         let (char_width, char_height) = show_status_line(ctx, &mut self.state);
 
-        egui::SidePanel::left("gutter")
-            .resizable(true)
-            .show_separator_line(false)
-            .min_width(60.0)
-            .frame(egui::Frame {
-                fill: self.state.preferences.theme.gutter_bg.into(),
-                inner_margin: egui::Margin::same(self.state.preferences.gutter_padding),
-                ..Default::default()
-            })
-            .show(ctx, |ui| {
-                ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+        if show_gutter {
+            egui::SidePanel::left("gutter")
+                .resizable(true)
+                .show_separator_line(false)
+                .min_width(60.0)
+                .frame(egui::Frame {
+                    fill: self.state.preferences.theme.gutter_bg.into(),
+                    inner_margin: egui::Margin::same(self.state.preferences.gutter_padding),
+                    ..Default::default()
+                })
+                .show(ctx, |ui| {
+                    ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
 
-                for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
-                    let gutter_value = if gutter_line.wrapped {
-                        ".".to_string()
-                    } else {
-                        format!("{}", gutter_line.start.row + 1)
-                    };
-                    if idx == self.state.relative_cursor.row {
-                        ui.label(
-                            RichText::new(gutter_value)
-                                .font(FontId::monospace(
-                                    self.state.preferences.editor_font_size as f32,
-                                ))
-                                .color(self.state.preferences.theme.gutter_text_current_line),
-                        );
-                    } else {
-                        ui.label(
-                            RichText::new(gutter_value)
-                                .font(FontId::monospace(
-                                    self.state.preferences.editor_font_size as f32,
-                                ))
-                                .color(self.state.preferences.theme.gutter_text),
-                        );
+                    for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
+                        let gutter_value = if gutter_line.wrapped {
+                            ".".to_string()
+                        } else {
+                            format!("{}", gutter_line.start.row + 1)
+                        };
+                        if idx == self.state.relative_cursor.row {
+                            ui.label(
+                                RichText::new(gutter_value)
+                                    .font(FontId::monospace(
+                                        self.state.preferences.editor_font_size as f32,
+                                    ))
+                                    .color(self.state.preferences.theme.gutter_text_current_line),
+                            );
+                        } else {
+                            ui.label(
+                                RichText::new(gutter_value)
+                                    .font(FontId::monospace(
+                                        self.state.preferences.editor_font_size as f32,
+                                    ))
+                                    .color(self.state.preferences.theme.gutter_text),
+                            );
+                        }
                     }
-                }
-            });
+                });
+        }
 
         // Render editor
         egui::CentralPanel::default()

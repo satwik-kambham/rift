@@ -58,6 +58,7 @@ impl App {
         }
         while !self.state.quit {
             terminal.draw(|frame| {
+                let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
                 // Layout
                 let v_layout = Layout::default()
                     .direction(Direction::Vertical)
@@ -65,7 +66,11 @@ impl App {
                     .split(frame.area());
                 let h_layout = Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([Constraint::Length(7), Constraint::Fill(1)])
+                    .constraints(if show_gutter {
+                        vec![Constraint::Length(7), Constraint::Fill(1)]
+                    } else {
+                        vec![Constraint::Length(0), Constraint::Fill(1)]
+                    })
                     .split(v_layout[0]);
 
                 let viewport_rows = h_layout[1].height as usize;
@@ -228,37 +233,39 @@ impl App {
 
                     frame.render_widget(text::Text::from(lines), h_layout[1]);
 
-                    // Render gutter
-                    let mut gutter_lines = vec![];
-                    for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
-                        let gutter_value = if gutter_line.wrapped {
-                            ".  ".to_string()
-                        } else {
-                            format!("{}  ", gutter_line.start.row + 1)
-                        };
-                        if idx == self.state.relative_cursor.row {
-                            gutter_lines.push(
-                                text::Line::styled(
-                                    gutter_value,
-                                    Style::new().fg(color_from_rgb(
-                                        self.state.preferences.theme.gutter_text_current_line,
-                                    )),
-                                )
-                                .alignment(ratatui::layout::Alignment::Right),
-                            );
-                        } else {
-                            gutter_lines.push(
-                                text::Line::styled(
-                                    gutter_value,
-                                    Style::new().fg(color_from_rgb(
-                                        self.state.preferences.theme.gutter_text,
-                                    )),
-                                )
-                                .alignment(ratatui::layout::Alignment::Right),
-                            );
+                    if show_gutter {
+                        // Render gutter
+                        let mut gutter_lines = vec![];
+                        for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
+                            let gutter_value = if gutter_line.wrapped {
+                                ".  ".to_string()
+                            } else {
+                                format!("{}  ", gutter_line.start.row + 1)
+                            };
+                            if idx == self.state.relative_cursor.row {
+                                gutter_lines.push(
+                                    text::Line::styled(
+                                        gutter_value,
+                                        Style::new().fg(color_from_rgb(
+                                            self.state.preferences.theme.gutter_text_current_line,
+                                        )),
+                                    )
+                                    .alignment(ratatui::layout::Alignment::Right),
+                                );
+                            } else {
+                                gutter_lines.push(
+                                    text::Line::styled(
+                                        gutter_value,
+                                        Style::new().fg(color_from_rgb(
+                                            self.state.preferences.theme.gutter_text,
+                                        )),
+                                    )
+                                    .alignment(ratatui::layout::Alignment::Right),
+                                );
+                            }
                         }
+                        frame.render_widget(text::Text::from(gutter_lines), h_layout[0]);
                     }
-                    frame.render_widget(text::Text::from(gutter_lines), h_layout[0]);
 
                     // Render status line
                     let status_mode_style = Style::default()
