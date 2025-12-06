@@ -41,8 +41,12 @@ fn viewportVisibleRows(reservedLines) {
 }
 
 fn viewportVisibleColumns() {
-    if viewportColumns <= 0 { return 20 }
-    return viewportColumns
+    # Rendering reserves 3 columns (see RopeBuffer::get_visible_lines); clamp to visible width.
+    columns = viewportColumns
+    if columns <= 0 { columns = 20 }
+    columns = columns - 3
+    if columns < 1 { columns = 1 }
+    return columns
 }
 
 fn clampLineToViewport(line, columns) {
