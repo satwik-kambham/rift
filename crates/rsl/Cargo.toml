@@ -20,3 +20,4 @@ serde_json = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 unescaper = "0.1.6"
 unicode-width = "0.2.0"
+which = "7.0.2"

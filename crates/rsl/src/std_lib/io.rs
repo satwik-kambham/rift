@@ -3,6 +3,8 @@ use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
 
+use which::which;
+
 use crate::primitive::Primitive;
 use crate::std_lib::args;
 use crate::table::Table;
@@ -151,4 +153,9 @@ pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {
         }
         Err(e) => Primitive::Error(format!("Error executing command: {}", e)),
     }
+}
+
+pub fn command_exists(arguments: Vec<Primitive>) -> Primitive {
+    let command = args!(arguments; command: String);
+    Primitive::Boolean(which(command).is_ok())
 }

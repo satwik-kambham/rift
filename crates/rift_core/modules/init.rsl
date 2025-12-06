@@ -403,6 +403,14 @@ registerGlobalKeybind("nor space c", createLLMChat)
 
 # Fuzzy Find File
 
+fn fuzzyFileFinderDependenciesAvailable() {
+    return commandExists("fd") and commandExists("fzf")
+}
+
+fn fuzzyFileFinderDependenciesError() {
+    infoModalOpen("Fuzzy File Finder requires `fd` and `fzf` to be installed and available in PATH.")
+}
+
 fuzzyFileFinderId = -1
 fuzzyFileFinderInput = ""
 fuzzyFileFinderResults = createArray()
@@ -502,6 +510,10 @@ fn fuzzyFileFinderEscape() {
 }
 
 fn createFuzzyFileFinder() {
+    if !fuzzyFileFinderDependenciesAvailable() {
+        fuzzyFileFinderDependenciesError()
+        return null
+    }
     fuzzyFileFinderPreviousBufferId = getActiveBuffer()
     if fuzzyFileFinderId == -1 {
         bufferId = createSpecialBuffer("Fuzzy File Finder")
@@ -725,6 +737,14 @@ registerGlobalKeybind("nor space b", createSwitchBuffer)
 
 # Workspace Search
 
+fn workspaceSearchDependenciesAvailable() {
+    return commandExists("rg")
+}
+
+fn workspaceSearchDependenciesError() {
+    infoModalOpen("Workspace Search requires `rg` (ripgrep) to be installed and available in PATH.")
+}
+
 workspaceSearchId = -1
 workspaceSearchInput = ""
 workspaceSearchResults = createArray()
@@ -900,6 +920,10 @@ fn workspaceSearchEscape() {
 }
 
 fn createWorkspaceSearch() {
+    if !workspaceSearchDependenciesAvailable() {
+        workspaceSearchDependenciesError()
+        return null
+    }
     workspaceSearchPreviousBufferId = getActiveBuffer()
     if workspaceSearchId == -1 {
         bufferId = createSpecialBuffer("Workspace Search")
