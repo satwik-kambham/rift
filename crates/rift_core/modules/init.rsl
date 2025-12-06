@@ -19,13 +19,13 @@ space b - Switch Buffer
 fn renderDashboard() {
     if dashboardId == -1 { return null }
     content = dashboardText + "\nViewport: " + toString(viewportRows) + " x " + toString(viewportColumns)
-    setBufferContent(dashboardId, content)
+    setViewportBufferContent(dashboardId, content)
 }
 
 fn setViewportSize(rows, columns) {
     viewportRows = rows
     viewportColumns = columns
-    renderDashboard()
+    rerenderAllUi()
 }
 
 fn refreshViewportSize() {
@@ -38,6 +38,47 @@ fn viewportVisibleRows(reservedLines) {
     available = viewportRows - reservedLines
     if available < 5 { available = 5 }
     return available
+}
+
+fn viewportVisibleColumns() {
+    if viewportColumns <= 0 { return 20 }
+    return viewportColumns
+}
+
+fn clampLineToViewport(line, columns) {
+    if columns <= 0 { return "" }
+    if stringWidth(line) <= columns { return line }
+
+    ellipsis = "…"
+    ellipsisWidth = stringWidth(ellipsis)
+
+    if ellipsisWidth >= columns { return stringTruncateWidth(ellipsis, columns) }
+
+    available = columns - ellipsisWidth
+    if available < 0 { available = 0 }
+    return stringTruncateWidth(line, available) + ellipsis
+}
+
+fn clampContentToViewport(content) {
+    columns = viewportVisibleColumns()
+    lines = stringSplitLines(content)
+    clamped = ""
+
+    i = 0
+    loop {
+        if i >= arrayLen(lines) { break }
+        line = arrayGet(lines, i)
+        clampedLine = clampLineToViewport(line, columns)
+        if i > 0 { clamped = clamped + "\n" }
+        clamped = clamped + clampedLine
+        i = i + 1
+    }
+
+    return clamped
+}
+
+fn setViewportBufferContent(bufferId, content) {
+    setBufferContent(bufferId, clampContentToViewport(content))
 }
 
 fn viewportWindow(selectedIndex, totalItems, reservedLines) {
@@ -77,9 +118,6 @@ fn createDashboardBuffer() {
     }
     renderDashboard()
 }
-
-createDashboardBuffer()
-refreshViewportSize()
 
 #################
 
@@ -222,7 +260,7 @@ fn renderLLMChat() {
         }
     }
     content = content + "\n------\n" + chatInput + "\n------\n"
-    setBufferContent(llmChatId, content)
+    setViewportBufferContent(llmChatId, content)
 }
 
 fn requestChatCompletion() {
@@ -372,7 +410,7 @@ fn renderFuzzyFileFinder() {
     total = arrayLen(fuzzyFileFinderResults)
     if total == 0 {
         content = content + "\n   No files found"
-        setBufferContent(fuzzyFileFinderId, content)
+        setViewportBufferContent(fuzzyFileFinderId, content)
         return null
     }
 
@@ -394,7 +432,7 @@ fn renderFuzzyFileFinder() {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setBufferContent(fuzzyFileFinderId, content)
+    setViewportBufferContent(fuzzyFileFinderId, content)
 }
 
 fn fuzzyFileFinderWorkspaceEntries() {
@@ -513,7 +551,7 @@ fn renderSwitchBuffer() {
     total = arrayLen(switchBufferResults)
     if total == 0 {
         content = content + "\n   No buffers"
-        setBufferContent(switchBufferId, content)
+        setViewportBufferContent(switchBufferId, content)
         return null
     }
 
@@ -536,7 +574,7 @@ fn renderSwitchBuffer() {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setBufferContent(switchBufferId, content)
+    setViewportBufferContent(switchBufferId, content)
 }
 
 fn switchBufferLoadBuffers() {
@@ -694,7 +732,7 @@ fn renderWorkspaceSearch() {
     total = arrayLen(workspaceSearchResults)
     if total == 0 {
         content = content + "\n   No matches"
-        setBufferContent(workspaceSearchId, content)
+        setViewportBufferContent(workspaceSearchId, content)
         return null
     }
 
@@ -717,7 +755,7 @@ fn renderWorkspaceSearch() {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setBufferContent(workspaceSearchId, content)
+    setViewportBufferContent(workspaceSearchId, content)
 }
 
 fn workspaceSearchClearInput() {
@@ -920,7 +958,7 @@ fn renderWorkspaceDiagnostics() {
     total = arrayLen(workspaceDiagnosticsResults)
     if total == 0 {
         content = content + "\n   No diagnostics"
-        setBufferContent(workspaceDiagnosticsId, content)
+        setViewportBufferContent(workspaceDiagnosticsId, content)
         return null
     }
 
@@ -943,7 +981,7 @@ fn renderWorkspaceDiagnostics() {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setBufferContent(workspaceDiagnosticsId, content)
+    setViewportBufferContent(workspaceDiagnosticsId, content)
 }
 
 fn workspaceDiagnosticsFilterResults() {
@@ -1068,7 +1106,7 @@ fn renderCommandDispatcher() {
     total = arrayLen(commandDispatcherResults)
     if total == 0 {
         content = content + "\n   No commands"
-        setBufferContent(commandDispatcherId, content)
+        setViewportBufferContent(commandDispatcherId, content)
         return null
     }
 
@@ -1090,7 +1128,7 @@ fn renderCommandDispatcher() {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setBufferContent(commandDispatcherId, content)
+    setViewportBufferContent(commandDispatcherId, content)
 }
 
 fn commandDispatcherFilterResults() {
@@ -1225,7 +1263,7 @@ fn renderGoToDefinition() {
     total = arrayLen(goToDefinitionResults)
     if total == 0 {
         content = content + "\n   No definitions"
-        setBufferContent(goToDefinitionId, content)
+        setViewportBufferContent(goToDefinitionId, content)
         return null
     }
 
@@ -1248,7 +1286,7 @@ fn renderGoToDefinition() {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setBufferContent(goToDefinitionId, content)
+    setViewportBufferContent(goToDefinitionId, content)
 }
 
 fn goToDefinitionFilterResults() {
@@ -1384,7 +1422,7 @@ fn renderGoToReferences() {
     total = arrayLen(goToReferencesResults)
     if total == 0 {
         content = content + "\n   No references"
-        setBufferContent(goToReferencesId, content)
+        setViewportBufferContent(goToReferencesId, content)
         return null
     }
 
@@ -1407,7 +1445,7 @@ fn renderGoToReferences() {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setBufferContent(goToReferencesId, content)
+    setViewportBufferContent(goToReferencesId, content)
 }
 
 fn goToReferencesFilterResults() {
@@ -1539,7 +1577,7 @@ fn infoModalRender() {
     totalLines = arrayLen(infoModalLines)
     if totalLines == 0 {
         content = content + "\n   No information available"
-        setBufferContent(infoModalId, content)
+        setViewportBufferContent(infoModalId, content)
         return null
     }
 
@@ -1559,7 +1597,7 @@ fn infoModalRender() {
         content = content + "\n\n... (" + toJson(remaining) + " more lines)"
     }
 
-    setBufferContent(infoModalId, content)
+    setViewportBufferContent(infoModalId, content)
 }
 
 fn infoModalEnsureBuffer() {
@@ -1620,3 +1658,20 @@ fn infoModalPageDown() {
     infoModalScroll = infoModalScroll + infoModalPageSize
     infoModalRender()
 }
+
+fn rerenderAllUi() {
+    renderDashboard()
+
+    if llmChatId != -1 { renderLLMChat() }
+    if fuzzyFileFinderId != -1 { renderFuzzyFileFinder() }
+    if switchBufferId != -1 { renderSwitchBuffer() }
+    if workspaceSearchId != -1 { renderWorkspaceSearch() }
+    if workspaceDiagnosticsId != -1 { renderWorkspaceDiagnostics() }
+    if commandDispatcherId != -1 { renderCommandDispatcher() }
+    if goToDefinitionId != -1 { renderGoToDefinition() }
+    if goToReferencesId != -1 { renderGoToReferences() }
+    if infoModalActive { infoModalRender() }
+}
+
+createDashboardBuffer()
+refreshViewportSize()

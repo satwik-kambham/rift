@@ -57,6 +57,11 @@ impl RSL {
         environment.register_native_function("stringLen", std_lib::string::string_len);
         environment.register_native_function("stringContains", std_lib::string::string_contains);
         environment.register_native_function("stringToLower", std_lib::string::string_to_lower);
+        environment.register_native_function("stringWidth", std_lib::string::string_width);
+        environment.register_native_function(
+            "stringTruncateWidth",
+            std_lib::string::string_truncate_width,
+        );
         environment.register_native_function("getRequest", std_lib::web_requests::get_request);
         environment.register_native_function("postRequest", std_lib::web_requests::post_request);
         environment.register_native_function(
