@@ -557,7 +557,7 @@ fn fileExplorerEntryDisplay(entry) {
 }
 
 fn renderFileExplorer() {
-    content = "📂 File Explorer\n" + fileExplorerCurrentDir + "\n╭─ Filter ───────────────\n" + fileExplorerInput + "\n╰─ Entries ──────────────"
+    content = "📂 File Explorer\n" + fileExplorerCurrentDir + "\n(ctrl-f: new file, ctrl-d: new folder)\n╭─ Filter ───────────────\n" + fileExplorerInput + "\n╰─ Entries ──────────────"
 
     if fileExplorerError != "" {
         content = content + "\n   Error: " + fileExplorerError
@@ -712,6 +712,55 @@ fn fileExplorerEscape() {
     }
 }
 
+fn fileExplorerCreateFileSubmit(pathInput) {
+    if stringLen(pathInput) == 0 {
+        infoModalOpen("File name cannot be empty.")
+        return null
+    }
+
+    targetPath = joinPath(fileExplorerCurrentDir, pathInput)
+    result = createBlankFile(targetPath)
+
+    if result != null {
+        infoModalOpen(toString(result))
+        fileExplorerRefreshEntries()
+        return null
+    }
+
+    fileExplorerRefreshEntries()
+    openFile(targetPath)
+    runAction("quit-insert-mode")
+}
+
+fn fileExplorerCreateFilePrompt() {
+    prompt = "Create File\n" + fileExplorerCurrentDir + "\nEnter file name or path:"
+    dialogModalOpen(prompt, fileExplorerCreateFileSubmit)
+}
+
+fn fileExplorerCreateFolderSubmit(pathInput) {
+    if stringLen(pathInput) == 0 {
+        infoModalOpen("Folder name cannot be empty.")
+        return null
+    }
+
+    targetPath = joinPath(fileExplorerCurrentDir, pathInput)
+    result = createDirectory(targetPath)
+
+    if result != null {
+        infoModalOpen(toString(result))
+        fileExplorerRefreshEntries()
+        return null
+    }
+
+    fileExplorerSetDirectory(targetPath)
+    runAction("quit-insert-mode")
+}
+
+fn fileExplorerCreateFolderPrompt() {
+    prompt = "Create Folder\n" + fileExplorerCurrentDir + "\nEnter folder name or path:"
+    dialogModalOpen(prompt, fileExplorerCreateFolderSubmit)
+}
+
 fn createFileExplorer() {
     fileExplorerPreviousBufferId = getActiveBuffer()
 
@@ -725,6 +774,8 @@ fn createFileExplorer() {
         registerBufferKeybind(bufferId, "ins up", fileExplorerPrevious)
         registerBufferKeybind(bufferId, "ins enter", fileExplorerSelect)
         registerBufferKeybind(bufferId, "ins escape", fileExplorerEscape)
+        registerBufferKeybind(bufferId, "ins c-f", fileExplorerCreateFilePrompt)
+        registerBufferKeybind(bufferId, "ins c-d", fileExplorerCreateFolderPrompt)
         registerBufferInputHook(bufferId, fileExplorerInputUpdated)
     }
 
@@ -1783,6 +1834,90 @@ fn createGoToReferences() {
 
 ############
 
+# Dialog Modal
+
+dialogModalId = -1
+dialogModalPreviousBufferId = -1
+dialogModalActive = false
+dialogModalInput = ""
+dialogModalPrompt = ""
+dialogModalCallback = null
+
+fn dialogModalRender() {
+    content = "💬 Dialog\n" + dialogModalPrompt + "\n╭─ Input ───────────────\n" + dialogModalInput + "\n\nenter: submit | esc: cancel"
+    setViewportBufferContent(dialogModalId, content)
+}
+
+fn dialogModalEnsureBuffer() {
+    if dialogModalId == -1 {
+        bufferId = createSpecialBuffer("Dialog")
+        dialogModalId = bufferId
+        registerBufferKeybind(bufferId, "ins enter", dialogModalSubmit)
+        registerBufferKeybind(bufferId, "ins escape", dialogModalClose)
+        registerBufferKeybind(bufferId, "ins backspace", dialogModalBackspace)
+        registerBufferKeybind(bufferId, "ins space", dialogModalInsertSpace)
+        registerBufferInputHook(bufferId, dialogModalInputUpdated)
+    }
+}
+
+fn dialogModalOpen(prompt, callback) {
+    dialogModalEnsureBuffer()
+    dialogModalPreviousBufferId = getActiveBuffer()
+    dialogModalActive = true
+    dialogModalPrompt = prompt
+    dialogModalCallback = callback
+    dialogModalInput = ""
+
+    setActiveBuffer(dialogModalId)
+    setBufferInput(dialogModalId, dialogModalInput)
+    dialogModalRender()
+    runAction("enter-insert-mode")
+}
+
+fn dialogModalClose() {
+    dialogModalActive = false
+    dialogModalInput = ""
+    dialogModalPrompt = ""
+    dialogModalCallback = null
+    if dialogModalPreviousBufferId != -1 {
+        setActiveBuffer(dialogModalPreviousBufferId)
+    }
+    runAction("quit-insert-mode")
+}
+
+fn dialogModalSubmit() {
+    if !dialogModalActive { return null }
+    value = getBufferInput(dialogModalId)
+    callback = dialogModalCallback
+    dialogModalClose()
+    if callback != null {
+        callback(value)
+    }
+}
+
+fn dialogModalInputUpdated() {
+    dialogModalInput = getBufferInput(dialogModalId)
+    dialogModalRender()
+}
+
+fn dialogModalInsertSpace() {
+    dialogModalInput = getBufferInput(dialogModalId)
+    dialogModalInput = dialogModalInput + " "
+    setBufferInput(dialogModalId, dialogModalInput)
+    dialogModalRender()
+}
+
+fn dialogModalBackspace() {
+    dialogModalInput = getBufferInput(dialogModalId)
+    length = stringLen(dialogModalInput)
+    if length <= 0 { return null }
+    dialogModalInput = stringTruncateWidth(dialogModalInput, length - 1)
+    setBufferInput(dialogModalId, dialogModalInput)
+    dialogModalRender()
+}
+
+############
+
 # Info Modal
 
 infoModalId = -1
@@ -1899,6 +2034,7 @@ fn rerenderAllUi() {
     if commandDispatcherId != -1 { renderCommandDispatcher() }
     if goToDefinitionId != -1 { renderGoToDefinition() }
     if goToReferencesId != -1 { renderGoToReferences() }
+    if dialogModalActive { dialogModalRender() }
     if infoModalActive { infoModalRender() }
 }
 

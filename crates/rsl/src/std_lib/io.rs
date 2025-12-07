@@ -116,6 +116,29 @@ pub fn agent_replace(arguments: Vec<Primitive>) -> Primitive {
     Primitive::String(output)
 }
 
+pub fn create_blank_file(arguments: Vec<Primitive>) -> Primitive {
+    let path = args!(arguments; path: String);
+
+    let parent_dir = Path::new(&path).parent().unwrap_or_else(|| Path::new(""));
+    if let Err(e) = std::fs::create_dir_all(parent_dir) {
+        return Primitive::Error(format!("creating parent directories for '{}': {}", path, e));
+    }
+
+    match std::fs::File::create(&path) {
+        Ok(_) => Primitive::Null,
+        Err(e) => Primitive::Error(format!("creating file '{}': {}", path, e)),
+    }
+}
+
+pub fn create_directory(arguments: Vec<Primitive>) -> Primitive {
+    let path = args!(arguments; path: String);
+
+    match std::fs::create_dir_all(&path) {
+        Ok(_) => Primitive::Null,
+        Err(e) => Primitive::Error(format!("creating directory '{}': {}", path, e)),
+    }
+}
+
 pub fn read_file(arguments: Vec<Primitive>) -> Primitive {
     let path = args!(arguments; path: String);
     let content = std::fs::read_to_string(path).unwrap();

@@ -75,6 +75,8 @@ impl RSL {
         environment.register_native_function("agentReadFile", std_lib::io::agent_read_file);
         environment.register_native_function("agentWriteFile", std_lib::io::agent_write_file);
         environment.register_native_function("agentReplace", std_lib::io::agent_replace);
+        environment.register_native_function("createBlankFile", std_lib::io::create_blank_file);
+        environment.register_native_function("createDirectory", std_lib::io::create_directory);
         environment.register_native_function("listDir", std_lib::io::list_dir);
         environment.register_native_function("joinPath", std_lib::io::join_path);
         environment.register_native_function("parentPath", std_lib::io::parent_path);
