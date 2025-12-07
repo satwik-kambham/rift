@@ -208,7 +208,6 @@ impl Default for KeybindHandler {
                 "decrease-font-size nor -",
                 "scroll-up nor c-up",
                 "scroll-down nor c-down",
-                "open-file nor space s-f",
                 "workspace-diagnostics nor space d",
                 "cycle-previous-buffer nor ,",
                 "cycle-next-buffer nor .",

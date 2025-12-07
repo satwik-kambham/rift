@@ -1,10 +1,12 @@
 use std::cell::RefCell;
-use std::path::Path;
+use std::cmp::Ordering;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::rc::Rc;
 
 use which::which;
 
+use crate::array::Array;
 use crate::primitive::Primitive;
 use crate::std_lib::args;
 use crate::table::Table;
@@ -158,4 +160,90 @@ pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {
 pub fn command_exists(arguments: Vec<Primitive>) -> Primitive {
     let command = args!(arguments; command: String);
     Primitive::Boolean(which(command).is_ok())
+}
+
+pub fn list_dir(arguments: Vec<Primitive>) -> Primitive {
+    let path = args!(arguments; path: String);
+
+    let mut result = Table::new();
+
+    let entries = match std::fs::read_dir(&path) {
+        Ok(entries) => entries,
+        Err(err) => {
+            result.set_value(
+                "entries".to_string(),
+                Primitive::Array(Rc::new(RefCell::new(Array::new(vec![])))),
+            );
+            result.set_value(
+                "error".to_string(),
+                Primitive::String(format!("Error reading directory '{}': {}", path, err)),
+            );
+            return Primitive::Table(Rc::new(RefCell::new(result)));
+        }
+    };
+
+    let mut items = vec![];
+
+    for entry in entries.flatten() {
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(_) => continue,
+        };
+
+        let name = entry.file_name().to_string_lossy().to_string();
+        let absolute_path = entry.path();
+
+        items.push((name, absolute_path, file_type.is_dir()));
+    }
+
+    items.sort_by(
+        |(left_name, _, left_is_dir), (right_name, _, right_is_dir)| match (
+            left_is_dir,
+            right_is_dir,
+        ) {
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            _ => left_name.to_lowercase().cmp(&right_name.to_lowercase()),
+        },
+    );
+
+    let entries = items
+        .into_iter()
+        .map(|(name, path, is_dir)| {
+            let mut table = Table::new();
+            table.set_value("name".to_string(), Primitive::String(name));
+            table.set_value(
+                "path".to_string(),
+                Primitive::String(path.to_string_lossy().to_string()),
+            );
+            table.set_value("is_dir".to_string(), Primitive::Boolean(is_dir));
+            Primitive::Table(Rc::new(RefCell::new(table)))
+        })
+        .collect();
+
+    result.set_value(
+        "entries".to_string(),
+        Primitive::Array(Rc::new(RefCell::new(Array::new(entries)))),
+    );
+    result.set_value("error".to_string(), Primitive::Null);
+
+    Primitive::Table(Rc::new(RefCell::new(result)))
+}
+
+pub fn join_path(arguments: Vec<Primitive>) -> Primitive {
+    let (base, segment) = args!(arguments; base: String, segment: String);
+
+    let mut path = PathBuf::from(base);
+    path.push(segment);
+
+    Primitive::String(path.to_string_lossy().to_string())
+}
+
+pub fn parent_path(arguments: Vec<Primitive>) -> Primitive {
+    let path = args!(arguments; path: String);
+
+    let path = PathBuf::from(path);
+    let parent = path.parent().map(PathBuf::from).unwrap_or(path);
+
+    Primitive::String(parent.to_string_lossy().to_string())
 }

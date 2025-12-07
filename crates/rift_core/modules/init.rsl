@@ -537,6 +537,207 @@ registerGlobalKeybind("nor space f", createFuzzyFileFinder)
 
 ############
 
+# File Explorer
+
+fileExplorerId = -1
+fileExplorerInput = ""
+fileExplorerEntries = createArray()
+fileExplorerAllEntries = createArray()
+fileExplorerSelectedEntry = 0
+fileExplorerCurrentDir = ""
+fileExplorerPreviousBufferId = -1
+fileExplorerError = ""
+
+fn fileExplorerEntryDisplay(entry) {
+    name = tableGet(entry, "name")
+    if tableGet(entry, "is_dir") {
+        return name + "/"
+    }
+    return name
+}
+
+fn renderFileExplorer() {
+    content = "📂 File Explorer\n" + fileExplorerCurrentDir + "\n╭─ Filter ───────────────\n" + fileExplorerInput + "\n╰─ Entries ──────────────"
+
+    if fileExplorerError != "" {
+        content = content + "\n   Error: " + fileExplorerError
+    }
+
+    total = arrayLen(fileExplorerEntries)
+    if total == 0 {
+        content = content + "\n   No entries"
+        setViewportBufferContent(fileExplorerId, content)
+        return null
+    }
+
+    window = viewportWindow(fileExplorerSelectedEntry, total, 6)
+    start = tableGet(window, "start")
+    end = tableGet(window, "end")
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    i = start
+    loop {
+        if i >= end { break }
+        entry = arrayGet(fileExplorerEntries, i)
+        display = fileExplorerEntryDisplay(entry)
+        prefix = "•"
+        if fileExplorerSelectedEntry == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + display
+        i = i + 1
+    }
+
+    if end < total { content = content + "\n   ⋯" }
+
+    setViewportBufferContent(fileExplorerId, content)
+}
+
+fn fileExplorerApplyFilter() {
+    query = stringToLower(fileExplorerInput)
+    fileExplorerEntries = createArray()
+
+    i = 0
+    loop {
+        if i >= arrayLen(fileExplorerAllEntries) { break }
+        entry = arrayGet(fileExplorerAllEntries, i)
+        name = stringToLower(tableGet(entry, "name"))
+
+        if stringLen(query) == 0 or stringContains(name, query) {
+            arrayPushBack(fileExplorerEntries, entry)
+        }
+
+        i = i + 1
+    }
+
+    if arrayLen(fileExplorerEntries) == 0 {
+        fileExplorerSelectedEntry = 0
+    }
+    if fileExplorerSelectedEntry >= arrayLen(fileExplorerEntries) {
+        fileExplorerSelectedEntry = 0
+    }
+
+    renderFileExplorer()
+}
+
+fn fileExplorerRefreshEntries() {
+    listing = listDir(fileExplorerCurrentDir)
+    fileExplorerAllEntries = createArray()
+    fileExplorerError = ""
+
+    errorMessage = tableGet(listing, "error")
+    if errorMessage != null {
+        fileExplorerError = errorMessage
+    }
+
+    entries = tableGet(listing, "entries")
+
+    parentEntry = createTable()
+    tableSet(parentEntry, "name", "..")
+    tableSet(parentEntry, "path", parentPath(fileExplorerCurrentDir))
+    tableSet(parentEntry, "is_dir", true)
+    arrayPushBack(fileExplorerAllEntries, parentEntry)
+
+    i = 0
+    loop {
+        if i >= arrayLen(entries) { break }
+        entry = arrayGet(entries, i)
+        arrayPushBack(fileExplorerAllEntries, entry)
+        i = i + 1
+    }
+
+    fileExplorerSelectedEntry = 0
+    fileExplorerApplyFilter()
+}
+
+fn fileExplorerSetDirectory(path) {
+    fileExplorerCurrentDir = path
+    fileExplorerRefreshEntries()
+}
+
+fn fileExplorerInputUpdated() {
+    fileExplorerInput = getBufferInput(fileExplorerId)
+    fileExplorerApplyFilter()
+}
+
+fn fileExplorerAddSpace() {
+    fileExplorerInput = getBufferInput(fileExplorerId)
+    fileExplorerInput = fileExplorerInput + " "
+    setBufferInput(fileExplorerId, fileExplorerInput)
+    renderFileExplorer()
+}
+
+fn fileExplorerClearInput() {
+    fileExplorerInput = ""
+    setBufferInput(fileExplorerId, fileExplorerInput)
+}
+
+fn fileExplorerMoveSelection(delta) {
+    if arrayLen(fileExplorerEntries) == 0 {
+        fileExplorerSelectedEntry = 0
+        renderFileExplorer()
+        return null
+    }
+    fileExplorerSelectedEntry = fileExplorerSelectedEntry + delta
+    if fileExplorerSelectedEntry < 0 { fileExplorerSelectedEntry = arrayLen(fileExplorerEntries) - 1 }
+    if fileExplorerSelectedEntry >= arrayLen(fileExplorerEntries) { fileExplorerSelectedEntry = 0 }
+    renderFileExplorer()
+}
+
+fn fileExplorerNext() {
+    fileExplorerMoveSelection(1)
+}
+
+fn fileExplorerPrevious() {
+    fileExplorerMoveSelection(-1)
+}
+
+fn fileExplorerSelect() {
+    if fileExplorerSelectedEntry < arrayLen(fileExplorerEntries) {
+        entry = arrayGet(fileExplorerEntries, fileExplorerSelectedEntry)
+        path = tableGet(entry, "path")
+        if tableGet(entry, "is_dir") {
+            fileExplorerClearInput()
+            fileExplorerSetDirectory(path)
+            return null
+        }
+        openFile(path)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn fileExplorerEscape() {
+    if fileExplorerPreviousBufferId != -1 {
+        setActiveBuffer(fileExplorerPreviousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn createFileExplorer() {
+    fileExplorerPreviousBufferId = getActiveBuffer()
+
+    if fileExplorerId == -1 {
+        bufferId = createSpecialBuffer("File Explorer")
+        fileExplorerId = bufferId
+        registerBufferKeybind(bufferId, "ins space", fileExplorerAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", fileExplorerClearInput)
+        registerBufferKeybind(bufferId, "ins tab", fileExplorerNext)
+        registerBufferKeybind(bufferId, "ins down", fileExplorerNext)
+        registerBufferKeybind(bufferId, "ins up", fileExplorerPrevious)
+        registerBufferKeybind(bufferId, "ins enter", fileExplorerSelect)
+        registerBufferKeybind(bufferId, "ins escape", fileExplorerEscape)
+        registerBufferInputHook(bufferId, fileExplorerInputUpdated)
+    }
+
+    fileExplorerClearInput()
+    fileExplorerSetDirectory(getWorkspaceDir())
+    setActiveBuffer(fileExplorerId)
+    runAction("enter-insert-mode")
+}
+
+registerGlobalKeybind("nor space s-f", createFileExplorer)
+
+############
+
 # Switch Buffer
 
 switchBufferId = -1
