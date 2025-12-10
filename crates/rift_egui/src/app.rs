@@ -74,6 +74,7 @@ impl App {
 
         // Set fonts and global style
         ctx.set_fonts(self.font_definitions.clone());
+        ctx.set_theme(egui::Theme::Dark);
         ctx.style_mut(|style| {
             style.text_styles = [
                 (
