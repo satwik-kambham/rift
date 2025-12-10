@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use std::{
     collections::HashMap,
@@ -61,6 +61,12 @@ pub struct LSPClientHandle {
 pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> {
     let mut command = Command::new(program);
 
+    let command_display = if args.is_empty() {
+        program.to_string()
+    } else {
+        format!("{} {}", program, args.join(" "))
+    };
+
     #[cfg(target_os = "windows")]
     {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -73,11 +79,43 @@ pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> 
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .unwrap();
+        .with_context(|| format!("Failed to spawn LSP command `{}`", command_display))?;
 
-    let stdin = child.stdin.take().unwrap();
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdin = child
+        .stdin
+        .take()
+        .context("Failed to open stdin for LSP process")?;
+    let stdout = child
+        .stdout
+        .take()
+        .context("Failed to open stdout for LSP process")?;
+    let stderr = child
+        .stderr
+        .take()
+        .context("Failed to open stderr for LSP process")?;
+
+    if let Some(status) = child
+        .try_wait()
+        .context("Failed to check LSP process status after spawn")?
+    {
+        let mut stderr_reader = BufReader::new(stderr);
+        let mut stderr_output = String::new();
+        let _ = stderr_reader.read_to_string(&mut stderr_output).await;
+
+        let stderr_output = stderr_output.trim();
+        let details = if stderr_output.is_empty() {
+            String::new()
+        } else {
+            format!(": {}", stderr_output)
+        };
+
+        bail!(
+            "LSP command `{}` exited immediately with status {}{}",
+            command_display,
+            status,
+            details
+        );
+    }
 
     let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<OutgoingMessage>(32);
     let (incoming_tx, incoming_rx) = mpsc::channel::<IncomingMessage>(32);

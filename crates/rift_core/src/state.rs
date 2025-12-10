@@ -255,10 +255,20 @@ impl EditorState {
         };
         if let Some(command) = command {
             if which::which(command.0).is_ok() {
-                return Some(
-                    self.rt
-                        .block_on(async { start_lsp(command.0, command.1).await.unwrap() }),
-                );
+                match self
+                    .rt
+                    .block_on(async { start_lsp(command.0, command.1).await })
+                {
+                    Ok(client) => return Some(client),
+                    Err(err) => {
+                        let command_display = if command.1.is_empty() {
+                            command.0.to_string()
+                        } else {
+                            format!("{} {}", command.0, command.1.join(" "))
+                        };
+                        tracing::error!("Failed to start LSP `{}`: {err}", command_display);
+                    }
+                }
             } else {
                 return None;
             }
