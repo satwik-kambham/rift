@@ -56,6 +56,14 @@ pub fn handle_file_event(
                     .find(|(_, buf)| buf.file_path().cloned().unwrap_or_default() == file_path)
                 {
                     let (buffer, instance) = state.get_buffer_by_id_mut(*buffer_id);
+                    if buffer.modified {
+                        warn!(
+                            path = %file_path,
+                            "Skipped external file change because buffer has unsaved edits"
+                        );
+                        return;
+                    }
+
                     let lsp_handle = lsp_handles.get_mut(&buffer.language);
                     let content = match read_file_content(file_path) {
                         Ok(content) => content,
@@ -94,6 +102,8 @@ pub fn handle_file_event(
                             instance.cursor = buffer_end;
                         }
                         instance.column_level = instance.cursor.column;
+
+                        buffer.modified = false;
                     }
                 }
             }
