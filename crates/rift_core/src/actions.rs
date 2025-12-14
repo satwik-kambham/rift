@@ -945,7 +945,11 @@ pub fn perform_action(
                             buffer.get_selection(&instance.selection),
                         ],
                     },
-                    |_result, _state, _lsp_handle| {},
+                    |result, _state, _lsp_handle| {
+                        if let Err(err) = result {
+                            warn!(?err, "Failed to copy selection via wl-copy");
+                        }
+                    },
                     &state.rt,
                     state.async_handle.sender.clone(),
                     state.workspace_folder.clone(),
@@ -990,6 +994,14 @@ pub fn perform_action(
                         args: vec!["--no-newline".to_string()],
                     },
                     |result, state, lsp_handles| {
+                        let result = match result {
+                            Ok(result) => result,
+                            Err(err) => {
+                                warn!(?err, "Failed to read clipboard via wl-paste");
+                                return;
+                            }
+                        };
+
                         let lsp_handle = if state.buffer_idx.is_some() {
                             let (buffer, _instance) =
                                 state.get_buffer_by_id(state.buffer_idx.unwrap());

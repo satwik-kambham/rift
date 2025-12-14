@@ -4,12 +4,12 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
 
-use super::AsyncResult;
+use super::{AsyncError, AsyncResult};
 
 pub fn get_request(
     url: String,
     callback: fn(
-        String,
+        Result<String, AsyncError>,
         state: &mut EditorState,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ),
@@ -17,11 +17,38 @@ pub fn get_request(
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {
-        let response = reqwest::get(url).await.unwrap();
-        let content = response.text().await.unwrap();
+        let url_for_err = url.clone();
+        let result = async {
+            let response = reqwest::get(&url).await.map_err(|err| AsyncError::Network {
+                url: url_for_err.clone(),
+                method: "GET",
+                status: None,
+                message: err.to_string(),
+            })?;
+            let status = response.status();
+            let content = response.text().await.map_err(|err| AsyncError::Network {
+                url: url_for_err.clone(),
+                method: "GET",
+                status: Some(status.as_u16()),
+                message: err.to_string(),
+            })?;
+
+            if !status.is_success() {
+                return Err(AsyncError::Network {
+                    url: url_for_err,
+                    method: "GET",
+                    status: Some(status.as_u16()),
+                    message: content,
+                });
+            }
+
+            Ok(content)
+        }
+        .await;
+
         sender
             .send(AsyncResult {
-                result: content,
+                result,
                 callback,
             })
             .await
@@ -33,7 +60,7 @@ pub fn post_request(
     url: String,
     body: String,
     callback: fn(
-        String,
+        Result<String, AsyncError>,
         state: &mut EditorState,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ),
@@ -42,11 +69,43 @@ pub fn post_request(
 ) {
     rt.spawn(async move {
         let client = reqwest::Client::new();
-        let response = client.post(url).body(body).send().await.unwrap();
-        let content = response.text().await.unwrap();
+        let url_for_err = url.clone();
+        let result = async {
+            let response = client
+                .post(&url)
+                .body(body)
+                .send()
+                .await
+                .map_err(|err| AsyncError::Network {
+                    url: url_for_err.clone(),
+                    method: "POST",
+                    status: None,
+                    message: err.to_string(),
+                })?;
+            let status = response.status();
+            let content = response.text().await.map_err(|err| AsyncError::Network {
+                url: url_for_err.clone(),
+                method: "POST",
+                status: Some(status.as_u16()),
+                message: err.to_string(),
+            })?;
+
+            if !status.is_success() {
+                return Err(AsyncError::Network {
+                    url: url_for_err,
+                    method: "POST",
+                    status: Some(status.as_u16()),
+                    message: content,
+                });
+            }
+
+            Ok(content)
+        }
+        .await;
+
         sender
             .send(AsyncResult {
-                result: content,
+                result,
                 callback,
             })
             .await
@@ -59,7 +118,7 @@ pub fn post_request_json_body_with_bearer_auth(
     body: serde_json::Value,
     bearer_auth_token: String,
     callback: fn(
-        String,
+        Result<String, AsyncError>,
         state: &mut EditorState,
         lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ),
@@ -68,17 +127,44 @@ pub fn post_request_json_body_with_bearer_auth(
 ) {
     rt.spawn(async move {
         let client = reqwest::Client::new();
-        let response = client
-            .post(url)
-            .bearer_auth(bearer_auth_token)
-            .json(&body)
-            .send()
-            .await
-            .unwrap();
-        let content = response.text().await.unwrap();
+        let url_for_err = url.clone();
+        let result = async {
+            let response = client
+                .post(&url)
+                .bearer_auth(bearer_auth_token)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|err| AsyncError::Network {
+                    url: url_for_err.clone(),
+                    method: "POST",
+                    status: None,
+                    message: err.to_string(),
+                })?;
+            let status = response.status();
+            let content = response.text().await.map_err(|err| AsyncError::Network {
+                url: url_for_err.clone(),
+                method: "POST",
+                status: Some(status.as_u16()),
+                message: err.to_string(),
+            })?;
+
+            if !status.is_success() {
+                return Err(AsyncError::Network {
+                    url: url_for_err,
+                    method: "POST",
+                    status: Some(status.as_u16()),
+                    message: content,
+                });
+            }
+
+            Ok(content)
+        }
+        .await;
+
         sender
             .send(AsyncResult {
-                result: content,
+                result,
                 callback,
             })
             .await
