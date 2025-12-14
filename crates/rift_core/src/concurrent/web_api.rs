@@ -19,12 +19,14 @@ pub fn get_request(
     rt.spawn(async move {
         let url_for_err = url.clone();
         let result = async {
-            let response = reqwest::get(&url).await.map_err(|err| AsyncError::Network {
-                url: url_for_err.clone(),
-                method: "GET",
-                status: None,
-                message: err.to_string(),
-            })?;
+            let response = reqwest::get(&url)
+                .await
+                .map_err(|err| AsyncError::Network {
+                    url: url_for_err.clone(),
+                    method: "GET",
+                    status: None,
+                    message: err.to_string(),
+                })?;
             let status = response.status();
             let content = response.text().await.map_err(|err| AsyncError::Network {
                 url: url_for_err.clone(),
@@ -46,13 +48,7 @@ pub fn get_request(
         }
         .await;
 
-        sender
-            .send(AsyncResult {
-                result,
-                callback,
-            })
-            .await
-            .unwrap();
+        sender.send(AsyncResult { result, callback }).await.unwrap();
     });
 }
 
@@ -70,46 +66,38 @@ pub fn post_request(
     rt.spawn(async move {
         let client = reqwest::Client::new();
         let url_for_err = url.clone();
-        let result = async {
-            let response = client
-                .post(&url)
-                .body(body)
-                .send()
-                .await
-                .map_err(|err| AsyncError::Network {
+        let result =
+            async {
+                let response = client.post(&url).body(body).send().await.map_err(|err| {
+                    AsyncError::Network {
+                        url: url_for_err.clone(),
+                        method: "POST",
+                        status: None,
+                        message: err.to_string(),
+                    }
+                })?;
+                let status = response.status();
+                let content = response.text().await.map_err(|err| AsyncError::Network {
                     url: url_for_err.clone(),
                     method: "POST",
-                    status: None,
+                    status: Some(status.as_u16()),
                     message: err.to_string(),
                 })?;
-            let status = response.status();
-            let content = response.text().await.map_err(|err| AsyncError::Network {
-                url: url_for_err.clone(),
-                method: "POST",
-                status: Some(status.as_u16()),
-                message: err.to_string(),
-            })?;
 
-            if !status.is_success() {
-                return Err(AsyncError::Network {
-                    url: url_for_err,
-                    method: "POST",
-                    status: Some(status.as_u16()),
-                    message: content,
-                });
+                if !status.is_success() {
+                    return Err(AsyncError::Network {
+                        url: url_for_err,
+                        method: "POST",
+                        status: Some(status.as_u16()),
+                        message: content,
+                    });
+                }
+
+                Ok(content)
             }
+            .await;
 
-            Ok(content)
-        }
-        .await;
-
-        sender
-            .send(AsyncResult {
-                result,
-                callback,
-            })
-            .await
-            .unwrap();
+        sender.send(AsyncResult { result, callback }).await.unwrap();
     });
 }
 
@@ -162,12 +150,6 @@ pub fn post_request_json_body_with_bearer_auth(
         }
         .await;
 
-        sender
-            .send(AsyncResult {
-                result,
-                callback,
-            })
-            .await
-            .unwrap();
+        sender.send(AsyncResult { result, callback }).await.unwrap();
     });
 }

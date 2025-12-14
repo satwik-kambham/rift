@@ -3,6 +3,7 @@
 
 use clap::Parser;
 use rift_core::cli::CLIArgs;
+use tracing::info;
 
 pub mod app;
 pub mod command_dispatcher;
@@ -20,6 +21,7 @@ fn main() -> eframe::Result {
         .with_level(true)
         .init();
 
+    info!("Rift session starting (egui)");
     let cli_args = CLIArgs::parse();
     let native_options = eframe::NativeOptions::default();
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -27,7 +29,9 @@ fn main() -> eframe::Result {
         .build()
         .unwrap();
     let mut app = app::App::new(rt, cli_args);
-    eframe::run_simple_native("Rift", native_options, move |ctx, _frame| {
+    let run_result = eframe::run_simple_native("Rift", native_options, move |ctx, _frame| {
         app.draw(ctx);
-    })
+    });
+    info!("Rift session exiting (egui)");
+    run_result
 }

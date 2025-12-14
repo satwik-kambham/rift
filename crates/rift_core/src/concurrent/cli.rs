@@ -91,10 +91,7 @@ pub fn run_command(
         }
         .await;
 
-        sender
-            .send(AsyncResult { result, callback })
-            .await
-            .unwrap();
+        sender.send(AsyncResult { result, callback }).await.unwrap();
     });
 }
 
@@ -162,22 +159,23 @@ pub fn run_piped_commands(
                     }
                 };
                 if let Some(mut stdin) = child.stdin.take()
-                    && let Err(err) = stdin.write_all(&output).await {
-                        sender
-                            .send(AsyncResult {
-                                result: Err(AsyncError::Process {
-                                    program: program.program,
-                                    args: program.args,
-                                    status: None,
-                                    stderr: String::new(),
-                                    message: format!("Failed to write to stdin: {}", err),
-                                }),
-                                callback,
-                            })
-                            .await
-                            .unwrap();
-                        return;
-                    }
+                    && let Err(err) = stdin.write_all(&output).await
+                {
+                    sender
+                        .send(AsyncResult {
+                            result: Err(AsyncError::Process {
+                                program: program.program,
+                                args: program.args,
+                                status: None,
+                                stderr: String::new(),
+                                message: format!("Failed to write to stdin: {}", err),
+                            }),
+                            callback,
+                        })
+                        .await
+                        .unwrap();
+                    return;
+                }
                 let output = match child.wait_with_output().await {
                     Ok(output) => output,
                     Err(err) => {
@@ -278,9 +276,6 @@ pub fn run_piped_commands(
                 })
             });
 
-        sender
-            .send(AsyncResult { result, callback })
-            .await
-            .unwrap();
+        sender.send(AsyncResult { result, callback }).await.unwrap();
     });
 }

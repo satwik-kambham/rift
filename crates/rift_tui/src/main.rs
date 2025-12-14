@@ -1,5 +1,6 @@
 use clap::Parser;
 use rift_core::cli::CLIArgs;
+use tracing::info;
 
 pub mod app;
 
@@ -14,6 +15,7 @@ fn main() -> anyhow::Result<()> {
         .with_level(true)
         .init();
 
+    info!("Rift session starting (tui)");
     let cli_args = CLIArgs::parse();
     let mut terminal = ratatui::init();
     terminal.clear()?;
@@ -23,6 +25,7 @@ fn main() -> anyhow::Result<()> {
         .unwrap();
     let mut app = app::App::new(rt, cli_args);
     app.run(terminal)?;
+    info!("Rift session exiting (tui)");
     ratatui::restore();
     Ok(())
 }
