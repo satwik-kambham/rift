@@ -66,11 +66,14 @@ pub fn process_cli_args(
             .into_string()
             .map_err(|_| anyhow::anyhow!("workspace path is not valid UTF-8"))?;
     } else {
-        let parent = path.parent().context("resolving parent workspace")?;
-        state.workspace_folder = parent
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("workspace path is not valid UTF-8"))?
-            .to_string();
+        let workspace = std::env::current_dir()
+            .context("determining current directory for workspace")?
+            .canonicalize()
+            .context("canonicalizing workspace directory")?;
+        state.workspace_folder = workspace
+            .into_os_string()
+            .into_string()
+            .map_err(|_| anyhow::anyhow!("workspace path is not valid UTF-8"))?;
         let path_str = path
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("file path is not valid UTF-8"))?;
