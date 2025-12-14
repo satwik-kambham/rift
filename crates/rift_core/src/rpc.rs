@@ -129,11 +129,11 @@ impl RiftRPC for RPCHandle {
         self.send_action_request(Action::RunAction(action)).await
     }
 
-    async fn get_active_buffer(self, _context: tarpc::context::Context) -> u32 {
+    async fn get_active_buffer(self, _context: tarpc::context::Context) -> Option<u32> {
         self.send_action_request(Action::GetActiveBuffer)
             .await
             .parse()
-            .unwrap_or_default()
+            .ok()
     }
 
     async fn list_buffers(self, _context: tarpc::context::Context) -> String {

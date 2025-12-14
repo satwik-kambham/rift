@@ -118,7 +118,10 @@ fn createDashboardBuffer() {
     if dashboardId == -1 {
         bufferId = createSpecialBuffer("Dashboard")
         dashboardId = bufferId
-        setActiveBuffer(bufferId)
+        activeBuffer = getActiveBuffer()
+        if activeBuffer == null {
+            setActiveBuffer(bufferId)
+        }
     }
     renderDashboard()
 }

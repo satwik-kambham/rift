@@ -320,7 +320,10 @@ fn execute_rpc_call(identifier: &str, parameters: Vec<Primitive>, rsl: &mut RSL)
             }
             "getActiveBuffer" => {
                 let buffer_id = client.get_active_buffer(ctx).await.unwrap();
-                Primitive::Number(buffer_id as f32)
+                if let Some(buffer_id) = buffer_id {
+                    return Primitive::Number(buffer_id as f32);
+                }
+                Primitive::Null
             }
             "listBuffers" => {
                 let buffers = client.list_buffers(ctx).await.unwrap();
