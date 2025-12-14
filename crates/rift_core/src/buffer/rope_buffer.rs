@@ -11,6 +11,7 @@ use super::instance::{
 };
 
 use ropey::Rope;
+use tracing::warn;
 use tree_sitter_highlight::{HighlightEvent, Highlighter};
 
 pub struct RopeBuffer {
@@ -315,38 +316,43 @@ impl RopeBuffer {
                 let end_char = self.buffer.line_to_char(end_line_idx);
                 let content = self.buffer.slice(start_char..end_char).to_string();
 
-                let highlights = self
-                    .highlighter
-                    .highlight(
-                        &highlight_params.language_config,
-                        content.as_bytes(),
-                        None,
-                        |_| None,
-                    )
-                    .unwrap();
-
-                for event in highlights {
-                    match event.unwrap() {
-                        HighlightEvent::Source { start, end } => {
-                            let start = content[..start].chars().count() + start_char;
-                            let end = content[..end].chars().count() + start_char;
-                            if end >= first.start_byte && start <= last.end_byte {
-                                segments.push(Range {
-                                    start,
-                                    end: end.saturating_sub(1),
-                                    attributes: HashSet::from([Attribute::Highlight(
-                                        highlight_type,
-                                    )]),
-                                });
+                match self.highlighter.highlight(
+                    &highlight_params.language_config,
+                    content.as_bytes(),
+                    None,
+                    |_| None,
+                ) {
+                    Ok(highlights) => {
+                        for event in highlights {
+                            match event {
+                                Ok(HighlightEvent::Source { start, end }) => {
+                                    let start = content[..start].chars().count() + start_char;
+                                    let end = content[..end].chars().count() + start_char;
+                                    if end >= first.start_byte && start <= last.end_byte {
+                                        segments.push(Range {
+                                            start,
+                                            end: end.saturating_sub(1),
+                                            attributes: HashSet::from([Attribute::Highlight(
+                                                highlight_type,
+                                            )]),
+                                        });
+                                    }
+                                }
+                                Ok(HighlightEvent::HighlightStart(s)) => {
+                                    highlight_type = highlight_params.highlight_map
+                                        [&highlight_params.highlight_names[s.0]];
+                                }
+                                Ok(HighlightEvent::HighlightEnd) => {
+                                    highlight_type = HighlightType::None;
+                                }
+                                Err(err) => {
+                                    warn!(%err, "Failed to process highlight event");
+                                }
                             }
                         }
-                        HighlightEvent::HighlightStart(s) => {
-                            highlight_type = highlight_params.highlight_map
-                                [&highlight_params.highlight_names[s.0]];
-                        }
-                        HighlightEvent::HighlightEnd => {
-                            highlight_type = HighlightType::None;
-                        }
+                    }
+                    Err(err) => {
+                        warn!(%err, "Failed to compute highlights; skipping");
                     }
                 }
             }
@@ -357,10 +363,12 @@ impl RopeBuffer {
         let mut lines = vec![];
         let mut highlighted_line = vec![];
 
-        while split_segments_iter
-            .next_if(|s| s.start < gutter_info.first().unwrap().start_byte)
-            .is_some()
-        {}
+        if let Some(first) = gutter_info.first() {
+            while split_segments_iter
+                .next_if(|s| s.start < first.start_byte)
+                .is_some()
+            {}
+        }
 
         for line_info in &gutter_info {
             while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {

@@ -29,6 +29,7 @@ use crate::{
     },
     fonts::load_fonts,
 };
+use tracing::error;
 
 pub struct App {
     dispatcher: CommandDispatcher,
@@ -44,7 +45,9 @@ impl App {
         let mut state = EditorState::new(rt);
         let mut lsp_handles = HashMap::new();
 
-        process_cli_args(cli_args, &mut state, &mut lsp_handles);
+        if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
+            error!(%err, "Failed to process CLI args");
+        }
 
         let font_definitions = load_fonts(&mut state);
 

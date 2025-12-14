@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use anyhow::{Context, Result};
 use clap::Parser;
 
 use crate::{
@@ -20,37 +21,64 @@ pub fn process_cli_args(
     cli_args: CLIArgs,
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
+) -> Result<()> {
     state.preferences.no_lsp = cli_args.no_lsp;
 
-    let mut path = cli_args.path.unwrap_or(std::env::current_dir().unwrap());
-    if path.try_exists().expect("Can't check existence of path") {
-        path = path.canonicalize().unwrap();
+    let mut path = cli_args
+        .path
+        .unwrap_or(std::env::current_dir().context("determining current directory")?);
+    if path.try_exists().context("checking existence of path")? {
+        path = path
+            .canonicalize()
+            .with_context(|| format!("canonicalizing {}", path.display()))?;
     } else {
-        if path.to_str().unwrap().ends_with(std::path::MAIN_SEPARATOR) {
-            if !path.try_exists().expect("Can't check existence of path") {
-                std::fs::create_dir_all(&path).unwrap();
+        if path
+            .to_str()
+            .map(|p| p.ends_with(std::path::MAIN_SEPARATOR))
+            .unwrap_or(false)
+        {
+            if !path.try_exists().context("checking existence of path")? {
+                std::fs::create_dir_all(&path)
+                    .with_context(|| format!("creating directory {}", path.display()))?;
             }
         } else if !path
             .parent()
-            .unwrap()
+            .context("resolving parent for file creation")?
             .try_exists()
-            .expect("Can't check existence of path")
+            .context("checking existence of parent path")?
         {
-            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            std::fs::File::create(&path).unwrap();
+            let parent = path
+                .parent()
+                .context("resolving parent for file creation")?;
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("creating directory {}", parent.display()))?;
+            std::fs::File::create(&path)
+                .with_context(|| format!("creating file {}", path.display()))?;
         }
-        path = path.canonicalize().unwrap();
+        path = path
+            .canonicalize()
+            .with_context(|| format!("canonicalizing {}", path.display()))?;
     }
 
     if path.is_dir() {
-        state.workspace_folder = path.into_os_string().into_string().unwrap();
+        state.workspace_folder = path
+            .into_os_string()
+            .into_string()
+            .map_err(|_| anyhow::anyhow!("workspace path is not valid UTF-8"))?;
     } else {
-        state.workspace_folder = path.parent().unwrap().to_str().unwrap().to_string();
-        let initial_text = file_io::read_file_content(path.to_str().unwrap()).unwrap();
+        let parent = path.parent().context("resolving parent workspace")?;
+        state.workspace_folder = parent
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("workspace path is not valid UTF-8"))?
+            .to_string();
+        let path_str = path
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("file path is not valid UTF-8"))?;
+        let initial_text = file_io::read_file_content(path_str)
+            .with_context(|| format!("reading file {}", path.display()))?;
         let buffer = RopeBuffer::new(
             initial_text.clone(),
-            Some(path.to_str().unwrap().to_string()),
+            Some(path_str.to_string()),
             &state.workspace_folder,
             false,
         );
@@ -80,24 +108,25 @@ pub fn process_cli_args(
                 _ => "",
             };
 
-            if lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
+            if (lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
                 || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
                     .as_bool()
-                    .unwrap_or(false)
+                    .unwrap_or(false))
+                && let Err(err) = lsp_handle.send_notification_sync(
+                    "textDocument/didOpen".to_string(),
+                    Some(LSPClientHandle::did_open_text_document(
+                        path_str.to_string(),
+                        language_id.to_string(),
+                        initial_text,
+                    )),
+                )
             {
-                lsp_handle
-                    .send_notification_sync(
-                        "textDocument/didOpen".to_string(),
-                        Some(LSPClientHandle::did_open_text_document(
-                            path.to_str().unwrap().to_string(),
-                            language_id.to_string(),
-                            initial_text,
-                        )),
-                    )
-                    .unwrap();
+                tracing::warn!(%err, "Failed to send didOpen notification");
             }
         }
 
         state.buffer_idx = Some(state.add_buffer(buffer));
     }
+
+    Ok(())
 }

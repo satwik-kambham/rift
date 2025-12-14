@@ -22,6 +22,7 @@ use rift_core::{
     rsl::initialize_rsl,
     state::{CompletionMenu, EditorState, Mode},
 };
+use tracing::error;
 
 pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
     ratatui::style::Color::Rgb(c.r, c.g, c.b)
@@ -38,7 +39,9 @@ impl App {
         let mut state = EditorState::new(rt);
         let mut lsp_handles = HashMap::new();
 
-        process_cli_args(cli_args, &mut state, &mut lsp_handles);
+        if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
+            error!(%err, "Failed to process CLI args");
+        }
 
         Self {
             state,

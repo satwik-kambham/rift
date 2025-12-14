@@ -23,3 +23,5 @@ logs
 result
 
 crates/rift_web/dist/
+
+prompts

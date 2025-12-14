@@ -246,12 +246,21 @@ impl Expression for FunctionCallExpression {
             let parameters = self.collect_parameters(environment.clone(), rsl);
 
             if let Primitive::String(package_name) = parameters.first().unwrap() {
-                let source = rsl.get_package_code(package_name);
-                let local_environment = Rc::new(Environment::new(Some(environment.clone())));
-                rsl.run_with_environment(source, local_environment.clone());
-                let exported_values = local_environment.get_exported_values();
-                let exported_values = Primitive::Table(Rc::new(RefCell::new(exported_values)));
-                return exported_values;
+                match rsl.get_package_code(package_name) {
+                    Ok(source) => {
+                        let local_environment =
+                            Rc::new(Environment::new(Some(environment.clone())));
+                        rsl.run_with_environment(source, local_environment.clone());
+                        let exported_values = local_environment.get_exported_values();
+                        let exported_values =
+                            Primitive::Table(Rc::new(RefCell::new(exported_values)));
+                        return exported_values;
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to import package {}: {}", package_name, err);
+                        return Primitive::Null;
+                    }
+                }
             }
 
             Primitive::Null

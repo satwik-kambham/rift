@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use tracing::warn;
 use tree_sitter_highlight::HighlightConfiguration;
 
 use super::instance::{HighlightType, Language};
@@ -13,8 +14,11 @@ pub struct TreeSitterParams {
 
 pub fn detect_language(file_path: &Option<String>) -> Language {
     match file_path {
-        Some(path) => match std::path::Path::new(&path).extension() {
-            Some(extension) => match extension.to_str().unwrap() {
+        Some(path) => match std::path::Path::new(&path)
+            .extension()
+            .and_then(|ext| ext.to_str())
+        {
+            Some(extension) => match extension {
                 "rsl" => Language::RSL,
                 "rs" => Language::Rust,
                 "py" => Language::Python,
@@ -86,157 +90,130 @@ pub fn build_highlight_params(language: Language) -> Option<TreeSitterParams> {
     ]);
     let highlight_names: Vec<String> = highlight_map.keys().map(|key| key.to_string()).collect();
 
+    fn new_highlight_config(
+        language: impl Into<tree_sitter::Language>,
+        name: &str,
+        highlights: &'static str,
+        injections: &'static str,
+        locals: &'static str,
+    ) -> Option<HighlightConfiguration> {
+        HighlightConfiguration::new(language.into(), name, highlights, injections, locals)
+            .map_err(|err| warn!(%err, language = name, "Failed to create highlight configuration"))
+            .ok()
+    }
+
     let language_config = match language {
-        Language::Rust => Some(
-            HighlightConfiguration::new(
-                tree_sitter_rust::LANGUAGE.into(),
-                "rust",
-                tree_sitter_rust::HIGHLIGHTS_QUERY,
-                tree_sitter_rust::INJECTIONS_QUERY,
-                "",
-            )
-            .unwrap(),
+        Language::Rust => new_highlight_config(
+            tree_sitter_rust::LANGUAGE,
+            "rust",
+            tree_sitter_rust::HIGHLIGHTS_QUERY,
+            tree_sitter_rust::INJECTIONS_QUERY,
+            "",
         ),
-        Language::RSL => Some(
-            HighlightConfiguration::new(
-                tree_sitter_rust::LANGUAGE.into(),
-                "rust",
-                tree_sitter_rust::HIGHLIGHTS_QUERY,
-                tree_sitter_rust::INJECTIONS_QUERY,
-                "",
-            )
-            .unwrap(),
+        Language::RSL => new_highlight_config(
+            tree_sitter_rust::LANGUAGE,
+            "rust",
+            tree_sitter_rust::HIGHLIGHTS_QUERY,
+            tree_sitter_rust::INJECTIONS_QUERY,
+            "",
         ),
-        Language::Python => Some(
-            HighlightConfiguration::new(
-                tree_sitter_python::LANGUAGE.into(),
-                "python",
-                tree_sitter_python::HIGHLIGHTS_QUERY,
-                "",
-                "",
-            )
-            .unwrap(),
+        Language::Python => new_highlight_config(
+            tree_sitter_python::LANGUAGE,
+            "python",
+            tree_sitter_python::HIGHLIGHTS_QUERY,
+            "",
+            "",
         ),
-        Language::Markdown => Some(
-            HighlightConfiguration::new(
-                tree_sitter_md::LANGUAGE.into(),
-                "md",
-                tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
-                tree_sitter_md::INJECTION_QUERY_BLOCK,
-                "",
-            )
-            .unwrap(),
+        Language::Markdown => new_highlight_config(
+            tree_sitter_md::LANGUAGE,
+            "md",
+            tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
+            tree_sitter_md::INJECTION_QUERY_BLOCK,
+            "",
         ),
-        Language::Nix => Some(
-            HighlightConfiguration::new(
-                tree_sitter_nix::LANGUAGE.into(),
-                "nix",
-                tree_sitter_nix::HIGHLIGHTS_QUERY,
-                "",
-                "",
-            )
-            .unwrap(),
+        Language::Nix => new_highlight_config(
+            tree_sitter_nix::LANGUAGE,
+            "nix",
+            tree_sitter_nix::HIGHLIGHTS_QUERY,
+            "",
+            "",
         ),
-        Language::Dart => Some(
-            HighlightConfiguration::new(
-                tree_sitter_dart::language(),
-                "dart",
-                tree_sitter_dart::HIGHLIGHTS_QUERY,
-                "",
-                "",
-            )
-            .unwrap(),
+        Language::Dart => new_highlight_config(
+            tree_sitter_dart::language(),
+            "dart",
+            tree_sitter_dart::HIGHLIGHTS_QUERY,
+            "",
+            "",
         ),
-        Language::HTML => Some(
-            HighlightConfiguration::new(
-                tree_sitter_html::LANGUAGE.into(),
-                "html",
-                tree_sitter_html::HIGHLIGHTS_QUERY,
-                tree_sitter_html::INJECTIONS_QUERY,
-                "",
-            )
-            .unwrap(),
+        Language::HTML => new_highlight_config(
+            tree_sitter_html::LANGUAGE,
+            "html",
+            tree_sitter_html::HIGHLIGHTS_QUERY,
+            tree_sitter_html::INJECTIONS_QUERY,
+            "",
         ),
-        Language::CSS => Some(
-            HighlightConfiguration::new(
-                tree_sitter_css::LANGUAGE.into(),
-                "css",
-                tree_sitter_css::HIGHLIGHTS_QUERY,
-                "",
-                "",
-            )
-            .unwrap(),
+        Language::CSS => new_highlight_config(
+            tree_sitter_css::LANGUAGE,
+            "css",
+            tree_sitter_css::HIGHLIGHTS_QUERY,
+            "",
+            "",
         ),
-        Language::Javascript => Some(
-            HighlightConfiguration::new(
-                tree_sitter_javascript::LANGUAGE.into(),
-                "javascript",
-                tree_sitter_javascript::HIGHLIGHT_QUERY,
-                tree_sitter_javascript::INJECTIONS_QUERY,
-                tree_sitter_javascript::LOCALS_QUERY,
-            )
-            .unwrap(),
+        Language::Javascript => new_highlight_config(
+            tree_sitter_javascript::LANGUAGE,
+            "javascript",
+            tree_sitter_javascript::HIGHLIGHT_QUERY,
+            tree_sitter_javascript::INJECTIONS_QUERY,
+            tree_sitter_javascript::LOCALS_QUERY,
         ),
-        Language::Typescript => Some(
-            HighlightConfiguration::new(
-                tree_sitter_javascript::LANGUAGE.into(),
-                "javascript",
-                tree_sitter_javascript::HIGHLIGHT_QUERY,
-                tree_sitter_javascript::INJECTIONS_QUERY,
-                tree_sitter_javascript::LOCALS_QUERY,
-            )
-            .unwrap(),
+        Language::Typescript => new_highlight_config(
+            tree_sitter_javascript::LANGUAGE,
+            "javascript",
+            tree_sitter_javascript::HIGHLIGHT_QUERY,
+            tree_sitter_javascript::INJECTIONS_QUERY,
+            tree_sitter_javascript::LOCALS_QUERY,
         ),
-        Language::Tsx => Some(
-            HighlightConfiguration::new(
-                tree_sitter_javascript::LANGUAGE.into(),
-                "javascript",
-                tree_sitter_javascript::HIGHLIGHT_QUERY,
-                tree_sitter_javascript::INJECTIONS_QUERY,
-                tree_sitter_javascript::LOCALS_QUERY,
-            )
-            .unwrap(),
+        Language::Tsx => new_highlight_config(
+            tree_sitter_javascript::LANGUAGE,
+            "javascript",
+            tree_sitter_javascript::HIGHLIGHT_QUERY,
+            tree_sitter_javascript::INJECTIONS_QUERY,
+            tree_sitter_javascript::LOCALS_QUERY,
         ),
-        Language::Vue => Some(
-            HighlightConfiguration::new(
-                tree_sitter_javascript::LANGUAGE.into(),
-                "javascript",
-                tree_sitter_javascript::HIGHLIGHT_QUERY,
-                tree_sitter_javascript::INJECTIONS_QUERY,
-                tree_sitter_javascript::LOCALS_QUERY,
-            )
-            .unwrap(),
+        Language::Vue => new_highlight_config(
+            tree_sitter_javascript::LANGUAGE,
+            "javascript",
+            tree_sitter_javascript::HIGHLIGHT_QUERY,
+            tree_sitter_javascript::INJECTIONS_QUERY,
+            tree_sitter_javascript::LOCALS_QUERY,
         ),
-        Language::JSON => Some(
-            HighlightConfiguration::new(
-                tree_sitter_json::LANGUAGE.into(),
-                "json",
-                tree_sitter_json::HIGHLIGHTS_QUERY,
-                "",
-                "",
-            )
-            .unwrap(),
+        Language::JSON => new_highlight_config(
+            tree_sitter_json::LANGUAGE,
+            "json",
+            tree_sitter_json::HIGHLIGHTS_QUERY,
+            "",
+            "",
         ),
-        Language::C => Some(
-            HighlightConfiguration::new(
-                tree_sitter_c::LANGUAGE.into(),
-                "c",
-                tree_sitter_c::HIGHLIGHT_QUERY,
-                "",
-                "",
-            )
-            .unwrap(),
+        Language::C => new_highlight_config(
+            tree_sitter_c::LANGUAGE,
+            "c",
+            tree_sitter_c::HIGHLIGHT_QUERY,
+            "",
+            "",
         ),
-        Language::CPP => Some(
+        Language::CPP => {
+            let highlight_query =
+                tree_sitter_c::HIGHLIGHT_QUERY.to_string() + tree_sitter_cpp::HIGHLIGHT_QUERY;
             HighlightConfiguration::new(
                 tree_sitter_cpp::LANGUAGE.into(),
                 "cpp",
-                &(tree_sitter_c::HIGHLIGHT_QUERY.to_string() + tree_sitter_cpp::HIGHLIGHT_QUERY),
+                &highlight_query,
                 "",
                 "",
             )
-            .unwrap(),
-        ),
+            .map_err(|err| warn!(%err, "Failed to create highlight configuration for cpp"))
+            .ok()
+        }
         _ => None,
     };
 

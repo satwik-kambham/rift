@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::environment::Environment;
+use anyhow::{Context, Result};
 
 pub struct RSL {
     pub environment: Rc<Environment>,
@@ -87,10 +88,13 @@ impl RSL {
         #[cfg(feature = "rift_rpc")]
         let rpc_client = rt_handle.block_on(async { rpc_client.spawn() });
 
+        let working_dir = working_dir
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/")));
+
         Self {
             environment: Rc::new(environment),
             rt_handle,
-            working_dir: working_dir.unwrap_or(std::env::current_dir().unwrap()),
+            working_dir,
             #[cfg(feature = "rift_rpc")]
             rift_rpc_client: rpc_client,
         }
@@ -112,12 +116,13 @@ impl RSL {
         interpreter.interpret(self);
     }
 
-    pub fn get_package_code(&self, package_name: &str) -> String {
+    pub fn get_package_code(&self, package_name: &str) -> Result<String> {
         let candidate = self.working_dir.join(package_name);
         if candidate.is_file() {
-            let source = std::fs::read_to_string(candidate).unwrap();
-            return source;
+            let source = std::fs::read_to_string(&candidate)
+                .with_context(|| format!("reading package at {}", candidate.display()))?;
+            return Ok(source);
         }
-        panic!("Package not found at {:?}", candidate)
+        anyhow::bail!("Package not found at {:?}", candidate)
     }
 }

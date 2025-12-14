@@ -22,10 +22,16 @@ pub fn start_rsl_interpreter(
     let (rsl_sender, mut rsl_reciever) = mpsc::channel::<String>(32);
 
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_multi_thread()
+        let rt = match tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .unwrap();
+        {
+            Ok(rt) => rt,
+            Err(err) => {
+                tracing::error!(%err, "Failed to build RSL runtime; RSL scripts disabled");
+                return;
+            }
+        };
 
         let mut rsl_interpreter = RSL::new(
             Some(PathBuf::from(&initial_folder)),
@@ -47,6 +53,12 @@ pub fn initialize_rsl(
     #[cfg(not(debug_assertions))]
     let init_module = include_str!("../modules/init.rsl").to_string();
     #[cfg(debug_assertions)]
-    let init_module = std::fs::read_to_string("crates/rift_core/modules/init.rsl").unwrap();
+    let init_module = match std::fs::read_to_string("crates/rift_core/modules/init.rsl") {
+        Ok(content) => content,
+        Err(err) => {
+            tracing::error!(%err, "Failed to load init.rsl; skipping RSL initialization");
+            return;
+        }
+    };
     perform_action(Action::RunSource(init_module), state, lsp_handles);
 }

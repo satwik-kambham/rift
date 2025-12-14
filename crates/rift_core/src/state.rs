@@ -3,6 +3,7 @@ use std::{collections::HashMap, path::Path};
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
+use tracing::warn;
 
 use crate::{
     actions::{Action, ReferenceEntry, perform_action},
@@ -35,7 +36,7 @@ pub struct EditorState {
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
     pub event_reciever: mpsc::Receiver<RPCRequest>,
     pub rsl_sender: mpsc::Sender<String>,
-    pub file_watcher: RecommendedWatcher,
+    pub file_watcher: Option<RecommendedWatcher>,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, RopeBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
@@ -77,20 +78,24 @@ impl EditorState {
         let watcher = RecommendedWatcher::new(
             move |res| {
                 rt_handle.block_on(async {
-                    file_event_sender.clone().send(res).await.unwrap();
+                    if let Err(err) = file_event_sender.clone().send(res).await {
+                        warn!(%err, "Failed to forward file watcher event");
+                    }
                 });
             },
             Config::default(),
         )
-        .expect("Failed to create file watcher");
+        .map(Some)
+        .unwrap_or_else(|err| {
+            warn!(%err, "Failed to create file watcher; continuing without live file updates");
+            None
+        });
 
-        let initial_folder = std::path::absolute("/")
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_owned();
+        let initial_folder =
+            std::path::absolute("/").unwrap_or_else(|_| std::path::PathBuf::from("/"));
+        let initial_folder_str = initial_folder.to_string_lossy().to_string();
 
-        let rsl_sender = start_rsl_interpreter(initial_folder.clone(), rpc_client_transport);
+        let rsl_sender = start_rsl_interpreter(initial_folder_str.clone(), rpc_client_transport);
 
         Self {
             quit: false,
@@ -103,8 +108,8 @@ impl EditorState {
             preferences: Preferences::default(),
             buffers: HashMap::new(),
             next_id: 0,
-            workspace_folder: initial_folder.clone(),
-            current_folder: initial_folder,
+            workspace_folder: initial_folder_str.clone(),
+            current_folder: initial_folder_str,
             viewport_rows: 0,
             viewport_columns: 0,
             mode: Mode::Normal,
@@ -156,9 +161,11 @@ impl EditorState {
         } else {
             if let Some(path_str) = buffer.file_path() {
                 let path = Path::new(path_str);
-                self.file_watcher
-                    .watch(path, RecursiveMode::NonRecursive)
-                    .expect("Failed to watch file path");
+                if let Some(watcher) = self.file_watcher.as_mut()
+                    && let Err(err) = watcher.watch(path, RecursiveMode::NonRecursive)
+                {
+                    warn!(%err, path = %path.display(), "Failed to watch file path");
+                }
             }
             self.buffers.insert(self.next_id, buffer);
             self.instances

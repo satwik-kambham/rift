@@ -8,6 +8,7 @@ use std::{
 use copypasta::ClipboardProvider;
 use serde_json::json;
 use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
+use tracing::{error, warn};
 
 use crate::{
     buffer::{
@@ -400,22 +401,27 @@ pub fn perform_action(
         Action::SaveCurrentBuffer => {
             let line_ending = state.preferences.line_ending.clone();
             let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let file_path = match buffer.file_path() {
+                Some(path) => path.clone(),
+                None => {
+                    warn!("Attempted to save buffer without a file path");
+                    return None;
+                }
+            };
+            let content = buffer.get_content(line_ending.to_string());
+            if let Err(err) = file_io::override_file_content(&file_path, content) {
+                error!(%err, path = %file_path, "Failed to save buffer");
+                return None;
+            }
             buffer.modified = false;
-            file_io::override_file_content(
-                &buffer.file_path().cloned().unwrap(),
-                buffer.get_content(line_ending.to_string()),
-            )
-            .unwrap();
 
-            if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
-                lsp_handle
-                    .send_notification_sync(
-                        "textDocument/didSave".to_string(),
-                        Some(LSPClientHandle::did_save_text_document(
-                            buffer.file_path().cloned().unwrap(),
-                        )),
-                    )
-                    .unwrap();
+            if let Some(lsp_handle) = lsp_handles.get(&buffer.language)
+                && let Err(err) = lsp_handle.send_notification_sync(
+                    "textDocument/didSave".to_string(),
+                    Some(LSPClientHandle::did_save_text_document(file_path)),
+                )
+            {
+                warn!(%err, "Failed to send didSave notification");
             }
         }
         Action::RunCurrentBuffer => {
@@ -478,7 +484,13 @@ pub fn perform_action(
             }) {
                 state.buffer_idx = Some(*idx);
             } else {
-                let initial_text = file_io::read_file_content(&path).unwrap();
+                let initial_text = match file_io::read_file_content(&path) {
+                    Ok(text) => text,
+                    Err(err) => {
+                        error!(%err, path = %path, "Failed to open file");
+                        return None;
+                    }
+                };
                 let buffer = RopeBuffer::new(
                     initial_text.clone(),
                     Some(path.clone()),
@@ -512,21 +524,20 @@ pub fn perform_action(
                         _ => "",
                     };
 
-                    if lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
+                    if (lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
                         || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
                             .as_bool()
-                            .unwrap_or(false)
+                            .unwrap_or(false))
+                        && let Err(err) = lsp_handle.send_notification_sync(
+                            "textDocument/didOpen".to_string(),
+                            Some(LSPClientHandle::did_open_text_document(
+                                path.clone(),
+                                language_id.to_string(),
+                                initial_text,
+                            )),
+                        )
                     {
-                        lsp_handle
-                            .send_notification_sync(
-                                "textDocument/didOpen".to_string(),
-                                Some(LSPClientHandle::did_open_text_document(
-                                    path.clone(),
-                                    language_id.to_string(),
-                                    initial_text,
-                                )),
-                            )
-                            .unwrap();
+                        warn!(%err, "Failed to send didOpen notification");
                     }
                 }
 
@@ -536,10 +547,20 @@ pub fn perform_action(
         Action::OpenFile(file_path) => {
             let mut path = path::PathBuf::from(file_path);
             if path.is_relative() {
-                path = std::path::absolute(path).unwrap();
+                path = match std::path::absolute(path) {
+                    Ok(path) => path,
+                    Err(err) => {
+                        error!(%err, "Failed to resolve absolute path");
+                        return None;
+                    }
+                };
             }
+            let Some(path_str) = path.to_str() else {
+                error!("Failed to open file: path is not valid UTF-8");
+                return None;
+            };
             perform_action(
-                Action::CreateBufferFromFile(path.to_str().unwrap().to_string()),
+                Action::CreateBufferFromFile(path_str.to_string()),
                 state,
                 lsp_handles,
             );

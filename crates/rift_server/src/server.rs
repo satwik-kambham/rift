@@ -17,6 +17,7 @@ use rift_core::{
     rsl::initialize_rsl,
     state::EditorState,
 };
+use tracing::error;
 
 pub async fn start_axum_server(
     sender_to_ws: broadcast::Sender<Bytes>,
@@ -95,7 +96,9 @@ impl Server {
         let mut state = EditorState::new(rt);
         let mut lsp_handles = HashMap::new();
 
-        process_cli_args(cli_args, &mut state, &mut lsp_handles);
+        if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
+            error!(%err, "Failed to process CLI args");
+        }
 
         initialize_rsl(&mut state, &mut lsp_handles);
 

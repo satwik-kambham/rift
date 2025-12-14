@@ -31,6 +31,14 @@
 - `.rsl` files contain Rift scripting language code; naming uses lowerCamelCase.
 - Infer other conventions from existing file contents; match surrounding style and patterns.
 
+## Error Handling
+- Prefer returning errors over panicking; reserve `panic!`/`expect` for truly unrecoverable situations.
+- Use `tracing` for diagnostics in Rust code; include context (paths, ids) when logging errors.
+- When RSL scripts need to emit diagnostics, send them through the `log` RPC function with helpful context.
+- For recoverable operations (file IO, parsing, RPC calls), avoid `unwrap`/`expect`; propagate errors or fallback gracefully where possible.
+- If an error is handled locally, log it at an appropriate level (`warn` for degraded behavior, `error` for failed operations) and continue when safe.
+- Convert external errors into meaningful application errors so callers can decide whether to retry, degrade, or surface to the user.
+
 ## Commit & Pull Request Guidelines
 - Commit message format:
   - `<type>: <short imperative summary>`; types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `build`.
