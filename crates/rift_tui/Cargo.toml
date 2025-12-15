@@ -3,6 +3,10 @@ name = "rift_tui"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "rt"
+path = "src/main.rs"
+
 [dependencies]
 ratatui = "0.29.0"
 rift_core = { path = "../rift_core" }

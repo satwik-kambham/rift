@@ -105,7 +105,7 @@
             pname = "rift_tui";
             cargoExtraArgs = "-p rift_tui";
             postInstall = ''
-              wrapProgram $out/bin/rift_tui \
+              wrapProgram $out/bin/rt \
                 --prefix PATH : ${pkgs.lib.makeBinPath appDeps}
             '';
           }
@@ -116,7 +116,7 @@
             pname = "rift_egui";
             cargoExtraArgs = "-p rift_egui";
             postInstall = ''
-              wrapProgram $out/bin/rift_egui \
+              wrapProgram $out/bin/re \
                 --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
                 --set LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath runtimeDeps}
             '';
@@ -126,7 +126,7 @@
       {
         checks = {
           inherit rift_tui rift_egui;
-          
+
           rift-clippy = craneLib.cargoClippy (
             commonArgs
             // {
@@ -147,9 +147,11 @@
         apps = {
           rift_tui = flake-utils.lib.mkApp {
             drv = rift_tui;
+            exePath = "/bin/rt";
           };
           rift_egui = flake-utils.lib.mkApp {
             drv = rift_egui;
+            exePath = "/bin/re";
           };
         };
 
