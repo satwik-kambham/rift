@@ -3807,7 +3807,7 @@ dependencies = [
 
 [[package]]
 name = "rift_core"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
@@ -3848,7 +3848,7 @@ dependencies = [
 
 [[package]]
 name = "rift_egui"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "anyhow",
  "clap",
@@ -3867,14 +3867,14 @@ dependencies = [
 
 [[package]]
 name = "rift_ipc"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "bincode 2.0.1",
 ]
 
 [[package]]
 name = "rift_rpc"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "futures",
  "tarpc",
@@ -3883,7 +3883,7 @@ dependencies = [
 
 [[package]]
 name = "rift_server"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "anyhow",
  "axum",
@@ -3900,7 +3900,7 @@ dependencies = [
 
 [[package]]
 name = "rift_tui"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "anyhow",
  "clap",
@@ -3916,7 +3916,7 @@ dependencies = [
 
 [[package]]
 name = "rift_web"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "eframe",
  "egui",
@@ -3956,7 +3956,7 @@ checksum = "3cd14fd5e3b777a7422cca79358c57a8f6e3a703d9ac187448d0daf220c2407f"
 
 [[package]]
 name = "rsl"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "anyhow",
  "clap",

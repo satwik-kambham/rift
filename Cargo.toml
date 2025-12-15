@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 
 members = [
   "crates/rift_core",
@@ -13,8 +13,8 @@ members = [
 ]
 
 [workspace.package]
+version = "1.0.13"
 edition = "2024"
-rust-version = "1.78"
 license = "MIT"
 repository = "https://github.com/satwik-kambham/rift"
 authors = ["Satwik Kambham"]
@@ -35,3 +35,6 @@ tokio = { version = "1.41.0", features = ["full"] }
 tracing = "0.1.41"
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
+[workspace.metadata.crane]
+name = "rift-workspace"

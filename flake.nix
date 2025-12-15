@@ -2,45 +2,41 @@
   description = "Rift Editor";
 
   inputs = {
-    nixpkgs.url      = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     crane.url = "github:ipetkov/crane";
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils.url  = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, crane, rust-overlay, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      rust-overlay,
+      crane,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
-        overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
-          inherit system overlays;
+          inherit system;
+          overlays = [ (import rust-overlay) ];
         };
-        craneLib = (crane.mkLib pkgs).overrideToolchain (
-          p: p.rust-bin.stable.latest.default.override {
-              targets = [ "wasm32-unknown-unknown" ];
-          }
-        );
-        unfilteredRoot = ./.;
-        src = pkgs.lib.fileset.toSource {
-          root = unfilteredRoot;
-          fileset = pkgs.lib.fileset.unions [
-            # Default files from crane (Rust and cargo files)
-            (craneLib.fileset.commonCargoSources unfilteredRoot)
-            (pkgs.lib.fileset.fileFilter
-              (file: pkgs.lib.any file.hasExt [ "html" "scss" ])
-              unfilteredRoot
-            )
-            # folder for images, icons, etc
-            (pkgs.lib.fileset.maybeMissing ./assets)
-          ];
-        };
+
+        toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         buildDeps = with pkgs; [
           (rust-bin.stable.latest.default.override {
-              targets = [ "wasm32-unknown-unknown" ];
+            targets = [ "wasm32-unknown-unknown" ];
           })
           rust-analyzer
           trunk
+          nixfmt-rfc-style
         ];
         runtimeDeps = with pkgs; [
           makeWrapper
@@ -69,6 +65,27 @@
         ];
         devDeps = buildDeps ++ runtimeDeps ++ appDeps;
 
+        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+
+        unfilteredRoot = ./.;
+        src = pkgs.lib.fileset.toSource {
+          root = unfilteredRoot;
+          fileset = pkgs.lib.fileset.unions [
+            # Default files from crane (Rust and cargo files)
+            (craneLib.fileset.commonCargoSources unfilteredRoot)
+            (pkgs.lib.fileset.fileFilter (
+              file:
+              pkgs.lib.any file.hasExt [
+                "rsl"
+                "html"
+                "scss"
+              ]
+            ) unfilteredRoot)
+            # folder for images, icons, etc
+            (pkgs.lib.fileset.maybeMissing ./assets)
+          ];
+        };
+
         commonArgs = {
           inherit src;
           strictDeps = true;
@@ -80,52 +97,49 @@
         individualCrateArgs = commonArgs // {
           inherit cargoArtifacts;
           inherit (craneLib.crateNameFromCargoToml { inherit src; }) version;
-          doCheck = false;
-        };
-        fileSetForCrate = crate: pkgs.lib.fileset.toSource {
-          root = ./.;
-          fileset = pkgs.lib.fileset.unions [
-            ./Cargo.toml
-            ./Cargo.lock
-            ./crates/rift_core
-            ./crates/rift_rpc
-            ./crates/rift_ipc
-            ./crates/rsl
-            ./crates/rift_egui
-            ./crates/rift_tui
-            ./crates/rift_server
-            ./crates/rift_web
-            crate
-            (pkgs.lib.fileset.fileFilter
-              (file: pkgs.lib.any file.hasExt [ "html" "scss" ])
-              unfilteredRoot
-            )
-            # folder for images, icons, etc
-            (pkgs.lib.fileset.maybeMissing ./assets)
-          ];
         };
 
-        rift_tui = craneLib.buildPackage (individualCrateArgs // {
-          pname = "rift_tui";
-          cargoExtraArgs = "-p rift_tui";
-          src = fileSetForCrate ./crates/rift_tui;
-          postInstall = ''
-            wrapProgram $out/bin/rift_tui \
-              --prefix PATH : ${pkgs.lib.makeBinPath appDeps}
-          '';
-        });
-        rift_egui = craneLib.buildPackage (individualCrateArgs // {
-          pname = "rift_egui";
-          cargoExtraArgs = "-p rift_egui";
-          src = fileSetForCrate ./crates/rift_egui;
-          postInstall = ''
-            wrapProgram $out/bin/rift_egui \
-              --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
-              --set LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath runtimeDeps}
-          '';
-        });
+        rift_tui = craneLib.buildPackage (
+          individualCrateArgs
+          // {
+            pname = "rift_tui";
+            cargoExtraArgs = "-p rift_tui";
+            postInstall = ''
+              wrapProgram $out/bin/rift_tui \
+                --prefix PATH : ${pkgs.lib.makeBinPath appDeps}
+            '';
+          }
+        );
+        rift_egui = craneLib.buildPackage (
+          individualCrateArgs
+          // {
+            pname = "rift_egui";
+            cargoExtraArgs = "-p rift_egui";
+            postInstall = ''
+              wrapProgram $out/bin/rift_egui \
+                --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
+                --set LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath runtimeDeps}
+            '';
+          }
+        );
       in
       {
+        checks = {
+          inherit rift_tui rift_egui;
+          
+          rift-clippy = craneLib.cargoClippy (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+            }
+          );
+
+          rift-fmt = craneLib.cargoFmt {
+            inherit src;
+          };
+        };
+
         packages = {
           inherit rift_tui rift_egui;
         };
@@ -142,8 +156,7 @@
         devShells.default = craneLib.devShell {
           packages = devDeps;
 
-          shellHook =
-          ''
+          shellHook = ''
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath devDeps}:$LD_LIBRARY_PATH
           '';
         };
