@@ -26,7 +26,13 @@ bincode = "2.0.1"
 clap = { version = "4.5.23", features = ["derive"] }
 dirs = "6.0.0"
 futures = "0.3"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "http2",
+  "charset",
+  "macos-system-configuration",
+  "rustls-tls-native-roots",
+] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.27.1", features = ["derive"] }

@@ -39,15 +39,8 @@ jobs:
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
-          # Enable arm64 packages when cross-compiling to aarch64
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            sudo dpkg --add-architecture arm64
-          fi
           sudo apt update
           sudo apt install -y build-essential pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libfontconfig-dev
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            sudo apt install -y gcc-aarch64-linux-gnu libssl-dev:arm64
-          fi
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: rt,re
