@@ -31,10 +31,7 @@
         toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         buildDeps = with pkgs; [
-          (rust-bin.stable.latest.default.override {
-            targets = [ "wasm32-unknown-unknown" ];
-          })
-          rust-analyzer
+          toolchain
           trunk
           nixfmt-rfc-style
         ];
