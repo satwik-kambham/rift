@@ -54,12 +54,16 @@ pub fn handle_lsp_messages(
     state: &mut EditorState,
     lsp_handles: &mut HashMap<Language, LSPClientHandle>,
 ) {
-    state.update_view = true;
-    if state.buffer_idx.is_some() {
-        let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
-        if let Some(lsp_handle) = lsp_handles.get_mut(&buffer.language)
+    if let Some(buffer_idx) = state.buffer_idx {
+        let buffer_language = {
+            let (buffer, _) = state.get_buffer_by_id(buffer_idx);
+            buffer.language
+        };
+        if let Some(lsp_handle) = lsp_handles.get_mut(&buffer_language)
             && let Some(message) = lsp_handle.recv_message_sync()
         {
+            state.update_view = true;
+            let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
             match message {
                 client::IncomingMessage::Response(response) => {
                     if response.error.is_some() {
