@@ -107,7 +107,6 @@ pub enum Action {
     RunCurrentBuffer,
     RunSource(String),
     Select(Selection),
-    SelectCurrentLine,
     SelectAndExtendCurrentLine,
     SelectTillEndOfWord,
     ExtendSelectTillEndOfWord,
@@ -435,13 +434,6 @@ pub fn perform_action(
         Action::Select(selection) => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             instance.selection = selection;
-            instance.cursor = instance.selection.cursor;
-            instance.column_level = instance.cursor.column;
-        }
-        Action::SelectCurrentLine => {
-            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
-            instance.selection.mark = instance.selection.cursor;
-            instance.selection = buffer.select_line(&instance.selection);
             instance.cursor = instance.selection.cursor;
             instance.column_level = instance.cursor.column;
         }

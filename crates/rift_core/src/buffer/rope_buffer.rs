@@ -923,14 +923,13 @@ impl RopeBuffer {
     /// Adds line to selection and returns updated selection
     pub fn select_line(&self, selection: &Selection) -> Selection {
         let mut updated_selection = *selection;
-        if selection.mark.column == 0
-            && selection.cursor.column == self.get_line_length(selection.cursor.row)
-            && selection.cursor.row < self.get_num_lines() - 1
-        {
-            updated_selection.cursor.row += 1;
-        }
         updated_selection.mark.column = 0;
-        updated_selection.cursor.column = self.get_line_length(updated_selection.cursor.row);
+        if updated_selection.cursor.row < self.get_num_lines() - 1 {
+            updated_selection.cursor.row += 1;
+            updated_selection.cursor.column = 0;
+        } else {
+            updated_selection.cursor.column = self.get_line_length(updated_selection.cursor.row);
+        }
         updated_selection
     }
 
