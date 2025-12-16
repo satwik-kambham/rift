@@ -148,8 +148,6 @@ pub enum Action {
     Redo,
     CopyToRegister,
     CopyToClipboard,
-    CutToRegister,
-    CutToClipboard,
     PasteFromRegister,
     PasteFromClipboard,
     SearchWorkspace,
@@ -859,6 +857,7 @@ pub fn perform_action(
             instance.column_level = instance.cursor.column;
         }
         Action::DeleteSelection => {
+            perform_action(Action::CopyToRegister, state, lsp_handles);
             let lsp_handle = if state.buffer_idx.is_some() {
                 let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
                 &mut lsp_handles.get_mut(&buffer.language)
@@ -954,8 +953,6 @@ pub fn perform_action(
                 }
             }
         }
-        Action::CutToRegister => {}
-        Action::CutToClipboard => {}
         Action::PasteFromRegister => {
             let lsp_handle = if state.buffer_idx.is_some() {
                 let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
