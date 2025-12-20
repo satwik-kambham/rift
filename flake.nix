@@ -32,6 +32,7 @@
 
         buildDeps = with pkgs; [
           toolchain
+          rust-analyzer
           trunk
           nixfmt-rfc-style
         ];

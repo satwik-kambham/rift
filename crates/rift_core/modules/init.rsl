@@ -1135,35 +1135,20 @@ fn workspaceSearchSelect() {
         start = tableGet(selection, "start")
         end = tableGet(selection, "end")
 
+        range = createTable()
+        cursor = createTable()
+        mark = createTable()
+
+        tableSet(mark, "row", row)
+        tableSet(mark, "column", start)
+        tableSet(cursor, "row", row)
+        tableSet(cursor, "column", end)
+        tableSet(range, "cursor", cursor)
+        tableSet(range, "mark", mark)
+
         openFile(path)
         runAction("quit-insert-mode")
-        runAction("go-to-buffer-start")
-
-        i = 0
-        loop {
-            if i >= row { break }
-            runAction("move-cursor-down")
-            i = i + 1
-        }
-
-        runAction("move-cursor-line-start")
-
-        j = 0
-        loop {
-            if j >= start { break }
-            runAction("move-cursor-right")
-            j = j + 1
-        }
-
-        length = end - start
-        k = 0
-        loop {
-            if k >= length { break }
-            runAction("extend-cursor-right")
-            k = k + 1
-        }
-
-        runAction("quit-insert-mode")
+        selectRange(toJson(range))
     }
 }
 
