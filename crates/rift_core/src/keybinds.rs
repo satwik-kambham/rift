@@ -211,7 +211,7 @@ impl Default for KeybindHandler {
                 "workspace-diagnostics nor space d",
                 "cycle-previous-buffer nor ,",
                 "cycle-next-buffer nor .",
-                "search-workspace nor /",
+                "search-workspace nor space /",
                 "open-command-dispatcher nor :",
                 "keybind-help nor ?",
                 "run-current-buffer nor space r",
@@ -269,6 +269,8 @@ impl Default for KeybindHandler {
                 "copy-to-clipboard nor s-y",
                 "paste-from-register nor p",
                 "paste-from-clipboard nor s-p",
+                "set-search-query-from-selection-or-prompt nor /",
+                "find-next-with-query nor n",
             ],
         )
     }

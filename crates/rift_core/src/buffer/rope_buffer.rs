@@ -986,4 +986,77 @@ impl RopeBuffer {
             mark: start,
         }
     }
+
+    /// Find the next occurrence of the given query starting at the provided cursor.
+    /// Returns a selection covering the match if found.
+    pub fn find_next(&self, cursor: &Cursor, query: &str) -> Option<Selection> {
+        if query.is_empty() {
+            return None;
+        }
+
+        let total_chars = self.buffer.len_chars();
+        let start_idx = self.byte_index_from_cursor(cursor).min(total_chars);
+        if start_idx == total_chars {
+            return None;
+        }
+
+        let search_slice = self.buffer.slice(start_idx..total_chars).to_string();
+        let match_offset_bytes = search_slice.find(query)?;
+        let leading_chars = search_slice[..match_offset_bytes].chars().count();
+        let match_start = start_idx + leading_chars;
+        let match_end = match_start + query.chars().count();
+
+        let start_row = self.buffer.char_to_line(match_start);
+        let start_col = match_start - self.buffer.line_to_char(start_row);
+        let end_row = self.buffer.char_to_line(match_end);
+        let end_col = match_end - self.buffer.line_to_char(end_row);
+
+        Some(Selection {
+            mark: Cursor {
+                row: start_row,
+                column: start_col,
+            },
+            cursor: Cursor {
+                row: end_row,
+                column: end_col,
+            },
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn find_same_line_from_start() {
+        let buffer = RopeBuffer::new("hello world\nbye".to_string(), None, ".", false);
+        let result = buffer.find_next(&Cursor { row: 0, column: 0 }, "hello");
+        let selection = result.expect("should find match at start");
+        assert_eq!(selection.mark, Cursor { row: 0, column: 0 });
+        assert_eq!(selection.cursor, Cursor { row: 0, column: 5 });
+    }
+
+    #[test]
+    fn find_after_cursor_multi_line() {
+        let buffer = RopeBuffer::new("abc\ndef abc".to_string(), None, ".", false);
+        let result = buffer.find_next(&Cursor { row: 0, column: 1 }, "abc");
+        let selection = result.expect("should find second occurrence");
+        assert_eq!(selection.mark, Cursor { row: 1, column: 4 });
+        assert_eq!(selection.cursor, Cursor { row: 1, column: 7 });
+    }
+
+    #[test]
+    fn find_returns_none_when_missing() {
+        let buffer = RopeBuffer::new("foo bar".to_string(), None, ".", false);
+        let result = buffer.find_next(&Cursor { row: 0, column: 0 }, "baz");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn find_does_not_wrap() {
+        let buffer = RopeBuffer::new("match here\nstart".to_string(), None, ".", false);
+        let result = buffer.find_next(&Cursor { row: 1, column: 0 }, "match");
+        assert!(result.is_none(), "should not wrap to earlier lines");
+    }
 }

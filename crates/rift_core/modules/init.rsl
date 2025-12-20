@@ -1831,6 +1831,11 @@ dialogModalInput = ""
 dialogModalPrompt = ""
 dialogModalCallback = null
 
+fn setSearchQueryFromDialog(query) {
+    setSearchQuery(query)
+    runAction("find-next-with-query")
+}
+
 fn dialogModalRender() {
     content = "💬 Dialog\n" + dialogModalPrompt + "\n╭─ Input ───────────────\n" + dialogModalInput + "\n\nenter: submit | esc: cancel"
     setViewportBufferContent(dialogModalId, content)

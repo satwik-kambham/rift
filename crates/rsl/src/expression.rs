@@ -421,6 +421,11 @@ fn execute_rpc_call(identifier: &str, parameters: Vec<Primitive>, rsl: &mut RSL)
                     .unwrap();
                 Primitive::Null
             }
+            "setSearchQuery" => {
+                let query = args!(parameters; query: String);
+                client.set_search_query(ctx, query).await.unwrap();
+                Primitive::Null
+            }
             "getWorkspaceDir" => {
                 let workspace_dir = client.get_workspace_dir(ctx).await.unwrap();
                 Primitive::String(workspace_dir)

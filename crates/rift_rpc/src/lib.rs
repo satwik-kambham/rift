@@ -20,4 +20,5 @@ pub trait RiftRPC {
     async fn get_viewport_size() -> String;
     async fn select_range(selection: String);
     async fn open_file(path: String);
+    async fn set_search_query(query: String);
 }

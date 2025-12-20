@@ -63,6 +63,7 @@ pub struct EditorState {
     pub keybind_handler: KeybindHandler,
     pub log_messages: Vec<String>,
     pub register: String,
+    pub search_query: String,
 }
 
 impl EditorState {
@@ -131,6 +132,7 @@ impl EditorState {
             keybind_handler: KeybindHandler::default(),
             log_messages: vec![],
             register: String::new(),
+            search_query: String::new(),
         }
     }
 

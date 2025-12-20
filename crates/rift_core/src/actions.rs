@@ -150,6 +150,9 @@ pub enum Action {
     CopyToClipboard,
     PasteFromRegister,
     PasteFromClipboard,
+    SetSearchQuery(String),
+    SetSearchQueryFromSelectionOrPrompt,
+    FindNextWithQuery,
     SearchWorkspace,
     GetWorkspaceDiagnostics,
     WorkspaceDiagnostics,
@@ -1022,6 +1025,49 @@ pub fn perform_action(
                 instance.cursor = cursor;
                 instance.selection.cursor = instance.cursor;
                 instance.selection.mark = instance.cursor;
+            }
+        }
+        Action::SetSearchQuery(query) => {
+            state.search_query = query;
+        }
+        Action::SetSearchQueryFromSelectionOrPrompt => {
+            let buffer_id = state.buffer_idx?;
+
+            let selection_text = {
+                let (buffer, instance) = state.get_buffer_by_id(buffer_id);
+                let (start, end) = instance.selection.in_order();
+                if start != end {
+                    Some(buffer.get_selection(&instance.selection))
+                } else {
+                    None
+                }
+            };
+
+            if let Some(selection_text) = selection_text {
+                state.search_query = selection_text;
+                perform_action(Action::FindNextWithQuery, state, lsp_handles);
+            } else {
+                perform_action(
+                    Action::RunSource(
+                        "dialogModalOpen(\"Enter search query\", setSearchQueryFromDialog)"
+                            .to_string(),
+                    ),
+                    state,
+                    lsp_handles,
+                );
+            }
+        }
+        Action::FindNextWithQuery => {
+            let buffer_id = state.buffer_idx?;
+            if state.search_query.is_empty() {
+                return None;
+            }
+
+            let query = state.search_query.clone();
+            let (buffer, instance) = state.get_buffer_by_id_mut(buffer_id);
+            if let Some(selection) = buffer.find_next(&instance.cursor, &query) {
+                instance.selection = selection;
+                instance.cursor = selection.cursor;
             }
         }
         Action::SearchWorkspace => {

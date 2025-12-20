@@ -169,6 +169,11 @@ impl RiftRPC for RPCHandle {
             None => tracing::warn!("Failed to parse selection for select_range RPC"),
         }
     }
+
+    async fn set_search_query(self, _context: tarpc::context::Context, query: String) {
+        self.send_action_request(Action::SetSearchQuery(query))
+            .await;
+    }
 }
 
 pub async fn start_rpc_server(
