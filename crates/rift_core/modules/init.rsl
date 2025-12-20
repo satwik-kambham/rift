@@ -239,34 +239,193 @@ fn agentSearchWorkspace(pattern) {
 }
 
 llmChatId = -1
+llmChatModel = "mistralai/devstral-small"
+llmChatHistoryScroll = 0
+llmChatHistoryPageSize = 1
 chatInput = ""
 chatHistory = createArray()
 pendingToolCalls = createArray()
 
-fn renderLLMChat() {
-    content = ""
+fn llmChatRoleLabel(message) {
+    role = tableGet(message, "role")
+    label = role
+    if role == "assistant" { label = "Assistant" }
+    if role == "user" { label = "User" }
+    if role == "system" { label = "System" }
+    if role == "tool" {
+        label = "Tool"
+        name = tableGet(message, "name")
+        if name != null {
+            label = "Tool (" + name + ")"
+        }
+    }
+    return label
+}
+
+fn llmChatToolCallName(toolCall) {
+    toolFunc = tableGet(toolCall, "function")
+    if toolFunc == null { return "unknown" }
+    name = tableGet(toolFunc, "name")
+    if name == null { return "unknown" }
+    return name
+}
+
+fn llmChatLinesToString(lines) {
+    text = ""
     i = 0
     loop {
-        if i >= arrayLen(chatHistory) { break }
+        if i >= arrayLen(lines) { break }
+        line = arrayGet(lines, i)
+        if i > 0 { text = text + "\n" }
+        text = text + line
+        i = i + 1
+    }
+    return text
+}
+
+fn llmChatScrollUp() {
+    llmChatHistoryScroll = llmChatHistoryScroll + 1
+    renderLLMChat()
+}
+
+fn llmChatScrollDown() {
+    llmChatHistoryScroll = llmChatHistoryScroll - 1
+    if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
+    renderLLMChat()
+}
+
+fn llmChatPageUp() {
+    llmChatHistoryScroll = llmChatHistoryScroll + llmChatHistoryPageSize
+    renderLLMChat()
+}
+
+fn llmChatPageDown() {
+    llmChatHistoryScroll = llmChatHistoryScroll - llmChatHistoryPageSize
+    if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
+    renderLLMChat()
+}
+
+fn renderLLMChat() {
+    historyLines = createArray()
+    totalMessages = arrayLen(chatHistory)
+    i = 0
+    loop {
+        if i >= totalMessages { break }
         message = arrayGet(chatHistory, i)
-        content = content + "\n------\n" + tableGet(message, "role") + ":\n" + tableGet(message, "content")
+        label = llmChatRoleLabel(message)
+        arrayPushBack(historyLines, label + ":")
+        content = tableGet(message, "content")
+        if content == null { content = "" }
+        contentLines = stringSplitLines(content)
+        if arrayLen(contentLines) == 0 or stringLen(content) == 0 {
+            arrayPushBack(historyLines, "  (empty)")
+        }
+        if arrayLen(contentLines) != 0 and stringLen(content) != 0 {
+            j = 0
+            loop {
+                if j >= arrayLen(contentLines) { break }
+                line = arrayGet(contentLines, j)
+                arrayPushBack(historyLines, "  " + line)
+                j = j + 1
+            }
+        }
         toolCalls = tableGet(message, "tool_calls")
         if toolCalls != null {
-            content = content + "\n\n" + toJson(toolCalls)
+            j = 0
+            loop {
+                if j >= arrayLen(toolCalls) { break }
+                toolCall = arrayGet(toolCalls, j)
+                toolName = llmChatToolCallName(toolCall)
+                arrayPushBack(historyLines, "  • tool call: " + toolName)
+                j = j + 1
+            }
         }
-        content = content + "\n------\n"
+        if i < totalMessages - 1 {
+            arrayPushBack(historyLines, "")
+        }
         i = i + 1
+    }
+
+    pendingLines = createArray()
+    if arrayLen(pendingToolCalls) == 0 {
+        arrayPushBack(pendingLines, "   None")
     }
     if arrayLen(pendingToolCalls) != 0 {
         i = 0
         loop {
             if i >= arrayLen(pendingToolCalls) { break }
             toolCall = arrayGet(pendingToolCalls, i)
-            content = content + "\n" + toJson(toolCall) + "\n"
+            toolName = llmChatToolCallName(toolCall)
+            arrayPushBack(pendingLines, " • " + toolName)
             i = i + 1
         }
     }
-    content = content + "\n------\n" + chatInput + "\n------\n"
+
+    inputLines = stringSplitLines(chatInput)
+    if arrayLen(inputLines) == 0 or stringLen(chatInput) == 0 {
+        inputLines = createArray()
+        arrayPushBack(inputLines, "Type a message...")
+    }
+
+    headerLines = 3
+    sectionLines = 3
+    reservedLines = headerLines + sectionLines + arrayLen(pendingLines) + arrayLen(inputLines)
+    maxHistoryLines = viewportVisibleRows(reservedLines)
+    if maxHistoryLines < 1 { maxHistoryLines = 1 }
+    llmChatHistoryPageSize = maxHistoryLines
+
+    historyDisplayLines = createArray()
+    if arrayLen(historyLines) == 0 {
+        arrayPushBack(historyDisplayLines, "   No messages yet")
+    }
+    if arrayLen(historyLines) != 0 {
+        totalHistoryLines = arrayLen(historyLines)
+        historySlots = maxHistoryLines
+        maxScroll = totalHistoryLines - historySlots
+        if maxScroll < 0 { maxScroll = 0 }
+        if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
+        if llmChatHistoryScroll > maxScroll { llmChatHistoryScroll = maxScroll }
+        start = totalHistoryLines - historySlots - llmChatHistoryScroll
+        if start < 0 { start = 0 }
+
+        showEllipsis = false
+        if start > 0 {
+            showEllipsis = true
+            historySlots = maxHistoryLines - 1
+            if historySlots < 1 { historySlots = 1 }
+            maxScroll = totalHistoryLines - historySlots
+            if maxScroll < 0 { maxScroll = 0 }
+            if llmChatHistoryScroll > maxScroll { llmChatHistoryScroll = maxScroll }
+            start = totalHistoryLines - historySlots - llmChatHistoryScroll
+            if start < 0 { start = 0 }
+            if start <= 0 { showEllipsis = false }
+        }
+
+        end = start + historySlots
+        if end > totalHistoryLines { end = totalHistoryLines }
+
+        if showEllipsis {
+            arrayPushBack(historyDisplayLines, "   ⋯")
+        }
+
+        i = start
+        loop {
+            if i >= end { break }
+            arrayPushBack(historyDisplayLines, arrayGet(historyLines, i))
+            i = i + 1
+        }
+    }
+
+    status = "Model: " + llmChatModel + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
+
+    content = "🤖 LLM Chat\n" + status + "\nenter: send | y/n: allow/deny tool | up/down: scroll\n"
+    content = content + "╭─ History ─────────────\n"
+    content = content + llmChatLinesToString(historyDisplayLines) + "\n"
+    content = content + "╰─ Pending Tools ───────\n"
+    content = content + llmChatLinesToString(pendingLines) + "\n"
+    content = content + "╭─ Input ───────────────\n"
+    content = content + llmChatLinesToString(inputLines)
+
     setViewportBufferContent(llmChatId, content)
 }
 
@@ -274,7 +433,7 @@ fn requestChatCompletion() {
     apiKey = getEnvVar("OPENROUTER_KEY")
     
     request = createTable()
-    tableSet(request, "model", "mistralai/devstral-small")
+    tableSet(request, "model", llmChatModel)
     tableSet(request, "messages", chatHistory)
     tableSet(request, "tools", fromJson(toolDeclarations()))
     tableSet(request, "stream", false)
@@ -361,7 +520,8 @@ fn sendMessage() {
         tableSet(message, "role", "user")
         tableSet(message, "content", chatInput)
         arrayPushBack(chatHistory, message)
-        
+
+        llmChatClearInput()
         renderLLMChat()
     
         requestChatCompletion()
@@ -389,9 +549,17 @@ fn createLLMChat() {
     if llmChatId == -1 {
         bufferId = createSpecialBuffer("LLM Chat")
         llmChatId = bufferId
-        registerBufferKeybind(bufferId, "nor enter", sendMessage)
+        registerBufferKeybind(bufferId, "ins enter", sendMessage)
+        registerBufferKeybind(bufferId, "nor up", llmChatScrollUp)
+        registerBufferKeybind(bufferId, "nor down", llmChatScrollDown)
+        registerBufferKeybind(bufferId, "nor pageup", llmChatPageUp)
+        registerBufferKeybind(bufferId, "nor pagedown", llmChatPageDown)
         registerBufferKeybind(bufferId, "ins space", llmChatAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", llmChatClearInput)
+        registerBufferKeybind(bufferId, "ins up", llmChatScrollUp)
+        registerBufferKeybind(bufferId, "ins down", llmChatScrollDown)
+        registerBufferKeybind(bufferId, "ins pageup", llmChatPageUp)
+        registerBufferKeybind(bufferId, "ins pagedown", llmChatPageDown)
         registerBufferKeybind(bufferId, "nor y", allowToolCall)
         registerBufferKeybind(bufferId, "nor n", denyToolCall)
         registerBufferInputHook(bufferId, llmChatInputUpdated)
