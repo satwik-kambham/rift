@@ -495,8 +495,14 @@ pub fn perform_action(
                     lsp_handles.entry(buffer.language)
                     && let Some(mut lsp_handle) = state.spawn_lsp(buffer.language)
                 {
-                    lsp_handle.init_lsp_sync(state.workspace_folder.clone());
-                    e.insert(lsp_handle);
+                    if lsp_handle
+                        .init_lsp_sync(state.workspace_folder.clone())
+                        .is_ok()
+                    {
+                        e.insert(lsp_handle);
+                    } else {
+                        state.preferences.no_lsp = true;
+                    }
                 }
 
                 if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {

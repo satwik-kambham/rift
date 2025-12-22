@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     process::{self, Stdio},
     sync::atomic::{AtomicUsize, Ordering},
+    time::{Duration, Instant},
 };
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
@@ -93,29 +94,6 @@ pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> 
         .stderr
         .take()
         .context("Failed to open stderr for LSP process")?;
-
-    if let Some(status) = child
-        .try_wait()
-        .context("Failed to check LSP process status after spawn")?
-    {
-        let mut stderr_reader = BufReader::new(stderr);
-        let mut stderr_output = String::new();
-        let _ = stderr_reader.read_to_string(&mut stderr_output).await;
-
-        let stderr_output = stderr_output.trim();
-        let details = if stderr_output.is_empty() {
-            String::new()
-        } else {
-            format!(": {}", stderr_output)
-        };
-
-        bail!(
-            "LSP command `{}` exited immediately with status {}{}",
-            command_display,
-            status,
-            details
-        );
-    }
 
     let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<OutgoingMessage>(32);
     let (incoming_tx, incoming_rx) = mpsc::channel::<IncomingMessage>(32);
@@ -358,31 +336,10 @@ impl LSPClientHandle {
     }
 
     /// Send initialize request and wait for response
-    pub async fn init_lsp(&mut self, workspace_folder: String) {
-        self.send_request(
-            "initialize".to_string(),
-            Some(self.get_initialization_params(workspace_folder)),
-        )
-        .await
-        .unwrap();
+    pub fn init_lsp_sync(&mut self, workspace_folder: String) -> Result<()> {
+        let timeout_duration = Duration::from_secs(5);
+        let timeout_start = Instant::now();
 
-        loop {
-            if let Some(response) = self.recv_message().await {
-                if let IncomingMessage::Response(message) = response {
-                    // tracing::info!("{:#?}", message);
-                    self.initialize_capabilities = message.result.unwrap()["capabilities"].clone();
-                    self.send_notification("initialized".to_string(), Some(json!({})))
-                        .await
-                        .unwrap();
-                    break;
-                }
-                break;
-            }
-        }
-    }
-
-    /// Send initialize request and wait for response
-    pub fn init_lsp_sync(&mut self, workspace_folder: String) {
         self.send_request_sync(
             "initialize".to_string(),
             Some(self.get_initialization_params(workspace_folder)),
@@ -399,7 +356,14 @@ impl LSPClientHandle {
                 }
                 break;
             }
+
+            if timeout_start.elapsed() >= timeout_duration {
+                tracing::warn!("LSP Initialization timed out. Disabling LSP");
+                bail!("LSP Initialization timed out")
+            }
         }
+
+        Ok(())
     }
 
     /// DidOpenTextDocument Notification
