@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
+use clap::Parser;
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
@@ -11,6 +12,7 @@ use crate::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
         rope_buffer::{HighlightedText, RopeBuffer},
     },
+    cli::CLIArgs,
     concurrent::{AsyncHandle, AsyncResult},
     keybinds::KeybindHandler,
     lsp::{
@@ -67,7 +69,18 @@ pub struct EditorState {
 }
 
 impl EditorState {
-    pub fn new(rt: tokio::runtime::Runtime) -> Self {
+    pub fn new() -> Self {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let cli_args = CLIArgs::parse();
+
+        // if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
+        // error!(%err, "Failed to process CLI args");
+        // }
+
         let (event_sender, event_reciever) = mpsc::channel::<RPCRequest>(32);
 
         let rpc_client_transport = rt.block_on(start_rpc_server(event_sender));

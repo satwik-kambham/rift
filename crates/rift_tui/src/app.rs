@@ -14,7 +14,6 @@ use ratatui::{
 use rift_core::{
     actions::{Action, perform_action},
     buffer::instance::{Attribute, Language},
-    cli::{CLIArgs, process_cli_args},
     io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages},
     preferences::Color,
@@ -22,7 +21,6 @@ use rift_core::{
     rsl::initialize_rsl,
     state::{CompletionMenu, EditorState, Mode},
 };
-use tracing::error;
 
 pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
     ratatui::style::Color::Rgb(c.r, c.g, c.b)
@@ -35,13 +33,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(rt: tokio::runtime::Runtime, cli_args: CLIArgs) -> Self {
-        let mut state = EditorState::new(rt);
-        let mut lsp_handles = HashMap::new();
-
-        if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
-            error!(%err, "Failed to process CLI args");
-        }
+    pub fn new() -> Self {
+        let state = EditorState::new();
+        let lsp_handles = HashMap::new();
 
         Self {
             state,

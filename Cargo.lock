@@ -3713,7 +3713,6 @@ name = "rift_egui"
 version = "1.0.20"
 dependencies = [
  "anyhow",
- "clap",
  "dirs 6.0.0",
  "eframe",
  "egui",
@@ -3739,7 +3738,6 @@ name = "rift_tui"
 version = "1.0.20"
 dependencies = [
  "anyhow",
- "clap",
  "dirs 6.0.0",
  "ratatui",
  "rift_core",

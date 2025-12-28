@@ -10,7 +10,6 @@ use egui::{
 use rift_core::{
     actions::{Action, perform_action},
     buffer::instance::{Attribute, HighlightType, Language},
-    cli::{CLIArgs, process_cli_args},
     io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages, types},
     rendering::update_visible_lines,
@@ -29,7 +28,6 @@ use crate::{
     },
     fonts::load_fonts,
 };
-use tracing::error;
 
 pub struct App {
     dispatcher: CommandDispatcher,
@@ -41,13 +39,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(rt: tokio::runtime::Runtime, cli_args: CLIArgs) -> Self {
-        let mut state = EditorState::new(rt);
-        let mut lsp_handles = HashMap::new();
-
-        if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
-            error!(%err, "Failed to process CLI args");
-        }
+    pub fn new() -> Self {
+        let mut state = EditorState::new();
+        let lsp_handles = HashMap::new();
 
         let font_definitions = load_fonts(&mut state);
 
