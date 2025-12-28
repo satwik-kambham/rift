@@ -33,7 +33,6 @@
         buildDeps = with pkgs; [
           toolchain
           rust-analyzer
-          trunk
           nixfmt-rfc-style
         ];
         runtimeDeps = with pkgs; [
@@ -75,8 +74,6 @@
               file:
               pkgs.lib.any file.hasExt [
                 "rsl"
-                "html"
-                "scss"
               ]
             ) unfilteredRoot)
             # folder for images, icons, etc
