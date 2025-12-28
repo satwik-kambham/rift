@@ -31,6 +31,8 @@ ecolor = { git = "https://github.com/satwik-kambham/egui.git", branch = "master"
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
 copypasta = "0.10.1"
 reqwest = { workspace = true }
 clap = { workspace = true }

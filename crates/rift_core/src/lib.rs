@@ -4,6 +4,7 @@ pub mod cli;
 pub mod concurrent;
 pub mod io;
 pub mod keybinds;
+pub mod logging;
 pub mod lsp;
 pub mod preferences;
 pub mod rendering;

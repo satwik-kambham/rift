@@ -9,8 +9,6 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 clap = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-tracing-appender = { workspace = true }
 axum = { version = "0.8.7", features = ["ws"] }
 bincode = { workspace = true }
 bytes = "1.11.0"

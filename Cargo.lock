@@ -3811,6 +3811,8 @@ dependencies = [
  "tarpc",
  "tokio",
  "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-c",
  "tree-sitter-cpp",
@@ -3843,8 +3845,6 @@ dependencies = [
  "strum 0.27.1",
  "tokio",
  "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -3876,8 +3876,6 @@ dependencies = [
  "rift_core",
  "tokio",
  "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -3892,8 +3890,6 @@ dependencies = [
  "strum 0.27.1",
  "tokio",
  "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
