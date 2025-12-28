@@ -4,7 +4,6 @@ use clap::Parser;
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
-use tracing::warn;
 
 use crate::{
     actions::{Action, ReferenceEntry, perform_action},
@@ -32,40 +31,49 @@ pub enum Mode {
 }
 
 pub struct EditorState {
-    pub quit: bool,
-    pub rt: tokio::runtime::Runtime,
-    pub async_handle: AsyncHandle,
-    pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
-    pub event_reciever: mpsc::Receiver<RPCRequest>,
-    pub rsl_sender: mpsc::Sender<String>,
-    pub file_watcher: Option<RecommendedWatcher>,
     pub preferences: Preferences,
     pub buffers: HashMap<u32, RopeBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
     next_id: u32,
     pub workspace_folder: String,
     pub current_folder: String,
-    viewport_rows: usize,
-    viewport_columns: usize,
     pub mode: Mode,
-    pub update_view: bool,
-    pub highlighted_text: HighlightedText,
-    pub gutter_info: Vec<GutterInfo>,
-    pub relative_cursor: Cursor,
     pub buffer_idx: Option<u32>,
+    pub log_messages: Vec<String>,
+    pub register: String,
+    pub search_query: String,
+    pub quit: bool,
+
+    // System
     pub clipboard_ctx: Option<ClipboardContext>,
+
+    // Handles
+    pub rt: tokio::runtime::Runtime,
+    pub async_handle: AsyncHandle,
+    pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
+    pub event_reciever: mpsc::Receiver<RPCRequest>,
+    pub rsl_sender: mpsc::Sender<String>,
+    pub file_watcher: Option<RecommendedWatcher>,
+    lsp_handles: HashMap<Language, LSPClientHandle>,
+
+    // LSP
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
     pub references: Vec<ReferenceEntry>,
     pub references_version: usize,
     pub definitions: Vec<ReferenceEntry>,
     pub definitions_version: usize,
     pub diagnostics_overlay: DiagnosticsOverlay,
+
+    // UI
+    viewport_rows: usize,
+    viewport_columns: usize,
+    pub update_view: bool,
+    pub highlighted_text: HighlightedText,
+    pub gutter_info: Vec<GutterInfo>,
+    pub relative_cursor: Cursor,
     pub completion_menu: CompletionMenu,
     pub signature_information: SignatureInformation,
     pub keybind_handler: KeybindHandler,
-    pub log_messages: Vec<String>,
-    pub register: String,
-    pub search_query: String,
 }
 
 impl EditorState {
@@ -93,7 +101,7 @@ impl EditorState {
             move |res| {
                 rt_handle.block_on(async {
                     if let Err(err) = file_event_sender.clone().send(res).await {
-                        warn!(%err, "Failed to forward file watcher event");
+                        tracing::warn!(%err, "Failed to forward file watcher event");
                     }
                 });
             },
@@ -101,7 +109,7 @@ impl EditorState {
         )
         .map(Some)
         .unwrap_or_else(|err| {
-            warn!(%err, "Failed to create file watcher; continuing without live file updates");
+            tracing::warn!(%err, "Failed to create file watcher; continuing without live file updates");
             None
         });
 
@@ -146,6 +154,7 @@ impl EditorState {
             log_messages: vec![],
             register: String::new(),
             search_query: String::new(),
+            lsp_handles: HashMap::new(),
         }
     }
 
@@ -179,7 +188,7 @@ impl EditorState {
                 if let Some(watcher) = self.file_watcher.as_mut()
                     && let Err(err) = watcher.watch(path, RecursiveMode::NonRecursive)
                 {
-                    warn!(%err, path = %path.display(), "Failed to watch file path");
+                    tracing::warn!(%err, path = %path.display(), "Failed to watch file path");
                 }
             }
             self.buffers.insert(self.next_id, buffer);
