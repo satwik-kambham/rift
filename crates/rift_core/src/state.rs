@@ -377,16 +377,28 @@ impl EditorState {
         self.lsp_handles.get_mut(language).cloned()
     }
 
-    pub fn get_lsp_handle_for_active_buffer(&mut self) -> Option<Arc<Mutex<LSPClientHandle>>> {
-        if self.buffer_idx.is_some() {
-            let language = {
-                let (buffer, _instance) = self.get_buffer_by_id(self.buffer_idx.unwrap());
-                buffer.language
-            };
-            self.get_lsp_handle_for_language(&language)
-        } else {
-            None
-        }
+    pub fn get_lsp_handle_for_buffer(&mut self, id: u32) -> Option<Arc<Mutex<LSPClientHandle>>> {
+        let language = {
+            let (buffer, _instance) = self.get_buffer_by_id(id);
+            buffer.language
+        };
+        self.get_lsp_handle_for_language(&language)
+    }
+
+    pub fn get_buffer_with_lsp_by_id_mut(
+        &mut self,
+        id: u32,
+    ) -> (
+        &mut RopeBuffer,
+        &mut BufferInstance,
+        Option<Arc<Mutex<LSPClientHandle>>>,
+    ) {
+        let lsp_handle = self.get_lsp_handle_for_buffer(id);
+        (
+            self.buffers.get_mut(&id).unwrap(),
+            self.instances.get_mut(&id).unwrap(),
+            lsp_handle,
+        )
     }
 }
 

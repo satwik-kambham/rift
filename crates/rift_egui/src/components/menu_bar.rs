@@ -1,9 +1,5 @@
-use std::collections::HashMap;
-
 use rift_core::{
     actions::{Action, perform_action},
-    buffer::instance::Language,
-    lsp::client::LSPClientHandle,
     preferences,
     state::EditorState,
 };

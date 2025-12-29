@@ -1,11 +1,5 @@
-use std::collections::HashMap;
-
 use egui::RichText;
-use rift_core::{
-    buffer::instance::Language,
-    lsp::client::LSPClientHandle,
-    state::{CompletionMenu, EditorState},
-};
+use rift_core::state::{CompletionMenu, EditorState};
 
 pub struct CompletionMenuWidget {}
 

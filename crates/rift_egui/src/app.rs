@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use egui::{
     FontDefinitions,
@@ -9,9 +9,9 @@ use egui::{
 };
 use rift_core::{
     actions::{Action, perform_action},
-    buffer::instance::{Attribute, HighlightType, Language},
+    buffer::instance::{Attribute, HighlightType},
     io::file_io::handle_file_event,
-    lsp::{client::LSPClientHandle, handle_lsp_messages, types},
+    lsp::{handle_lsp_messages, types},
     rendering::update_visible_lines,
     state::{EditorState, Mode},
 };

@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::{collections::HashSet, time::Duration};
 
 use ratatui::{
     DefaultTerminal,
@@ -13,9 +10,9 @@ use ratatui::{
 };
 use rift_core::{
     actions::{Action, perform_action},
-    buffer::instance::{Attribute, Language},
+    buffer::instance::Attribute,
     io::file_io::handle_file_event,
-    lsp::{client::LSPClientHandle, handle_lsp_messages},
+    lsp::handle_lsp_messages,
     preferences::Color,
     rendering::update_visible_lines,
     state::{CompletionMenu, EditorState, Mode},

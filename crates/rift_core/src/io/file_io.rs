@@ -49,7 +49,8 @@ pub fn handle_file_event(file_event_result: NotifyResult<Event>, state: &mut Edi
                     .iter()
                     .find(|(_, buf)| buf.file_path().cloned().unwrap_or_default() == file_path)
                 {
-                    let (buffer, instance) = state.get_buffer_by_id_mut(*buffer_id);
+                    let (buffer, instance, lsp_handle) =
+                        state.get_buffer_with_lsp_by_id_mut(*buffer_id);
                     if buffer.modified {
                         warn!(
                             path = %file_path,
@@ -58,7 +59,6 @@ pub fn handle_file_event(file_event_result: NotifyResult<Event>, state: &mut Edi
                         return;
                     }
 
-                    let lsp_handle = state.get_lsp_handle_for_language(&buffer.language);
                     let content = match read_file_content(file_path) {
                         Ok(content) => content,
                         Err(err) => {

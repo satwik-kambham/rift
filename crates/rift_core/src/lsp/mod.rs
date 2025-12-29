@@ -48,12 +48,9 @@ fn reference_preview(file_path: &str, range: &Selection) -> String {
 
 pub fn handle_lsp_messages(state: &mut EditorState) {
     if let Some(buffer_idx) = state.buffer_idx {
-        let buffer_language = {
-            let (buffer, _) = state.get_buffer_by_id(buffer_idx);
-            buffer.language
-        };
-        if let Some(lsp_handle) = lsp_handles.get_mut(&buffer_language)
-            && let Some(message) = lsp_handle.recv_message_sync()
+        let lsp_handle = state.get_lsp_handle_for_buffer(buffer_idx);
+        if let Some(lsp_handle) = lsp_handle
+            && let Some(message) = lsp_handle.lock().unwrap().recv_message_sync()
         {
             state.update_view = true;
             let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
@@ -65,7 +62,8 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
                             response.id,
                             response.error.unwrap()
                         );
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/hover"
+                    } else if lsp_handle.lock().unwrap().id_method[&response.id]
+                        == "textDocument/hover"
                         && response.result.is_some()
                     {
                         let message = response.result.unwrap()["contents"]["value"]
@@ -73,7 +71,8 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
                             .unwrap_or_default()
                             .to_string();
                         open_info_modal_in_rsl(state, &message);
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/completion"
+                    } else if lsp_handle.lock().unwrap().id_method[&response.id]
+                        == "textDocument/completion"
                         && response.result.is_some()
                     {
                         let items = if response.result.as_ref().unwrap()["items"].is_array() {
@@ -123,7 +122,8 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
                             }
                         }
                         state.completion_menu.open(completion_items);
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/formatting"
+                    } else if lsp_handle.lock().unwrap().id_method[&response.id]
+                        == "textDocument/formatting"
                         && response.result.is_some()
                     {
                         let edits = response.result.unwrap().as_array().unwrap().clone();
@@ -138,7 +138,8 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
                                 state,
                             );
                         }
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/signatureHelp"
+                    } else if lsp_handle.lock().unwrap().id_method[&response.id]
+                        == "textDocument/signatureHelp"
                         && response.result.is_some()
                     {
                         if !response.result.as_ref().unwrap()["signatures"]
@@ -156,7 +157,8 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
                                 .to_string();
                             state.signature_information.content = label;
                         }
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/definition"
+                    } else if lsp_handle.lock().unwrap().id_method[&response.id]
+                        == "textDocument/definition"
                         && response.result.is_some()
                     {
                         let result = response.result.unwrap();
@@ -179,7 +181,8 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
 
                         state.definitions = definitions;
                         state.definitions_version = state.definitions_version.saturating_add(1);
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/references"
+                    } else if lsp_handle.lock().unwrap().id_method[&response.id]
+                        == "textDocument/references"
                         && response.result.is_some()
                     {
                         let mut references = vec![];
@@ -199,7 +202,9 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
                     } else {
                         let message = format!(
                             "---Response to: {}({})\n\n{:#?}---\n",
-                            lsp_handle.id_method[&response.id], response.id, response.result
+                            lsp_handle.lock().unwrap().id_method[&response.id],
+                            response.id,
+                            response.result
                         );
                         tracing::info!("{}", message);
                     }

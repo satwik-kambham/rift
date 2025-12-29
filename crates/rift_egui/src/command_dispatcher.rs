@@ -1,10 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use egui::Ui;
-use rift_core::{
-    actions::perform_action, buffer::instance::Language, lsp::client::LSPClientHandle,
-    state::EditorState,
-};
+use rift_core::{actions::perform_action, state::EditorState};
 
 /// Util method that functions as ternary operator
 fn upper<'a>(shift: bool, base: &'a str, modified: &'a str) -> &'a str {
