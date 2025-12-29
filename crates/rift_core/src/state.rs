@@ -323,18 +323,19 @@ impl EditorState {
     }
 
     pub fn start_lsp(&mut self, language: &Language) {
-        if self.lsp_handles.contains_key(language)
-            && let Some(mut lsp_handle) = self.spawn_lsp(language) {
-                if lsp_handle
-                    .init_lsp_sync(self.workspace_folder.clone())
-                    .is_ok()
-                {
-                    self.lsp_handles
-                        .insert(*language, Arc::new(Mutex::new(lsp_handle)));
-                } else {
-                    self.preferences.no_lsp = true;
-                }
+        if !self.lsp_handles.contains_key(language)
+            && let Some(mut lsp_handle) = self.spawn_lsp(language)
+        {
+            if lsp_handle
+                .init_lsp_sync(self.workspace_folder.clone())
+                .is_ok()
+            {
+                self.lsp_handles
+                    .insert(*language, Arc::new(Mutex::new(lsp_handle)));
+            } else {
+                self.preferences.no_lsp = true;
             }
+        }
     }
 
     pub fn lsp_open_file(&mut self, language: &Language, path: String, initial_text: String) {
