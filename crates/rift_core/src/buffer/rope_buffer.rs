@@ -1,6 +1,7 @@
 use std::{
     cmp::{max, min},
     collections::{HashSet, VecDeque},
+    sync::{Arc, Mutex},
 };
 
 use crate::lsp::client::LSPClientHandle;
@@ -540,7 +541,7 @@ impl RopeBuffer {
         &mut self,
         text: &str,
         cursor: &Cursor,
-        lsp_handle: &Option<&mut LSPClientHandle>,
+        lsp_handle: &Option<Arc<Mutex<LSPClientHandle>>>,
         log: bool,
     ) -> Cursor {
         let updated_cursor = self.insert_text_no_log(text, cursor);
@@ -557,21 +558,25 @@ impl RopeBuffer {
         self.version += 1;
 
         if let Some(lsp_handle) = lsp_handle {
-            let sync_kind = if lsp_handle.initialize_capabilities["textDocumentSync"].is_u64() {
-                lsp_handle.initialize_capabilities["textDocumentSync"]
-                    .as_u64()
-                    .unwrap()
-            } else if lsp_handle.initialize_capabilities["textDocumentSync"]["change"].is_u64() {
-                lsp_handle.initialize_capabilities["textDocumentSync"]["change"]
-                    .as_u64()
-                    .unwrap()
-            } else {
-                0
-            };
+            let sync_kind =
+                if lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"].is_u64() {
+                    lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"]
+                        .as_u64()
+                        .unwrap()
+                } else if lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"]["change"].is_u64()
+                {
+                    lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"]["change"]
+                        .as_u64()
+                        .unwrap()
+                } else {
+                    0
+                };
 
             if sync_kind != 0 {
                 if sync_kind == 1 {
                     lsp_handle
+                        .lock()
+                        .unwrap()
                         .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
@@ -584,6 +589,8 @@ impl RopeBuffer {
                         .unwrap();
                 } else if sync_kind == 2 {
                     lsp_handle
+                        .lock()
+                        .unwrap()
                         .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
@@ -622,7 +629,7 @@ impl RopeBuffer {
     pub fn remove_text(
         &mut self,
         selection: &Selection,
-        lsp_handle: &Option<&mut LSPClientHandle>,
+        lsp_handle: &Option<Arc<Mutex<LSPClientHandle>>>,
         log: bool,
     ) -> (String, Cursor) {
         let (text, cursor) = self.remove_text_no_log(selection);
@@ -640,12 +647,12 @@ impl RopeBuffer {
         self.version += 1;
 
         if let Some(lsp_handle) = lsp_handle {
-            let sync_kind = if lsp_handle.initialize_capabilities["textDocumentSync"].is_u64() {
-                lsp_handle.initialize_capabilities["textDocumentSync"]
+            let sync_kind = if lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"].is_u64() {
+                lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"]
                     .as_u64()
                     .unwrap()
-            } else if lsp_handle.initialize_capabilities["textDocumentSync"]["change"].is_u64() {
-                lsp_handle.initialize_capabilities["textDocumentSync"]["change"]
+            } else if lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"]["change"].is_u64() {
+                lsp_handle.lock().unwrap().initialize_capabilities["textDocumentSync"]["change"]
                     .as_u64()
                     .unwrap()
             } else {
@@ -655,6 +662,8 @@ impl RopeBuffer {
             if sync_kind != 0 {
                 if sync_kind == 1 {
                     lsp_handle
+                        .lock()
+                        .unwrap()
                         .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
@@ -667,6 +676,8 @@ impl RopeBuffer {
                         .unwrap();
                 } else if sync_kind == 2 {
                     lsp_handle
+                        .lock()
+                        .unwrap()
                         .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
@@ -685,7 +696,7 @@ impl RopeBuffer {
     }
 
     /// Undo
-    pub fn undo(&mut self, lsp_handle: &Option<&mut LSPClientHandle>) -> Option<Cursor> {
+    pub fn undo(&mut self, lsp_handle: &Option<Arc<Mutex<LSPClientHandle>>>) -> Option<Cursor> {
         self.version += 1;
         if self.change_idx > 0 {
             self.change_idx -= 1;
@@ -720,7 +731,7 @@ impl RopeBuffer {
     }
 
     /// Redo
-    pub fn redo(&mut self, lsp_handle: &Option<&mut LSPClientHandle>) -> Option<Cursor> {
+    pub fn redo(&mut self, lsp_handle: &Option<Arc<Mutex<LSPClientHandle>>>) -> Option<Cursor> {
         self.version += 1;
         if self.change_idx < self.changes.len() {
             self.change_idx += 1;
@@ -765,7 +776,7 @@ impl RopeBuffer {
         &mut self,
         selection: &Selection,
         tab_size: usize,
-        lsp_handle: &Option<&mut LSPClientHandle>,
+        lsp_handle: &Option<Arc<Mutex<LSPClientHandle>>>,
     ) -> Selection {
         self.modified = true;
 
@@ -785,7 +796,7 @@ impl RopeBuffer {
         &mut self,
         selection: &Selection,
         tab_size: usize,
-        lsp_handle: &Option<&mut LSPClientHandle>,
+        lsp_handle: &Option<Arc<Mutex<LSPClientHandle>>>,
     ) -> Selection {
         self.modified = true;
 
@@ -833,7 +844,7 @@ impl RopeBuffer {
         &mut self,
         selection: &Selection,
         comment_token: String,
-        lsp_handle: &Option<&mut LSPClientHandle>,
+        lsp_handle: &Option<Arc<Mutex<LSPClientHandle>>>,
     ) -> Selection {
         self.modified = true;
 

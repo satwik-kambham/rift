@@ -58,7 +58,7 @@ pub fn handle_file_event(file_event_result: NotifyResult<Event>, state: &mut Edi
                         return;
                     }
 
-                    let lsp_handle = lsp_handles.get_mut(&buffer.language);
+                    let lsp_handle = state.get_lsp_handle_for_language(&buffer.language);
                     let content = match read_file_content(file_path) {
                         Ok(content) => content,
                         Err(err) => {

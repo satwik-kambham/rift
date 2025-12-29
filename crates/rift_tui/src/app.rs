@@ -18,7 +18,6 @@ use rift_core::{
     lsp::{client::LSPClientHandle, handle_lsp_messages},
     preferences::Color,
     rendering::update_visible_lines,
-    rsl::initialize_rsl,
     state::{CompletionMenu, EditorState, Mode},
 };
 
@@ -33,7 +32,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut state = EditorState::new();
-        initialize_rsl(&mut state);
+        state.post_initialization();
 
         Self { state }
     }

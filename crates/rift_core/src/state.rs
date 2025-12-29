@@ -15,7 +15,7 @@ use crate::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
         rope_buffer::{HighlightedText, RopeBuffer},
     },
-    cli::CLIArgs,
+    cli::{CLIArgs, process_cli_args},
     concurrent::{AsyncHandle, AsyncResult},
     keybinds::KeybindHandler,
     lsp::{
@@ -24,7 +24,7 @@ use crate::{
     },
     preferences::Preferences,
     rpc::{RPCRequest, start_rpc_server},
-    rsl::start_rsl_interpreter,
+    rsl::{initialize_rsl, start_rsl_interpreter},
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -59,7 +59,7 @@ pub struct EditorState {
     pub event_reciever: mpsc::Receiver<RPCRequest>,
     pub rsl_sender: mpsc::Sender<String>,
     pub file_watcher: Option<RecommendedWatcher>,
-    lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
+    pub lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
 
     // LSP
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
@@ -87,12 +87,6 @@ impl EditorState {
             .enable_all()
             .build()
             .unwrap();
-
-        let cli_args = CLIArgs::parse();
-
-        // if let Err(err) = process_cli_args(cli_args, &mut state) {
-        // tracing::error!(%err, "Failed to process CLI args");
-        // }
 
         let (event_sender, event_reciever) = mpsc::channel::<RPCRequest>(32);
 
@@ -161,6 +155,16 @@ impl EditorState {
             search_query: String::new(),
             lsp_handles: HashMap::new(),
         }
+    }
+
+    pub fn post_initialization(&mut self) {
+        let cli_args = CLIArgs::parse();
+
+        if let Err(err) = process_cli_args(cli_args, self) {
+            tracing::error!(%err, "Failed to process CLI args");
+        }
+
+        initialize_rsl(self);
     }
 
     pub fn viewport_rows(&self) -> usize {
@@ -363,6 +367,25 @@ impl EditorState {
             {
                 tracing::warn!(%err, "Failed to send didOpen notification");
             }
+        }
+    }
+
+    pub fn get_lsp_handle_for_language(
+        &mut self,
+        language: &Language,
+    ) -> Option<Arc<Mutex<LSPClientHandle>>> {
+        self.lsp_handles.get_mut(language).cloned()
+    }
+
+    pub fn get_lsp_handle_for_active_buffer(&mut self) -> Option<Arc<Mutex<LSPClientHandle>>> {
+        if self.buffer_idx.is_some() {
+            let language = {
+                let (buffer, _instance) = self.get_buffer_by_id(self.buffer_idx.unwrap());
+                buffer.language
+            };
+            self.get_lsp_handle_for_language(&language)
+        } else {
+            None
         }
     }
 }

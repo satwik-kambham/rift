@@ -13,7 +13,6 @@ use rift_core::{
     io::file_io::handle_file_event,
     lsp::{client::LSPClientHandle, handle_lsp_messages, types},
     rendering::update_visible_lines,
-    rsl::initialize_rsl,
     state::{EditorState, Mode},
 };
 
@@ -39,10 +38,9 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut state = EditorState::new();
+        state.post_initialization();
 
         let font_definitions = load_fonts(&mut state);
-
-        initialize_rsl(&mut state);
 
         Self {
             dispatcher: CommandDispatcher::default(),
