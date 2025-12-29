@@ -81,6 +81,12 @@ pub struct EditorState {
     pub keybind_handler: KeybindHandler,
 }
 
+impl Default for EditorState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EditorState {
     pub fn new() -> Self {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -317,8 +323,8 @@ impl EditorState {
     }
 
     pub fn start_lsp(&mut self, language: &Language) {
-        if self.lsp_handles.contains_key(language) {
-            if let Some(mut lsp_handle) = self.spawn_lsp(language) {
+        if self.lsp_handles.contains_key(language)
+            && let Some(mut lsp_handle) = self.spawn_lsp(language) {
                 if lsp_handle
                     .init_lsp_sync(self.workspace_folder.clone())
                     .is_ok()
@@ -329,7 +335,6 @@ impl EditorState {
                     self.preferences.no_lsp = true;
                 }
             }
-        }
     }
 
     pub fn lsp_open_file(&mut self, language: &Language, path: String, initial_text: String) {
