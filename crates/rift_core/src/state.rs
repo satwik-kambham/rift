@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use clap::Parser;
 use copypasta::ClipboardContext;
@@ -31,6 +35,7 @@ pub enum Mode {
 }
 
 pub struct EditorState {
+    // General
     pub preferences: Preferences,
     pub buffers: HashMap<u32, RopeBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
@@ -54,7 +59,7 @@ pub struct EditorState {
     pub event_reciever: mpsc::Receiver<RPCRequest>,
     pub rsl_sender: mpsc::Sender<String>,
     pub file_watcher: Option<RecommendedWatcher>,
-    lsp_handles: HashMap<Language, LSPClientHandle>,
+    lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
 
     // LSP
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
@@ -85,8 +90,8 @@ impl EditorState {
 
         let cli_args = CLIArgs::parse();
 
-        // if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
-        // error!(%err, "Failed to process CLI args");
+        // if let Err(err) = process_cli_args(cli_args, &mut state) {
+        // tracing::error!(%err, "Failed to process CLI args");
         // }
 
         let (event_sender, event_reciever) = mpsc::channel::<RPCRequest>(32);
@@ -266,7 +271,7 @@ impl EditorState {
         None
     }
 
-    pub fn spawn_lsp(&self, language: Language) -> Option<LSPClientHandle> {
+    pub fn spawn_lsp(&self, language: &Language) -> Option<LSPClientHandle> {
         if self.preferences.no_lsp {
             return None;
         }
@@ -305,6 +310,60 @@ impl EditorState {
             }
         }
         None
+    }
+
+    pub fn start_lsp(&mut self, language: &Language) {
+        if self.lsp_handles.contains_key(language) {
+            if let Some(mut lsp_handle) = self.spawn_lsp(language) {
+                if lsp_handle
+                    .init_lsp_sync(self.workspace_folder.clone())
+                    .is_ok()
+                {
+                    self.lsp_handles
+                        .insert(*language, Arc::new(Mutex::new(lsp_handle)));
+                } else {
+                    self.preferences.no_lsp = true;
+                }
+            }
+        }
+    }
+
+    pub fn lsp_open_file(&mut self, language: &Language, path: String, initial_text: String) {
+        if let Some(lsp_handle) = self.lsp_handles.get(language) {
+            let lsp_handle = lsp_handle.lock().unwrap();
+            let language_id = match language {
+                Language::Python => "python",
+                Language::Rust => "rust",
+                Language::Markdown => "markdown",
+                Language::Dart => "dart",
+                Language::Nix => "nix",
+                Language::HTML => "html",
+                Language::CSS => "css",
+                Language::Javascript => "javascript",
+                Language::Typescript => "typescript",
+                Language::JSON => "json",
+                Language::C => "c",
+                Language::CPP => "cpp",
+                Language::Vue => "vue",
+                _ => "",
+            };
+
+            if (lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
+                || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
+                    .as_bool()
+                    .unwrap_or(false))
+                && let Err(err) = lsp_handle.send_notification_sync(
+                    "textDocument/didOpen".to_string(),
+                    Some(LSPClientHandle::did_open_text_document(
+                        path,
+                        language_id.to_string(),
+                        initial_text,
+                    )),
+                )
+            {
+                tracing::warn!(%err, "Failed to send didOpen notification");
+            }
+        }
     }
 }
 
@@ -406,24 +465,15 @@ impl CompletionMenu {
         None
     }
 
-    pub fn on_select(
-        completion_item: Option<types::CompletionItem>,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ) {
+    pub fn on_select(completion_item: Option<types::CompletionItem>, state: &mut EditorState) {
         if let Some(completion_item) = completion_item {
-            perform_action(
-                Action::DeleteText(completion_item.edit.range),
-                state,
-                lsp_handles,
-            );
+            perform_action(Action::DeleteText(completion_item.edit.range), state);
             perform_action(
                 Action::InsertText(
                     completion_item.edit.text.clone(),
                     completion_item.edit.range.mark,
                 ),
                 state,
-                lsp_handles,
             );
         }
     }

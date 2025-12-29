@@ -28,31 +28,21 @@ pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
 
 pub struct App {
     pub state: EditorState,
-    pub lsp_handles: HashMap<Language, LSPClientHandle>,
-    first_frame: bool,
 }
 
 impl App {
     pub fn new() -> Self {
-        let state = EditorState::new();
-        let lsp_handles = HashMap::new();
+        let mut state = EditorState::new();
+        initialize_rsl(&mut state);
 
-        Self {
-            state,
-            lsp_handles,
-            first_frame: true,
-        }
+        Self { state }
     }
 
     pub fn perform_action(&mut self, action: Action) -> String {
-        perform_action(action, &mut self.state, &mut self.lsp_handles).unwrap_or_default()
+        perform_action(action, &mut self.state).unwrap_or_default()
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
-        if self.first_frame {
-            self.first_frame = false;
-            initialize_rsl(&mut self.state, &mut self.lsp_handles);
-        }
         while !self.state.quit {
             terminal.draw(|frame| {
                 let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
@@ -86,11 +76,7 @@ impl App {
                 }
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    (async_result.callback)(
-                        async_result.result,
-                        &mut self.state,
-                        &mut self.lsp_handles,
-                    );
+                    (async_result.callback)(async_result.result, &mut self.state);
                     self.state.update_view = true;
                 }
 
@@ -103,11 +89,11 @@ impl App {
 
                 // Handle file watcher events
                 if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
-                    handle_file_event(file_event_result, &mut self.state, &mut self.lsp_handles);
+                    handle_file_event(file_event_result, &mut self.state);
                     self.state.update_view = true;
                 }
 
-                handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
+                handle_lsp_messages(&mut self.state);
 
                 if self.state.buffer_idx.is_some() {
                     // Compute view if updated
@@ -448,7 +434,7 @@ impl App {
                             keybind.to_string(),
                             modifiers_set,
                         ) {
-                            perform_action(action, &mut self.state, &mut self.lsp_handles);
+                            perform_action(action, &mut self.state);
                         }
                     }
 
@@ -460,11 +446,7 @@ impl App {
                             self.state.completion_menu.select_next();
                         } else if key.code == KeyCode::Enter {
                             let completion_item = self.state.completion_menu.select();
-                            CompletionMenu::on_select(
-                                completion_item,
-                                &mut self.state,
-                                &mut self.lsp_handles,
-                            );
+                            CompletionMenu::on_select(completion_item, &mut self.state);
                             self.state.signature_information.content = String::new();
                         }
                     }

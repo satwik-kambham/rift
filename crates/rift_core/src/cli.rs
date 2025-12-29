@@ -1,14 +1,9 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 
-use crate::{
-    buffer::{instance::Language, rope_buffer::RopeBuffer},
-    io::file_io,
-    lsp::client::LSPClientHandle,
-    state::EditorState,
-};
+use crate::{buffer::rope_buffer::RopeBuffer, io::file_io, state::EditorState};
 
 #[derive(Parser, Debug)]
 pub struct CLIArgs {
@@ -17,11 +12,7 @@ pub struct CLIArgs {
     pub no_lsp: bool,
 }
 
-pub fn process_cli_args(
-    cli_args: CLIArgs,
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) -> Result<()> {
+pub fn process_cli_args(cli_args: CLIArgs, state: &mut EditorState) -> Result<()> {
     state.preferences.no_lsp = cli_args.no_lsp;
 
     let mut path = cli_args
@@ -86,53 +77,9 @@ pub fn process_cli_args(
             false,
         );
 
-        if let std::collections::hash_map::Entry::Vacant(e) = lsp_handles.entry(buffer.language)
-            && let Some(mut lsp_handle) = state.spawn_lsp(buffer.language)
-        {
-            if lsp_handle
-                .init_lsp_sync(state.workspace_folder.clone())
-                .is_ok()
-            {
-                e.insert(lsp_handle);
-            } else {
-                state.preferences.no_lsp = true;
-            }
-        }
+        state.start_lsp(&buffer.language);
 
-        if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
-            let language_id = match buffer.language {
-                Language::Python => "python",
-                Language::Rust => "rust",
-                Language::Markdown => "markdown",
-                Language::Dart => "dart",
-                Language::Nix => "nix",
-                Language::HTML => "html",
-                Language::CSS => "css",
-                Language::Javascript => "javascript",
-                Language::Typescript => "typescript",
-                Language::JSON => "json",
-                Language::C => "c",
-                Language::CPP => "cpp",
-                Language::Vue => "vue",
-                _ => "",
-            };
-
-            if (lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
-                || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
-                    .as_bool()
-                    .unwrap_or(false))
-                && let Err(err) = lsp_handle.send_notification_sync(
-                    "textDocument/didOpen".to_string(),
-                    Some(LSPClientHandle::did_open_text_document(
-                        path_str.to_string(),
-                        language_id.to_string(),
-                        initial_text,
-                    )),
-                )
-            {
-                tracing::warn!(%err, "Failed to send didOpen notification");
-            }
-        }
+        state.lsp_open_file(&buffer.language, path_str.to_string(), initial_text);
 
         state.buffer_idx = Some(state.add_buffer(buffer));
     }

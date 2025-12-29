@@ -8,11 +8,7 @@ use rift_core::{
     state::EditorState,
 };
 
-pub fn show_menu_bar(
-    ctx: &egui::Context,
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
+pub fn show_menu_bar(ctx: &egui::Context, state: &mut EditorState) {
     egui::TopBottomPanel::top("menu_bar")
         .resizable(false)
         .show_separator_line(true)
@@ -25,21 +21,21 @@ pub fn show_menu_bar(
             ui.horizontal(|ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Save").clicked() {
-                        perform_action(Action::SaveCurrentBuffer, state, lsp_handles);
+                        perform_action(Action::SaveCurrentBuffer, state);
                     }
                     if ui.button("Quit").clicked() {
-                        perform_action(Action::Quit, state, lsp_handles);
+                        perform_action(Action::Quit, state);
                     }
                 });
                 ui.menu_button("Edit", |ui| {
                     if ui.button("Undo").clicked() {
-                        perform_action(Action::Undo, state, lsp_handles);
+                        perform_action(Action::Undo, state);
                     }
                     if ui.button("Redo").clicked() {
-                        perform_action(Action::Redo, state, lsp_handles);
+                        perform_action(Action::Redo, state);
                     }
                     if ui.button("Unselect").clicked() {
-                        perform_action(Action::Unselect, state, lsp_handles);
+                        perform_action(Action::Unselect, state);
                     }
                 });
                 ui.menu_button("View", |ui| {
@@ -47,39 +43,38 @@ pub fn show_menu_bar(
                         perform_action(
                             Action::RunSource("createFuzzyFileFinder()".to_string()),
                             state,
-                            lsp_handles,
                         );
                     }
                     if ui.button("Search Workspace").clicked() {
-                        perform_action(Action::SearchWorkspace, state, lsp_handles);
+                        perform_action(Action::SearchWorkspace, state);
                     }
                     if ui.button("Open Command Dispatcher").clicked() {
-                        perform_action(Action::OpenCommandDispatcher, state, lsp_handles);
+                        perform_action(Action::OpenCommandDispatcher, state);
                     }
                 });
                 ui.menu_button("Navigation", |ui| {
                     if ui.button("Go To File Start").clicked() {
-                        perform_action(Action::GoToBufferStart, state, lsp_handles);
+                        perform_action(Action::GoToBufferStart, state);
                     }
                     if ui.button("Go To File End").clicked() {
-                        perform_action(Action::GoToBufferEnd, state, lsp_handles);
+                        perform_action(Action::GoToBufferEnd, state);
                     }
                 });
                 ui.menu_button("LSP", |ui| {
                     if ui.button("Hover").clicked() {
-                        perform_action(Action::LSPHover, state, lsp_handles);
+                        perform_action(Action::LSPHover, state);
                     }
                     if ui.button("Completion").clicked() {
-                        perform_action(Action::LSPCompletion, state, lsp_handles);
+                        perform_action(Action::LSPCompletion, state);
                     }
                     if ui.button("Signature Help").clicked() {
-                        perform_action(Action::LSPSignatureHelp, state, lsp_handles);
+                        perform_action(Action::LSPSignatureHelp, state);
                     }
                     if ui.button("Go To Definition").clicked() {
-                        perform_action(Action::GoToDefinition, state, lsp_handles);
+                        perform_action(Action::GoToDefinition, state);
                     }
                     if ui.button("Go To References").clicked() {
-                        perform_action(Action::GoToReferences, state, lsp_handles);
+                        perform_action(Action::GoToReferences, state);
                     }
                 });
                 ui.menu_button("Preferences", |ui| {
@@ -146,7 +141,7 @@ pub fn show_menu_bar(
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.button("Keybind Help").clicked() {
-                        perform_action(Action::KeybindHelp, state, lsp_handles);
+                        perform_action(Action::KeybindHelp, state);
                     }
                 });
             });

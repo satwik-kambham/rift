@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-
-use client::LSPClientHandle;
-
 use crate::{
     actions::{Action, ReferenceEntry, open_info_modal_in_rsl, perform_action},
-    buffer::instance::{Cursor, Language, Selection},
+    buffer::instance::{Cursor, Selection},
     io::file_io,
     state::EditorState,
 };
@@ -50,10 +46,7 @@ fn reference_preview(file_path: &str, range: &Selection) -> String {
         .unwrap_or_default()
 }
 
-pub fn handle_lsp_messages(
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
+pub fn handle_lsp_messages(state: &mut EditorState) {
     if let Some(buffer_idx) = state.buffer_idx {
         let buffer_language = {
             let (buffer, _) = state.get_buffer_by_id(buffer_idx);
@@ -79,7 +72,7 @@ pub fn handle_lsp_messages(
                             .as_str()
                             .unwrap_or_default()
                             .to_string();
-                        open_info_modal_in_rsl(state, lsp_handles, &message);
+                        open_info_modal_in_rsl(state, &message);
                     } else if lsp_handle.id_method[&response.id] == "textDocument/completion"
                         && response.result.is_some()
                     {
@@ -139,11 +132,10 @@ pub fn handle_lsp_messages(
                                 text: edit["newText"].as_str().unwrap().to_owned(),
                                 range: parse_range(&edit["range"]),
                             };
-                            perform_action(Action::DeleteText(text_edit.range), state, lsp_handles);
+                            perform_action(Action::DeleteText(text_edit.range), state);
                             perform_action(
                                 Action::InsertText(text_edit.text, text_edit.range.mark),
                                 state,
-                                lsp_handles,
                             );
                         }
                     } else if lsp_handle.id_method[&response.id] == "textDocument/signatureHelp"

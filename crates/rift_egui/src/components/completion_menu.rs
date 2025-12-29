@@ -33,7 +33,6 @@ impl CompletionMenuWidget {
         position: CompletionMenuPosition,
         ctx: &egui::Context,
         state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
     ) -> bool {
         if state.completion_menu.active {
             let offset = egui::Pos2 {
@@ -83,19 +82,14 @@ impl CompletionMenuWidget {
                             ui.label(item.label.clone());
                         }
                     }
-                    self.handle_input(ui, state, lsp_handles);
+                    self.handle_input(ui, state);
                 });
             return false;
         }
         true
     }
 
-    pub fn handle_input(
-        &self,
-        ui: &mut egui::Ui,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ) {
+    pub fn handle_input(&self, ui: &mut egui::Ui, state: &mut EditorState) {
         ui.input(|i| {
             for event in &i.raw.events {
                 if let egui::Event::Key {
@@ -117,7 +111,7 @@ impl CompletionMenuWidget {
                         }
                         egui::Key::Enter => {
                             let completion_item = state.completion_menu.select();
-                            CompletionMenu::on_select(completion_item, state, lsp_handles);
+                            CompletionMenu::on_select(completion_item, state);
                             state.signature_information.content = String::new();
                         }
                         _ => {}

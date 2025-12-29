@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     path,
     str::FromStr,
     time::{Duration, Instant},
@@ -12,7 +11,7 @@ use tracing::{error, warn};
 
 use crate::{
     buffer::{
-        instance::{Cursor, Language, Selection},
+        instance::{Cursor, Selection},
         rope_buffer::RopeBuffer,
     },
     concurrent::cli::{ProgramArgs, run_command},
@@ -52,16 +51,11 @@ fn rsl_string_literal(value: &str) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_string())
 }
 
-pub fn open_info_modal_in_rsl(
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    content: &str,
-) {
+pub fn open_info_modal_in_rsl(state: &mut EditorState, content: &str) {
     let serialized = rsl_string_literal(content);
     perform_action(
         Action::RunSource(format!("infoModalOpen({})", serialized)),
         state,
-        lsp_handles,
     );
 }
 
@@ -169,11 +163,7 @@ pub enum Action {
     RegisterBufferInputHook(u32, String),
 }
 
-pub fn perform_action(
-    action: Action,
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) -> Option<String> {
+pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String> {
     match action {
         Action::Quit => {
             state.quit = true;
@@ -189,7 +179,6 @@ pub fn perform_action(
                 perform_action(
                     Action::RunSource(format!("runFunctionById(\"{}\")", function_id)),
                     state,
-                    lsp_handles,
                 );
             }
         }
@@ -214,7 +203,6 @@ pub fn perform_action(
                 perform_action(
                     Action::RunSource(format!("runFunctionById(\"{}\")", function_id)),
                     state,
-                    lsp_handles,
                 );
             }
         }
@@ -236,18 +224,14 @@ pub fn perform_action(
             state.signature_information.content = String::new();
         }
         Action::InsertTextAtCursorAndTriggerCompletion(text) => {
-            perform_action(Action::InsertTextAtCursor(text), state, lsp_handles);
+            perform_action(Action::InsertTextAtCursor(text), state);
             if state.preferences.trigger_completion_on_type {
-                perform_action(Action::LSPCompletion, state, lsp_handles);
-                perform_action(Action::LSPSignatureHelp, state, lsp_handles);
+                perform_action(Action::LSPCompletion, state);
+                perform_action(Action::LSPSignatureHelp, state);
             }
         }
         Action::InsertSpace => {
-            perform_action(
-                Action::InsertTextAtCursor(" ".to_string()),
-                state,
-                lsp_handles,
-            );
+            perform_action(Action::InsertTextAtCursor(" ".to_string()), state);
         }
         Action::InsertText(text, cursor) => {
             let lsp_handle = if state.buffer_idx.is_some() {
@@ -307,8 +291,8 @@ pub fn perform_action(
         }
         Action::DeleteSelectionAndEnterInsertMode => {
             if matches!(state.mode, Mode::Normal) {
-                perform_action(Action::DeleteSelection, state, lsp_handles);
-                perform_action(Action::EnterInsertMode, state, lsp_handles);
+                perform_action(Action::DeleteSelection, state);
+                perform_action(Action::EnterInsertMode, state);
             }
         }
         Action::AddNewLineBelowAndEnterInsertMode => {
@@ -427,7 +411,7 @@ pub fn perform_action(
         Action::RunCurrentBuffer => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             let source = buffer.get_content("\n".to_string());
-            perform_action(Action::RunSource(source), state, lsp_handles);
+            perform_action(Action::RunSource(source), state);
         }
         Action::RunSource(source) => {
             state.rsl_sender.blocking_send(source).unwrap();
@@ -491,54 +475,9 @@ pub fn perform_action(
                     false,
                 );
 
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    lsp_handles.entry(buffer.language)
-                    && let Some(mut lsp_handle) = state.spawn_lsp(buffer.language)
-                {
-                    if lsp_handle
-                        .init_lsp_sync(state.workspace_folder.clone())
-                        .is_ok()
-                    {
-                        e.insert(lsp_handle);
-                    } else {
-                        state.preferences.no_lsp = true;
-                    }
-                }
+                state.start_lsp(&buffer.language);
 
-                if let Some(lsp_handle) = lsp_handles.get(&buffer.language) {
-                    let language_id = match buffer.language {
-                        Language::Python => "python",
-                        Language::Rust => "rust",
-                        Language::Markdown => "markdown",
-                        Language::Dart => "dart",
-                        Language::Nix => "nix",
-                        Language::HTML => "html",
-                        Language::CSS => "css",
-                        Language::Javascript => "javascript",
-                        Language::Typescript => "typescript",
-                        Language::JSON => "json",
-                        Language::C => "c",
-                        Language::CPP => "cpp",
-                        Language::Vue => "vue",
-                        _ => "",
-                    };
-
-                    if (lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
-                        || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
-                            .as_bool()
-                            .unwrap_or(false))
-                        && let Err(err) = lsp_handle.send_notification_sync(
-                            "textDocument/didOpen".to_string(),
-                            Some(LSPClientHandle::did_open_text_document(
-                                path.clone(),
-                                language_id.to_string(),
-                                initial_text,
-                            )),
-                        )
-                    {
-                        warn!(%err, "Failed to send didOpen notification");
-                    }
-                }
+                state.lsp_open_file(&buffer.language, path, initial_text);
 
                 state.buffer_idx = Some(state.add_buffer(buffer));
             };
@@ -558,11 +497,7 @@ pub fn perform_action(
                 error!("Failed to open file: path is not valid UTF-8");
                 return None;
             };
-            perform_action(
-                Action::CreateBufferFromFile(path_str.to_string()),
-                state,
-                lsp_handles,
-            );
+            perform_action(Action::CreateBufferFromFile(path_str.to_string()), state);
         }
         Action::ListBuffers => {
             let mut entries: Vec<BufferListEntry> = state
@@ -766,7 +701,6 @@ pub fn perform_action(
             perform_action(
                 Action::RunSource("createGoToDefinition()".to_string()),
                 state,
-                lsp_handles,
             );
         }
         Action::GetDefinitions => {
@@ -810,7 +744,7 @@ pub fn perform_action(
                     while state.definitions_version == current_version
                         && start.elapsed() < Duration::from_secs(1)
                     {
-                        lsp::handle_lsp_messages(state, lsp_handles);
+                        lsp::handle_lsp_messages(state);
                         std::thread::sleep(Duration::from_millis(10));
                     }
                 } else {
@@ -826,7 +760,6 @@ pub fn perform_action(
             perform_action(
                 Action::RunSource("createGoToReferences()".to_string()),
                 state,
-                lsp_handles,
             );
         }
         Action::DeletePreviousCharacter => {
@@ -866,7 +799,7 @@ pub fn perform_action(
             instance.column_level = instance.cursor.column;
         }
         Action::DeleteSelection => {
-            perform_action(Action::CopyToRegister, state, lsp_handles);
+            perform_action(Action::CopyToRegister, state);
             let lsp_handle = if state.buffer_idx.is_some() {
                 let (buffer, _instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
                 &mut lsp_handles.get_mut(&buffer.language)
@@ -945,7 +878,7 @@ pub fn perform_action(
                             buffer.get_selection(&instance.selection),
                         ],
                     },
-                    |result, _state, _lsp_handle| {
+                    |result, _state| {
                         if let Err(err) = result {
                             warn!(?err, "Failed to copy selection via wl-copy");
                         }
@@ -991,7 +924,7 @@ pub fn perform_action(
                         program: "wl-paste".into(),
                         args: vec!["--no-newline".to_string()],
                     },
-                    |result, state, lsp_handles| {
+                    |result, state| {
                         let result = match result {
                             Ok(result) => result,
                             Err(err) => {
@@ -1051,7 +984,7 @@ pub fn perform_action(
 
             if let Some(selection_text) = selection_text {
                 state.search_query = selection_text;
-                perform_action(Action::FindNextWithQuery, state, lsp_handles);
+                perform_action(Action::FindNextWithQuery, state);
             } else {
                 perform_action(
                     Action::RunSource(
@@ -1059,7 +992,6 @@ pub fn perform_action(
                             .to_string(),
                     ),
                     state,
-                    lsp_handles,
                 );
             }
         }
@@ -1080,7 +1012,6 @@ pub fn perform_action(
             perform_action(
                 Action::RunSource("createWorkspaceSearch()".to_string()),
                 state,
-                lsp_handles,
             );
         }
         Action::GetReferences => {
@@ -1119,7 +1050,7 @@ pub fn perform_action(
                     while state.references_version == current_version
                         && start.elapsed() < Duration::from_secs(1)
                     {
-                        lsp::handle_lsp_messages(state, lsp_handles);
+                        lsp::handle_lsp_messages(state);
                         std::thread::sleep(Duration::from_millis(10));
                     }
                 } else {
@@ -1152,19 +1083,17 @@ pub fn perform_action(
             perform_action(
                 Action::RunSource("createWorkspaceDiagnostics()".to_string()),
                 state,
-                lsp_handles,
             );
         }
         Action::RunAction(action_name) => {
             if let Ok(action) = Action::from_str(action_name.trim()) {
-                return perform_action(action, state, lsp_handles);
+                return perform_action(action, state);
             }
         }
         Action::OpenCommandDispatcher => {
             perform_action(
                 Action::RunSource("createCommandDispatcher()".to_string()),
                 state,
-                lsp_handles,
             );
         }
         Action::KeybindHelp => {
@@ -1175,7 +1104,7 @@ pub fn perform_action(
                 .map(|keybind| keybind.definition.clone())
                 .collect::<Vec<_>>()
                 .join("\n");
-            open_info_modal_in_rsl(state, lsp_handles, &help_content);
+            open_info_modal_in_rsl(state, &help_content);
         }
         Action::IncreaseFontSize => {
             state.preferences.editor_font_size += 1;

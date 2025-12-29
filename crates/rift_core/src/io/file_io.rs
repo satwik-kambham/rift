@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::{
-    collections::HashMap,
     fs::File,
     io::{Read, Write},
 };
@@ -9,8 +8,7 @@ use notify::{Event, EventKind, Result as NotifyResult};
 use tracing::{info, warn};
 
 use crate::{
-    buffer::instance::{Cursor, Language, Selection},
-    lsp::client::LSPClientHandle,
+    buffer::instance::{Cursor, Selection},
     state::EditorState,
 };
 
@@ -33,11 +31,7 @@ pub fn override_file_content(path: &str, buf: String) -> Result<()> {
 }
 
 /// Handles a single file event received from the watcher.
-pub fn handle_file_event(
-    file_event_result: NotifyResult<Event>,
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
+pub fn handle_file_event(file_event_result: NotifyResult<Event>, state: &mut EditorState) {
     match file_event_result {
         Ok(event) => {
             if matches!(event.kind, EventKind::Create(_) | EventKind::Modify(_))
