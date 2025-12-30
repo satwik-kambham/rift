@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-
-use client::LSPClientHandle;
-
 use crate::{
     actions::{Action, ReferenceEntry, open_info_modal_in_rsl, perform_action},
-    buffer::instance::{Cursor, Language, Selection},
+    buffer::instance::{Cursor, Selection},
     io::file_io,
     state::EditorState,
 };
@@ -50,39 +46,42 @@ fn reference_preview(file_path: &str, range: &Selection) -> String {
         .unwrap_or_default()
 }
 
-pub fn handle_lsp_messages(
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
-    if let Some(buffer_idx) = state.buffer_idx {
-        let buffer_language = {
-            let (buffer, _) = state.get_buffer_by_id(buffer_idx);
-            buffer.language
+pub fn handle_lsp_messages(state: &mut EditorState) {
+    if let Some(buffer_idx) = state.buffer_idx
+        && let Some(lsp_handle) = state.get_lsp_handle_for_buffer(buffer_idx)
+    {
+        let (message, method) = {
+            let mut lsp_handle = lsp_handle.lock().unwrap();
+            let message = lsp_handle.recv_message_sync();
+            let method = if let Some(client::IncomingMessage::Response(ref response)) = message {
+                lsp_handle.id_method.get(&response.id).cloned()
+            } else {
+                None
+            };
+            (message, method)
         };
-        if let Some(lsp_handle) = lsp_handles.get_mut(&buffer_language)
-            && let Some(message) = lsp_handle.recv_message_sync()
-        {
+
+        if let Some(message) = message {
             state.update_view = true;
-            let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
             match message {
                 client::IncomingMessage::Response(response) => {
+                    let method_name = method.as_deref().unwrap_or("");
+
                     if response.error.is_some() {
                         tracing::error!(
                             "---Error: Message Id: {}\n\n{:#?}---\n",
                             response.id,
                             response.error.unwrap()
                         );
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/hover"
-                        && response.result.is_some()
-                    {
+                    } else if method_name == "textDocument/hover" && response.result.is_some() {
                         let message = response.result.unwrap()["contents"]["value"]
                             .as_str()
                             .unwrap_or_default()
                             .to_string();
-                        open_info_modal_in_rsl(state, lsp_handles, &message);
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/completion"
-                        && response.result.is_some()
+                        open_info_modal_in_rsl(state, &message);
+                    } else if method_name == "textDocument/completion" && response.result.is_some()
                     {
+                        let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
                         let items = if response.result.as_ref().unwrap()["items"].is_array() {
                             response.result.unwrap()["items"]
                                 .as_array()
@@ -130,8 +129,7 @@ pub fn handle_lsp_messages(
                             }
                         }
                         state.completion_menu.open(completion_items);
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/formatting"
-                        && response.result.is_some()
+                    } else if method_name == "textDocument/formatting" && response.result.is_some()
                     {
                         let edits = response.result.unwrap().as_array().unwrap().clone();
                         for edit in edits.iter().rev() {
@@ -139,14 +137,13 @@ pub fn handle_lsp_messages(
                                 text: edit["newText"].as_str().unwrap().to_owned(),
                                 range: parse_range(&edit["range"]),
                             };
-                            perform_action(Action::DeleteText(text_edit.range), state, lsp_handles);
+                            perform_action(Action::DeleteText(text_edit.range), state);
                             perform_action(
                                 Action::InsertText(text_edit.text, text_edit.range.mark),
                                 state,
-                                lsp_handles,
                             );
                         }
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/signatureHelp"
+                    } else if method_name == "textDocument/signatureHelp"
                         && response.result.is_some()
                     {
                         if !response.result.as_ref().unwrap()["signatures"]
@@ -164,8 +161,7 @@ pub fn handle_lsp_messages(
                                 .to_string();
                             state.signature_information.content = label;
                         }
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/definition"
-                        && response.result.is_some()
+                    } else if method_name == "textDocument/definition" && response.result.is_some()
                     {
                         let result = response.result.unwrap();
                         let locations = if let Some(array) = result.as_array() {
@@ -187,8 +183,7 @@ pub fn handle_lsp_messages(
 
                         state.definitions = definitions;
                         state.definitions_version = state.definitions_version.saturating_add(1);
-                    } else if lsp_handle.id_method[&response.id] == "textDocument/references"
-                        && response.result.is_some()
+                    } else if method_name == "textDocument/references" && response.result.is_some()
                     {
                         let mut references = vec![];
                         if let Some(locations) = response.result.unwrap().as_array() {
@@ -207,7 +202,7 @@ pub fn handle_lsp_messages(
                     } else {
                         let message = format!(
                             "---Response to: {}({})\n\n{:#?}---\n",
-                            lsp_handle.id_method[&response.id], response.id, response.result
+                            method_name, response.id, response.result
                         );
                         tracing::info!("{}", message);
                     }

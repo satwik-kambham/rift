@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use tokio::sync::mpsc;
@@ -7,8 +6,6 @@ use rsl::RSL;
 
 use crate::{
     actions::{Action, perform_action},
-    buffer::instance::Language,
-    lsp::client::LSPClientHandle,
     state::EditorState,
 };
 
@@ -46,10 +43,7 @@ pub fn start_rsl_interpreter(
     rsl_sender
 }
 
-pub fn initialize_rsl(
-    state: &mut EditorState,
-    lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-) {
+pub fn initialize_rsl(state: &mut EditorState) {
     #[cfg(not(debug_assertions))]
     let init_module = include_str!("../modules/init.rsl").to_string();
     #[cfg(debug_assertions)]
@@ -60,5 +54,5 @@ pub fn initialize_rsl(
             return;
         }
     };
-    perform_action(Action::RunSource(init_module), state, lsp_handles);
+    perform_action(Action::RunSource(init_module), state);
 }

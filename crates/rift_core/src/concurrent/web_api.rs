@@ -1,18 +1,12 @@
-use std::collections::HashMap;
-
 use tokio::sync::mpsc::Sender;
 
-use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
+use crate::state::EditorState;
 
 use super::{AsyncError, AsyncResult};
 
 pub fn get_request(
     url: String,
-    callback: fn(
-        Result<String, AsyncError>,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ),
+    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
@@ -55,11 +49,7 @@ pub fn get_request(
 pub fn post_request(
     url: String,
     body: String,
-    callback: fn(
-        Result<String, AsyncError>,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ),
+    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
@@ -105,11 +95,7 @@ pub fn post_request_json_body_with_bearer_auth(
     url: String,
     body: serde_json::Value,
     bearer_auth_token: String,
-    callback: fn(
-        Result<String, AsyncError>,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ),
+    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {

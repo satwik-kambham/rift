@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use tokio::sync::mpsc::{Receiver, Sender};
 
-use crate::{buffer::instance::Language, lsp::client::LSPClientHandle, state::EditorState};
+use crate::state::EditorState;
 
 pub mod cli;
 pub mod web_api;
@@ -31,20 +29,12 @@ pub struct AsyncHandle {
 
 pub struct AsyncResult {
     pub result: Result<String, AsyncError>,
-    pub callback: fn(
-        Result<String, AsyncError>,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ),
+    pub callback: fn(Result<String, AsyncError>, state: &mut EditorState),
 }
 
 pub fn simple_callback(
     data: String,
-    callback: fn(
-        Result<String, AsyncError>,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ),
+    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {

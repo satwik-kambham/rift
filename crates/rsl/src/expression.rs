@@ -301,7 +301,11 @@ fn execute_rpc_call(identifier: &str, parameters: Vec<Primitive>, rsl: &mut RSL)
 
         match identifier {
             "log" => {
-                let message = args!(parameters; message: String);
+                let message = parameters
+                    .iter()
+                    .map(|arg| format!("{}", arg))
+                    .collect::<Vec<_>>()
+                    .join(" ");
                 client.rlog(ctx, message).await.unwrap();
                 Primitive::Null
             }

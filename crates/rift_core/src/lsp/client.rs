@@ -58,7 +58,6 @@ pub struct LSPClientHandle {
     pub initialize_capabilities: Value,
 }
 
-/// Starts lsp
 pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> {
     let mut command = Command::new(program);
 

@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::{collections::HashSet, time::Duration};
 
 use ratatui::{
     DefaultTerminal,
@@ -13,16 +10,13 @@ use ratatui::{
 };
 use rift_core::{
     actions::{Action, perform_action},
-    buffer::instance::{Attribute, Language},
-    cli::{CLIArgs, process_cli_args},
+    buffer::instance::Attribute,
     io::file_io::handle_file_event,
-    lsp::{client::LSPClientHandle, handle_lsp_messages},
+    lsp::handle_lsp_messages,
     preferences::Color,
     rendering::update_visible_lines,
-    rsl::initialize_rsl,
     state::{CompletionMenu, EditorState, Mode},
 };
-use tracing::error;
 
 pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
     ratatui::style::Color::Rgb(c.r, c.g, c.b)
@@ -30,35 +24,27 @@ pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
 
 pub struct App {
     pub state: EditorState,
-    pub lsp_handles: HashMap<Language, LSPClientHandle>,
-    first_frame: bool,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl App {
-    pub fn new(rt: tokio::runtime::Runtime, cli_args: CLIArgs) -> Self {
-        let mut state = EditorState::new(rt);
-        let mut lsp_handles = HashMap::new();
+    pub fn new() -> Self {
+        let mut state = EditorState::new();
+        state.post_initialization();
 
-        if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
-            error!(%err, "Failed to process CLI args");
-        }
-
-        Self {
-            state,
-            lsp_handles,
-            first_frame: true,
-        }
+        Self { state }
     }
 
     pub fn perform_action(&mut self, action: Action) -> String {
-        perform_action(action, &mut self.state, &mut self.lsp_handles).unwrap_or_default()
+        perform_action(action, &mut self.state).unwrap_or_default()
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
-        if self.first_frame {
-            self.first_frame = false;
-            initialize_rsl(&mut self.state, &mut self.lsp_handles);
-        }
         while !self.state.quit {
             terminal.draw(|frame| {
                 let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
@@ -92,11 +78,7 @@ impl App {
                 }
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    (async_result.callback)(
-                        async_result.result,
-                        &mut self.state,
-                        &mut self.lsp_handles,
-                    );
+                    (async_result.callback)(async_result.result, &mut self.state);
                     self.state.update_view = true;
                 }
 
@@ -109,11 +91,11 @@ impl App {
 
                 // Handle file watcher events
                 if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
-                    handle_file_event(file_event_result, &mut self.state, &mut self.lsp_handles);
+                    handle_file_event(file_event_result, &mut self.state);
                     self.state.update_view = true;
                 }
 
-                handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
+                handle_lsp_messages(&mut self.state);
 
                 if self.state.buffer_idx.is_some() {
                     // Compute view if updated
@@ -454,7 +436,7 @@ impl App {
                             keybind.to_string(),
                             modifiers_set,
                         ) {
-                            perform_action(action, &mut self.state, &mut self.lsp_handles);
+                            perform_action(action, &mut self.state);
                         }
                     }
 
@@ -466,11 +448,7 @@ impl App {
                             self.state.completion_menu.select_next();
                         } else if key.code == KeyCode::Enter {
                             let completion_item = self.state.completion_menu.select();
-                            CompletionMenu::on_select(
-                                completion_item,
-                                &mut self.state,
-                                &mut self.lsp_handles,
-                            );
+                            CompletionMenu::on_select(completion_item, &mut self.state);
                             self.state.signature_information.content = String::new();
                         }
                     }

@@ -1,10 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use egui::Ui;
-use rift_core::{
-    actions::perform_action, buffer::instance::Language, lsp::client::LSPClientHandle,
-    state::EditorState,
-};
+use rift_core::{actions::perform_action, state::EditorState};
 
 /// Util method that functions as ternary operator
 fn upper<'a>(shift: bool, base: &'a str, modified: &'a str) -> &'a str {
@@ -18,12 +15,7 @@ impl CommandDispatcher {
         Self {}
     }
 
-    pub fn show(
-        &self,
-        ui: &mut Ui,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ) {
+    pub fn show(&self, ui: &mut Ui, state: &mut EditorState) {
         ui.input(|i| {
             for event in &i.raw.events {
                 state.update_view = true;
@@ -141,7 +133,7 @@ impl CommandDispatcher {
                         key.to_string(),
                         modifiers_set,
                     ) {
-                        perform_action(action, state, lsp_handles);
+                        perform_action(action, state);
                     }
                 }
             }

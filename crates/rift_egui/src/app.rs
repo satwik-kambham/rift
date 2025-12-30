@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use egui::{
     FontDefinitions,
@@ -9,12 +9,10 @@ use egui::{
 };
 use rift_core::{
     actions::{Action, perform_action},
-    buffer::instance::{Attribute, HighlightType, Language},
-    cli::{CLIArgs, process_cli_args},
+    buffer::instance::{Attribute, HighlightType},
     io::file_io::handle_file_event,
-    lsp::{client::LSPClientHandle, handle_lsp_messages, types},
+    lsp::{handle_lsp_messages, types},
     rendering::update_visible_lines,
-    rsl::initialize_rsl,
     state::{EditorState, Mode},
 };
 
@@ -29,25 +27,24 @@ use crate::{
     },
     fonts::load_fonts,
 };
-use tracing::error;
 
 pub struct App {
     dispatcher: CommandDispatcher,
     state: EditorState,
     font_definitions: FontDefinitions,
-    lsp_handles: HashMap<Language, LSPClientHandle>,
     completion_menu: CompletionMenuWidget,
-    first_frame: bool,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl App {
-    pub fn new(rt: tokio::runtime::Runtime, cli_args: CLIArgs) -> Self {
-        let mut state = EditorState::new(rt);
-        let mut lsp_handles = HashMap::new();
-
-        if let Err(err) = process_cli_args(cli_args, &mut state, &mut lsp_handles) {
-            error!(%err, "Failed to process CLI args");
-        }
+    pub fn new() -> Self {
+        let mut state = EditorState::new();
+        state.post_initialization();
 
         let font_definitions = load_fonts(&mut state);
 
@@ -56,16 +53,10 @@ impl App {
             completion_menu: CompletionMenuWidget::new(),
             state,
             font_definitions,
-            lsp_handles,
-            first_frame: true,
         }
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
-        if self.first_frame {
-            self.first_frame = false;
-            initialize_rsl(&mut self.state, &mut self.lsp_handles);
-        }
         egui_extras::install_image_loaders(ctx);
         // Quit command
         if self.state.quit {
@@ -160,7 +151,7 @@ impl App {
         let mut viewport_columns = 0;
         let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
 
-        show_menu_bar(ctx, &mut self.state, &mut self.lsp_handles);
+        show_menu_bar(ctx, &mut self.state);
         let (char_width, char_height) = show_status_line(ctx, &mut self.state);
 
         if show_gutter {
@@ -218,21 +209,13 @@ impl App {
 
                 // Run async callbacks
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                    (async_result.callback)(
-                        async_result.result,
-                        &mut self.state,
-                        &mut self.lsp_handles,
-                    );
+                    (async_result.callback)(async_result.result, &mut self.state);
                     self.state.update_view = true;
                 }
 
                 while let Ok(action_request) = self.state.event_reciever.try_recv() {
-                    let result = perform_action(
-                        action_request.action,
-                        &mut self.state,
-                        &mut self.lsp_handles,
-                    )
-                    .unwrap_or_default();
+                    let result =
+                        perform_action(action_request.action, &mut self.state).unwrap_or_default();
                     action_request.response_tx.send(result).unwrap();
                     self.state.update_view = true;
                     std::thread::sleep(Duration::from_millis(10));
@@ -240,12 +223,12 @@ impl App {
 
                 // Handle file watcher events
                 if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
-                    handle_file_event(file_event_result, &mut self.state, &mut self.lsp_handles);
+                    handle_file_event(file_event_result, &mut self.state);
                     self.state.update_view = true;
                 }
 
                 // Handle lsp messages
-                handle_lsp_messages(&mut self.state, &mut self.lsp_handles);
+                handle_lsp_messages(&mut self.state);
 
                 // Update on resize
                 if self
@@ -259,7 +242,6 @@ impl App {
                             viewport_rows, viewport_columns
                         )),
                         &mut self.state,
-                        &mut self.lsp_handles,
                     );
                 }
 
@@ -368,8 +350,7 @@ impl App {
 
                 // Handle keyboard events
                 if !ctx.wants_keyboard_input() {
-                    self.dispatcher
-                        .show(ui, &mut self.state, &mut self.lsp_handles);
+                    self.dispatcher.show(ui, &mut self.state);
                 }
 
                 let completion_position = CompletionMenuPosition {
@@ -378,12 +359,8 @@ impl App {
                     top_left,
                     viewport_rows,
                 };
-                self.completion_menu.show(
-                    completion_position,
-                    ctx,
-                    &mut self.state,
-                    &mut self.lsp_handles,
-                );
+                self.completion_menu
+                    .show(completion_position, ctx, &mut self.state);
 
                 if self.state.signature_information.should_render()
                     && self.state.relative_cursor.row > 1

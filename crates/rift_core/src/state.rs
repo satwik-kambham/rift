@@ -1,9 +1,13 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
+use clap::Parser;
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use tokio::sync::mpsc;
-use tracing::warn;
 
 use crate::{
     actions::{Action, ReferenceEntry, perform_action},
@@ -11,6 +15,7 @@ use crate::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
         rope_buffer::{HighlightedText, RopeBuffer},
     },
+    cli::{CLIArgs, process_cli_args},
     concurrent::{AsyncHandle, AsyncResult},
     keybinds::KeybindHandler,
     lsp::{
@@ -19,7 +24,7 @@ use crate::{
     },
     preferences::Preferences,
     rpc::{RPCRequest, start_rpc_server},
-    rsl::start_rsl_interpreter,
+    rsl::{initialize_rsl, start_rsl_interpreter},
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -30,44 +35,65 @@ pub enum Mode {
 }
 
 pub struct EditorState {
-    pub quit: bool,
-    pub rt: tokio::runtime::Runtime,
-    pub async_handle: AsyncHandle,
-    pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
-    pub event_reciever: mpsc::Receiver<RPCRequest>,
-    pub rsl_sender: mpsc::Sender<String>,
-    pub file_watcher: Option<RecommendedWatcher>,
+    // General
     pub preferences: Preferences,
     pub buffers: HashMap<u32, RopeBuffer>,
     pub instances: HashMap<u32, BufferInstance>,
     next_id: u32,
     pub workspace_folder: String,
     pub current_folder: String,
-    viewport_rows: usize,
-    viewport_columns: usize,
     pub mode: Mode,
-    pub update_view: bool,
-    pub highlighted_text: HighlightedText,
-    pub gutter_info: Vec<GutterInfo>,
-    pub relative_cursor: Cursor,
     pub buffer_idx: Option<u32>,
+    pub log_messages: Vec<String>,
+    pub register: String,
+    pub search_query: String,
+    pub quit: bool,
+
+    // System
     pub clipboard_ctx: Option<ClipboardContext>,
+
+    // Handles
+    pub rt: tokio::runtime::Runtime,
+    pub async_handle: AsyncHandle,
+    pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
+    pub event_reciever: mpsc::Receiver<RPCRequest>,
+    pub rsl_sender: mpsc::Sender<String>,
+    pub file_watcher: Option<RecommendedWatcher>,
+    pub lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
+
+    // LSP
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
     pub references: Vec<ReferenceEntry>,
     pub references_version: usize,
     pub definitions: Vec<ReferenceEntry>,
     pub definitions_version: usize,
     pub diagnostics_overlay: DiagnosticsOverlay,
+
+    // UI
+    viewport_rows: usize,
+    viewport_columns: usize,
+    pub update_view: bool,
+    pub highlighted_text: HighlightedText,
+    pub gutter_info: Vec<GutterInfo>,
+    pub relative_cursor: Cursor,
     pub completion_menu: CompletionMenu,
     pub signature_information: SignatureInformation,
     pub keybind_handler: KeybindHandler,
-    pub log_messages: Vec<String>,
-    pub register: String,
-    pub search_query: String,
+}
+
+impl Default for EditorState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EditorState {
-    pub fn new(rt: tokio::runtime::Runtime) -> Self {
+    pub fn new() -> Self {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
         let (event_sender, event_reciever) = mpsc::channel::<RPCRequest>(32);
 
         let rpc_client_transport = rt.block_on(start_rpc_server(event_sender));
@@ -80,7 +106,7 @@ impl EditorState {
             move |res| {
                 rt_handle.block_on(async {
                     if let Err(err) = file_event_sender.clone().send(res).await {
-                        warn!(%err, "Failed to forward file watcher event");
+                        tracing::warn!(%err, "Failed to forward file watcher event");
                     }
                 });
             },
@@ -88,7 +114,7 @@ impl EditorState {
         )
         .map(Some)
         .unwrap_or_else(|err| {
-            warn!(%err, "Failed to create file watcher; continuing without live file updates");
+            tracing::warn!(%err, "Failed to create file watcher; continuing without live file updates");
             None
         });
 
@@ -133,7 +159,18 @@ impl EditorState {
             log_messages: vec![],
             register: String::new(),
             search_query: String::new(),
+            lsp_handles: HashMap::new(),
         }
+    }
+
+    pub fn post_initialization(&mut self) {
+        let cli_args = CLIArgs::parse();
+
+        if let Err(err) = process_cli_args(cli_args, self) {
+            tracing::error!(%err, "Failed to process CLI args");
+        }
+
+        initialize_rsl(self);
     }
 
     pub fn viewport_rows(&self) -> usize {
@@ -166,7 +203,7 @@ impl EditorState {
                 if let Some(watcher) = self.file_watcher.as_mut()
                     && let Err(err) = watcher.watch(path, RecursiveMode::NonRecursive)
                 {
-                    warn!(%err, path = %path.display(), "Failed to watch file path");
+                    tracing::warn!(%err, path = %path.display(), "Failed to watch file path");
                 }
             }
             self.buffers.insert(self.next_id, buffer);
@@ -244,7 +281,7 @@ impl EditorState {
         None
     }
 
-    pub fn spawn_lsp(&self, language: Language) -> Option<LSPClientHandle> {
+    pub fn spawn_lsp(&self, language: &Language) -> Option<LSPClientHandle> {
         if self.preferences.no_lsp {
             return None;
         }
@@ -283,6 +320,91 @@ impl EditorState {
             }
         }
         None
+    }
+
+    pub fn start_lsp(&mut self, language: &Language) {
+        if !self.lsp_handles.contains_key(language)
+            && let Some(mut lsp_handle) = self.spawn_lsp(language)
+        {
+            if lsp_handle
+                .init_lsp_sync(self.workspace_folder.clone())
+                .is_ok()
+            {
+                self.lsp_handles
+                    .insert(*language, Arc::new(Mutex::new(lsp_handle)));
+            } else {
+                self.preferences.no_lsp = true;
+            }
+        }
+    }
+
+    pub fn lsp_open_file(&mut self, language: &Language, path: String, initial_text: String) {
+        if let Some(lsp_handle) = self.lsp_handles.get(language) {
+            let lsp_handle = lsp_handle.lock().unwrap();
+            let language_id = match language {
+                Language::Python => "python",
+                Language::Rust => "rust",
+                Language::Markdown => "markdown",
+                Language::Dart => "dart",
+                Language::Nix => "nix",
+                Language::HTML => "html",
+                Language::CSS => "css",
+                Language::Javascript => "javascript",
+                Language::Typescript => "typescript",
+                Language::JSON => "json",
+                Language::C => "c",
+                Language::CPP => "cpp",
+                Language::Vue => "vue",
+                _ => "",
+            };
+
+            if (lsp_handle.initialize_capabilities["textDocumentSync"].is_number()
+                || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
+                    .as_bool()
+                    .unwrap_or(false))
+                && let Err(err) = lsp_handle.send_notification_sync(
+                    "textDocument/didOpen".to_string(),
+                    Some(LSPClientHandle::did_open_text_document(
+                        path,
+                        language_id.to_string(),
+                        initial_text,
+                    )),
+                )
+            {
+                tracing::warn!(%err, "Failed to send didOpen notification");
+            }
+        }
+    }
+
+    pub fn get_lsp_handle_for_language(
+        &mut self,
+        language: &Language,
+    ) -> Option<Arc<Mutex<LSPClientHandle>>> {
+        self.lsp_handles.get_mut(language).cloned()
+    }
+
+    pub fn get_lsp_handle_for_buffer(&mut self, id: u32) -> Option<Arc<Mutex<LSPClientHandle>>> {
+        let language = {
+            let (buffer, _instance) = self.get_buffer_by_id(id);
+            buffer.language
+        };
+        self.get_lsp_handle_for_language(&language)
+    }
+
+    pub fn get_buffer_with_lsp_by_id_mut(
+        &mut self,
+        id: u32,
+    ) -> (
+        &mut RopeBuffer,
+        &mut BufferInstance,
+        Option<Arc<Mutex<LSPClientHandle>>>,
+    ) {
+        let lsp_handle = self.get_lsp_handle_for_buffer(id);
+        (
+            self.buffers.get_mut(&id).unwrap(),
+            self.instances.get_mut(&id).unwrap(),
+            lsp_handle,
+        )
     }
 }
 
@@ -384,24 +506,15 @@ impl CompletionMenu {
         None
     }
 
-    pub fn on_select(
-        completion_item: Option<types::CompletionItem>,
-        state: &mut EditorState,
-        lsp_handles: &mut HashMap<Language, LSPClientHandle>,
-    ) {
+    pub fn on_select(completion_item: Option<types::CompletionItem>, state: &mut EditorState) {
         if let Some(completion_item) = completion_item {
-            perform_action(
-                Action::DeleteText(completion_item.edit.range),
-                state,
-                lsp_handles,
-            );
+            perform_action(Action::DeleteText(completion_item.edit.range), state);
             perform_action(
                 Action::InsertText(
                     completion_item.edit.text.clone(),
                     completion_item.edit.range.mark,
                 ),
                 state,
-                lsp_handles,
             );
         }
     }

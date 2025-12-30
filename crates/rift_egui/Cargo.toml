@@ -14,7 +14,6 @@ egui = { git = "https://github.com/satwik-kambham/egui.git", branch = "master", 
 egui_extras = { git = "https://github.com/satwik-kambham/egui.git", branch = "master", package = "egui_extras", features = ["svg"] }
 font-kit = "0.14.2"
 tokio = { workspace = true }
-clap = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 strum = { workspace = true }
