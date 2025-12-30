@@ -54,11 +54,11 @@ impl Default for Preferences {
         };
 
         Self {
-            theme: Theme::catppuccin_kanagawa(),
+            theme: Theme::kanagawa(),
             line_ending,
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),
-            editor_font_size: 16,
+            editor_font_size: 21,
             ui_font_family: "Open Sans".into(),
             ui_font_size: 14,
             ui_font_size_heading: 16,

@@ -8,10 +8,9 @@ name = "rt"
 path = "src/main.rs"
 
 [dependencies]
-ratatui = "0.29.0"
 rift_core = { path = "../rift_core" }
+ratatui = "0.29.0"
 anyhow = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 strum = { workspace = true }
-dirs = { workspace = true }

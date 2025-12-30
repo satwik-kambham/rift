@@ -100,17 +100,7 @@ pub enum Language {
 
 /// Types of highlighted tokens
 #[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Eq,
-    PartialEq,
-    Hash,
-    PartialOrd,
-    Ord,
-    bincode::Encode,
+    serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord,
 )]
 pub enum HighlightType {
     None,
@@ -125,7 +115,7 @@ pub enum HighlightType {
     Turquoise,
 }
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord, bincode::Encode)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Attribute {
     None,
     Visible,

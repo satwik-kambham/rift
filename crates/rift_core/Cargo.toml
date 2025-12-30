@@ -9,10 +9,25 @@ cc="*"
 [dependencies]
 rsl = { path = "../rsl", features = ["rift_rpc"] }
 rift_rpc = { path = "../rift_rpc" }
+
 tarpc = { workspace = true }
 futures = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+reqwest = { workspace = true }
+clap = { workspace = true }
+strum = { workspace = true }
+copypasta = "0.10.1"
+notify = "8.0.0"
+which = "7.0.2"
+ropey = "1.6.1"
+ecolor = { git = "https://github.com/satwik-kambham/egui.git", branch = "master", package = "ecolor" }
+
 tree-sitter = "0.23.0"
 tree-sitter-highlight = "0.23.0"
 tree-sitter-python = "0.23.2"
@@ -27,19 +42,3 @@ tree-sitter-c = "0.23.2"
 tree-sitter-cpp = "0.23.2"
 tree-sitter-nix = { git = "https://github.com/nix-community/tree-sitter-nix.git", branch = "master" }
 tree-sitter-dart = { git = "https://github.com/satwik-kambham/tree-sitter-dart.git", branch = "master" }
-ecolor = { git = "https://github.com/satwik-kambham/egui.git", branch = "master", package = "ecolor" }
-tokio = { workspace = true }
-anyhow = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-tracing-appender = { workspace = true }
-copypasta = "0.10.1"
-reqwest = { workspace = true }
-clap = { workspace = true }
-strum = { workspace = true }
-notify = "8.0.0"
-which = "7.0.2"
-chrono = "0.4.41"
-similar = "2.7.0"
-bincode = { workspace = true }
-ropey = "1.6.1"

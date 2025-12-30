@@ -56,7 +56,7 @@ pub struct PublishDiagnostics {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord, bincode::Encode)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum DiagnosticSeverity {
     Hint,
     Information,
