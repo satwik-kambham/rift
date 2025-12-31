@@ -1,7 +1,8 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct Span {
-    pub start: usize,
-    pub end: usize,
+    pub start_byte: usize,
+    pub end_byte: usize,
+    pub line: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -59,10 +60,14 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, start: usize, end: usize) -> Self {
+    pub fn new(token_type: TokenType, start_byte: usize, end_byte: usize, line: usize) -> Self {
         Self {
             token_type,
-            span: Span { start, end },
+            span: Span {
+                start_byte,
+                end_byte,
+                line,
+            },
         }
     }
 }

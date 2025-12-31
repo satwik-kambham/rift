@@ -1,10 +1,14 @@
-use crate::token::Token;
-use crate::token::TokenType;
+use crate::{
+    errors::ScanError,
+    token::{Token, TokenType},
+};
 
 pub struct Scanner {
     source: String,
     start: usize,
     current: usize,
+    line: usize,
+    start_line: usize,
     tokens: Vec<Token>,
 }
 
@@ -14,22 +18,27 @@ impl Scanner {
             source,
             start: 0,
             current: 0,
+            line: 1,
+            start_line: 1,
             tokens: vec![],
         }
     }
 
-    pub fn scan(&mut self) -> Vec<Token> {
+    pub fn scan(&mut self) -> Result<Vec<Token>, ScanError> {
         while !self.is_at_eof() {
             self.start = self.current;
-            self.scan_token();
+            self.start_line = self.line;
+            self.scan_token()?;
         }
 
+        self.start = self.current;
+        self.start_line = self.line;
         self.add_token(TokenType::EOF);
 
-        self.tokens.clone()
+        Ok(self.tokens.clone())
     }
 
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self) -> Result<(), ScanError> {
         let c = self.advance();
         match c {
             '+' => self.add_token(TokenType::Plus),
@@ -90,6 +99,14 @@ impl Scanner {
                     }
                     self.advance();
                 }
+                if self.is_at_eof() {
+                    return Err(ScanError::new(
+                        "Unterminated string".into(),
+                        self.start,
+                        self.current,
+                        self.start_line,
+                    ));
+                }
                 self.advance();
                 let string = self
                     .source
@@ -110,12 +127,22 @@ impl Scanner {
                     while self.peek().is_ascii_digit() {
                         self.advance();
                     }
-                    let number = self
+                    let number = match self
                         .source
                         .get(self.start..self.current)
                         .unwrap()
                         .parse::<f32>()
-                        .unwrap();
+                    {
+                        Ok(n) => n,
+                        Err(_) => {
+                            return Err(ScanError::new(
+                                "Invalid number".into(),
+                                self.start,
+                                self.current,
+                                self.start_line,
+                            ));
+                        }
+                    };
                     self.add_token(TokenType::Number(number))
                 } else if c.is_ascii_alphanumeric() {
                     while self.peek().is_ascii_alphanumeric() {
@@ -138,19 +165,34 @@ impl Scanner {
                         _ => TokenType::Identifier(identifier.to_string()),
                     };
                     self.add_token(token_type)
+                } else {
+                    return Err(ScanError::new(
+                        format!("Unknown character: {}", c),
+                        self.start,
+                        self.start + c.len_utf8(),
+                        self.line,
+                    ));
                 }
             }
         }
+        Ok(())
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.tokens
-            .push(Token::new(token_type, self.start, self.current))
+        self.tokens.push(Token::new(
+            token_type,
+            self.start,
+            self.current,
+            self.start_line,
+        ))
     }
 
     fn advance(&mut self) -> char {
         let mut iter = self.source[self.current..].char_indices();
         let (_, ch) = iter.next().unwrap();
+        if ch == '\n' {
+            self.line += 1;
+        }
         if let Some((next_offset, _)) = iter.next() {
             self.current += next_offset;
         } else {
@@ -206,15 +248,28 @@ mod tests {
     #[test]
     fn scans_utf8_in_strings_and_comments() {
         let mut scanner = Scanner::new("print(\"héllo 😊\") #🙂\n1".to_string());
-        let tokens = scanner.scan();
+        let tokens = scanner.scan().unwrap();
 
         let expected = vec![
-            Token::new(TokenType::Identifier("print".into()), 0, 5),
-            Token::new(TokenType::LeftParentheses, 5, 6),
-            Token::new(TokenType::String("héllo 😊".into()), 6, 19),
-            Token::new(TokenType::RightParentheses, 19, 20),
-            Token::new(TokenType::Number(1.0), 27, 28),
-            Token::new(TokenType::EOF, 27, 28),
+            Token::new(TokenType::Identifier("print".into()), 0, 5, 1),
+            Token::new(TokenType::LeftParentheses, 5, 6, 1),
+            Token::new(TokenType::String("héllo 😊".into()), 6, 19, 1),
+            Token::new(TokenType::RightParentheses, 19, 20, 1),
+            Token::new(TokenType::Number(1.0), 27, 28, 2),
+            Token::new(TokenType::EOF, 28, 28, 2),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn scans_multiline_string() {
+        let mut scanner = Scanner::new("\"line1\nline2\nline3\"".to_string());
+        let tokens = scanner.scan().unwrap();
+
+        let expected = vec![
+            Token::new(TokenType::String("line1\nline2\nline3".into()), 0, 19, 1),
+            Token::new(TokenType::EOF, 19, 19, 3),
         ];
 
         assert_eq!(tokens, expected);

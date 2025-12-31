@@ -250,7 +250,8 @@ impl Expression for FunctionCallExpression {
                     Ok(source) => {
                         let local_environment =
                             Rc::new(Environment::new(Some(environment.clone())));
-                        rsl.run_with_environment(source, local_environment.clone());
+                        rsl.run_with_environment(source, local_environment.clone())
+                            .unwrap();
                         let exported_values = local_environment.get_exported_values();
                         let exported_values =
                             Primitive::Table(Rc::new(RefCell::new(exported_values)));

@@ -1,5 +1,6 @@
 pub mod array;
 pub mod environment;
+pub mod errors;
 pub mod expression;
 pub mod interpreter;
 pub mod operator;
@@ -14,8 +15,8 @@ pub mod token;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::environment::Environment;
-use anyhow::{Context, Result};
+use crate::{environment::Environment, errors::RSLError};
+use anyhow::Context;
 
 pub struct RSL {
     pub environment: Rc<Environment>,
@@ -100,23 +101,30 @@ impl RSL {
         }
     }
 
-    pub fn run(&mut self, source: String) {
-        self.run_with_environment(source, self.environment.clone());
+    pub fn run(&mut self, source: String) -> Result<(), RSLError> {
+        self.run_with_environment(source, self.environment.clone())?;
+        Ok(())
     }
 
-    pub fn run_with_environment(&mut self, source: String, environment: Rc<Environment>) {
+    pub fn run_with_environment(
+        &mut self,
+        source: String,
+        environment: Rc<Environment>,
+    ) -> Result<(), RSLError> {
         let mut scanner = crate::scanner::Scanner::new(source);
-        let tokens = scanner.scan();
+        let tokens = scanner.scan()?;
 
-        let mut parser = crate::parser::Parser::new(tokens.clone());
+        let mut parser = crate::parser::Parser::new(tokens);
         let statements = parser.parse();
 
         let mut interpreter =
             crate::interpreter::Interpreter::with_environment(statements, environment);
         interpreter.interpret(self);
+
+        Ok(())
     }
 
-    pub fn get_package_code(&self, package_name: &str) -> Result<String> {
+    pub fn get_package_code(&self, package_name: &str) -> anyhow::Result<String> {
         let candidate = self.working_dir.join(package_name);
         if candidate.is_file() {
             let source = std::fs::read_to_string(&candidate)
