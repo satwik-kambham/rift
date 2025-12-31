@@ -10,6 +10,7 @@ rift_rpc = ["dep:rift_rpc", "tarpc", "futures"]
 [dependencies]
 clap = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 reedline = "0.41.0"
 uuid = { version = "1.16.0", features = ["v4"] }
 tokio = { workspace = true }
