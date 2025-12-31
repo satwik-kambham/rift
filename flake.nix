@@ -34,6 +34,8 @@
           toolchain
           rust-analyzer
           nixfmt-rfc-style
+          clang
+          wild
         ];
         runtimeDeps = with pkgs; [
           makeWrapper
