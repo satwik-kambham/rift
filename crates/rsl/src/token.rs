@@ -1,6 +1,11 @@
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
-    // Operators
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenType {
     Plus,
     Minus,
     Asterisk,
@@ -14,7 +19,6 @@ pub enum Token {
     IsEqual,
     NotEqual,
 
-    // Delimiters
     Semicolon,
     Comma,
     LeftParentheses,
@@ -24,7 +28,6 @@ pub enum Token {
     LeftBrace,
     RightBrace,
 
-    // Keywords
     And,
     Or,
     Not,
@@ -36,10 +39,8 @@ pub enum Token {
     Local,
     Export,
 
-    // Comment
     Hash,
 
-    // Literals
     Null,
     True,
     False,
@@ -49,4 +50,19 @@ pub enum Token {
     Identifier(String),
 
     EOF,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub span: Span,
+}
+
+impl Token {
+    pub fn new(token_type: TokenType, start: usize, end: usize) -> Self {
+        Self {
+            token_type,
+            span: Span { start, end },
+        }
+    }
 }

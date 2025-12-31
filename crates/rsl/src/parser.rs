@@ -4,10 +4,11 @@ use crate::operator;
 use crate::primitive;
 use crate::statement;
 use crate::token::Token;
+use crate::token::TokenType;
 
 macro_rules! expect_token {
     ($parser:expr, $pattern:pat, $msg:expr) => {
-        if matches!($parser.peek(), $pattern) {
+        if matches!($parser.peek().token_type, $pattern) {
             $parser.consume()
         } else {
             panic!("Parse error: expected {}, found {:?}", $msg, $parser.peek());
@@ -17,7 +18,7 @@ macro_rules! expect_token {
 
 macro_rules! consume_token {
     ($parser:expr, $pattern:pat) => {
-        if matches!($parser.peek(), $pattern) {
+        if matches!($parser.peek().token_type, $pattern) {
             $parser.consume();
             true
         } else {
@@ -47,7 +48,7 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Box<dyn statement::Statement> {
-        if consume_token!(self, Token::Fn) {
+        if consume_token!(self, TokenType::Fn) {
             return self.function_declaration();
         }
         self.statement()
@@ -56,7 +57,7 @@ impl Parser {
     fn block(&mut self) -> Vec<Box<dyn statement::Statement>> {
         let mut statements = vec![];
 
-        while !matches!(self.peek(), Token::RightBrace) && !self.is_at_eof() {
+        while !matches!(self.peek().token_type, TokenType::RightBrace) && !self.is_at_eof() {
             statements.push(self.declaration());
         }
 
@@ -64,24 +65,24 @@ impl Parser {
     }
 
     fn function_declaration(&mut self) -> Box<dyn statement::Statement> {
-        let export_function = consume_token!(self, Token::Export);
+        let export_function = consume_token!(self, TokenType::Export);
 
         let identifier = self.expect_identifier();
-        expect_token!(self, Token::LeftParentheses, "(");
+        expect_token!(self, TokenType::LeftParentheses, "(");
         let mut parameters = vec![];
-        if !matches!(self.peek(), Token::RightParentheses) {
+        if !matches!(self.peek().token_type, TokenType::RightParentheses) {
             loop {
                 parameters.push(self.expect_identifier());
 
-                if !consume_token!(self, Token::Comma) {
+                if !consume_token!(self, TokenType::Comma) {
                     break;
                 }
             }
         }
-        expect_token!(self, Token::RightParentheses, ")");
-        expect_token!(self, Token::LeftBrace, "{");
+        expect_token!(self, TokenType::RightParentheses, ")");
+        expect_token!(self, TokenType::LeftBrace, "{");
         let body = self.block();
-        expect_token!(self, Token::RightBrace, "}");
+        expect_token!(self, TokenType::RightBrace, "}");
         Box::new(statement::FunctionDefinitionStatement::new(
             identifier,
             parameters,
@@ -91,39 +92,41 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Box<dyn statement::Statement> {
-        if consume_token!(self, Token::Loop) {
+        if consume_token!(self, TokenType::Loop) {
             return self.loop_statement();
         }
-        if consume_token!(self, Token::If) {
+        if consume_token!(self, TokenType::If) {
             return self.if_statement();
         }
-        if consume_token!(self, Token::Break) {
+        if consume_token!(self, TokenType::Break) {
             return self.break_statement();
         }
-        if consume_token!(self, Token::Return) {
+        if consume_token!(self, TokenType::Return) {
             return self.return_statement();
         }
-        if matches!(self.peek(), Token::Local | Token::Export) {
+        if matches!(self.peek().token_type, TokenType::Local | TokenType::Export) {
             return self.assignment_statement();
         }
-        if matches!(self.peek(), Token::Identifier(_)) && matches!(self.peek_n(1), Token::Equals) {
+        if matches!(self.peek().token_type, TokenType::Identifier(_))
+            && matches!(self.peek_n(1).token_type, TokenType::Equals)
+        {
             return self.assignment_statement();
         }
         self.expression_statement()
     }
 
     fn loop_statement(&mut self) -> Box<dyn statement::Statement> {
-        expect_token!(self, Token::LeftBrace, "{");
+        expect_token!(self, TokenType::LeftBrace, "{");
         let body = self.block();
-        expect_token!(self, Token::RightBrace, "}");
+        expect_token!(self, TokenType::RightBrace, "}");
         Box::new(statement::LoopStatement::new(body))
     }
 
     fn if_statement(&mut self) -> Box<dyn statement::Statement> {
         let condition_expression = self.expression();
-        expect_token!(self, Token::LeftBrace, "{");
+        expect_token!(self, TokenType::LeftBrace, "{");
         let body = self.block();
-        expect_token!(self, Token::RightBrace, "}");
+        expect_token!(self, TokenType::RightBrace, "}");
         Box::new(statement::IfStatement::new(condition_expression, body))
     }
 
@@ -137,15 +140,15 @@ impl Parser {
     }
 
     fn assignment_statement(&mut self) -> Box<dyn statement::Statement> {
-        let variable_type = if consume_token!(self, Token::Local) {
+        let variable_type = if consume_token!(self, TokenType::Local) {
             VariableType::Local
-        } else if consume_token!(self, Token::Export) {
+        } else if consume_token!(self, TokenType::Export) {
             VariableType::Export
         } else {
             VariableType::Default
         };
         let identifier = self.expect_identifier();
-        expect_token!(self, Token::Equals, "=");
+        expect_token!(self, TokenType::Equals, "=");
         let expression = self.expression();
         Box::new(statement::AssignmentStatement::new(
             identifier,
@@ -166,9 +169,9 @@ impl Parser {
     fn or_expression(&mut self) -> Box<dyn expression::Expression> {
         let mut expression = self.and_expression();
 
-        while matches!(self.peek(), Token::Or) {
-            let operator = match self.consume() {
-                Token::Or => operator::Operator::Or,
+        while matches!(self.peek().token_type, TokenType::Or) {
+            let operator = match &self.consume().token_type {
+                TokenType::Or => operator::Operator::Or,
                 other => panic!("Parse error: expected identifier, found {:?}", other),
             };
 
@@ -184,9 +187,9 @@ impl Parser {
     fn and_expression(&mut self) -> Box<dyn expression::Expression> {
         let mut expression = self.equality_expression();
 
-        while matches!(self.peek(), Token::And) {
-            let operator = match self.consume() {
-                Token::And => operator::Operator::And,
+        while matches!(self.peek().token_type, TokenType::And) {
+            let operator = match &self.consume().token_type {
+                TokenType::And => operator::Operator::And,
                 other => panic!("Parse error: expected identifier, found {:?}", other),
             };
 
@@ -202,10 +205,13 @@ impl Parser {
     fn equality_expression(&mut self) -> Box<dyn expression::Expression> {
         let mut expression = self.comparison_expression();
 
-        while matches!(self.peek(), Token::IsEqual | Token::NotEqual) {
-            let operator = match self.consume() {
-                Token::IsEqual => operator::Operator::IsEqual,
-                Token::NotEqual => operator::Operator::NotEqual,
+        while matches!(
+            self.peek().token_type,
+            TokenType::IsEqual | TokenType::NotEqual
+        ) {
+            let operator = match &self.consume().token_type {
+                TokenType::IsEqual => operator::Operator::IsEqual,
+                TokenType::NotEqual => operator::Operator::NotEqual,
                 other => panic!("Parse error: expected identifier, found {:?}", other),
             };
 
@@ -222,14 +228,17 @@ impl Parser {
         let mut expression = self.term_expression();
 
         while matches!(
-            self.peek(),
-            Token::LessThan | Token::LessThanEqual | Token::GreaterThan | Token::GreaterThanEqual
+            self.peek().token_type,
+            TokenType::LessThan
+                | TokenType::LessThanEqual
+                | TokenType::GreaterThan
+                | TokenType::GreaterThanEqual
         ) {
-            let operator = match self.consume() {
-                Token::LessThan => operator::Operator::LessThan,
-                Token::LessThanEqual => operator::Operator::LessThanEqual,
-                Token::GreaterThan => operator::Operator::GreaterThan,
-                Token::GreaterThanEqual => operator::Operator::GreaterThanEqual,
+            let operator = match &self.consume().token_type {
+                TokenType::LessThan => operator::Operator::LessThan,
+                TokenType::LessThanEqual => operator::Operator::LessThanEqual,
+                TokenType::GreaterThan => operator::Operator::GreaterThan,
+                TokenType::GreaterThanEqual => operator::Operator::GreaterThanEqual,
                 other => panic!("Parse error: expected identifier, found {:?}", other),
             };
 
@@ -245,10 +254,10 @@ impl Parser {
     fn term_expression(&mut self) -> Box<dyn expression::Expression> {
         let mut expression = self.factor_expression();
 
-        while matches!(self.peek(), Token::Plus | Token::Minus) {
-            let operator = match self.consume() {
-                Token::Plus => operator::Operator::Plus,
-                Token::Minus => operator::Operator::Minus,
+        while matches!(self.peek().token_type, TokenType::Plus | TokenType::Minus) {
+            let operator = match &self.consume().token_type {
+                TokenType::Plus => operator::Operator::Plus,
+                TokenType::Minus => operator::Operator::Minus,
                 other => panic!("Parse error: expected identifier, found {:?}", other),
             };
 
@@ -264,11 +273,14 @@ impl Parser {
     fn factor_expression(&mut self) -> Box<dyn expression::Expression> {
         let mut expression = self.unary_expression();
 
-        while matches!(self.peek(), Token::Asterisk | Token::Slash | Token::Percent) {
-            let operator = match self.consume() {
-                Token::Asterisk => operator::Operator::Asterisk,
-                Token::Slash => operator::Operator::Slash,
-                Token::Percent => operator::Operator::Percent,
+        while matches!(
+            self.peek().token_type,
+            TokenType::Asterisk | TokenType::Slash | TokenType::Percent
+        ) {
+            let operator = match &self.consume().token_type {
+                TokenType::Asterisk => operator::Operator::Asterisk,
+                TokenType::Slash => operator::Operator::Slash,
+                TokenType::Percent => operator::Operator::Percent,
                 other => panic!("Parse error: expected identifier, found {:?}", other),
             };
 
@@ -282,10 +294,10 @@ impl Parser {
     }
 
     fn unary_expression(&mut self) -> Box<dyn expression::Expression> {
-        if matches!(self.peek(), Token::Not | Token::Minus) {
-            let operator = match self.consume() {
-                Token::Not => operator::Operator::Not,
-                Token::Minus => operator::Operator::Minus,
+        if matches!(self.peek().token_type, TokenType::Not | TokenType::Minus) {
+            let operator = match &self.consume().token_type {
+                TokenType::Not => operator::Operator::Not,
+                TokenType::Minus => operator::Operator::Minus,
                 other => panic!("Parse error: expected identifier, found {:?}", other),
             };
 
@@ -297,49 +309,49 @@ impl Parser {
     }
 
     fn literal_expression(&mut self) -> Box<dyn expression::Expression> {
-        if consume_token!(self, Token::Null) {
+        if consume_token!(self, TokenType::Null) {
             return Box::new(expression::LiteralExpression::new(
                 primitive::Primitive::Null,
             ));
         }
-        if consume_token!(self, Token::True) {
+        if consume_token!(self, TokenType::True) {
             return Box::new(expression::LiteralExpression::new(
                 primitive::Primitive::Boolean(true),
             ));
         }
-        if consume_token!(self, Token::False) {
+        if consume_token!(self, TokenType::False) {
             return Box::new(expression::LiteralExpression::new(
                 primitive::Primitive::Boolean(false),
             ));
         }
-        if let Token::Number(number) = self.peek() {
+        if let TokenType::Number(number) = &self.peek().token_type {
             let number = *number;
-            expect_token!(self, Token::Number(_), "number");
+            expect_token!(self, TokenType::Number(_), "number");
             return Box::new(expression::LiteralExpression::new(
                 primitive::Primitive::Number(number),
             ));
         }
-        if let Token::String(string) = self.peek() {
+        if let TokenType::String(string) = &self.peek().token_type {
             let string = string.to_string();
-            expect_token!(self, Token::String(_), "string");
+            expect_token!(self, TokenType::String(_), "string");
             return Box::new(expression::LiteralExpression::new(
                 primitive::Primitive::String(string),
             ));
         }
-        if let Token::Identifier(_) = self.peek() {
+        if let TokenType::Identifier(_) = &self.peek().token_type {
             let identifier = self.expect_identifier();
-            if consume_token!(self, Token::LeftParentheses) {
+            if consume_token!(self, TokenType::LeftParentheses) {
                 let mut parameters = vec![];
-                if !matches!(self.peek(), Token::RightParentheses) {
+                if !matches!(self.peek().token_type, TokenType::RightParentheses) {
                     loop {
                         parameters.push(self.expression());
 
-                        if !consume_token!(self, Token::Comma) {
+                        if !consume_token!(self, TokenType::Comma) {
                             break;
                         }
                     }
                 }
-                expect_token!(self, Token::RightParentheses, ")");
+                expect_token!(self, TokenType::RightParentheses, ")");
                 return Box::new(expression::FunctionCallExpression::new(
                     identifier, parameters,
                 ));
@@ -347,9 +359,9 @@ impl Parser {
             return Box::new(expression::VariableExpression::new(identifier));
         }
 
-        if consume_token!(self, Token::LeftParentheses) {
+        if consume_token!(self, TokenType::LeftParentheses) {
             let expression = self.expression();
-            expect_token!(self, Token::RightParentheses, ")");
+            expect_token!(self, TokenType::RightParentheses, ")");
             return Box::new(expression::GroupingExpression::new(expression));
         }
 
@@ -357,8 +369,8 @@ impl Parser {
     }
 
     fn expect_identifier(&mut self) -> String {
-        match self.peek() {
-            Token::Identifier(identifier) => {
+        match &self.peek().token_type {
+            TokenType::Identifier(identifier) => {
                 let identifier = identifier.clone();
                 self.consume();
                 identifier
@@ -383,6 +395,6 @@ impl Parser {
     }
 
     fn is_at_eof(&self) -> bool {
-        matches!(self.peek(), Token::EOF)
+        matches!(self.peek().token_type, TokenType::EOF)
     }
 }

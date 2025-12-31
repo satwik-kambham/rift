@@ -1,8 +1,8 @@
 use crate::token::Token;
+use crate::token::TokenType;
 
 pub struct Scanner {
     source: String,
-    // Byte offsets into source; we iterate via char_indices to stay UTF-8 safe.
     start: usize,
     current: usize,
     tokens: Vec<Token>,
@@ -24,7 +24,7 @@ impl Scanner {
             self.scan_token();
         }
 
-        self.tokens.push(Token::EOF);
+        self.add_token(TokenType::EOF);
 
         self.tokens.clone()
     }
@@ -32,50 +32,50 @@ impl Scanner {
     fn scan_token(&mut self) {
         let c = self.advance();
         match c {
-            '+' => self.tokens.push(Token::Plus),
-            '-' => self.tokens.push(Token::Minus),
-            '*' => self.tokens.push(Token::Asterisk),
-            '/' => self.tokens.push(Token::Slash),
-            '%' => self.tokens.push(Token::Percent),
-            ';' => self.tokens.push(Token::Semicolon),
-            ',' => self.tokens.push(Token::Comma),
-            '(' => self.tokens.push(Token::LeftParentheses),
-            ')' => self.tokens.push(Token::RightParentheses),
-            '[' => self.tokens.push(Token::LeftSquareBracket),
-            ']' => self.tokens.push(Token::RightSquareBracket),
-            '{' => self.tokens.push(Token::LeftBrace),
-            '}' => self.tokens.push(Token::RightBrace),
+            '+' => self.add_token(TokenType::Plus),
+            '-' => self.add_token(TokenType::Minus),
+            '*' => self.add_token(TokenType::Asterisk),
+            '/' => self.add_token(TokenType::Slash),
+            '%' => self.add_token(TokenType::Percent),
+            ';' => self.add_token(TokenType::Semicolon),
+            ',' => self.add_token(TokenType::Comma),
+            '(' => self.add_token(TokenType::LeftParentheses),
+            ')' => self.add_token(TokenType::RightParentheses),
+            '[' => self.add_token(TokenType::LeftSquareBracket),
+            ']' => self.add_token(TokenType::RightSquareBracket),
+            '{' => self.add_token(TokenType::LeftBrace),
+            '}' => self.add_token(TokenType::RightBrace),
             '<' => {
-                let token = if self.match_token('=') {
-                    Token::LessThanEqual
+                let token_type = if self.match_token('=') {
+                    TokenType::LessThanEqual
                 } else {
-                    Token::LessThan
+                    TokenType::LessThan
                 };
-                self.tokens.push(token)
+                self.add_token(token_type)
             }
             '>' => {
-                let token = if self.match_token('=') {
-                    Token::GreaterThanEqual
+                let token_type = if self.match_token('=') {
+                    TokenType::GreaterThanEqual
                 } else {
-                    Token::GreaterThan
+                    TokenType::GreaterThan
                 };
-                self.tokens.push(token)
+                self.add_token(token_type)
             }
             '!' => {
-                let token = if self.match_token('=') {
-                    Token::NotEqual
+                let token_type = if self.match_token('=') {
+                    TokenType::NotEqual
                 } else {
-                    Token::Not
+                    TokenType::Not
                 };
-                self.tokens.push(token)
+                self.add_token(token_type)
             }
             '=' => {
-                let token = if self.match_token('=') {
-                    Token::IsEqual
+                let token_type = if self.match_token('=') {
+                    TokenType::IsEqual
                 } else {
-                    Token::Equals
+                    TokenType::Equals
                 };
-                self.tokens.push(token)
+                self.add_token(token_type)
             }
             '#' => {
                 while self.peek() != '\n' && !self.is_at_eof() {
@@ -97,7 +97,7 @@ impl Scanner {
                     .unwrap()
                     .to_string();
                 let string = unescaper::unescape(&string).unwrap();
-                self.tokens.push(Token::String(string))
+                self.add_token(TokenType::String(string))
             }
             _ => {
                 if c.is_ascii_digit() {
@@ -116,40 +116,44 @@ impl Scanner {
                         .unwrap()
                         .parse::<f32>()
                         .unwrap();
-                    self.tokens.push(Token::Number(number))
+                    self.add_token(TokenType::Number(number))
                 } else if c.is_ascii_alphanumeric() {
                     while self.peek().is_ascii_alphanumeric() {
                         self.advance();
                     }
                     let identifier = self.source.get(self.start..self.current).unwrap();
-                    match identifier {
-                        "and" => self.tokens.push(Token::And),
-                        "or" => self.tokens.push(Token::Or),
-                        "if" => self.tokens.push(Token::If),
-                        "loop" => self.tokens.push(Token::Loop),
-                        "fn" => self.tokens.push(Token::Fn),
-                        "null" => self.tokens.push(Token::Null),
-                        "true" => self.tokens.push(Token::True),
-                        "false" => self.tokens.push(Token::False),
-                        "break" => self.tokens.push(Token::Break),
-                        "return" => self.tokens.push(Token::Return),
-                        "local" => self.tokens.push(Token::Local),
-                        "export" => self.tokens.push(Token::Export),
-                        _ => self.tokens.push(Token::Identifier(identifier.to_string())),
-                    }
+                    let token_type = match identifier {
+                        "and" => TokenType::And,
+                        "or" => TokenType::Or,
+                        "if" => TokenType::If,
+                        "loop" => TokenType::Loop,
+                        "fn" => TokenType::Fn,
+                        "null" => TokenType::Null,
+                        "true" => TokenType::True,
+                        "false" => TokenType::False,
+                        "break" => TokenType::Break,
+                        "return" => TokenType::Return,
+                        "local" => TokenType::Local,
+                        "export" => TokenType::Export,
+                        _ => TokenType::Identifier(identifier.to_string()),
+                    };
+                    self.add_token(token_type)
                 }
             }
         }
     }
 
+    fn add_token(&mut self, token_type: TokenType) {
+        self.tokens
+            .push(Token::new(token_type, self.start, self.current))
+    }
+
     fn advance(&mut self) -> char {
-        // Use char_indices to get the current char and next byte offset.
         let mut iter = self.source[self.current..].char_indices();
         let (_, ch) = iter.next().unwrap();
         if let Some((next_offset, _)) = iter.next() {
             self.current += next_offset;
         } else {
-            // Reached the last char; move to end.
             self.current = self.source.len();
         }
         ch
@@ -205,12 +209,12 @@ mod tests {
         let tokens = scanner.scan();
 
         let expected = vec![
-            Token::Identifier("print".into()),
-            Token::LeftParentheses,
-            Token::String("héllo 😊".into()),
-            Token::RightParentheses,
-            Token::Number(1.0),
-            Token::EOF,
+            Token::new(TokenType::Identifier("print".into()), 0, 5),
+            Token::new(TokenType::LeftParentheses, 5, 6),
+            Token::new(TokenType::String("héllo 😊".into()), 6, 19),
+            Token::new(TokenType::RightParentheses, 19, 20),
+            Token::new(TokenType::Number(1.0), 27, 28),
+            Token::new(TokenType::EOF, 27, 28),
         ];
 
         assert_eq!(tokens, expected);
