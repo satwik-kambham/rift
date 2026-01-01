@@ -36,7 +36,9 @@ pub fn start_rsl_interpreter(
             rpc_client_transport,
         );
         while let Some(source) = rsl_reciever.blocking_recv() {
-            rsl_interpreter.run(source).unwrap();
+            if let Err(e) = rsl_interpreter.run(source) {
+                tracing::error!(%e, "RSL execution error");
+            }
         }
     });
 

@@ -41,7 +41,11 @@ fn main() {
     let mut rsl = RSL::new(None, rt.handle().clone());
     if let Some(path) = cli_args.script_path {
         match std::fs::read_to_string(&path) {
-            Ok(source) => rsl.run(source).unwrap(),
+            Ok(source) => {
+                if let Err(e) = rsl.run(source) {
+                    eprintln!("{}", e);
+                }
+            }
             Err(err) => eprintln!("Failed to read script {}: {}", path.display(), err),
         }
     } else {
@@ -52,7 +56,9 @@ fn main() {
             let signal = line_editor.read_line(&prompt);
             match signal {
                 Ok(Signal::Success(source)) => {
-                    rsl.run(source).unwrap();
+                    if let Err(e) = rsl.run(source) {
+                        eprintln!("{}", e);
+                    }
                 }
                 Ok(Signal::CtrlC) => {
                     eprintln!("Aborted!");

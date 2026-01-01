@@ -115,7 +115,7 @@ impl RSL {
         let tokens = scanner.scan()?;
 
         let mut parser = crate::parser::Parser::new(tokens);
-        let statements = parser.parse();
+        let statements = parser.parse()?;
 
         let mut interpreter =
             crate::interpreter::Interpreter::with_environment(statements, environment);

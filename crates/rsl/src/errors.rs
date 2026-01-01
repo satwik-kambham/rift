@@ -6,6 +6,8 @@ use crate::token::Span;
 pub enum RSLError {
     #[error(transparent)]
     ScanError(#[from] ScanError),
+    #[error(transparent)]
+    ParseError(#[from] ParseError),
 }
 
 #[derive(Error, Debug)]
@@ -25,5 +27,18 @@ impl ScanError {
                 line,
             },
         }
+    }
+}
+
+#[derive(Error, Debug)]
+#[error("parse error \"{}\" on line:{}", self.message, self.at.line)]
+pub struct ParseError {
+    message: String,
+    at: Span,
+}
+
+impl ParseError {
+    pub fn new(message: String, at: Span) -> Self {
+        Self { message, at }
     }
 }
