@@ -6,14 +6,20 @@ use tarpc::context;
 
 use crate::RSL;
 use crate::environment::Environment;
+use crate::errors::RuntimeError;
 use crate::operator::Operator;
 use crate::primitive::Primitive;
 use crate::statement::StatementResult;
 #[cfg(feature = "rift_rpc")]
 use crate::std_lib::args;
+use crate::token::Span;
 
 pub trait Expression {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive;
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError>;
 }
 
 pub struct LiteralExpression {
@@ -27,8 +33,12 @@ impl LiteralExpression {
 }
 
 impl Expression for LiteralExpression {
-    fn execute(&self, _environment: Rc<Environment>, _rsl: &mut RSL) -> Primitive {
-        self.literal.clone()
+    fn execute(
+        &self,
+        _environment: Rc<Environment>,
+        _rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        Ok(self.literal.clone())
     }
 }
 
@@ -43,8 +53,12 @@ impl VariableExpression {
 }
 
 impl Expression for VariableExpression {
-    fn execute(&self, environment: Rc<Environment>, _rsl: &mut RSL) -> Primitive {
-        environment.get_value(&self.identifier)
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        _rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        Ok(environment.get_value(&self.identifier))
     }
 }
 
@@ -52,111 +66,198 @@ pub struct BinaryExpression {
     left: Box<dyn Expression>,
     operator: Operator,
     right: Box<dyn Expression>,
+    span: Span,
 }
 
 impl BinaryExpression {
-    pub fn new(left: Box<dyn Expression>, operator: Operator, right: Box<dyn Expression>) -> Self {
+    pub fn new(
+        left: Box<dyn Expression>,
+        operator: Operator,
+        right: Box<dyn Expression>,
+        span: Span,
+    ) -> Self {
         Self {
             left,
             operator,
             right,
+            span,
         }
     }
 }
 
 impl Expression for BinaryExpression {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
-        let left = self.left.execute(environment.clone(), rsl);
-        let right = self.right.execute(environment.clone(), rsl);
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        let left_val = self.left.execute(environment.clone(), rsl)?;
+        let right_val = self.right.execute(environment.clone(), rsl)?;
 
         match &self.operator {
             Operator::Or => {
-                if let (Primitive::Boolean(left), Primitive::Boolean(right)) = (left, right) {
-                    Primitive::Boolean(left || right)
+                if let (Primitive::Boolean(left), Primitive::Boolean(right)) =
+                    (&left_val, &right_val)
+                {
+                    Ok(Primitive::Boolean(*left || *right))
                 } else {
-                    panic!("Expected left and right expression of 'or' operator to be boolean")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected booleans for 'or', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::And => {
-                if let (Primitive::Boolean(left), Primitive::Boolean(right)) = (left, right) {
-                    Primitive::Boolean(left && right)
+                if let (Primitive::Boolean(left), Primitive::Boolean(right)) =
+                    (&left_val, &right_val)
+                {
+                    Ok(Primitive::Boolean(*left && *right))
                 } else {
-                    panic!("Expected left and right expression of 'and' operator to be boolean")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected booleans for 'and', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
-            Operator::IsEqual => Primitive::Boolean(left == right),
-            Operator::NotEqual => Primitive::Boolean(left != right),
+            Operator::IsEqual => Ok(Primitive::Boolean(left_val == right_val)),
+            Operator::NotEqual => Ok(Primitive::Boolean(left_val != right_val)),
             Operator::LessThan => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Boolean(left < right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Boolean(*left < *right))
                 } else {
-                    panic!("Expected left and right expression of '<' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '<', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::LessThanEqual => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Boolean(left <= right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Boolean(*left <= *right))
                 } else {
-                    panic!("Expected left and right expression of '<=' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '<=', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::GreaterThan => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Boolean(left > right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Boolean(*left > *right))
                 } else {
-                    panic!("Expected left and right expression of '>' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '>', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::GreaterThanEqual => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Boolean(left >= right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Boolean(*left >= *right))
                 } else {
-                    panic!("Expected left and right expression of '>=' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '>=', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
-            Operator::Plus => match (&left, &right) {
+            Operator::Plus => match (&left_val, &right_val) {
                 (Primitive::Number(left), Primitive::Number(right)) => {
-                    Primitive::Number(left + right)
+                    Ok(Primitive::Number(*left + *right))
                 }
                 (Primitive::String(left), Primitive::String(right)) => {
-                    Primitive::String(format!("{}{}", left, right))
+                    Ok(Primitive::String(format!("{}{}", left, right)))
                 }
-                _ => {
-                    panic!(
+                _ => Err(RuntimeError::new(
+                    format!(
                         "Invalid operands for '+', got left = {} and right = {}",
-                        left, right
-                    )
-                }
+                        left_val, right_val
+                    ),
+                    self.span.clone(),
+                )),
             },
             Operator::Minus => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Number(left - right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Number(*left - *right))
                 } else {
-                    panic!("Expected left and right expression of '-' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '-', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::Asterisk => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Number(left * right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Number(*left * *right))
                 } else {
-                    panic!("Expected left and right expression of '*' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '*', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::Slash => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Number(left / right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Number(*left / *right))
                 } else {
-                    panic!("Expected left and right expression of '/' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '/', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::Percent => {
-                if let (Primitive::Number(left), Primitive::Number(right)) = (left, right) {
-                    Primitive::Number(left % right)
+                if let (Primitive::Number(left), Primitive::Number(right)) = (&left_val, &right_val)
+                {
+                    Ok(Primitive::Number(*left % *right))
                 } else {
-                    panic!("Expected left and right expression of '%' operator to be numbers")
+                    Err(RuntimeError::new(
+                        format!(
+                            "Expected numbers for '%', got left = {:?} and right = {:?}",
+                            left_val, right_val
+                        ),
+                        self.span.clone(),
+                    ))
                 }
             }
-            other => panic!("Unexpected operator {:?}", other),
+            other => Err(RuntimeError::new(
+                format!("Unexpected operator {:?}", other),
+                self.span.clone(),
+            )),
         }
     }
 }
@@ -164,37 +265,52 @@ impl Expression for BinaryExpression {
 pub struct UnaryExpression {
     operator: Operator,
     expression: Box<dyn Expression>,
+    span: Span,
 }
 
 impl UnaryExpression {
-    pub fn new(operator: Operator, expression: Box<dyn Expression>) -> Self {
+    pub fn new(operator: Operator, expression: Box<dyn Expression>, span: Span) -> Self {
         Self {
             operator,
             expression,
+            span,
         }
     }
 }
 
 impl Expression for UnaryExpression {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
-        let expression = self.expression.execute(environment.clone(), rsl);
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        let expression = self.expression.execute(environment.clone(), rsl)?;
 
         match &self.operator {
             Operator::Minus => {
                 if let Primitive::Number(expression) = expression {
-                    Primitive::Number(-expression)
+                    Ok(Primitive::Number(-expression))
                 } else {
-                    panic!("Expected expression of '-' operator to be a number")
+                    Err(RuntimeError::new(
+                        format!("Expected number for '-', got {:?}", expression),
+                        self.span.clone(),
+                    ))
                 }
             }
             Operator::Not => {
                 if let Primitive::Boolean(expression) = expression {
-                    Primitive::Boolean(!expression)
+                    Ok(Primitive::Boolean(!expression))
                 } else {
-                    panic!("Expected expression of 'not' operator to be boolean")
+                    Err(RuntimeError::new(
+                        format!("Expected boolean for 'not', got {:?}", expression),
+                        self.span.clone(),
+                    ))
                 }
             }
-            other => panic!("Unexpected operator {:?}", other),
+            other => Err(RuntimeError::new(
+                format!("Unexpected operator {:?}", other),
+                self.span.clone(),
+            )),
         }
     }
 }
@@ -210,7 +326,11 @@ impl GroupingExpression {
 }
 
 impl Expression for GroupingExpression {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
         self.expression.execute(environment, rsl)
     }
 }
@@ -218,17 +338,23 @@ impl Expression for GroupingExpression {
 pub struct FunctionCallExpression {
     identifier: String,
     parameters: Vec<Box<dyn Expression>>,
+    span: Span,
 }
 
 impl FunctionCallExpression {
-    pub fn new(identifier: String, parameters: Vec<Box<dyn Expression>>) -> Self {
+    pub fn new(identifier: String, parameters: Vec<Box<dyn Expression>>, span: Span) -> Self {
         Self {
             identifier,
             parameters,
+            span,
         }
     }
 
-    fn collect_parameters(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Vec<Primitive> {
+    fn collect_parameters(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Vec<Primitive>, RuntimeError> {
         self.parameters
             .iter()
             .map(|param| param.execute(environment.clone(), rsl))
@@ -237,13 +363,20 @@ impl FunctionCallExpression {
 }
 
 impl Expression for FunctionCallExpression {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> Primitive {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
         if self.identifier == "import" {
             if self.parameters.len() != 1 {
-                panic!("Expected 1 parameter, got {}", self.parameters.len())
+                return Err(RuntimeError::new(
+                    format!("Expected 1 parameter, got {}", self.parameters.len()),
+                    self.span.clone(),
+                ));
             }
 
-            let parameters = self.collect_parameters(environment.clone(), rsl);
+            let parameters = self.collect_parameters(environment.clone(), rsl)?;
 
             if let Primitive::String(package_name) = parameters.first().unwrap() {
                 match rsl.get_package_code(package_name) {
@@ -251,52 +384,81 @@ impl Expression for FunctionCallExpression {
                         let local_environment =
                             Rc::new(Environment::new(Some(environment.clone())));
                         rsl.run_with_environment(source, local_environment.clone())
-                            .unwrap();
+                            .map_err(|e| {
+                                RuntimeError::new(
+                                    format!("Failed to import package {}: {}", package_name, e),
+                                    self.span.clone(),
+                                )
+                            })?;
                         let exported_values = local_environment.get_exported_values();
                         let exported_values =
                             Primitive::Table(Rc::new(RefCell::new(exported_values)));
-                        return exported_values;
+                        return Ok(exported_values);
                     }
                     Err(err) => {
                         eprintln!("Failed to import package {}: {}", package_name, err);
-                        return Primitive::Null;
+                        return Ok(Primitive::Null);
                     }
                 }
             }
 
-            Primitive::Null
+            Ok(Primitive::Null)
         } else if self.identifier == "runFunctionById" {
             if self.parameters.len() != 1 {
-                panic!("Expected 1 parameter, got {}", self.parameters.len())
+                return Err(RuntimeError::new(
+                    format!("Expected 1 parameter, got {}", self.parameters.len()),
+                    self.span.clone(),
+                ));
             }
 
-            let parameters = self.collect_parameters(environment.clone(), rsl);
+            let parameters = self.collect_parameters(environment.clone(), rsl)?;
 
             if let Primitive::String(function_id) = parameters.first().unwrap() {
-                return run_function_by_id(function_id.clone(), &vec![], environment, rsl);
+                return run_function_by_id(
+                    function_id.clone(),
+                    &vec![],
+                    environment,
+                    rsl,
+                    self.span.clone(),
+                );
             }
 
-            Primitive::Null
+            Ok(Primitive::Null)
         } else if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
-            run_function_by_id(function_id, &self.parameters, environment, rsl)
+            run_function_by_id(
+                function_id,
+                &self.parameters,
+                environment,
+                rsl,
+                self.span.clone(),
+            )
         } else {
             #[cfg(feature = "rift_rpc")]
             {
                 execute_rpc_call(
                     &self.identifier,
-                    self.collect_parameters(environment, rsl),
+                    self.collect_parameters(environment, rsl)?,
                     rsl,
+                    self.span.clone(),
                 )
             }
             #[cfg(not(feature = "rift_rpc"))]
-            panic!("function {} does not exist", self.identifier)
+            Err(RuntimeError::new(
+                format!("Function '{}' not found in current scope", self.identifier),
+                self.span.clone(),
+            ))
         }
     }
 }
 
 #[cfg(feature = "rift_rpc")]
-fn execute_rpc_call(identifier: &str, parameters: Vec<Primitive>, rsl: &mut RSL) -> Primitive {
-    rsl.rt_handle.block_on(async {
+fn execute_rpc_call(
+    identifier: &str,
+    parameters: Vec<Primitive>,
+    rsl: &mut RSL,
+    _span: Span,
+) -> Result<Primitive, RuntimeError> {
+    Ok(rsl.rt_handle.block_on(async {
         let ctx = context::Context::current();
         let client = &rsl.rift_rpc_client;
 
@@ -442,7 +604,7 @@ fn execute_rpc_call(identifier: &str, parameters: Vec<Primitive>, rsl: &mut RSL)
             }
             _ => panic!("function {} does not exist", identifier),
         }
-    })
+    }))
 }
 
 fn run_function_by_id(
@@ -450,11 +612,20 @@ fn run_function_by_id(
     raw_parameters: &Vec<Box<dyn Expression>>,
     environment: Rc<Environment>,
     rsl: &mut RSL,
-) -> Primitive {
+    span: Span,
+) -> Result<Primitive, RuntimeError> {
     let local_environment = Rc::new(Environment::new(Some(environment.clone())));
     if let Some(function_definition) = local_environment.get_function(&function_id) {
         if raw_parameters.len() != function_definition.parameters.len() {
-            panic!("Number of parameters does not match")
+            return Err(RuntimeError::new(
+                format!(
+                    "Function '{}' expects {} parameters but received {}",
+                    function_id,
+                    function_definition.parameters.len(),
+                    raw_parameters.len()
+                ),
+                span,
+            ));
         }
 
         for i in 0..function_definition.parameters.len() {
@@ -463,25 +634,28 @@ fn run_function_by_id(
                 raw_parameters
                     .get(i)
                     .unwrap()
-                    .execute(environment.clone(), rsl),
+                    .execute(environment.clone(), rsl)?,
             );
         }
 
         for statement in function_definition.body.iter() {
-            let result = statement.execute(local_environment.clone(), rsl);
+            let result = statement.execute(local_environment.clone(), rsl)?;
 
             if let StatementResult::Return(result) = result {
-                return result;
+                return Ok(result);
             }
         }
-        return Primitive::Null;
+        return Ok(Primitive::Null);
     } else if let Some(native_function) = local_environment.get_native_function(&function_id) {
         let mut parameters = vec![];
         for param_expression in raw_parameters {
-            parameters.push(param_expression.execute(environment.clone(), rsl));
+            parameters.push(param_expression.execute(environment.clone(), rsl)?);
         }
 
-        return native_function(parameters);
+        return Ok(native_function(parameters));
     }
-    panic!("function {} not found", function_id);
+    Err(RuntimeError::new(
+        format!("Function '{}' not found in current scope", function_id),
+        span,
+    ))
 }

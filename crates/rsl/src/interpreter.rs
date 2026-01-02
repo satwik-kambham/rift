@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use crate::RSL;
 use crate::environment::Environment;
+use crate::errors::RuntimeError;
 use crate::statement;
 
 pub struct Interpreter {
@@ -27,9 +28,10 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(&mut self, rsl: &mut RSL) {
+    pub fn interpret(&mut self, rsl: &mut RSL) -> Result<(), RuntimeError> {
         for statement in &self.statements {
-            statement.execute(self.environment.clone(), rsl);
+            statement.execute(self.environment.clone(), rsl)?;
         }
+        Ok(())
     }
 }

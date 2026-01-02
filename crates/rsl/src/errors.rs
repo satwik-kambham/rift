@@ -8,6 +8,8 @@ pub enum RSLError {
     ScanError(#[from] ScanError),
     #[error(transparent)]
     ParseError(#[from] ParseError),
+    #[error(transparent)]
+    RuntimeError(#[from] RuntimeError),
 }
 
 #[derive(Error, Debug)]
@@ -38,6 +40,19 @@ pub struct ParseError {
 }
 
 impl ParseError {
+    pub fn new(message: String, at: Span) -> Self {
+        Self { message, at }
+    }
+}
+
+#[derive(Error, Debug)]
+#[error("runtime error \"{}\" on line:{}", self.message, self.at.line)]
+pub struct RuntimeError {
+    message: String,
+    at: Span,
+}
+
+impl RuntimeError {
     pub fn new(message: String, at: Span) -> Self {
         Self { message, at }
     }

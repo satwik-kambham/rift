@@ -2,8 +2,10 @@ use std::rc::Rc;
 
 use crate::RSL;
 use crate::environment::{Environment, VariableType};
+use crate::errors::RuntimeError;
 use crate::expression;
 use crate::primitive::{FunctionDefinition, Primitive};
+use crate::token::Span;
 
 #[derive(Debug)]
 pub enum StatementResult {
@@ -13,7 +15,11 @@ pub enum StatementResult {
 }
 
 pub trait Statement {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult;
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError>;
 }
 
 pub struct ExpressionStatement {
@@ -27,9 +33,13 @@ impl ExpressionStatement {
 }
 
 impl Statement for ExpressionStatement {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
-        self.expression.execute(environment, rsl);
-        StatementResult::None
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
+        self.expression.execute(environment, rsl)?;
+        Ok(StatementResult::None)
     }
 }
 
@@ -54,26 +64,30 @@ impl AssignmentStatement {
 }
 
 impl Statement for AssignmentStatement {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
         let local_environment = environment.clone();
 
         match self.variable_type {
             VariableType::Default | VariableType::Export => {
                 local_environment.set_value_non_local(
                     self.identifier.clone(),
-                    self.expression.execute(environment, rsl),
+                    self.expression.execute(environment, rsl)?,
                     self.variable_type,
                 );
             }
             VariableType::Local => {
                 local_environment.set_value_local(
                     self.identifier.clone(),
-                    self.expression.execute(environment, rsl),
+                    self.expression.execute(environment, rsl)?,
                 );
             }
         }
 
-        StatementResult::None
+        Ok(StatementResult::None)
     }
 }
 
@@ -101,7 +115,11 @@ impl FunctionDefinitionStatement {
 }
 
 impl Statement for FunctionDefinitionStatement {
-    fn execute(&self, environment: Rc<Environment>, _rsl: &mut RSL) -> StatementResult {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        _rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
         let local_environment = environment.clone();
         local_environment.register_function(
             self.identifier.clone(),
@@ -111,7 +129,7 @@ impl Statement for FunctionDefinitionStatement {
             },
             self.export,
         );
-        StatementResult::None
+        Ok(StatementResult::None)
     }
 }
 
@@ -126,43 +144,68 @@ impl ReturnStatement {
 }
 
 impl Statement for ReturnStatement {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
-        StatementResult::Return(self.expression.execute(environment, rsl))
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
+        Ok(StatementResult::Return(
+            self.expression.execute(environment, rsl)?,
+        ))
     }
 }
 
 pub struct IfStatement {
     condition: Box<dyn expression::Expression>,
     body: Vec<Box<dyn Statement>>,
+    span: Span,
 }
 
 impl IfStatement {
-    pub fn new(condition: Box<dyn expression::Expression>, body: Vec<Box<dyn Statement>>) -> Self {
-        Self { condition, body }
+    pub fn new(
+        condition: Box<dyn expression::Expression>,
+        body: Vec<Box<dyn Statement>>,
+        span: Span,
+    ) -> Self {
+        Self {
+            condition,
+            body,
+            span,
+        }
     }
 }
 
 impl Statement for IfStatement {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
-        let condition = self.condition.execute(environment.clone(), rsl);
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
+        let condition = self.condition.execute(environment.clone(), rsl)?;
         if let Primitive::Boolean(condition) = condition {
             if condition {
                 let local_environment = Rc::new(Environment::new(Some(environment.clone())));
                 for statement in &self.body {
-                    let statement_result = statement.execute(local_environment.clone(), rsl);
+                    let statement_result = statement.execute(local_environment.clone(), rsl)?;
                     if matches!(
                         statement_result,
                         StatementResult::Break | StatementResult::Return(_)
                     ) {
-                        return statement_result;
+                        return Ok(statement_result);
                     }
                 }
             }
         } else {
-            panic!("Expected boolean got {:?}", condition)
+            return Err(RuntimeError::new(
+                format!(
+                    "Expected boolean condition in if statement, got {:?}",
+                    condition
+                ),
+                self.span.clone(),
+            ));
         }
 
-        StatementResult::None
+        Ok(StatementResult::None)
     }
 }
 
@@ -177,18 +220,22 @@ impl LoopStatement {
 }
 
 impl Statement for LoopStatement {
-    fn execute(&self, environment: Rc<Environment>, rsl: &mut RSL) -> StatementResult {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
         let local_environment = Rc::new(Environment::new(Some(environment.clone())));
         loop {
             for statement in &self.body {
-                let execution_result = statement.execute(local_environment.clone(), rsl);
+                let execution_result = statement.execute(local_environment.clone(), rsl)?;
 
                 if let StatementResult::Break = execution_result {
-                    return StatementResult::None;
+                    return Ok(StatementResult::None);
                 }
 
                 if matches!(execution_result, StatementResult::Return(_)) {
-                    return execution_result;
+                    return Ok(execution_result);
                 }
             }
         }
@@ -210,7 +257,11 @@ impl BreakStatement {
 }
 
 impl Statement for BreakStatement {
-    fn execute(&self, _environment: Rc<Environment>, _rsl: &mut RSL) -> StatementResult {
-        StatementResult::Break
+    fn execute(
+        &self,
+        _environment: Rc<Environment>,
+        _rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
+        Ok(StatementResult::Break)
     }
 }

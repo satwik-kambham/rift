@@ -127,6 +127,7 @@ impl Parser {
     }
 
     fn if_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
+        let start_span = self.peek().span.clone();
         let condition_expression = self.expression()?;
         expect_token!(self, TokenType::LeftBrace, "{");
         let body = self.block()?;
@@ -134,6 +135,7 @@ impl Parser {
         Ok(Box::new(statement::IfStatement::new(
             condition_expression,
             body,
+            start_span,
         )))
     }
 
@@ -174,6 +176,7 @@ impl Parser {
     }
 
     fn or_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        let start_span = self.peek().span.clone();
         let mut expression = self.and_expression()?;
 
         while matches!(self.peek().token_type, TokenType::Or) {
@@ -183,13 +186,16 @@ impl Parser {
                     return Err(ParseError::new(
                         format!("expected identifier, found {:?}", other),
                         self.peek().span.clone(),
-                    ))
+                    ));
                 }
             };
 
             let right = self.and_expression()?;
             expression = Box::new(expression::BinaryExpression::new(
-                expression, operator, right,
+                expression,
+                operator,
+                right,
+                start_span.clone(),
             ));
         }
 
@@ -197,6 +203,7 @@ impl Parser {
     }
 
     fn and_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        let start_span = self.peek().span.clone();
         let mut expression = self.equality_expression()?;
 
         while matches!(self.peek().token_type, TokenType::And) {
@@ -206,13 +213,16 @@ impl Parser {
                     return Err(ParseError::new(
                         format!("expected identifier, found {:?}", other),
                         self.peek().span.clone(),
-                    ))
+                    ));
                 }
             };
 
             let right = self.equality_expression()?;
             expression = Box::new(expression::BinaryExpression::new(
-                expression, operator, right,
+                expression,
+                operator,
+                right,
+                start_span.clone(),
             ));
         }
 
@@ -220,6 +230,7 @@ impl Parser {
     }
 
     fn equality_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        let start_span = self.peek().span.clone();
         let mut expression = self.comparison_expression()?;
 
         while matches!(
@@ -233,13 +244,16 @@ impl Parser {
                     return Err(ParseError::new(
                         format!("expected identifier, found {:?}", other),
                         self.peek().span.clone(),
-                    ))
+                    ));
                 }
             };
 
             let right = self.comparison_expression()?;
             expression = Box::new(expression::BinaryExpression::new(
-                expression, operator, right,
+                expression,
+                operator,
+                right,
+                start_span.clone(),
             ));
         }
 
@@ -247,6 +261,7 @@ impl Parser {
     }
 
     fn comparison_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        let start_span = self.peek().span.clone();
         let mut expression = self.term_expression()?;
 
         while matches!(
@@ -265,13 +280,16 @@ impl Parser {
                     return Err(ParseError::new(
                         format!("expected identifier, found {:?}", other),
                         self.peek().span.clone(),
-                    ))
+                    ));
                 }
             };
 
             let right = self.term_expression()?;
             expression = Box::new(expression::BinaryExpression::new(
-                expression, operator, right,
+                expression,
+                operator,
+                right,
+                start_span.clone(),
             ));
         }
 
@@ -279,6 +297,7 @@ impl Parser {
     }
 
     fn term_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        let start_span = self.peek().span.clone();
         let mut expression = self.factor_expression()?;
 
         while matches!(self.peek().token_type, TokenType::Plus | TokenType::Minus) {
@@ -289,13 +308,16 @@ impl Parser {
                     return Err(ParseError::new(
                         format!("expected identifier, found {:?}", other),
                         self.peek().span.clone(),
-                    ))
+                    ));
                 }
             };
 
             let right = self.factor_expression()?;
             expression = Box::new(expression::BinaryExpression::new(
-                expression, operator, right,
+                expression,
+                operator,
+                right,
+                start_span.clone(),
             ));
         }
 
@@ -303,6 +325,7 @@ impl Parser {
     }
 
     fn factor_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        let start_span = self.peek().span.clone();
         let mut expression = self.unary_expression()?;
 
         while matches!(
@@ -317,13 +340,16 @@ impl Parser {
                     return Err(ParseError::new(
                         format!("expected identifier, found {:?}", other),
                         self.peek().span.clone(),
-                    ))
+                    ));
                 }
             };
 
             let right = self.unary_expression()?;
             expression = Box::new(expression::BinaryExpression::new(
-                expression, operator, right,
+                expression,
+                operator,
+                right,
+                start_span.clone(),
             ));
         }
 
@@ -332,6 +358,7 @@ impl Parser {
 
     fn unary_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
         if matches!(self.peek().token_type, TokenType::Not | TokenType::Minus) {
+            let start_span = self.peek().span.clone();
             let operator = match &self.consume().token_type {
                 TokenType::Not => operator::Operator::Not,
                 TokenType::Minus => operator::Operator::Minus,
@@ -339,12 +366,14 @@ impl Parser {
                     return Err(ParseError::new(
                         format!("expected identifier, found {:?}", other),
                         self.peek().span.clone(),
-                    ))
+                    ));
                 }
             };
 
             let right = self.unary_expression()?;
-            return Ok(Box::new(expression::UnaryExpression::new(operator, right)));
+            return Ok(Box::new(expression::UnaryExpression::new(
+                operator, right, start_span,
+            )));
         }
 
         self.literal_expression()
@@ -381,6 +410,7 @@ impl Parser {
             )));
         }
         if let TokenType::Identifier(_) = &self.peek().token_type {
+            let identifier_span = self.peek().span.clone();
             let identifier = self.expect_identifier()?;
             if consume_token!(self, TokenType::LeftParentheses) {
                 let mut parameters = vec![];
@@ -395,7 +425,9 @@ impl Parser {
                 }
                 expect_token!(self, TokenType::RightParentheses, ")");
                 return Ok(Box::new(expression::FunctionCallExpression::new(
-                    identifier, parameters,
+                    identifier,
+                    parameters,
+                    identifier_span,
                 )));
             }
             return Ok(Box::new(expression::VariableExpression::new(identifier)));

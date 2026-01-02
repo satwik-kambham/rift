@@ -119,7 +119,7 @@ impl RSL {
 
         let mut interpreter =
             crate::interpreter::Interpreter::with_environment(statements, environment);
-        interpreter.interpret(self);
+        interpreter.interpret(self)?;
 
         Ok(())
     }
