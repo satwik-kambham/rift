@@ -195,9 +195,13 @@ fn inputAddSpace(bufferId, stateTable, key, onUpdated) {
     if onUpdated != null { onUpdated() }
 }
 
-fn inputClear(bufferId, stateTable, key, onCleared) {
-    tableSet(stateTable, key, "")
-    setBufferInput(bufferId, "")
+fn inputBackspace(bufferId, stateTable, key, onCleared) {
+    value = getBufferInput(bufferId)
+    length = stringLen(value)
+    if length <= 0 { return null }
+    value = stringTruncateWidth(value, length - 1)
+    tableSet(stateTable, key, value)
+    setBufferInput(bufferId, value)
     if onCleared != null { onCleared() }
 }
 
@@ -664,7 +668,7 @@ fn llmChatAddSpace() {
 }
 
 fn llmChatClearInput() {
-    inputClear(tableGet(llmChat, "id"), llmChat, "input", null)
+    inputBackspace(tableGet(llmChat, "id"), llmChat, "input", null)
 }
 
 fn createLLMChat() {
@@ -745,7 +749,7 @@ fn fuzzyFileFinderAddSpace() {
 }
 
 fn fuzzyFileFinderClearInput() {
-    inputClear(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", null)
+    inputBackspace(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", null)
 }
 
 fn fuzzyFileFinderMoveSelection(delta) {
@@ -932,7 +936,7 @@ fn fileExplorerAddSpace() {
 }
 
 fn fileExplorerClearInput() {
-    inputClear(tableGet(fileExplorer, "id"), fileExplorer, "input", null)
+    inputBackspace(tableGet(fileExplorer, "id"), fileExplorer, "input", null)
 }
 
 fn fileExplorerMoveSelection(delta) {
@@ -1162,7 +1166,7 @@ fn switchBufferAddSpace() {
 }
 
 fn switchBufferClearInput() {
-    inputClear(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
+    inputBackspace(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
 }
 
 fn switchBufferMoveSelection(delta) {
@@ -1272,7 +1276,7 @@ fn renderWorkspaceSearch() {
 }
 
 fn workspaceSearchClearInput() {
-    inputClear(tableGet(workspaceSearch, "id"), workspaceSearch, "input", null)
+    inputBackspace(tableGet(workspaceSearch, "id"), workspaceSearch, "input", null)
 }
 
 fn workspaceSearchUpdateResults() {
@@ -1501,7 +1505,7 @@ fn workspaceDiagnosticsAddSpace() {
 }
 
 fn workspaceDiagnosticsClearInput() {
-    inputClear(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", null)
+    inputBackspace(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", null)
 }
 
 fn workspaceDiagnosticsMoveSelection(delta) {
@@ -1624,7 +1628,7 @@ fn commandDispatcherAddSpace() {
 }
 
 fn commandDispatcherClearInput() {
-    inputClear(tableGet(commandDispatcher, "id"), commandDispatcher, "input", null)
+    inputBackspace(tableGet(commandDispatcher, "id"), commandDispatcher, "input", null)
 }
 
 fn commandDispatcherMoveSelection(delta) {
@@ -1765,7 +1769,7 @@ fn goToDefinitionAddSpace() {
 }
 
 fn goToDefinitionClearInput() {
-    inputClear(tableGet(goToDefinition, "id"), goToDefinition, "input", null)
+    inputBackspace(tableGet(goToDefinition, "id"), goToDefinition, "input", null)
 }
 
 fn goToDefinitionMoveSelection(delta) {
@@ -1904,7 +1908,7 @@ fn goToReferencesAddSpace() {
 }
 
 fn goToReferencesClearInput() {
-    inputClear(tableGet(goToReferences, "id"), goToReferences, "input", null)
+    inputBackspace(tableGet(goToReferences, "id"), goToReferences, "input", null)
 }
 
 fn goToReferencesMoveSelection(delta) {
