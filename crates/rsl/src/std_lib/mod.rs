@@ -1,5 +1,6 @@
 pub mod array;
 pub mod io;
+pub mod number;
 pub mod string;
 pub mod table;
 pub mod web_requests;
