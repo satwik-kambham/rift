@@ -54,6 +54,7 @@ impl RSL {
         environment.register_native_function("tableSet", std_lib::table::table_set);
         environment.register_native_function("tableGet", std_lib::table::table_get);
         environment.register_native_function("tableKeys", std_lib::table::table_keys);
+        environment.register_native_function("floor", std_lib::number::floor);
         environment
             .register_native_function("stringSplitLines", std_lib::string::string_split_lines);
         environment.register_native_function("stringLen", std_lib::string::string_len);

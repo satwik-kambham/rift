@@ -80,7 +80,7 @@ fn viewportWindow(selectedIndex, totalItems, reservedLines) {
     visible = viewportVisibleRows(reservedLines)
     if visible > totalItems { visible = totalItems }
 
-    start = selectedIndex - (visible / 2)
+    start = floor(selectedIndex - (visible / 2))
     if start < 0 { start = 0 }
     end = start + visible
     if end > totalItems {
