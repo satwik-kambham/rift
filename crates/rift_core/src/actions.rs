@@ -158,6 +158,7 @@ pub enum Action {
     ScrollDown,
     ScrollUp,
     Log(String),
+    SetInitRslComplete,
     RegisterGlobalKeybind(String, String),
     RegisterBufferKeybind(u32, String, String),
     RegisterBufferInputHook(u32, String),
@@ -1023,6 +1024,9 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         }
         Action::Log(message) => {
             state.log_messages.push(message);
+        }
+        Action::SetInitRslComplete => {
+            state.init_rsl_complete = true;
         }
         Action::RegisterGlobalKeybind(definition, function_id) => {
             state

@@ -65,6 +65,10 @@ impl RSL {
             "stringTruncateWidth",
             std_lib::string::string_truncate_width,
         );
+        environment.register_native_function(
+            "stringRenderViewport",
+            std_lib::string::string_render_viewport,
+        );
         environment.register_native_function("getRequest", std_lib::web_requests::get_request);
         environment.register_native_function("postRequest", std_lib::web_requests::post_request);
         environment.register_native_function(

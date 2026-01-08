@@ -71,10 +71,12 @@ impl App {
                     .set_viewport_size(viewport_rows, viewport_columns)
                 {
                     self.state.update_view = true;
-                    let _ = self.perform_action(Action::RunSource(format!(
-                        "onViewportSizeChanged({}, {})",
-                        viewport_rows, viewport_columns
-                    )));
+                    if self.state.init_rsl_complete {
+                        let _ = self.perform_action(Action::RunSource(format!(
+                            "onViewportSizeChanged({}, {})",
+                            viewport_rows, viewport_columns
+                        )));
+                    }
                 }
 
                 if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {

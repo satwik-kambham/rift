@@ -205,6 +205,12 @@ fn inputBackspace(bufferId, stateTable, key, onCleared) {
     if onCleared != null { onCleared() }
 }
 
+fn inputClear(bufferId, stateTable, key, onCleared) {
+    tableSet(stateTable, key, "")
+    setBufferInput(bufferId, "")
+    if onCleared != null { onCleared() }
+}
+
 # Dashboard
 
 viewportRows = 0
@@ -470,6 +476,14 @@ fn renderLLMChat() {
         i = i + 1
     }
 
+    historyContent = ""
+    if arrayLen(historyLines) == 0 {
+        historyContent = "   No messages yet"
+    }
+    if arrayLen(historyLines) != 0 {
+        historyContent = llmChatLinesToString(historyLines)
+    }
+
     pendingToolCalls = tableGet(llmChat, "pending_tool_calls")
     pendingLines = createArray()
     if arrayLen(pendingToolCalls) == 0 {
@@ -496,59 +510,34 @@ fn renderLLMChat() {
     headerLines = 3
     sectionLines = 3
     reservedLines = headerLines + sectionLines + arrayLen(pendingLines) + arrayLen(inputLines)
-    maxHistoryLines = viewportVisibleRows(reservedLines)
-    if maxHistoryLines < 1 { maxHistoryLines = 1 }
-    tableSet(llmChat, "history_page_size", maxHistoryLines)
+    historyRows = viewportVisibleRows(reservedLines)
+    if historyRows < 1 { historyRows = 1 }
 
-    historyDisplayLines = createArray()
-    if arrayLen(historyLines) == 0 {
-        arrayPushBack(historyDisplayLines, "   No messages yet")
-    }
-    if arrayLen(historyLines) != 0 {
-        totalHistoryLines = arrayLen(historyLines)
-        historySlots = maxHistoryLines
-        llmChatHistoryScroll = tableGet(llmChat, "history_scroll")
-        maxScroll = totalHistoryLines - historySlots
-        if maxScroll < 0 { maxScroll = 0 }
-        if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
-        if llmChatHistoryScroll > maxScroll { llmChatHistoryScroll = maxScroll }
-        start = totalHistoryLines - historySlots - llmChatHistoryScroll
-        if start < 0 { start = 0 }
+    columns = viewportVisibleColumns()
+    wrappedAll = stringRenderViewport(historyContent, columns, 100000, 0)
+    wrappedLines = stringSplitLines(wrappedAll)
+    totalHistoryLines = arrayLen(wrappedLines)
+    if totalHistoryLines < 1 { totalHistoryLines = 1 }
 
-        showEllipsis = false
-        if start > 0 {
-            showEllipsis = true
-            historySlots = maxHistoryLines - 1
-            if historySlots < 1 { historySlots = 1 }
-            maxScroll = totalHistoryLines - historySlots
-            if maxScroll < 0 { maxScroll = 0 }
-            if llmChatHistoryScroll > maxScroll { llmChatHistoryScroll = maxScroll }
-            start = totalHistoryLines - historySlots - llmChatHistoryScroll
-            if start < 0 { start = 0 }
-            if start <= 0 { showEllipsis = false }
-        }
+    llmChatHistoryScroll = tableGet(llmChat, "history_scroll")
+    showEllipsis = llmChatHistoryScroll > 0
+    if showEllipsis and historyRows <= 1 { showEllipsis = false }
+    if showEllipsis { historyRows = historyRows - 1 }
 
-        end = start + historySlots
-        if end > totalHistoryLines { end = totalHistoryLines }
-
-        if showEllipsis {
-            arrayPushBack(historyDisplayLines, "   ⋯")
-        }
-
-        i = start
-        loop {
-            if i >= end { break }
-            arrayPushBack(historyDisplayLines, arrayGet(historyLines, i))
-            i = i + 1
-        }
-    }
-
+    maxScroll = totalHistoryLines - historyRows
+    if maxScroll < 0 { maxScroll = 0 }
+    if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
+    if llmChatHistoryScroll > maxScroll { llmChatHistoryScroll = maxScroll }
     tableSet(llmChat, "history_scroll", llmChatHistoryScroll)
+    tableSet(llmChat, "history_page_size", historyRows)
+
+    historyBody = stringRenderViewport(historyContent, columns, historyRows, -1 * (llmChatHistoryScroll + 1))
     status = "Model: " + tableGet(llmChat, "model") + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
 
     content = "🤖 LLM Chat\n" + status + "\nenter: send | y/n: allow/deny tool | up/down: scroll\n"
     content = content + "╭─ History ─────────────\n"
-    content = content + llmChatLinesToString(historyDisplayLines) + "\n"
+    if showEllipsis { content = content + "   ⋯\n" }
+    content = content + historyBody + "\n"
     content = content + "╰─ Pending Tools ───────\n"
     content = content + llmChatLinesToString(pendingLines) + "\n"
     content = content + "╭─ Input ───────────────\n"
@@ -667,8 +656,12 @@ fn llmChatAddSpace() {
     inputAddSpace(tableGet(llmChat, "id"), llmChat, "input", renderLLMChat)
 }
 
+fn llmChatBackspace() {
+    inputBackspace(tableGet(llmChat, "id"), llmChat, "input", renderLLMChat)
+}
+
 fn llmChatClearInput() {
-    inputBackspace(tableGet(llmChat, "id"), llmChat, "input", null)
+    inputClear(tableGet(llmChat, "id"), llmChat, "input", null)
 }
 
 fn createLLMChat() {
@@ -681,7 +674,7 @@ fn createLLMChat() {
         registerBufferKeybind(bufferId, "nor pageup", llmChatPageUp)
         registerBufferKeybind(bufferId, "nor pagedown", llmChatPageDown)
         registerBufferKeybind(bufferId, "ins space", llmChatAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", llmChatClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", llmChatBackspace)
         registerBufferKeybind(bufferId, "ins up", llmChatScrollUp)
         registerBufferKeybind(bufferId, "ins down", llmChatScrollDown)
         registerBufferKeybind(bufferId, "ins pageup", llmChatPageUp)
@@ -2070,15 +2063,13 @@ fn dialogModalBackspace() {
 infoModal = createTable()
 tableSet(infoModal, "id", -1)
 tableSet(infoModal, "previous_buffer_id", -1)
-tableSet(infoModal, "lines", createArray())
+tableSet(infoModal, "content", "")
 tableSet(infoModal, "scroll", 0)
 tableSet(infoModal, "active", false)
 tableSet(infoModal, "page_size", 48)
 
-fn infoModalClampScroll() {
-    infoModalLines = tableGet(infoModal, "lines")
-    infoModalPageSize = tableGet(infoModal, "page_size")
-    maxScroll = arrayLen(infoModalLines) - infoModalPageSize
+fn infoModalClampScroll(totalLines, pageSize) {
+    maxScroll = totalLines - pageSize
     if maxScroll < 0 { maxScroll = 0 }
     infoModalScroll = tableGet(infoModal, "scroll")
     if infoModalScroll < 0 { infoModalScroll = 0 }
@@ -2087,30 +2078,38 @@ fn infoModalClampScroll() {
 }
 
 fn infoModalRender() {
-    infoModalClampScroll()
-    content = "Info Modal (esc to close, up/down to scroll)\n------\n"
+    content = "Info Modal (esc to close, up/down to scroll)\n------"
+    infoModalContent = tableGet(infoModal, "content")
+    columns = viewportVisibleColumns()
+    wrappedAll = stringRenderViewport(infoModalContent, columns, 100000, 0)
+    wrappedLines = stringSplitLines(wrappedAll)
+    totalLines = arrayLen(wrappedLines)
 
-    infoModalLines = tableGet(infoModal, "lines")
-    totalLines = arrayLen(infoModalLines)
     if totalLines == 0 {
-        content = content + "\n   No information available"
+        content = content + "\n\n   No information available"
         setViewportBufferContent(tableGet(infoModal, "id"), content)
         return null
     }
 
-    start = tableGet(infoModal, "scroll")
-    end = start + tableGet(infoModal, "page_size")
-    if end > totalLines { end = totalLines }
+    visibleRows = viewportVisibleRows(0)
+    bodyRows = visibleRows - 3
+    if bodyRows < 1 { bodyRows = 1 }
 
-    i = start
-    loop {
-        if i >= end { break }
-        content = content + "\n" + arrayGet(infoModalLines, i)
-        i = i + 1
+    footerLines = 0
+    if tableGet(infoModal, "scroll") + bodyRows < totalLines and bodyRows > 2 {
+        footerLines = 2
+        bodyRows = bodyRows - footerLines
     }
 
-    if end < totalLines {
-        remaining = totalLines - end
+    tableSet(infoModal, "page_size", bodyRows)
+    infoModalClampScroll(totalLines, bodyRows)
+
+    scroll = tableGet(infoModal, "scroll")
+    body = stringRenderViewport(infoModalContent, columns, bodyRows, scroll)
+    content = content + "\n\n" + body
+
+    remaining = totalLines - (scroll + bodyRows)
+    if remaining > 0 {
         content = content + "\n\n... (" + toJson(remaining) + " more lines)"
     }
 
@@ -2135,7 +2134,7 @@ fn infoModalOpen(content) {
         tableSet(infoModal, "previous_buffer_id", getActiveBuffer())
     }
     tableSet(infoModal, "active", true)
-    tableSet(infoModal, "lines", stringSplitLines(content))
+    tableSet(infoModal, "content", content)
     tableSet(infoModal, "scroll", 0)
     infoModalRender()
     bufferId = tableGet(infoModal, "id")
@@ -2201,3 +2200,4 @@ fn rerenderAllUi() {
 
 createDashboardBuffer()
 refreshViewportSize()
+runAction("set-init-rsl-complete")

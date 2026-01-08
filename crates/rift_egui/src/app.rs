@@ -236,13 +236,15 @@ impl App {
                     .set_viewport_size(viewport_rows, viewport_columns)
                 {
                     self.state.update_view = true;
-                    let _ = perform_action(
-                        Action::RunSource(format!(
-                            "onViewportSizeChanged({}, {})",
-                            viewport_rows, viewport_columns
-                        )),
-                        &mut self.state,
-                    );
+                    if self.state.init_rsl_complete {
+                        let _ = perform_action(
+                            Action::RunSource(format!(
+                                "onViewportSizeChanged({}, {})",
+                                viewport_rows, viewport_columns
+                            )),
+                            &mut self.state,
+                        );
+                    }
                 }
 
                 // Update rendered lines

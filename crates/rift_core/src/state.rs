@@ -48,6 +48,7 @@ pub struct EditorState {
     pub register: String,
     pub search_query: String,
     pub quit: bool,
+    pub init_rsl_complete: bool,
 
     // System
     pub clipboard_ctx: Option<ClipboardContext>,
@@ -160,6 +161,7 @@ impl EditorState {
             register: String::new(),
             search_query: String::new(),
             lsp_handles: HashMap::new(),
+            init_rsl_complete: false,
         }
     }
 
