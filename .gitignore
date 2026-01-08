@@ -14,3 +14,8 @@ target/
 
 # Nix build results
 result
+
+# Profiling artifacts
+flamegraph.svg
+perf.data
+perf.data.old

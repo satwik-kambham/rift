@@ -34,6 +34,8 @@
           toolchain
           rust-analyzer
           nixfmt-rfc-style
+          cargo-flamegraph
+          perf
         ];
         runtimeDeps = with pkgs; [
           makeWrapper
