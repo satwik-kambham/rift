@@ -1,8 +1,4 @@
-use std::{
-    path,
-    str::FromStr,
-    time::{Duration, Instant},
-};
+use std::{path, str::FromStr};
 
 use copypasta::ClipboardProvider;
 use serde_json::json;
@@ -16,7 +12,7 @@ use crate::{
     },
     concurrent::cli::{ProgramArgs, run_command},
     io::file_io,
-    lsp::{self, client::LSPClientHandle, types::DiagnosticSeverity},
+    lsp::{client::LSPClientHandle, types::DiagnosticSeverity},
     preferences::Preferences,
     state::{EditorState, Mode},
 };
@@ -649,27 +645,15 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             }
         }
         Action::GoToDefinition => {
-            perform_action(
-                Action::RunSource("createGoToDefinition()".to_string()),
-                state,
-            );
-        }
-        Action::GetDefinitions => {
             if let Some(buffer_idx) = state.buffer_idx {
-                let lsp_handle = state.get_lsp_handle_for_buffer(state.buffer_idx.unwrap());
-                let Some((file_path, cursor)) = ({
+                let lsp_handle = state.get_lsp_handle_for_buffer(buffer_idx);
+                let (file_path, cursor) = ({
                     let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
                     buffer
                         .file_path()
                         .cloned()
                         .map(|path| (path, instance.cursor))
-                }) else {
-                    state.definitions.clear();
-                    return Some("[]".to_string());
-                };
-
-                state.definitions.clear();
-                let current_version = state.definitions_version;
+                })?;
 
                 let request_sent = if let Some(lsp_handle) = lsp_handle {
                     lsp_handle
@@ -687,28 +671,57 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                     false
                 };
 
-                if request_sent {
-                    let start = Instant::now();
-                    while state.definitions_version == current_version
-                        && start.elapsed() < Duration::from_secs(1)
-                    {
-                        lsp::handle_lsp_messages(state);
-                        std::thread::sleep(Duration::from_millis(10));
-                    }
-                } else {
+                if !request_sent {
                     tracing::warn!("Failed to send LSP definitions request for {}", file_path);
+                }
+            }
+        }
+        Action::GetDefinitions => {
+            if let Some(buffer_idx) = state.buffer_idx {
+                let (buffer, _instance) = state.get_buffer_by_id(buffer_idx);
+                if buffer.file_path().is_none() {
+                    state.definitions.clear();
+                    return Some("[]".to_string());
                 }
             } else {
                 state.definitions.clear();
+                return Some("[]".to_string());
             }
 
             return Some(serde_json::to_string(&state.definitions).unwrap());
         }
         Action::GoToReferences => {
-            perform_action(
-                Action::RunSource("createGoToReferences()".to_string()),
-                state,
-            );
+            if state.buffer_idx.is_some() {
+                let buffer_id = state.buffer_idx.unwrap();
+                let (file_path, cursor) = ({
+                    let (buffer, instance) = state.get_buffer_by_id(buffer_id);
+                    buffer
+                        .file_path()
+                        .cloned()
+                        .map(|path| (path, instance.cursor))
+                })?;
+                let lsp_handle = state.get_lsp_handle_for_buffer(buffer_id);
+
+                let request_sent = if let Some(lsp_handle) = lsp_handle {
+                    lsp_handle
+                        .lock()
+                        .unwrap()
+                        .send_request_sync(
+                            "textDocument/references".to_string(),
+                            Some(LSPClientHandle::go_to_references_request(
+                                file_path.clone(),
+                                cursor,
+                            )),
+                        )
+                        .is_ok()
+                } else {
+                    false
+                };
+
+                if !request_sent {
+                    tracing::warn!("Failed to send LSP references request for {}", file_path);
+                }
+            }
         }
         Action::DeletePreviousCharacter => {
             let (buffer, instance, lsp_handle) =
@@ -916,50 +929,14 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         Action::GetReferences => {
             if state.buffer_idx.is_some() {
                 let buffer_id = state.buffer_idx.unwrap();
-                let Some((file_path, cursor)) = ({
-                    let (buffer, instance) = state.get_buffer_by_id(buffer_id);
-                    buffer
-                        .file_path()
-                        .cloned()
-                        .map(|path| (path, instance.cursor))
-                }) else {
+                let (buffer, _instance) = state.get_buffer_by_id(buffer_id);
+                if buffer.file_path().is_none() {
                     state.references.clear();
                     return Some("[]".to_string());
-                };
-                let lsp_handle = state.get_lsp_handle_for_buffer(buffer_id);
-
-                state.references.clear();
-                let current_version = state.references_version;
-
-                let request_sent = if let Some(lsp_handle) = lsp_handle {
-                    lsp_handle
-                        .lock()
-                        .unwrap()
-                        .send_request_sync(
-                            "textDocument/references".to_string(),
-                            Some(LSPClientHandle::go_to_references_request(
-                                file_path.clone(),
-                                cursor,
-                            )),
-                        )
-                        .is_ok()
-                } else {
-                    false
-                };
-
-                if request_sent {
-                    let start = Instant::now();
-                    while state.references_version == current_version
-                        && start.elapsed() < Duration::from_secs(1)
-                    {
-                        lsp::handle_lsp_messages(state);
-                        std::thread::sleep(Duration::from_millis(10));
-                    }
-                } else {
-                    tracing::warn!("Failed to send LSP references request for {}", file_path);
                 }
             } else {
                 state.references.clear();
+                return Some("[]".to_string());
             }
 
             return Some(serde_json::to_string(&state.references).unwrap());

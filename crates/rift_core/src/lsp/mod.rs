@@ -183,6 +183,10 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
 
                         state.definitions = definitions;
                         state.definitions_version = state.definitions_version.saturating_add(1);
+                        perform_action(
+                            Action::RunSource("createGoToDefinition()".to_string()),
+                            state,
+                        );
                     } else if method_name == "textDocument/references" && response.result.is_some()
                     {
                         let mut references = vec![];
@@ -199,6 +203,10 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
                         }
                         state.references = references;
                         state.references_version = state.references_version.saturating_add(1);
+                        perform_action(
+                            Action::RunSource("createGoToReferences()".to_string()),
+                            state,
+                        );
                     } else {
                         let message = format!(
                             "---Response to: {}({})\n\n{:#?}---\n",

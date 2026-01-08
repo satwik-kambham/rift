@@ -8,6 +8,7 @@
 - `crates/rift_rpc` provides RPC between `rift_core` and RSL.
 - `crates/rsl` contains the Rift scripting language implementation.
 - Markdown documentation lives under `docs/` at the repo root.
+- Architecture overview and LSP flow details live in `docs/architecture.md`.
 - Assets such as screenshots live in `assets/`; build artifacts land in `target/`.
 - A Nix devshell is defined in `flake.nix`; with direnv allowed, `.envrc` auto-loads the devshell by default.
 
