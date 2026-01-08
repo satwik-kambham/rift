@@ -34,8 +34,6 @@
           toolchain
           rust-analyzer
           nixfmt-rfc-style
-          clang
-          wild
         ];
         runtimeDeps = with pkgs; [
           makeWrapper
@@ -56,6 +54,9 @@
           xorg.libXrandr
           xorg.libXi
           xorg.libX11
+
+          clang
+          wild
         ];
         appDeps = with pkgs; [
           fzf
