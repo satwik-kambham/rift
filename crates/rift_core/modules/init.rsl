@@ -741,8 +741,12 @@ fn fuzzyFileFinderAddSpace() {
     inputAddSpace(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", renderFuzzyFileFinder)
 }
 
-fn fuzzyFileFinderClearInput() {
+fn fuzzyFileFinderBackspace() {
     inputBackspace(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", null)
+}
+
+fn fuzzyFileFinderClearInput() {
+    inputClear(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", null)
 }
 
 fn fuzzyFileFinderMoveSelection(delta) {
@@ -765,6 +769,7 @@ fn fuzzyFileFinderSelect() {
     selected = tableGet(fuzzyFileFinder, "selected")
     if selected < arrayLen(results) {
         path = arrayGet(results, selected)
+        fuzzyFileFinderClearInput()
         openFile(path)
         runAction("quit-insert-mode")
     }
@@ -773,6 +778,7 @@ fn fuzzyFileFinderSelect() {
 fn fuzzyFileFinderEscape() {
     previousBufferId = tableGet(fuzzyFileFinder, "previous_buffer_id")
     if previousBufferId != -1 {
+        fuzzyFileFinderClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -788,7 +794,7 @@ fn createFuzzyFileFinder() {
         bufferId = createSpecialBuffer("Fuzzy File Finder")
         tableSet(fuzzyFileFinder, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderBackspace)
         registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderNext)
         registerBufferKeybind(bufferId, "ins down", fuzzyFileFinderNext)
         registerBufferKeybind(bufferId, "ins up", fuzzyFileFinderPrevious)
@@ -928,8 +934,12 @@ fn fileExplorerAddSpace() {
     inputAddSpace(tableGet(fileExplorer, "id"), fileExplorer, "input", renderFileExplorer)
 }
 
-fn fileExplorerClearInput() {
+fn fileExplorerBackspace() {
     inputBackspace(tableGet(fileExplorer, "id"), fileExplorer, "input", null)
+}
+
+fn fileExplorerClearInput() {
+    inputClear(tableGet(fileExplorer, "id"), fileExplorer, "input", null)
 }
 
 fn fileExplorerMoveSelection(delta) {
@@ -958,6 +968,7 @@ fn fileExplorerSelect() {
             fileExplorerSetDirectory(path)
             return null
         }
+        fileExplorerClearInput()
         openFile(path)
         runAction("quit-insert-mode")
     }
@@ -966,6 +977,7 @@ fn fileExplorerSelect() {
 fn fileExplorerEscape() {
     previousBufferId = tableGet(fileExplorer, "previous_buffer_id")
     if previousBufferId != -1 {
+        fileExplorerClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -1027,7 +1039,7 @@ fn createFileExplorer() {
         bufferId = createSpecialBuffer("File Explorer")
         tableSet(fileExplorer, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", fileExplorerAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", fileExplorerClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", fileExplorerBackspace)
         registerBufferKeybind(bufferId, "ins tab", fileExplorerNext)
         registerBufferKeybind(bufferId, "ins down", fileExplorerNext)
         registerBufferKeybind(bufferId, "ins up", fileExplorerPrevious)
@@ -1158,8 +1170,12 @@ fn switchBufferAddSpace() {
     inputAddSpace(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
 }
 
-fn switchBufferClearInput() {
+fn switchBufferBackspace() {
     inputBackspace(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
+}
+
+fn switchBufferClearInput() {
+    inputClear(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
 }
 
 fn switchBufferMoveSelection(delta) {
@@ -1190,6 +1206,7 @@ fn switchBufferSelect() {
     if selected < arrayLen(results) {
         selection = arrayGet(results, selected)
         bufferId = tableGet(selection, "id")
+        switchBufferClearInput()
         setActiveBuffer(bufferId)
         runAction("quit-insert-mode")
     }
@@ -1198,6 +1215,7 @@ fn switchBufferSelect() {
 fn switchBufferEscape() {
     previousBufferId = tableGet(switchBuffer, "previous_buffer_id")
     if previousBufferId != -1 {
+        switchBufferClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -1213,7 +1231,7 @@ fn createSwitchBuffer() {
         bufferId = createSpecialBuffer("Switch Buffer")
         tableSet(switchBuffer, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", switchBufferAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", switchBufferClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", switchBufferBackspace)
         registerBufferKeybind(bufferId, "ins tab", switchBufferNext)
         registerBufferKeybind(bufferId, "ins down", switchBufferNext)
         registerBufferKeybind(bufferId, "ins up", switchBufferPrevious)
@@ -1269,6 +1287,10 @@ fn renderWorkspaceSearch() {
 }
 
 fn workspaceSearchClearInput() {
+    inputClear(tableGet(workspaceSearch, "id"), workspaceSearch, "input", null)
+}
+
+fn workspaceSearchBackspace() {
     inputBackspace(tableGet(workspaceSearch, "id"), workspaceSearch, "input", null)
 }
 
@@ -1371,6 +1393,7 @@ fn workspaceSearchSelect() {
         tableSet(range, "cursor", cursor)
         tableSet(range, "mark", mark)
 
+        workspaceSearchClearInput()
         openFile(path)
         runAction("quit-insert-mode")
         selectRange(toJson(range))
@@ -1380,6 +1403,7 @@ fn workspaceSearchSelect() {
 fn workspaceSearchEscape() {
     previousBufferId = tableGet(workspaceSearch, "previous_buffer_id")
     if previousBufferId != -1 {
+        workspaceSearchClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -1395,7 +1419,7 @@ fn createWorkspaceSearch() {
         bufferId = createSpecialBuffer("Workspace Search")
         tableSet(workspaceSearch, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", workspaceSearchAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", workspaceSearchClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", workspaceSearchBackspace)
         registerBufferKeybind(bufferId, "ins tab", workspaceSearchNext)
         registerBufferKeybind(bufferId, "ins down", workspaceSearchNext)
         registerBufferKeybind(bufferId, "ins up", workspaceSearchPrevious)
@@ -1497,8 +1521,12 @@ fn workspaceDiagnosticsAddSpace() {
     inputAddSpace(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", renderWorkspaceDiagnostics)
 }
 
-fn workspaceDiagnosticsClearInput() {
+fn workspaceDiagnosticsBackspace() {
     inputBackspace(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", null)
+}
+
+fn workspaceDiagnosticsClearInput() {
+    inputClear(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", null)
 }
 
 fn workspaceDiagnosticsMoveSelection(delta) {
@@ -1524,6 +1552,7 @@ fn workspaceDiagnosticsSelect() {
         path = tableGet(entry, "file_path")
         range = tableGet(entry, "range")
 
+        workspaceDiagnosticsClearInput()
         openFile(path)
         runAction("quit-insert-mode")
         selectRange(toJson(range))
@@ -1533,6 +1562,7 @@ fn workspaceDiagnosticsSelect() {
 fn workspaceDiagnosticsEscape() {
     previousBufferId = tableGet(workspaceDiagnostics, "previous_buffer_id")
     if previousBufferId != -1 {
+        workspaceDiagnosticsClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -1550,7 +1580,7 @@ fn createWorkspaceDiagnostics() {
         bufferId = createSpecialBuffer("Workspace Diagnostics")
         tableSet(workspaceDiagnostics, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", workspaceDiagnosticsAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", workspaceDiagnosticsClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", workspaceDiagnosticsBackspace)
         registerBufferKeybind(bufferId, "ins tab", workspaceDiagnosticsNext)
         registerBufferKeybind(bufferId, "ins down", workspaceDiagnosticsNext)
         registerBufferKeybind(bufferId, "ins up", workspaceDiagnosticsPrevious)
@@ -1620,8 +1650,12 @@ fn commandDispatcherAddSpace() {
     inputAddSpace(tableGet(commandDispatcher, "id"), commandDispatcher, "input", renderCommandDispatcher)
 }
 
-fn commandDispatcherClearInput() {
+fn commandDispatcherBackspace() {
     inputBackspace(tableGet(commandDispatcher, "id"), commandDispatcher, "input", null)
+}
+
+fn commandDispatcherClearInput() {
+    inputClear(tableGet(commandDispatcher, "id"), commandDispatcher, "input", null)
 }
 
 fn commandDispatcherMoveSelection(delta) {
@@ -1645,6 +1679,7 @@ fn commandDispatcherSelect() {
     if selected < arrayLen(results) {
         action = arrayGet(results, selected)
         previousBufferId = tableGet(commandDispatcher, "previous_buffer_id")
+        commandDispatcherClearInput()
         if previousBufferId != -1 {
             setActiveBuffer(previousBufferId)
         }
@@ -1656,6 +1691,7 @@ fn commandDispatcherSelect() {
 fn commandDispatcherEscape() {
     previousBufferId = tableGet(commandDispatcher, "previous_buffer_id")
     if previousBufferId != -1 {
+        commandDispatcherClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -1673,7 +1709,7 @@ fn createCommandDispatcher() {
         bufferId = createSpecialBuffer("Command Dispatcher")
         tableSet(commandDispatcher, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", commandDispatcherAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", commandDispatcherClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", commandDispatcherBackspace)
         registerBufferKeybind(bufferId, "ins tab", commandDispatcherNext)
         registerBufferKeybind(bufferId, "ins down", commandDispatcherNext)
         registerBufferKeybind(bufferId, "ins up", commandDispatcherPrevious)
@@ -1761,8 +1797,12 @@ fn goToDefinitionAddSpace() {
     inputAddSpace(tableGet(goToDefinition, "id"), goToDefinition, "input", renderGoToDefinition)
 }
 
-fn goToDefinitionClearInput() {
+fn goToDefinitionBackspace() {
     inputBackspace(tableGet(goToDefinition, "id"), goToDefinition, "input", null)
+}
+
+fn goToDefinitionClearInput() {
+    inputClear(tableGet(goToDefinition, "id"), goToDefinition, "input", null)
 }
 
 fn goToDefinitionMoveSelection(delta) {
@@ -1788,6 +1828,7 @@ fn goToDefinitionSelect() {
         path = tableGet(entry, "file_path")
         range = tableGet(entry, "range")
 
+        goToDefinitionClearInput()
         openFile(path)
         runAction("quit-insert-mode")
         selectRange(toJson(range))
@@ -1797,6 +1838,7 @@ fn goToDefinitionSelect() {
 fn goToDefinitionEscape() {
     previousBufferId = tableGet(goToDefinition, "previous_buffer_id")
     if previousBufferId != -1 {
+        goToDefinitionClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -1814,7 +1856,7 @@ fn createGoToDefinition() {
         bufferId = createSpecialBuffer("Definitions")
         tableSet(goToDefinition, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", goToDefinitionAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", goToDefinitionClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", goToDefinitionBackspace)
         registerBufferKeybind(bufferId, "ins tab", goToDefinitionNext)
         registerBufferKeybind(bufferId, "ins down", goToDefinitionNext)
         registerBufferKeybind(bufferId, "ins up", goToDefinitionPrevious)
@@ -1900,8 +1942,12 @@ fn goToReferencesAddSpace() {
     inputAddSpace(tableGet(goToReferences, "id"), goToReferences, "input", renderGoToReferences)
 }
 
-fn goToReferencesClearInput() {
+fn goToReferencesBackspace() {
     inputBackspace(tableGet(goToReferences, "id"), goToReferences, "input", null)
+}
+
+fn goToReferencesClearInput() {
+    inputClear(tableGet(goToReferences, "id"), goToReferences, "input", null)
 }
 
 fn goToReferencesMoveSelection(delta) {
@@ -1927,6 +1973,7 @@ fn goToReferencesSelect() {
         path = tableGet(entry, "file_path")
         range = tableGet(entry, "range")
 
+        goToReferencesClearInput()
         openFile(path)
         runAction("quit-insert-mode")
         selectRange(toJson(range))
@@ -1936,6 +1983,7 @@ fn goToReferencesSelect() {
 fn goToReferencesEscape() {
     previousBufferId = tableGet(goToReferences, "previous_buffer_id")
     if previousBufferId != -1 {
+        goToReferencesClearInput()
         setActiveBuffer(previousBufferId)
         runAction("quit-insert-mode")
     }
@@ -1953,7 +2001,7 @@ fn createGoToReferences() {
         bufferId = createSpecialBuffer("References")
         tableSet(goToReferences, "id", bufferId)
         registerBufferKeybind(bufferId, "ins space", goToReferencesAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", goToReferencesClearInput)
+        registerBufferKeybind(bufferId, "ins backspace", goToReferencesBackspace)
         registerBufferKeybind(bufferId, "ins tab", goToReferencesNext)
         registerBufferKeybind(bufferId, "ins down", goToReferencesNext)
         registerBufferKeybind(bufferId, "ins up", goToReferencesPrevious)
