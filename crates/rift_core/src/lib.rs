@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod audio;
 pub mod buffer;
 pub mod cli;
 pub mod concurrent;

@@ -6,6 +6,7 @@ use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
 use tracing::{error, warn};
 
 use crate::{
+    audio,
     buffer::{
         instance::{Cursor, Selection},
         rope_buffer::RopeBuffer,
@@ -61,6 +62,17 @@ fn diagnostic_severity_label(severity: &DiagnosticSeverity) -> &'static str {
         DiagnosticSeverity::Information => "Information",
         DiagnosticSeverity::Warning => "Warning",
         DiagnosticSeverity::Error => "Error",
+    }
+}
+
+fn insert_transcription(result: Result<String, audio::AudioError>, state: &mut EditorState) {
+    match result {
+        Ok(text) => {
+            perform_action(Action::InsertTextAtCursor(text), state);
+        }
+        Err(err) => {
+            warn!(%err, "Transcription failed");
+        }
     }
 }
 
@@ -158,6 +170,10 @@ pub enum Action {
     RegisterGlobalKeybind(String, String),
     RegisterBufferKeybind(u32, String, String),
     RegisterBufferInputHook(u32, String),
+    #[strum(disabled)]
+    StartTranscription(audio::TranscriptionCallback),
+    StopTranscription,
+    TestTranscription,
 }
 
 pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String> {
@@ -1018,6 +1034,35 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         Action::RegisterBufferInputHook(buffer_id, function_id) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
             buffer.input_hook = Some(function_id);
+        }
+        Action::StartTranscription(callback) => {
+            if let Some(handle) = state.transcription_handle.as_mut() {
+                handle.stop();
+                warn!("Transcription already in progress");
+                return None;
+            }
+
+            match audio::start_transcription(
+                None,
+                callback,
+                &state.rt,
+                state.async_handle.sender.clone(),
+            ) {
+                Ok(handle) => {
+                    state.transcription_handle = Some(handle);
+                }
+                Err(err) => {
+                    error!(%err, "Failed to start transcription");
+                }
+            }
+        }
+        Action::StopTranscription => {
+            if let Some(handle) = state.transcription_handle.as_mut() {
+                handle.stop();
+            }
+        }
+        Action::TestTranscription => {
+            perform_action(Action::StartTranscription(insert_transcription), state);
         }
     };
     None
