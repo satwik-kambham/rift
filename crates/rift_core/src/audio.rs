@@ -147,9 +147,20 @@ pub fn start_transcription(
     let host = cpal::default_host();
     let device = match device_id {
         Some(id) => find_input_device_by_id(&host, &id)?,
-        None => host
-            .default_input_device()
-            .ok_or_else(|| AudioError::Device("No default input device available".to_string()))?,
+        None => {
+            let device = host
+                .default_input_device()
+                .ok_or_else(|| AudioError::Device("No default input device available".to_string()))?;
+            let name = match device.description() {
+                Ok(description) => description.name().to_string(),
+                Err(err) => {
+                    tracing::warn!(%err, "Failed to read default input device description");
+                    "unknown".to_string()
+                }
+            };
+            tracing::info!(%name, "Selected default input device");
+            device
+        }
     };
 
     let supported_config = device
@@ -353,13 +364,11 @@ fn transcribe_wav_file_with_handle(
     rt_handle: tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) {
+    const STT_URL: &str = "http://localhost:8000/stt";
     let sender_for_result = sender.clone();
     let handle_for_result = rt_handle.clone();
     rt_handle.spawn(async move {
         let result = async {
-            let api_key = std::env::var("OPENAI_API_KEY").map_err(|_| {
-                AudioError::Network("OPENAI_API_KEY is not set".to_string())
-            })?;
             let data =
                 tokio::fs::read(&path).await.map_err(|err| AudioError::Io(err.to_string()))?;
 
@@ -367,15 +376,11 @@ fn transcribe_wav_file_with_handle(
                 .file_name("audio.wav")
                 .mime_str("audio/wav")
                 .map_err(|err| AudioError::Io(err.to_string()))?;
-            let form = reqwest::multipart::Form::new()
-                .text("model", "whisper-1")
-                .part("file", part);
+            let form = reqwest::multipart::Form::new().part("file", part);
 
-            let url = "https://api.openai.com/v1/audio/transcriptions";
             let client = reqwest::Client::new();
             let response = client
-                .post(url)
-                .bearer_auth(api_key)
+                .post(STT_URL)
                 .multipart(form)
                 .send()
                 .await
@@ -389,7 +394,7 @@ fn transcribe_wav_file_with_handle(
 
             if !status.is_success() {
                 return Err(AudioError::Network(format!(
-                    "POST {url} failed with status {}: {body}",
+                    "POST {STT_URL} failed with status {}: {body}",
                     status.as_u16()
                 )));
             }
@@ -424,7 +429,7 @@ fn send_transcription_result(
     let async_result = match result {
         Ok(text) => Ok(text),
         Err(AudioError::Network(message)) => Err(AsyncError::Network {
-            url: "https://api.openai.com/v1/audio/transcriptions".to_string(),
+            url: "http://localhost:8000/stt".to_string(),
             method: "POST",
             status: None,
             message,
