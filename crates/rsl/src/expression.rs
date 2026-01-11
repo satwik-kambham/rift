@@ -602,6 +602,11 @@ fn execute_rpc_call(
                 let result = client.run_action(ctx, action).await.unwrap();
                 Primitive::String(result)
             }
+            "tts" => {
+                let text = args!(parameters; text: String);
+                client.tts(ctx, text).await.unwrap();
+                Primitive::Null
+            }
             _ => panic!("function {} does not exist", identifier),
         }
     }))

@@ -129,6 +129,10 @@ impl RiftRPC for RPCHandle {
         self.send_action_request(Action::RunAction(action)).await
     }
 
+    async fn tts(self, _context: tarpc::context::Context, text: String) {
+        self.send_action_request(Action::Tts(text)).await;
+    }
+
     async fn get_active_buffer(self, _context: tarpc::context::Context) -> Option<u32> {
         self.send_action_request(Action::GetActiveBuffer)
             .await

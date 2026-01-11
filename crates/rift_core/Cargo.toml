@@ -20,7 +20,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["multipart"] }
 clap = { workspace = true }
 strum = { workspace = true }
 copypasta = "0.10.1"
@@ -43,3 +43,6 @@ tree-sitter-c = "0.23.2"
 tree-sitter-cpp = "0.23.2"
 tree-sitter-nix = { git = "https://github.com/nix-community/tree-sitter-nix.git", branch = "master" }
 tree-sitter-dart = { git = "https://github.com/satwik-kambham/tree-sitter-dart.git", branch = "master" }
+cpal = "0.17.1"
+hound = "3.5.1"
+rodio = "0.21.1"

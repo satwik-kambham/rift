@@ -57,6 +57,8 @@
           xorg.libXi
           xorg.libX11
 
+          alsa-lib
+
           clang
           wild
         ];

@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 
 use crate::{
     actions::{Action, ReferenceEntry, perform_action},
+    audio,
     buffer::{
         instance::{BufferInstance, Cursor, GutterInfo, Language},
         rope_buffer::{HighlightedText, RopeBuffer},
@@ -61,6 +62,7 @@ pub struct EditorState {
     pub rsl_sender: mpsc::Sender<String>,
     pub file_watcher: Option<RecommendedWatcher>,
     pub lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
+    pub transcription_handle: Option<audio::TranscriptionHandle>,
 
     // LSP
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
@@ -162,6 +164,7 @@ impl EditorState {
             search_query: String::new(),
             lsp_handles: HashMap::new(),
             init_rsl_complete: false,
+            transcription_handle: None,
         }
     }
 

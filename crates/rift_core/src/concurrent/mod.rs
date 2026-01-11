@@ -20,6 +20,9 @@ pub enum AsyncError {
         stderr: String,
         message: String,
     },
+    Audio {
+        message: String,
+    },
 }
 
 pub struct AsyncHandle {
