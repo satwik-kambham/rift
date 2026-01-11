@@ -1,3 +1,4 @@
-x = "Hi Hey"
+x = "Extensible modal code editor inspired by emacs, neovim and helix"
 
 log(x)
+tts(x)

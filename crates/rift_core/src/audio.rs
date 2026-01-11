@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::BufWriter,
+    io::{BufReader, BufWriter, Cursor},
     path::PathBuf,
     sync::{
         Arc, Mutex,
@@ -13,6 +13,7 @@ use cpal::{
     SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
+use rodio::OutputStreamBuilder;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -254,42 +255,39 @@ fn write_input_data_f32(
     data: &[f32],
     writer: &Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>,
 ) {
-    if let Ok(mut guard) = writer.try_lock() {
-        if let Some(writer) = guard.as_mut() {
+    if let Ok(mut guard) = writer.try_lock()
+        && let Some(writer) = guard.as_mut() {
             for &sample in data {
                 let sample = (sample * i16::MAX as f32)
                     .clamp(i16::MIN as f32, i16::MAX as f32) as i16;
                 let _ = writer.write_sample(sample);
             }
         }
-    }
 }
 
 fn write_input_data_i16(
     data: &[i16],
     writer: &Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>,
 ) {
-    if let Ok(mut guard) = writer.try_lock() {
-        if let Some(writer) = guard.as_mut() {
+    if let Ok(mut guard) = writer.try_lock()
+        && let Some(writer) = guard.as_mut() {
             for &sample in data {
                 let _ = writer.write_sample(sample);
             }
         }
-    }
 }
 
 fn write_input_data_u16(
     data: &[u16],
     writer: &Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>,
 ) {
-    if let Ok(mut guard) = writer.try_lock() {
-        if let Some(writer) = guard.as_mut() {
+    if let Ok(mut guard) = writer.try_lock()
+        && let Some(writer) = guard.as_mut() {
             for &sample in data {
                 let sample = sample as i32 - 32_768;
                 let _ = writer.write_sample(sample as i16);
             }
         }
-    }
 }
 
 fn build_temp_path() -> PathBuf {
@@ -315,11 +313,10 @@ fn find_input_device_by_id(
     host: &cpal::Host,
     device_id: &str,
 ) -> Result<cpal::Device, AudioError> {
-    if let Ok(parsed_id) = device_id.parse::<cpal::DeviceId>() {
-        if let Some(device) = host.device_by_id(&parsed_id) {
+    if let Ok(parsed_id) = device_id.parse::<cpal::DeviceId>()
+        && let Some(device) = host.device_by_id(&parsed_id) {
             return Ok(device);
         }
-    }
 
     let devices = host
         .input_devices()
@@ -500,4 +497,65 @@ fn map_async_error(err: AsyncError) -> AudioError {
         }
         AsyncError::Audio { message } => AudioError::Io(message),
     }
+}
+
+pub fn start_tts(text: String, rt: &tokio::runtime::Runtime) {
+    if text.trim().is_empty() {
+        tracing::warn!("TTS requested with empty text");
+        return;
+    }
+
+    let rt_handle = rt.handle().clone();
+    rt_handle.spawn(async move {
+        match fetch_tts_audio(text).await {
+            Ok(bytes) => {
+                let _ = std::thread::spawn(move || {
+                    if let Err(err) = play_tts_audio(bytes) {
+                        tracing::error!(%err, "TTS playback failed");
+                    }
+                });
+            }
+            Err(err) => {
+                tracing::error!(%err, "TTS request failed");
+            }
+        }
+    });
+}
+
+async fn fetch_tts_audio(text: String) -> Result<Vec<u8>, AudioError> {
+    const TTS_URL: &str = "http://localhost:8000/tts";
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(TTS_URL)
+        .json(&serde_json::json!({ "text": text }))
+        .send()
+        .await
+        .map_err(|err| AudioError::Network(err.to_string()))?;
+
+    let status = response.status();
+    let body = response
+        .bytes()
+        .await
+        .map_err(|err| AudioError::Network(err.to_string()))?;
+
+    if !status.is_success() {
+        let message = String::from_utf8_lossy(&body);
+        return Err(AudioError::Network(format!(
+            "POST {TTS_URL} failed with status {}: {message}",
+            status.as_u16()
+        )));
+    }
+
+    Ok(body.to_vec())
+}
+
+fn play_tts_audio(bytes: Vec<u8>) -> Result<(), AudioError> {
+    let stream = OutputStreamBuilder::open_default_stream()
+        .map_err(|err| AudioError::Device(err.to_string()))?;
+    let reader = BufReader::new(Cursor::new(bytes));
+    let sink = rodio::play(stream.mixer(), reader)
+        .map_err(|err| AudioError::Io(err.to_string()))?;
+    sink.sleep_until_end();
+    Ok(())
 }

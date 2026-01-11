@@ -45,3 +45,4 @@ tree-sitter-nix = { git = "https://github.com/nix-community/tree-sitter-nix.git"
 tree-sitter-dart = { git = "https://github.com/satwik-kambham/tree-sitter-dart.git", branch = "master" }
 cpal = "0.17.1"
 hound = "3.5.1"
+rodio = "0.21.1"

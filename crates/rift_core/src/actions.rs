@@ -170,6 +170,7 @@ pub enum Action {
     RegisterGlobalKeybind(String, String),
     RegisterBufferKeybind(u32, String, String),
     RegisterBufferInputHook(u32, String),
+    Tts(String),
     #[strum(disabled)]
     StartTranscription(audio::TranscriptionCallback),
     StopTranscription,
@@ -1034,6 +1035,9 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         Action::RegisterBufferInputHook(buffer_id, function_id) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
             buffer.input_hook = Some(function_id);
+        }
+        Action::Tts(text) => {
+            audio::start_tts(text, &state.rt);
         }
         Action::StartTranscription(callback) => {
             if let Some(handle) = state.transcription_handle.as_mut() {
