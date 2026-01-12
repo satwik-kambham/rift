@@ -56,115 +56,114 @@ impl App {
         }
     }
 
-    pub fn draw(&mut self, ctx: &egui::Context) {
-        egui_extras::install_image_loaders(ctx);
+    pub fn draw(&mut self, ui: &mut egui::Ui) {
+        egui_extras::install_image_loaders(ui.ctx());
         // Quit command
         if self.state.quit {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            ui.send_viewport_cmd(egui::ViewportCommand::Close);
         }
 
         // Repaint every second
-        ctx.request_repaint_after_secs(1.0);
+        ui.request_repaint_after_secs(1.0);
 
         // Set fonts and global style
-        ctx.set_fonts(self.font_definitions.clone());
-        ctx.set_theme(egui::Theme::Dark);
-        ctx.style_mut(|style| {
-            style.text_styles = [
-                (
-                    TextStyle::Heading,
-                    FontId::new(
-                        self.state.preferences.ui_font_size_heading as f32,
-                        Proportional,
-                    ),
+        ui.set_fonts(self.font_definitions.clone());
+        ui.set_theme(egui::Theme::Dark);
+        let style = ui.style_mut();
+        style.text_styles = [
+            (
+                TextStyle::Heading,
+                FontId::new(
+                    self.state.preferences.ui_font_size_heading as f32,
+                    Proportional,
                 ),
-                (
-                    TextStyle::Body,
-                    FontId::new(self.state.preferences.ui_font_size as f32, Proportional),
+            ),
+            (
+                TextStyle::Body,
+                FontId::new(self.state.preferences.ui_font_size as f32, Proportional),
+            ),
+            (
+                TextStyle::Monospace,
+                FontId::new(self.state.preferences.editor_font_size as f32, Monospace),
+            ),
+            (
+                TextStyle::Button,
+                FontId::new(
+                    self.state.preferences.ui_font_size_button as f32,
+                    Proportional,
                 ),
-                (
-                    TextStyle::Monospace,
-                    FontId::new(self.state.preferences.editor_font_size as f32, Monospace),
+            ),
+            (
+                TextStyle::Small,
+                FontId::new(
+                    self.state.preferences.ui_font_size_small as f32,
+                    Proportional,
                 ),
-                (
-                    TextStyle::Button,
-                    FontId::new(
-                        self.state.preferences.ui_font_size_button as f32,
-                        Proportional,
-                    ),
-                ),
-                (
-                    TextStyle::Small,
-                    FontId::new(
-                        self.state.preferences.ui_font_size_small as f32,
-                        Proportional,
-                    ),
-                ),
-            ]
-            .into();
-            style.visuals.override_text_color = Some(self.state.preferences.theme.ui_text.into());
-            style.visuals.widgets = egui::style::Widgets {
-                noninteractive: egui::style::WidgetVisuals {
-                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    corner_radius: egui::CornerRadius::same(2),
-                    fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
-                    expansion: 0.0,
-                },
-                inactive: egui::style::WidgetVisuals {
-                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    corner_radius: egui::CornerRadius::same(2),
-                    fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
-                    expansion: 0.0,
-                },
-                hovered: egui::style::WidgetVisuals {
-                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    corner_radius: egui::CornerRadius::same(3),
-                    fg_stroke: egui::Stroke::new(1.5, self.state.preferences.theme.ui_fg_stroke),
-                    expansion: 0.0,
-                },
-                active: egui::style::WidgetVisuals {
-                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    corner_radius: egui::CornerRadius::same(2),
-                    fg_stroke: egui::Stroke::new(2.0, self.state.preferences.theme.ui_fg_stroke),
-                    expansion: 0.0,
-                },
-                open: egui::style::WidgetVisuals {
-                    bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
-                    weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
-                    bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
-                    corner_radius: egui::CornerRadius::same(2),
-                    fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
-                    expansion: 0.0,
-                },
-            };
-        });
+            ),
+        ]
+        .into();
+        style.visuals.override_text_color = Some(self.state.preferences.theme.ui_text.into());
+        style.visuals.widgets = egui::style::Widgets {
+            noninteractive: egui::style::WidgetVisuals {
+                bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
+                corner_radius: egui::CornerRadius::same(2),
+                fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
+                expansion: 0.0,
+            },
+            inactive: egui::style::WidgetVisuals {
+                bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
+                corner_radius: egui::CornerRadius::same(2),
+                fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
+                expansion: 0.0,
+            },
+            hovered: egui::style::WidgetVisuals {
+                bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
+                corner_radius: egui::CornerRadius::same(3),
+                fg_stroke: egui::Stroke::new(1.5, self.state.preferences.theme.ui_fg_stroke),
+                expansion: 0.0,
+            },
+            active: egui::style::WidgetVisuals {
+                bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
+                corner_radius: egui::CornerRadius::same(2),
+                fg_stroke: egui::Stroke::new(2.0, self.state.preferences.theme.ui_fg_stroke),
+                expansion: 0.0,
+            },
+            open: egui::style::WidgetVisuals {
+                bg_fill: self.state.preferences.theme.ui_bg_fill.into(),
+                weak_bg_fill: self.state.preferences.theme.ui_weak_bg_fill.into(),
+                bg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_bg_stroke),
+                corner_radius: egui::CornerRadius::same(2),
+                fg_stroke: egui::Stroke::new(1.0, self.state.preferences.theme.ui_fg_stroke),
+                expansion: 0.0,
+            },
+        };
 
         let mut viewport_rows = 0;
         let mut viewport_columns = 0;
         let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
 
-        show_menu_bar(ctx, &mut self.state);
-        let (char_width, char_height) = show_status_line(ctx, &mut self.state);
+        show_menu_bar(ui, &mut self.state);
+        let (char_width, char_height) = show_status_line(ui, &mut self.state);
 
         if show_gutter {
-            egui::SidePanel::left("gutter")
+            egui::Panel::left("gutter")
                 .resizable(true)
                 .show_separator_line(false)
-                .min_width(60.0)
+                .min_size(60.0)
                 .frame(egui::Frame {
                     fill: self.state.preferences.theme.gutter_bg.into(),
                     inner_margin: egui::Margin::same(self.state.preferences.gutter_padding),
                     ..Default::default()
                 })
-                .show(ctx, |ui| {
+                .show_inside(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
 
                     for (idx, gutter_line) in self.state.gutter_info.iter().enumerate() {
@@ -200,7 +199,7 @@ impl App {
                 fill: self.state.preferences.theme.editor_bg.into(),
                 ..Default::default()
             })
-            .show(ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 let rect = ui.max_rect();
                 let top_left = rect.left_top();
@@ -351,7 +350,7 @@ impl App {
                 }
 
                 // Handle keyboard events
-                if !ctx.wants_keyboard_input() {
+                if !ui.egui_wants_keyboard_input() {
                     self.dispatcher.show(ui, &mut self.state);
                 }
 
@@ -362,17 +361,17 @@ impl App {
                     viewport_rows,
                 };
                 self.completion_menu
-                    .show(completion_position, ctx, &mut self.state);
+                    .show(completion_position, ui, &mut self.state);
 
                 if self.state.signature_information.should_render()
                     && self.state.relative_cursor.row > 1
                 {
-                    show_signature_information(char_width, char_height, top_left, ctx, &self.state);
+                    show_signature_information(char_width, char_height, top_left, ui, &self.state);
                 }
             });
 
         if self.state.diagnostics_overlay.should_render() {
-            show_diagnostics_overlay(ctx, &self.state);
+            show_diagnostics_overlay(ui, &self.state);
         }
     }
 }

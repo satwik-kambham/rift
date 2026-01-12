@@ -4,7 +4,7 @@ pub fn show_signature_information(
     char_width: f32,
     char_height: f32,
     top_left: egui::Pos2,
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     state: &EditorState,
 ) {
     let offset = egui::Pos2 {
@@ -28,7 +28,7 @@ pub fn show_signature_information(
         .collapsible(true)
         .title_bar(false)
         .vscroll(true)
-        .show(ctx, |ui| {
+        .show(ui, |ui| {
             ui.label(&state.signature_information.content);
         });
 }

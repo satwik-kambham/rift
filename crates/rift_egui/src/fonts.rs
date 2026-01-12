@@ -31,6 +31,7 @@ pub fn load_fonts(state: &mut EditorState) -> FontDefinitions {
                         font: std::borrow::Cow::Owned(font_content),
                         index: font_index,
                         tweak: FontTweak::default(),
+                        weight: None,
                     }),
                 );
             }
@@ -41,6 +42,7 @@ pub fn load_fonts(state: &mut EditorState) -> FontDefinitions {
                         font: std::borrow::Cow::Owned((*bytes).clone()),
                         index: font_index,
                         tweak: FontTweak::default(),
+                        weight: None,
                     }),
                 );
             }
@@ -72,6 +74,7 @@ pub fn load_fonts(state: &mut EditorState) -> FontDefinitions {
                         font: std::borrow::Cow::Owned(font_content),
                         index: font_index,
                         tweak: FontTweak::default(),
+                        weight: None,
                     }),
                 );
             }
@@ -82,6 +85,7 @@ pub fn load_fonts(state: &mut EditorState) -> FontDefinitions {
                         font: std::borrow::Cow::Owned((*bytes).clone()),
                         index: font_index,
                         tweak: FontTweak::default(),
+                        weight: None,
                     }),
                 );
             }

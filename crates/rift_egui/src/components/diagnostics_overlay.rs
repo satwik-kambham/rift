@@ -1,6 +1,6 @@
 use rift_core::state::EditorState;
 
-pub fn show_diagnostics_overlay(ctx: &egui::Context, state: &EditorState) {
+pub fn show_diagnostics_overlay(ui: &mut egui::Ui, state: &EditorState) {
     egui::Window::new("diagnostics_overlay")
         .movable(false)
         .interactable(true)
@@ -14,7 +14,7 @@ pub fn show_diagnostics_overlay(ctx: &egui::Context, state: &EditorState) {
             fill: egui::Color32::TRANSPARENT,
             ..Default::default()
         })
-        .show(ctx, |ui| {
+        .show(ui, |ui| {
             ui.label(&state.diagnostics_overlay.content);
         });
 }

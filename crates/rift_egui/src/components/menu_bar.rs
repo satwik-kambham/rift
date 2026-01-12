@@ -4,8 +4,8 @@ use rift_core::{
     state::EditorState,
 };
 
-pub fn show_menu_bar(ctx: &egui::Context, state: &mut EditorState) {
-    egui::TopBottomPanel::top("menu_bar")
+pub fn show_menu_bar(ui: &mut egui::Ui, state: &mut EditorState) {
+    egui::Panel::top("menu_bar")
         .resizable(false)
         .show_separator_line(true)
         .frame(egui::Frame {
@@ -13,7 +13,7 @@ pub fn show_menu_bar(ctx: &egui::Context, state: &mut EditorState) {
             inner_margin: egui::Margin::same(4),
             ..Default::default()
         })
-        .show(ctx, |ui| {
+        .show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Save").clicked() {

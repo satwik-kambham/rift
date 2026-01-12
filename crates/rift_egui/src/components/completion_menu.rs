@@ -25,7 +25,7 @@ impl CompletionMenuWidget {
     pub fn show(
         &self,
         position: CompletionMenuPosition,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         state: &mut EditorState,
     ) -> bool {
         if state.completion_menu.active {
@@ -53,7 +53,7 @@ impl CompletionMenuWidget {
                 .collapsible(false)
                 .title_bar(false)
                 .auto_sized()
-                .show(ctx, |ui| {
+                .show(ui, |ui| {
                     for (idx, item) in state
                         .completion_menu
                         .items

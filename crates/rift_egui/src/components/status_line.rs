@@ -1,11 +1,11 @@
 use egui::{FontId, RichText};
 use rift_core::state::{EditorState, Mode};
 
-pub fn show_status_line(ctx: &egui::Context, state: &mut EditorState) -> (f32, f32) {
+pub fn show_status_line(ui: &mut egui::Ui, state: &mut EditorState) -> (f32, f32) {
     let mut char_width = 0.0;
     let mut char_height = 0.0;
 
-    egui::TopBottomPanel::bottom("status_line")
+    egui::Panel::bottom("status_line")
         .resizable(false)
         .show_separator_line(false)
         .frame(egui::Frame {
@@ -13,7 +13,7 @@ pub fn show_status_line(ctx: &egui::Context, state: &mut EditorState) -> (f32, f
             inner_margin: egui::Margin::symmetric(8, 8),
             ..Default::default()
         })
-        .show(ctx, |ui| {
+        .show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 let label_response = ui.label(
                     RichText::new("x")

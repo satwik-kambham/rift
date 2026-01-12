@@ -14,8 +14,8 @@ fn main() -> eframe::Result {
     let mut app = app::App::new();
 
     let native_options = eframe::NativeOptions::default();
-    let run_result = eframe::run_simple_native("Rift", native_options, move |ctx, _frame| {
-        app.draw(ctx);
+    let run_result = eframe::run_ui_native("Rift", native_options, move |ui, _frame| {
+        app.draw(ui);
     });
 
     tracing::info!("Rift session exiting (egui)");
