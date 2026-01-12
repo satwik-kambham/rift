@@ -2,11 +2,11 @@ use tokio::sync::mpsc::Sender;
 
 use crate::state::EditorState;
 
-use super::{AsyncError, AsyncResult};
+use super::{AsyncError, AsyncPayload, AsyncResult};
 
 pub fn get_request(
     url: String,
-    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
+    callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
@@ -42,14 +42,20 @@ pub fn get_request(
         }
         .await;
 
-        sender.send(AsyncResult { result, callback }).await.unwrap();
+        sender
+            .send(AsyncResult {
+                result: result.map(AsyncPayload::Text),
+                callback,
+            })
+            .await
+            .unwrap();
     });
 }
 
 pub fn post_request(
     url: String,
     body: String,
-    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
+    callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
@@ -87,7 +93,13 @@ pub fn post_request(
             }
             .await;
 
-        sender.send(AsyncResult { result, callback }).await.unwrap();
+        sender
+            .send(AsyncResult {
+                result: result.map(AsyncPayload::Text),
+                callback,
+            })
+            .await
+            .unwrap();
     });
 }
 
@@ -95,7 +107,7 @@ pub fn post_request_json_body_with_bearer_auth(
     url: String,
     body: serde_json::Value,
     bearer_auth_token: String,
-    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
+    callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
@@ -135,6 +147,58 @@ pub fn post_request_json_body_with_bearer_auth(
             Ok(content)
         }
         .await;
+
+        sender
+            .send(AsyncResult {
+                result: result.map(AsyncPayload::Text),
+                callback,
+            })
+            .await
+            .unwrap();
+    });
+}
+
+pub fn post_request_json_body_bytes(
+    url: String,
+    body: serde_json::Value,
+    callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
+    rt: &tokio::runtime::Runtime,
+    sender: Sender<AsyncResult>,
+) {
+    rt.spawn(async move {
+        let client = reqwest::Client::new();
+        let url_for_err = url.clone();
+        let result =
+            async {
+                let response = client.post(&url).json(&body).send().await.map_err(|err| {
+                    AsyncError::Network {
+                        url: url_for_err.clone(),
+                        method: "POST",
+                        status: None,
+                        message: err.to_string(),
+                    }
+                })?;
+                let status = response.status();
+                let content = response.bytes().await.map_err(|err| AsyncError::Network {
+                    url: url_for_err.clone(),
+                    method: "POST",
+                    status: Some(status.as_u16()),
+                    message: err.to_string(),
+                })?;
+
+                if !status.is_success() {
+                    let message = String::from_utf8_lossy(&content).to_string();
+                    return Err(AsyncError::Network {
+                        url: url_for_err,
+                        method: "POST",
+                        status: Some(status.as_u16()),
+                        message,
+                    });
+                }
+
+                Ok(AsyncPayload::Bytes(content.to_vec()))
+            }
+            .await;
 
         sender.send(AsyncResult { result, callback }).await.unwrap();
     });

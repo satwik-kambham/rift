@@ -13,11 +13,11 @@ use cpal::{
     SampleFormat, Stream, StreamConfig,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
-use rodio::OutputStreamBuilder;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    concurrent::{AsyncError, AsyncResult},
+    concurrent::web_api,
+    concurrent::{AsyncError, AsyncPayload, AsyncResult},
     state::EditorState,
 };
 
@@ -149,9 +149,9 @@ pub fn start_transcription(
     let device = match device_id {
         Some(id) => find_input_device_by_id(&host, &id)?,
         None => {
-            let device = host
-                .default_input_device()
-                .ok_or_else(|| AudioError::Device("No default input device available".to_string()))?;
+            let device = host.default_input_device().ok_or_else(|| {
+                AudioError::Device("No default input device available".to_string())
+            })?;
             let name = match device.description() {
                 Ok(description) => description.name().to_string(),
                 Err(err) => {
@@ -179,10 +179,8 @@ pub fn start_transcription(
 
     let path = build_temp_path();
     let file = File::create(&path).map_err(|err| AudioError::Io(err.to_string()))?;
-    let writer =
-        hound::WavWriter::new(BufWriter::new(file), wav_spec).map_err(|err| {
-            AudioError::Wav(err.to_string())
-        })?;
+    let writer = hound::WavWriter::new(BufWriter::new(file), wav_spec)
+        .map_err(|err| AudioError::Wav(err.to_string()))?;
     let writer = Arc::new(Mutex::new(Some(writer)));
 
     let err_fn = |err| {
@@ -256,13 +254,13 @@ fn write_input_data_f32(
     writer: &Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>,
 ) {
     if let Ok(mut guard) = writer.try_lock()
-        && let Some(writer) = guard.as_mut() {
-            for &sample in data {
-                let sample = (sample * i16::MAX as f32)
-                    .clamp(i16::MIN as f32, i16::MAX as f32) as i16;
-                let _ = writer.write_sample(sample);
-            }
+        && let Some(writer) = guard.as_mut()
+    {
+        for &sample in data {
+            let sample = (sample * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+            let _ = writer.write_sample(sample);
         }
+    }
 }
 
 fn write_input_data_i16(
@@ -270,11 +268,12 @@ fn write_input_data_i16(
     writer: &Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>,
 ) {
     if let Ok(mut guard) = writer.try_lock()
-        && let Some(writer) = guard.as_mut() {
-            for &sample in data {
-                let _ = writer.write_sample(sample);
-            }
+        && let Some(writer) = guard.as_mut()
+    {
+        for &sample in data {
+            let _ = writer.write_sample(sample);
         }
+    }
 }
 
 fn write_input_data_u16(
@@ -282,12 +281,13 @@ fn write_input_data_u16(
     writer: &Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>,
 ) {
     if let Ok(mut guard) = writer.try_lock()
-        && let Some(writer) = guard.as_mut() {
-            for &sample in data {
-                let sample = sample as i32 - 32_768;
-                let _ = writer.write_sample(sample as i16);
-            }
+        && let Some(writer) = guard.as_mut()
+    {
+        for &sample in data {
+            let sample = sample as i32 - 32_768;
+            let _ = writer.write_sample(sample as i16);
         }
+    }
 }
 
 fn build_temp_path() -> PathBuf {
@@ -309,14 +309,12 @@ fn cleanup_temp_file(path: &PathBuf) {
     }
 }
 
-fn find_input_device_by_id(
-    host: &cpal::Host,
-    device_id: &str,
-) -> Result<cpal::Device, AudioError> {
+fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<cpal::Device, AudioError> {
     if let Ok(parsed_id) = device_id.parse::<cpal::DeviceId>()
-        && let Some(device) = host.device_by_id(&parsed_id) {
-            return Ok(device);
-        }
+        && let Some(device) = host.device_by_id(&parsed_id)
+    {
+        return Ok(device);
+    }
 
     let devices = host
         .input_devices()
@@ -424,7 +422,7 @@ fn send_transcription_result(
     sender: Sender<AsyncResult>,
 ) {
     let async_result = match result {
-        Ok(text) => Ok(text),
+        Ok(text) => Ok(AsyncPayload::Text(text)),
         Err(AudioError::Network(message)) => Err(AsyncError::Network {
             url: "http://localhost:8000/stt".to_string(),
             method: "POST",
@@ -449,10 +447,7 @@ fn send_transcription_result(
     });
 }
 
-fn transcription_async_callback(
-    result: Result<String, AsyncError>,
-    state: &mut EditorState,
-) {
+fn transcription_async_callback(result: Result<AsyncPayload, AsyncError>, state: &mut EditorState) {
     let callback = match state.transcription_handle.as_ref() {
         Some(handle) => handle.callback,
         None => {
@@ -460,7 +455,13 @@ fn transcription_async_callback(
             return;
         }
     };
-    let audio_result = result.map_err(map_async_error);
+    let audio_result = match result {
+        Ok(AsyncPayload::Text(text)) => Ok(text),
+        Ok(AsyncPayload::Bytes(_)) => Err(AudioError::Io(
+            "Unexpected binary response for transcription".to_string(),
+        )),
+        Err(err) => Err(map_async_error(err)),
+    };
     callback(audio_result, state);
     state.transcription_handle = None;
 }
@@ -499,63 +500,49 @@ fn map_async_error(err: AsyncError) -> AudioError {
     }
 }
 
-pub fn start_tts(text: String, rt: &tokio::runtime::Runtime) {
+pub fn start_tts(text: String, state: &mut EditorState) {
     if text.trim().is_empty() {
         tracing::warn!("TTS requested with empty text");
         return;
     }
 
-    let rt_handle = rt.handle().clone();
-    rt_handle.spawn(async move {
-        match fetch_tts_audio(text).await {
-            Ok(bytes) => {
-                let _ = std::thread::spawn(move || {
-                    if let Err(err) = play_tts_audio(bytes) {
-                        tracing::error!(%err, "TTS playback failed");
-                    }
-                });
-            }
-            Err(err) => {
-                tracing::error!(%err, "TTS request failed");
-            }
+    let body = serde_json::json!({ "text": text });
+    web_api::post_request_json_body_bytes(
+        "http://localhost:8000/tts".to_string(),
+        body,
+        tts_async_callback,
+        &state.rt,
+        state.async_handle.sender.clone(),
+    );
+}
+
+fn tts_async_callback(result: Result<AsyncPayload, AsyncError>, state: &mut EditorState) {
+    let bytes = match result {
+        Ok(AsyncPayload::Bytes(bytes)) => bytes,
+        Ok(AsyncPayload::Text(_)) => {
+            tracing::warn!("Unexpected text response for TTS audio");
+            return;
         }
-    });
-}
+        Err(err) => {
+            let audio_err = map_async_error(err);
+            tracing::error!(%audio_err, "TTS request failed");
+            return;
+        }
+    };
 
-async fn fetch_tts_audio(text: String) -> Result<Vec<u8>, AudioError> {
-    const TTS_URL: &str = "http://localhost:8000/tts";
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(TTS_URL)
-        .json(&serde_json::json!({ "text": text }))
-        .send()
-        .await
-        .map_err(|err| AudioError::Network(err.to_string()))?;
-
-    let status = response.status();
-    let body = response
-        .bytes()
-        .await
-        .map_err(|err| AudioError::Network(err.to_string()))?;
-
-    if !status.is_success() {
-        let message = String::from_utf8_lossy(&body);
-        return Err(AudioError::Network(format!(
-            "POST {TTS_URL} failed with status {}: {message}",
-            status.as_u16()
-        )));
+    if let Err(err) = play_tts_audio(bytes, state) {
+        tracing::error!(%err, "TTS playback failed");
     }
-
-    Ok(body.to_vec())
 }
 
-fn play_tts_audio(bytes: Vec<u8>) -> Result<(), AudioError> {
-    let stream = OutputStreamBuilder::open_default_stream()
-        .map_err(|err| AudioError::Device(err.to_string()))?;
+fn play_tts_audio(bytes: Vec<u8>, state: &EditorState) -> Result<(), AudioError> {
+    let stream = state
+        .tts_output_stream
+        .as_ref()
+        .ok_or_else(|| AudioError::Device("TTS output stream is not available".to_string()))?;
     let reader = BufReader::new(Cursor::new(bytes));
-    let sink = rodio::play(stream.mixer(), reader)
-        .map_err(|err| AudioError::Io(err.to_string()))?;
-    sink.sleep_until_end();
+    let sink =
+        rodio::play(stream.mixer(), reader).map_err(|err| AudioError::Io(err.to_string()))?;
+    sink.detach();
     Ok(())
 }

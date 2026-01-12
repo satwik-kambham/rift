@@ -4,7 +4,7 @@ use tokio::{io::AsyncWriteExt, process::Command, sync::mpsc::Sender};
 
 use crate::state::EditorState;
 
-use super::{AsyncError, AsyncResult};
+use super::{AsyncError, AsyncPayload, AsyncResult};
 
 #[derive(Debug)]
 pub struct ProgramArgs {
@@ -14,7 +14,7 @@ pub struct ProgramArgs {
 
 pub fn run_command(
     program_args: ProgramArgs,
-    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
+    callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
     current_dir: String,
@@ -87,13 +87,19 @@ pub fn run_command(
         }
         .await;
 
-        sender.send(AsyncResult { result, callback }).await.unwrap();
+        sender
+            .send(AsyncResult {
+                result: result.map(AsyncPayload::Text),
+                callback,
+            })
+            .await
+            .unwrap();
     });
 }
 
 pub fn run_piped_commands(
     program_args: Vec<ProgramArgs>,
-    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
+    callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
     current_dir: String,
@@ -268,6 +274,12 @@ pub fn run_piped_commands(
                 })
             });
 
-        sender.send(AsyncResult { result, callback }).await.unwrap();
+        sender
+            .send(AsyncResult {
+                result: result.map(AsyncPayload::Text),
+                callback,
+            })
+            .await
+            .unwrap();
     });
 }

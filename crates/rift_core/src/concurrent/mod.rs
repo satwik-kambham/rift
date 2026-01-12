@@ -25,26 +25,32 @@ pub enum AsyncError {
     },
 }
 
+#[derive(Debug)]
+pub enum AsyncPayload {
+    Text(String),
+    Bytes(Vec<u8>),
+}
+
 pub struct AsyncHandle {
     pub sender: Sender<AsyncResult>,
     pub receiver: Receiver<AsyncResult>,
 }
 
 pub struct AsyncResult {
-    pub result: Result<String, AsyncError>,
-    pub callback: fn(Result<String, AsyncError>, state: &mut EditorState),
+    pub result: Result<AsyncPayload, AsyncError>,
+    pub callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
 }
 
 pub fn simple_callback(
     data: String,
-    callback: fn(Result<String, AsyncError>, state: &mut EditorState),
+    callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
     rt: &tokio::runtime::Runtime,
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {
         sender
             .send(AsyncResult {
-                result: Ok(data),
+                result: Ok(AsyncPayload::Text(data)),
                 callback,
             })
             .await

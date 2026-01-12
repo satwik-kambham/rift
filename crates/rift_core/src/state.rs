@@ -7,6 +7,7 @@ use std::{
 use clap::Parser;
 use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
+use rodio::OutputStreamBuilder;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -63,6 +64,7 @@ pub struct EditorState {
     pub file_watcher: Option<RecommendedWatcher>,
     pub lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
     pub transcription_handle: Option<audio::TranscriptionHandle>,
+    pub tts_output_stream: Option<rodio::OutputStream>,
 
     // LSP
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
@@ -127,6 +129,17 @@ impl EditorState {
 
         let rsl_sender = start_rsl_interpreter(initial_folder_str.clone(), rpc_client_transport);
 
+        let tts_output_stream = match OutputStreamBuilder::open_default_stream() {
+            Ok(mut stream) => {
+                stream.log_on_drop(false);
+                Some(stream)
+            }
+            Err(err) => {
+                tracing::warn!(%err, "Failed to initialize TTS output stream");
+                None
+            }
+        };
+
         Self {
             quit: false,
             rt,
@@ -165,6 +178,7 @@ impl EditorState {
             lsp_handles: HashMap::new(),
             init_rsl_complete: false,
             transcription_handle: None,
+            tts_output_stream,
         }
     }
 

@@ -271,6 +271,8 @@ impl Default for KeybindHandler {
                 "paste-from-clipboard nor s-p",
                 "set-search-query-from-selection-or-prompt nor /",
                 "find-next-with-query nor n",
+                "insert-transcription nor t i",
+                "stop-transcription nor t s",
             ],
         )
     }

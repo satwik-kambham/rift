@@ -11,7 +11,10 @@ use crate::{
         instance::{Cursor, Selection},
         rope_buffer::RopeBuffer,
     },
-    concurrent::cli::{ProgramArgs, run_command},
+    concurrent::{
+        AsyncPayload,
+        cli::{ProgramArgs, run_command},
+    },
     io::file_io,
     lsp::{client::LSPClientHandle, types::DiagnosticSeverity},
     preferences::Preferences,
@@ -174,7 +177,7 @@ pub enum Action {
     #[strum(disabled)]
     StartTranscription(audio::TranscriptionCallback),
     StopTranscription,
-    TestTranscription,
+    InsertTranscription,
 }
 
 pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String> {
@@ -826,8 +829,9 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                             buffer.get_selection(&instance.selection),
                         ],
                     },
-                    |result, _state| {
-                        if let Err(err) = result {
+                    |result, _state| match result {
+                        Ok(_) => {}
+                        Err(err) => {
                             warn!(?err, "Failed to copy selection via wl-copy");
                         }
                     },
@@ -862,7 +866,11 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                     },
                     |result, state| {
                         let result = match result {
-                            Ok(result) => result,
+                            Ok(AsyncPayload::Text(result)) => result,
+                            Ok(AsyncPayload::Bytes(_)) => {
+                                warn!("Unexpected binary clipboard data from wl-paste");
+                                return;
+                            }
                             Err(err) => {
                                 warn!(?err, "Failed to read clipboard via wl-paste");
                                 return;
@@ -1037,7 +1045,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             buffer.input_hook = Some(function_id);
         }
         Action::Tts(text) => {
-            audio::start_tts(text, &state.rt);
+            audio::start_tts(text, state);
         }
         Action::StartTranscription(callback) => {
             if let Some(handle) = state.transcription_handle.as_mut() {
@@ -1065,7 +1073,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 handle.stop();
             }
         }
-        Action::TestTranscription => {
+        Action::InsertTranscription => {
             perform_action(Action::StartTranscription(insert_transcription), state);
         }
     };
