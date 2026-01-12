@@ -42,11 +42,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Disable local cargo config for Linux
+        if: runner.os == 'Linux'
+        run: |
+          if [ -f .cargo/config.toml ]; then mv .cargo/config.toml .cargo/config.toml.ci.bak; fi
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt update
-          sudo apt install -y build-essential pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libfontconfig-dev
+          sudo apt install -y build-essential pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libfontconfig-dev libasound2-dev
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: ${{ matrix.bin }}

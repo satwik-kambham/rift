@@ -3888,7 +3888,7 @@ dependencies = [
 
 [[package]]
 name = "rift_core"
-version = "1.0.21"
+version = "1.0.22"
 dependencies = [
  "anyhow",
  "cc",
@@ -3932,7 +3932,7 @@ dependencies = [
 
 [[package]]
 name = "rift_egui"
-version = "1.0.21"
+version = "1.0.22"
 dependencies = [
  "anyhow",
  "eframe",
@@ -3947,7 +3947,7 @@ dependencies = [
 
 [[package]]
 name = "rift_rpc"
-version = "1.0.21"
+version = "1.0.22"
 dependencies = [
  "futures",
  "tarpc",
@@ -3956,7 +3956,7 @@ dependencies = [
 
 [[package]]
 name = "rift_tui"
-version = "1.0.21"
+version = "1.0.22"
 dependencies = [
  "anyhow",
  "ratatui",
@@ -4010,7 +4010,7 @@ checksum = "3cd14fd5e3b777a7422cca79358c57a8f6e3a703d9ac187448d0daf220c2407f"
 
 [[package]]
 name = "rsl"
-version = "1.0.21"
+version = "1.0.22"
 dependencies = [
  "anyhow",
  "clap",
