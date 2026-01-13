@@ -268,8 +268,17 @@ impl App {
                         .display_name
                         .clone()
                         .unwrap_or(self.state.buffer_idx.unwrap().to_string());
-                    let status = text::Line::from(vec![
-                        text::Span::styled(format!(" {:#?} ", self.state.mode), status_mode_style),
+                    let mut status_spans = vec![text::Span::styled(
+                        format!(" {:#?} ", self.state.mode),
+                        status_mode_style,
+                    )];
+                    if self.state.audio_recording {
+                        status_spans.push(text::Span::styled(
+                            " ⏺ REC ".to_string(),
+                            Style::default().fg(color_from_rgb(self.state.preferences.theme.error)),
+                        ));
+                    }
+                    status_spans.extend([
                         format!(" {} ", file_label).into(),
                         format!(
                             " {}:{} ",
@@ -285,6 +294,7 @@ impl App {
                         )
                         .into(),
                     ]);
+                    let status = text::Line::from(status_spans);
                     frame.render_widget(status, v_layout[1]);
                 }
 

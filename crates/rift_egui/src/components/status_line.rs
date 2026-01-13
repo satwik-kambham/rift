@@ -33,6 +33,12 @@ pub fn show_status_line(ui: &mut egui::Ui, state: &mut EditorState) -> (f32, f32
                             .color(state.preferences.theme.status_bar_insert_mode_fg),
                     ),
                 };
+                if state.audio_recording {
+                    ui.separator();
+                    ui.label(
+                        RichText::new("⏺ REC").color(state.preferences.theme.error),
+                    );
+                }
                 ui.separator();
                 if state.buffer_idx.is_some() {
                     let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());

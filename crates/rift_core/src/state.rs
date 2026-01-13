@@ -84,6 +84,7 @@ pub struct EditorState {
     pub completion_menu: CompletionMenu,
     pub signature_information: SignatureInformation,
     pub keybind_handler: KeybindHandler,
+    pub audio_recording: bool,
 }
 
 impl Default for EditorState {
@@ -179,6 +180,7 @@ impl EditorState {
             init_rsl_complete: false,
             transcription_handle: None,
             tts_output_stream,
+            audio_recording: false,
         }
     }
 

@@ -1051,6 +1051,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             if let Some(handle) = state.transcription_handle.as_mut() {
                 handle.stop();
                 warn!("Transcription already in progress");
+                state.audio_recording = false;
                 return None;
             }
 
@@ -1062,8 +1063,10 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             ) {
                 Ok(handle) => {
                     state.transcription_handle = Some(handle);
+                    state.audio_recording = true;
                 }
                 Err(err) => {
+                    state.audio_recording = false;
                     error!(%err, "Failed to start transcription");
                 }
             }
@@ -1072,6 +1075,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             if let Some(handle) = state.transcription_handle.as_mut() {
                 handle.stop();
             }
+            state.audio_recording = false;
         }
         Action::InsertTranscription => {
             perform_action(Action::StartTranscription(insert_transcription), state);

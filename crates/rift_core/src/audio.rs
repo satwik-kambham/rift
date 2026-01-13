@@ -464,6 +464,7 @@ fn transcription_async_callback(result: Result<AsyncPayload, AsyncError>, state:
     };
     callback(audio_result, state);
     state.transcription_handle = None;
+    state.audio_recording = false;
 }
 
 fn map_async_error(err: AsyncError) -> AudioError {
