@@ -49,6 +49,18 @@ impl App {
             terminal.draw(|frame| {
                 let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
                 // Layout
+                let gutter_width = if show_gutter {
+                    if let Some(buffer_idx) = self.state.buffer_idx {
+                        let (buffer, _) = self.state.get_buffer_by_id(buffer_idx);
+                        let line_count = buffer.get_num_lines().max(1);
+                        let digits = line_count.to_string().len();
+                        ((digits + 2).max(3)) as u16
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                };
                 let v_layout = Layout::default()
                     .direction(Direction::Vertical)
                     .constraints([Constraint::Fill(1), Constraint::Length(1)])
@@ -56,7 +68,7 @@ impl App {
                 let h_layout = Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints(if show_gutter {
-                        vec![Constraint::Length(7), Constraint::Fill(1)]
+                        vec![Constraint::Length(gutter_width), Constraint::Fill(1)]
                     } else {
                         vec![Constraint::Length(0), Constraint::Fill(1)]
                     })
@@ -218,7 +230,12 @@ impl App {
                         lines.push(text::Line::from(line_widget));
                     }
 
-                    frame.render_widget(text::Text::from(lines), h_layout[1]);
+                    let editor_style = Style::new().bg(color_from_rgb(
+                        self.state.preferences.theme.editor_bg,
+                    ));
+                    let editor_text =
+                        widgets::Paragraph::new(text::Text::from(lines)).style(editor_style);
+                    frame.render_widget(editor_text, h_layout[1]);
 
                     if show_gutter {
                         // Render gutter
@@ -233,9 +250,16 @@ impl App {
                                 gutter_lines.push(
                                     text::Line::styled(
                                         gutter_value,
-                                        Style::new().fg(color_from_rgb(
-                                            self.state.preferences.theme.gutter_text_current_line,
-                                        )),
+                                        Style::new()
+                                            .fg(color_from_rgb(
+                                                self.state.preferences.theme.gutter_text_current_line,
+                                            ))
+                                            .bg(color_from_rgb(
+                                                self.state
+                                                    .preferences
+                                                    .theme
+                                                    .gutter_current_line_bg,
+                                            )),
                                     )
                                     .alignment(ratatui::layout::Alignment::Right),
                                 );
@@ -251,7 +275,14 @@ impl App {
                                 );
                             }
                         }
-                        frame.render_widget(text::Text::from(gutter_lines), h_layout[0]);
+                        let gutter_style = Style::new()
+                            .bg(color_from_rgb(self.state.preferences.theme.gutter_bg))
+                            .fg(color_from_rgb(self.state.preferences.theme.gutter_text));
+                        let gutter_text =
+                            widgets::Paragraph::new(text::Text::from(gutter_lines))
+                                .style(gutter_style)
+                                .alignment(ratatui::layout::Alignment::Right);
+                        frame.render_widget(gutter_text, h_layout[0]);
                     }
 
                     // Render status line
@@ -262,40 +293,65 @@ impl App {
                         } else {
                             self.state.preferences.theme.status_bar_insert_mode_fg
                         }));
+                    let status_bar_style = Style::new()
+                        .bg(color_from_rgb(self.state.preferences.theme.status_bar_bg))
+                        .fg(color_from_rgb(self.state.preferences.theme.ui_text));
                     let (buffer, instance) =
                         self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
                     let file_label = buffer
                         .display_name
                         .clone()
                         .unwrap_or(self.state.buffer_idx.unwrap().to_string());
-                    let mut status_spans = vec![text::Span::styled(
+                    let mut left_spans = vec![text::Span::styled(
                         format!(" {:#?} ", self.state.mode),
                         status_mode_style,
                     )];
                     if self.state.audio_recording {
-                        status_spans.push(text::Span::styled(
+                        left_spans.push(text::Span::styled(
                             " ⏺ REC ".to_string(),
                             Style::default().fg(color_from_rgb(self.state.preferences.theme.error)),
                         ));
                     }
-                    status_spans.extend([
-                        format!(" {} ", file_label).into(),
-                        format!(
-                            " {}:{} ",
-                            instance.cursor.row + 1,
-                            instance.cursor.column + 1,
-                        )
-                        .into(),
-                        format!(" {} ", if buffer.modified { "U" } else { "" },).into(),
-                        format!(" {} ", self.state.keybind_handler.running_sequence).into(),
-                        format!(
-                            " {} ",
-                            self.state.log_messages.last().unwrap_or(&String::new())
-                        )
-                        .into(),
-                    ]);
-                    let status = text::Line::from(status_spans);
-                    frame.render_widget(status, v_layout[1]);
+                    let left_file = format!(" {} ", file_label);
+                    left_spans.push(left_file.into());
+
+                    let cursor_label = format!(
+                        " {}:{} ",
+                        instance.cursor.row + 1,
+                        instance.cursor.column + 1,
+                    );
+                    let modified_label = format!(" {} ", if buffer.modified { "U" } else { "" });
+                    let keybind_label = format!(" {} ", self.state.keybind_handler.running_sequence);
+                    let log_label = format!(
+                        " {} ",
+                        self.state.log_messages.last().unwrap_or(&String::new())
+                    );
+                    let right_len = cursor_label.chars().count()
+                        + modified_label.chars().count()
+                        + keybind_label.chars().count()
+                        + log_label.chars().count();
+                    let status_area_width = v_layout[1].width as usize;
+                    let max_right = status_area_width.saturating_sub(10).max(1);
+                    let right_width = right_len.min(max_right).min(status_area_width) as u16;
+                    let status_layout = Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints([
+                            Constraint::Min(1),
+                            Constraint::Length(right_width),
+                        ])
+                        .split(v_layout[1]);
+                    let left_status = widgets::Paragraph::new(text::Line::from(left_spans))
+                        .style(status_bar_style);
+                    let right_status = widgets::Paragraph::new(text::Line::from(vec![
+                        cursor_label.into(),
+                        modified_label.into(),
+                        keybind_label.into(),
+                        log_label.into(),
+                    ]))
+                    .style(status_bar_style)
+                    .alignment(ratatui::layout::Alignment::Right);
+                    frame.render_widget(left_status, status_layout[0]);
+                    frame.render_widget(right_status, status_layout[1]);
                 }
 
                 // Render diagnostics overlay

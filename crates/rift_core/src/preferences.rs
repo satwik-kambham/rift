@@ -54,7 +54,7 @@ impl Default for Preferences {
         };
 
         Self {
-            theme: Theme::kanagawa(),
+            theme: Theme::catppuccin_kanagawa(),
             line_ending,
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),
@@ -105,6 +105,7 @@ pub struct Theme {
     pub gutter_bg: Color,
     pub gutter_text: Color,
     pub gutter_text_current_line: Color,
+    pub gutter_current_line_bg: Color,
     pub modal_bg: Color,
     pub modal_text: Color,
     pub modal_active: Color,
@@ -148,6 +149,7 @@ impl Theme {
             gutter_bg: themes::catppuccin_mocha::BASE,
             gutter_text: themes::catppuccin_mocha::SUBTEXT0,
             gutter_text_current_line: themes::catppuccin_mocha::MAUVE,
+            gutter_current_line_bg: themes::catppuccin_mocha::SURFACE0,
             highlight_none: themes::catppuccin_mocha::TEXT,
             highlight_white: themes::catppuccin_mocha::TEXT,
             highlight_red: themes::catppuccin_mocha::RED,
@@ -190,6 +192,7 @@ impl Theme {
             gutter_bg: themes::onedark::SYNTAX_BG,
             gutter_text: themes::onedark::SYNTAX_GUTTER,
             gutter_text_current_line: themes::onedark::MONO1,
+            gutter_current_line_bg: themes::onedark::UI_BG,
             highlight_none: themes::onedark::MONO1,
             highlight_white: themes::onedark::MONO1,
             highlight_red: themes::onedark::RED1,
@@ -232,6 +235,7 @@ impl Theme {
             gutter_bg: themes::kanagawa::BLACK3,
             gutter_text: themes::kanagawa::GRAY2,
             gutter_text_current_line: themes::kanagawa::WHITE1,
+            gutter_current_line_bg: themes::kanagawa::BLACK1,
             highlight_none: themes::kanagawa::WHITE0,
             highlight_white: themes::kanagawa::WHITE0,
             highlight_red: themes::kanagawa::RED,
@@ -273,6 +277,7 @@ impl Theme {
             gutter_bg: themes::kanagawa::BLACK3,
             gutter_text: themes::catppuccin_mocha::SUBTEXT0,
             gutter_text_current_line: themes::catppuccin_mocha::MAUVE,
+            gutter_current_line_bg: themes::kanagawa::BLACK1,
             highlight_none: themes::catppuccin_mocha::TEXT,
             highlight_white: themes::catppuccin_mocha::TEXT,
             highlight_red: themes::catppuccin_mocha::RED,
