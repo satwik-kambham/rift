@@ -113,6 +113,7 @@ pub enum Action {
     RunSource(String),
     Select(Selection),
     SelectAndExtendCurrentLine,
+    SelectBuffer,
     SelectTillEndOfWord,
     ExtendSelectTillEndOfWord,
     SelectTillStartOfWord,
@@ -174,6 +175,7 @@ pub enum Action {
     RegisterBufferKeybind(u32, String, String),
     RegisterBufferInputHook(u32, String),
     Tts(String),
+    TtsBuffer,
     #[strum(disabled)]
     StartTranscription(audio::TranscriptionCallback),
     StopTranscription,
@@ -404,6 +406,20 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         Action::SelectAndExtendCurrentLine => {
             let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
             instance.selection = buffer.select_line(&instance.selection);
+            instance.cursor = instance.selection.cursor;
+            instance.column_level = instance.cursor.column;
+        }
+        Action::SelectBuffer => {
+            let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let end_row = buffer.get_num_lines().saturating_sub(1);
+            let end_column = buffer.get_line_length(end_row);
+            instance.selection = Selection {
+                mark: Cursor { row: 0, column: 0 },
+                cursor: Cursor {
+                    row: end_row,
+                    column: end_column,
+                },
+            };
             instance.cursor = instance.selection.cursor;
             instance.column_level = instance.cursor.column;
         }
@@ -1046,6 +1062,11 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         }
         Action::Tts(text) => {
             audio::start_tts(text, state);
+        }
+        Action::TtsBuffer => {
+            let (buffer, _instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+            let content = buffer.get_content("\n".to_string());
+            perform_action(Action::Tts(content), state);
         }
         Action::StartTranscription(callback) => {
             if let Some(handle) = state.transcription_handle.as_mut() {

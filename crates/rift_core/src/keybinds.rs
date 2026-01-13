@@ -246,6 +246,7 @@ impl Default for KeybindHandler {
                 "delete-selection nor d",
                 "delete-selection-and-enter-insert-mode nor c",
                 "select-and-extend-current-line nor x",
+                "select-buffer nor g a",
                 "select-till-end-of-word nor w",
                 "extend-select-till-end-of-word nor s-w",
                 "select-till-start-of-word nor b",
@@ -273,6 +274,7 @@ impl Default for KeybindHandler {
                 "find-next-with-query nor n",
                 "insert-transcription nor t i",
                 "stop-transcription nor t s",
+                "tts-buffer nor t t",
             ],
         )
     }

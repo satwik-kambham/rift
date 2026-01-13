@@ -35,9 +35,7 @@ pub fn show_status_line(ui: &mut egui::Ui, state: &mut EditorState) -> (f32, f32
                 };
                 if state.audio_recording {
                     ui.separator();
-                    ui.label(
-                        RichText::new("⏺ REC").color(state.preferences.theme.error),
-                    );
+                    ui.label(RichText::new("⏺ REC").color(state.preferences.theme.error));
                 }
                 ui.separator();
                 if state.buffer_idx.is_some() {

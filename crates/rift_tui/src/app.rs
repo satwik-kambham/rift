@@ -230,9 +230,8 @@ impl App {
                         lines.push(text::Line::from(line_widget));
                     }
 
-                    let editor_style = Style::new().bg(color_from_rgb(
-                        self.state.preferences.theme.editor_bg,
-                    ));
+                    let editor_style =
+                        Style::new().bg(color_from_rgb(self.state.preferences.theme.editor_bg));
                     let editor_text =
                         widgets::Paragraph::new(text::Text::from(lines)).style(editor_style);
                     frame.render_widget(editor_text, h_layout[1]);
@@ -252,13 +251,13 @@ impl App {
                                         gutter_value,
                                         Style::new()
                                             .fg(color_from_rgb(
-                                                self.state.preferences.theme.gutter_text_current_line,
-                                            ))
-                                            .bg(color_from_rgb(
                                                 self.state
                                                     .preferences
                                                     .theme
-                                                    .gutter_current_line_bg,
+                                                    .gutter_text_current_line,
+                                            ))
+                                            .bg(color_from_rgb(
+                                                self.state.preferences.theme.gutter_current_line_bg,
                                             )),
                                     )
                                     .alignment(ratatui::layout::Alignment::Right),
@@ -278,10 +277,9 @@ impl App {
                         let gutter_style = Style::new()
                             .bg(color_from_rgb(self.state.preferences.theme.gutter_bg))
                             .fg(color_from_rgb(self.state.preferences.theme.gutter_text));
-                        let gutter_text =
-                            widgets::Paragraph::new(text::Text::from(gutter_lines))
-                                .style(gutter_style)
-                                .alignment(ratatui::layout::Alignment::Right);
+                        let gutter_text = widgets::Paragraph::new(text::Text::from(gutter_lines))
+                            .style(gutter_style)
+                            .alignment(ratatui::layout::Alignment::Right);
                         frame.render_widget(gutter_text, h_layout[0]);
                     }
 
@@ -321,7 +319,8 @@ impl App {
                         instance.cursor.column + 1,
                     );
                     let modified_label = format!(" {} ", if buffer.modified { "U" } else { "" });
-                    let keybind_label = format!(" {} ", self.state.keybind_handler.running_sequence);
+                    let keybind_label =
+                        format!(" {} ", self.state.keybind_handler.running_sequence);
                     let log_label = format!(
                         " {} ",
                         self.state.log_messages.last().unwrap_or(&String::new())
@@ -335,10 +334,7 @@ impl App {
                     let right_width = right_len.min(max_right).min(status_area_width) as u16;
                     let status_layout = Layout::default()
                         .direction(Direction::Horizontal)
-                        .constraints([
-                            Constraint::Min(1),
-                            Constraint::Length(right_width),
-                        ])
+                        .constraints([Constraint::Min(1), Constraint::Length(right_width)])
                         .split(v_layout[1]);
                     let left_status = widgets::Paragraph::new(text::Line::from(left_spans))
                         .style(status_bar_style);
