@@ -26,6 +26,12 @@ Prebuilt executables: [Latest release](https://github.com/satwik-kambham/rift/re
 - LSP Integration
 - Extendable via the RSL scripting language
 - Agentic coding assistant
+- Voice control (optional; see Synapse API below)
+
+## Optional voice control
+
+Speech-to-text and text-to-speech rely on a web API running on port 8000.
+See the Synapse repo for setup and run instructions: https://github.com/satwik-kambham/synapse
 
 ## Documentation
 
