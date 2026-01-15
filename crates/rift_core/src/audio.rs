@@ -359,7 +359,7 @@ fn transcribe_wav_file_with_handle(
     rt_handle: tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) {
-    const STT_URL: &str = "http://localhost:8000/stt";
+    const STT_URL: &str = "http://127.0.0.1:8000/stt";
     let sender_for_result = sender.clone();
     let handle_for_result = rt_handle.clone();
     rt_handle.spawn(async move {
@@ -424,7 +424,7 @@ fn send_transcription_result(
     let async_result = match result {
         Ok(text) => Ok(AsyncPayload::Text(text)),
         Err(AudioError::Network(message)) => Err(AsyncError::Network {
-            url: "http://localhost:8000/stt".to_string(),
+            url: "http://127.0.0.1:8000/stt".to_string(),
             method: "POST",
             status: None,
             message,
@@ -509,7 +509,7 @@ pub fn start_tts(text: String, state: &mut EditorState) {
 
     let body = serde_json::json!({ "text": text });
     web_api::post_request_json_body_bytes(
-        "http://localhost:8000/tts".to_string(),
+        "http://127.0.0.1:8000/tts".to_string(),
         body,
         tts_async_callback,
         &state.rt,
