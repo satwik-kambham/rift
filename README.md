@@ -8,7 +8,7 @@ Extensible modal code editor inspired by emacs, neovim and helix.
 
 Prebuilt executables: [Latest release](https://github.com/satwik-kambham/rift/releases/latest)
 
-### Run with Nix
+### Run with Nix (Preferred)
 
 - GUI frontend:
   ```
