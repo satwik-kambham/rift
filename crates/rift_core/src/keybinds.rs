@@ -170,11 +170,7 @@ impl KeybindHandler {
                 return None;
             } else if matches!(mode, Mode::Insert) && key.is_ascii() && key.len() == 1 {
                 self.running_sequence = "".to_string();
-                if key.chars().all(|c| c.is_ascii_alphabetic()) {
-                    return Some(Action::InsertTextAtCursorAndTriggerCompletion(key));
-                } else {
-                    return Some(Action::InsertTextAtCursor(key));
-                }
+                return Some(Action::InsertTextAtCursorAndTriggerCompletion(key));
             }
         }
 

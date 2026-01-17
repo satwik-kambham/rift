@@ -1,7 +1,7 @@
 use std::{path, str::FromStr};
 
 use copypasta::ClipboardProvider;
-use serde_json::json;
+use serde_json::{Value, json};
 use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
 use tracing::{error, warn};
 
@@ -49,6 +49,12 @@ pub struct ReferenceEntry {
 
 fn rsl_string_literal(value: &str) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_string())
+}
+
+fn trigger_chars_match(trigger_chars: &[Value], text: &str) -> bool {
+    trigger_chars
+        .iter()
+        .any(|value| value.as_str() == Some(text))
 }
 
 pub fn open_info_modal_in_rsl(state: &mut EditorState, content: &str) {
@@ -238,9 +244,39 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             state.signature_information.content = String::new();
         }
         Action::InsertTextAtCursorAndTriggerCompletion(text) => {
-            perform_action(Action::InsertTextAtCursor(text), state);
-            if state.preferences.trigger_completion_on_type {
+            perform_action(Action::InsertTextAtCursor(text.clone()), state);
+
+            let buffer_idx = state.buffer_idx?;
+            let lsp_handle = state.get_lsp_handle_for_buffer(buffer_idx)?;
+
+            let (completion_triggers, signature_triggers) = {
+                let lsp_handle = lsp_handle.lock().unwrap();
+                let completion_triggers = lsp_handle.initialize_capabilities["completionProvider"]
+                    ["triggerCharacters"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
+                let signature_triggers = lsp_handle.initialize_capabilities
+                    ["signatureHelpProvider"]["triggerCharacters"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
+                (completion_triggers, signature_triggers)
+            };
+
+            let text_is_alpha = text
+                .chars()
+                .next()
+                .map(|ch| text.len() == 1 && ch.is_ascii_alphabetic())
+                .unwrap_or(false);
+            let completion_triggered =
+                text_is_alpha || trigger_chars_match(&completion_triggers, &text);
+            let signature_triggered = trigger_chars_match(&signature_triggers, &text);
+
+            if completion_triggered {
                 perform_action(Action::LSPCompletion, state);
+            }
+            if signature_triggered {
                 perform_action(Action::LSPSignatureHelp, state);
             }
         }
