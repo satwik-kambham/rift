@@ -311,6 +311,7 @@ impl EditorState {
             Language::Rust => Some(("rust-analyzer", &[])),
             Language::Python => Some(("uv", &["run", "pylsp"])),
             Language::Dart => Some(("dart", &["language-server", "--client-id=rift"])),
+            Language::Zig => Some(("zls", &[])),
             // Language::HTML => Some(("vscode-html-language-server", &["--stdio"])),
             // Language::CSS => Some(("vscode-css-language-server", &["--stdio"])),
             // Language::JSON => Some(("vscode-json-language-server", &["--stdio"])),
@@ -376,6 +377,7 @@ impl EditorState {
                 Language::C => "c",
                 Language::CPP => "cpp",
                 Language::Vue => "vue",
+                Language::Zig => "zig",
                 _ => "",
             };
 

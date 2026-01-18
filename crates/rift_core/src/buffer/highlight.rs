@@ -38,6 +38,7 @@ pub fn detect_language(file_path: &Option<String>) -> Language {
                 "cpp" => Language::CPP,
                 "hpp" => Language::CPP,
                 "vue" => Language::Vue,
+                "zig" => Language::Zig,
                 _ => Language::PlainText,
             },
             None => Language::PlainText,
@@ -143,6 +144,13 @@ pub fn build_highlight_params(language: Language) -> Option<TreeSitterParams> {
             "dart",
             tree_sitter_dart::HIGHLIGHTS_QUERY,
             "",
+            "",
+        ),
+        Language::Zig => new_highlight_config(
+            tree_sitter_zig::LANGUAGE,
+            "zig",
+            tree_sitter_zig::HIGHLIGHTS_QUERY,
+            tree_sitter_zig::INJECTIONS_QUERY,
             "",
         ),
         Language::HTML => new_highlight_config(

@@ -96,6 +96,7 @@ pub enum Language {
     JSON,
     C,
     CPP,
+    Zig,
 }
 
 /// Types of highlighted tokens

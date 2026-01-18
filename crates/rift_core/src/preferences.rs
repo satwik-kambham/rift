@@ -76,6 +76,7 @@ impl Preferences {
         match language {
             Language::RSL | Language::Python | Language::TOML | Language::Nix => "# ",
             Language::Rust
+            | Language::Zig
             | Language::Dart
             | Language::Javascript
             | Language::Typescript
