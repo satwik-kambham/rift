@@ -147,8 +147,11 @@ pub fn read_file(arguments: Vec<Primitive>) -> Primitive {
 
 pub fn get_env_var(arguments: Vec<Primitive>) -> Primitive {
     let key = args!(arguments; key: String);
-    let value = std::env::var(key).unwrap();
-    Primitive::String(value)
+    match std::env::var(key) {
+        Ok(value) => Primitive::String(value),
+        Err(std::env::VarError::NotPresent) => Primitive::Null,
+        Err(err) => Primitive::Error(format!("reading env var failed: {}", err)),
+    }
 }
 
 pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {

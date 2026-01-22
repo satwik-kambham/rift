@@ -69,14 +69,6 @@ print(tableGet(user, "name"))           # Rift
 print(tableKeys(user))                  # ["name", "active"]
 ```
 
-## Standard library highlights
-- I/O and OS: `print(...)`, `readFile(path)`, `getEnvVar(key)`, `runShellCommand(cmd, workspace_dir)`.
-- Data helpers: `toJson(value)`, `fromJson(json)`, `stringSplitLines(str)`.
-- Arrays: `createArray(...)`, `arrayLen`, `arrayGet`, `arraySet`, `arrayPushBack`, `arrayRemove`, `arrayPopBack`.
-- Tables: `createTable()`, `tableSet`, `tableGet`, `tableKeys`.
-- HTTP: `getRequest(url)`, `postRequest(url, body)`, `postRequestWithBearerToken(url, body, token)`.
-- Editor/agent helpers (used when embedded in Rift): `agentReadFile`, `agentWriteFile`, `agentReplace`.
-
 ## End-to-end sample
 
 ```rsl

@@ -362,9 +362,28 @@ fn agentSearchWorkspace(pattern) {
     return tableGet(results, "stdout")
 }
 
+fn getOpenRouterProvider() {
+    provider = createTable()
+    tableSet(provider, "url", "https://openrouter.ai/api/v1/chat/completions")
+    tableSet(provider, "api_key", getEnvVar("OPENROUTER_KEY"))
+    tableSet(provider, "model", "mistralai/devstral-small")
+    return provider
+}
+
+fn getLlamaCppProvider() {
+    provider = createTable()
+    tableSet(provider, "url", "http://127.0.0.1:8080/v1/chat/completions")
+    tableSet(provider, "api_key", null)
+    tableSet(provider, "model", "Granite-4.0-H-Tiny")
+    return provider
+}
+
+openRouterProvider = getOpenRouterProvider()
+llamaCppProvider = getLlamaCppProvider()
+
 llmChat = createTable()
 tableSet(llmChat, "id", -1)
-tableSet(llmChat, "model", "mistralai/devstral-small")
+tableSet(llmChat, "provider", llamaCppProvider)
 tableSet(llmChat, "history_scroll", 0)
 tableSet(llmChat, "history_page_size", 1)
 tableSet(llmChat, "input", "")
@@ -532,7 +551,10 @@ fn renderLLMChat() {
     tableSet(llmChat, "history_page_size", historyRows)
 
     historyBody = stringRenderViewport(historyContent, columns, historyRows, -1 * (llmChatHistoryScroll + 1))
-    status = "Model: " + tableGet(llmChat, "model") + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
+    provider = tableGet(llmChat, "provider")
+    modelName = "unknown"
+    if provider != null { modelName = tableGet(provider, "model") }
+    status = "Model: " + modelName + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
 
     content = "🤖 LLM Chat\n" + status + "\nenter: send | y/n: allow/deny tool | up/down: scroll\n"
     content = content + "╭─ History ─────────────\n"
@@ -547,10 +569,15 @@ fn renderLLMChat() {
 }
 
 fn requestChatCompletion() {
-    apiKey = getEnvVar("OPENROUTER_KEY")
-    
+    provider = tableGet(llmChat, "provider")
+    if provider == null { return null }
+
+    apiKey = tableGet(provider, "api_key")
+    modelName = tableGet(provider, "model")
+    url = tableGet(provider, "url")
+
     request = createTable()
-    tableSet(request, "model", tableGet(llmChat, "model"))
+    tableSet(request, "model", modelName)
     tableSet(request, "messages", tableGet(llmChat, "history"))
     tableSet(request, "tools", fromJson(toolDeclarations()))
     tableSet(request, "stream", false)
@@ -558,7 +585,10 @@ fn requestChatCompletion() {
     tableSet(request, "seed", 42)
 
     body = toJson(request)
-    response = postRequestWithBearerToken("https://openrouter.ai/api/v1/chat/completions", body, apiKey)
+    hasApiKey = apiKey != null and stringLen(apiKey) != 0
+    response = null
+    if hasApiKey { response = postRequestWithBearerToken(url, body, apiKey) }
+    if !hasApiKey { response = postRequest(url, body) }
     response = fromJson(response)
     message = tableGet(arrayGet(tableGet(response, "choices"), 0), "message")
     toolCalls = tableGet(message, "tool_calls")
