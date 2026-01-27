@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::RSL;
-use crate::environment::{Environment, VariableType};
+use crate::environment::{DeclarationType, Environment};
 use crate::errors::RuntimeError;
 use crate::expression;
 use crate::primitive::{FunctionDefinition, Primitive};
@@ -46,19 +46,22 @@ impl Statement for ExpressionStatement {
 pub struct AssignmentStatement {
     identifier: String,
     expression: Box<dyn expression::Expression>,
-    variable_type: VariableType,
+    declaration_type: DeclarationType,
+    span: Span,
 }
 
 impl AssignmentStatement {
     pub fn new(
         identifier: String,
         expression: Box<dyn expression::Expression>,
-        variable_type: VariableType,
+        declaration_type: DeclarationType,
+        span: Span,
     ) -> Self {
         Self {
             identifier,
             expression,
-            variable_type,
+            declaration_type,
+            span,
         }
     }
 }
@@ -71,18 +74,28 @@ impl Statement for AssignmentStatement {
     ) -> Result<StatementResult, RuntimeError> {
         let local_environment = environment.clone();
 
-        match self.variable_type {
-            VariableType::Default | VariableType::Export => {
+        match self.declaration_type {
+            DeclarationType::Assignment => {
+                if !local_environment.has_value(&self.identifier) {
+                    return Err(RuntimeError::new(
+                        format!(
+                            "Assignment to undefined variable '{}'; use let to define it first",
+                            self.identifier
+                        ),
+                        self.span.clone(),
+                    ));
+                }
                 local_environment.set_value_non_local(
                     self.identifier.clone(),
                     self.expression.execute(environment, rsl)?,
-                    self.variable_type,
+                    self.declaration_type,
                 );
             }
-            VariableType::Local => {
+            DeclarationType::Definition | DeclarationType::Export => {
                 local_environment.set_value_local(
                     self.identifier.clone(),
                     self.expression.execute(environment, rsl)?,
+                    self.declaration_type,
                 );
             }
         }

@@ -2,8 +2,10 @@ print("Hello from RSL package")
 
 export x = 5
 
+let z = 0
+
 fn export localTest() {
-    local y = 10
+    let y = 10
     z = 20
     print(y + 20)
 }

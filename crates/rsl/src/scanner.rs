@@ -160,7 +160,7 @@ impl Scanner {
                         "false" => TokenType::False,
                         "break" => TokenType::Break,
                         "return" => TokenType::Return,
-                        "local" => TokenType::Local,
+                        "let" => TokenType::Let,
                         "export" => TokenType::Export,
                         _ => TokenType::Identifier(identifier.to_string()),
                     };

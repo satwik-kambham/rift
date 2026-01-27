@@ -37,7 +37,7 @@ pub enum TokenType {
     Fn,
     Break,
     Return,
-    Local,
+    Let,
     Export,
 
     Hash,

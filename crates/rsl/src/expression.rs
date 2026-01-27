@@ -640,6 +640,7 @@ fn run_function_by_id(
                     .get(i)
                     .unwrap()
                     .execute(environment.clone(), rsl)?,
+                crate::environment::DeclarationType::Definition,
             );
         }
 

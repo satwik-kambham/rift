@@ -1,9 +1,10 @@
-use crate::environment::VariableType;
+use crate::environment::DeclarationType;
 use crate::errors::ParseError;
 use crate::expression;
 use crate::operator;
 use crate::primitive;
 use crate::statement;
+use crate::token::Span;
 use crate::token::Token;
 use crate::token::TokenType;
 
@@ -108,7 +109,7 @@ impl Parser {
         if consume_token!(self, TokenType::Return) {
             return self.return_statement();
         }
-        if matches!(self.peek().token_type, TokenType::Local | TokenType::Export) {
+        if matches!(self.peek().token_type, TokenType::Let | TokenType::Export) {
             return self.assignment_statement();
         }
         if matches!(self.peek().token_type, TokenType::Identifier(_))
@@ -149,20 +150,21 @@ impl Parser {
     }
 
     fn assignment_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
-        let variable_type = if consume_token!(self, TokenType::Local) {
-            VariableType::Local
+        let declaration_type = if consume_token!(self, TokenType::Let) {
+            DeclarationType::Definition
         } else if consume_token!(self, TokenType::Export) {
-            VariableType::Export
+            DeclarationType::Export
         } else {
-            VariableType::Default
+            DeclarationType::Assignment
         };
-        let identifier = self.expect_identifier()?;
+        let (identifier, identifier_span) = self.expect_identifier_with_span()?;
         expect_token!(self, TokenType::Equals, "=");
         let expression = self.expression()?;
         Ok(Box::new(statement::AssignmentStatement::new(
             identifier,
             expression,
-            variable_type,
+            declaration_type,
+            identifier_span,
         )))
     }
 
@@ -451,6 +453,21 @@ impl Parser {
                 let identifier = identifier.clone();
                 self.consume();
                 Ok(identifier)
+            }
+            other => Err(ParseError::new(
+                format!("expected identifier, found {:?}", other),
+                self.peek().span.clone(),
+            )),
+        }
+    }
+
+    fn expect_identifier_with_span(&mut self) -> Result<(String, Span), ParseError> {
+        match &self.peek().token_type {
+            TokenType::Identifier(identifier) => {
+                let identifier = identifier.clone();
+                let span = self.peek().span.clone();
+                self.consume();
+                Ok((identifier, span))
             }
             other => Err(ParseError::new(
                 format!("expected identifier, found {:?}", other),

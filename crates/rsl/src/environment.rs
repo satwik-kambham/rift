@@ -11,14 +11,14 @@ type NativeFunction = fn(Vec<Primitive>) -> Primitive;
 type NativeFunctionMap = HashMap<String, NativeFunction>;
 
 #[derive(Clone, Copy)]
-pub enum VariableType {
-    Default,
+pub enum DeclarationType {
+    Definition,
+    Assignment,
     Export,
-    Local,
 }
 
 pub struct Environment {
-    values: RefCell<HashMap<String, (Primitive, VariableType)>>,
+    values: RefCell<HashMap<String, (Primitive, DeclarationType)>>,
     functions: RefCell<HashMap<String, FunctionDefinition>>,
     native_functions: RefCell<NativeFunctionMap>,
     parent: Option<Rc<Environment>>,
@@ -49,42 +49,63 @@ impl Environment {
     pub fn get_exported_values(&self) -> Table {
         let mut exported_values = Table::new();
 
-        for (name, (value, variable_type)) in self.values.borrow().iter() {
-            if matches!(variable_type, VariableType::Export) {
+        for (name, (value, declaration_type)) in self.values.borrow().iter() {
+            if matches!(declaration_type, DeclarationType::Export) {
                 exported_values.set_value(name.clone(), value.clone());
             }
-        }
-
-        if let Some(parent) = &self.parent {
-            let parent_exports = parent.get_exported_values();
-            exported_values.merge(&parent_exports);
         }
 
         exported_values
     }
 
-    pub fn set_value_local(&self, name: String, value: Primitive) {
-        self.values
-            .borrow_mut()
-            .insert(name, (value, VariableType::Local));
+    pub fn has_value_local(&self, name: &str) -> bool {
+        self.values.borrow().contains_key(name)
     }
 
-    pub fn set_value_non_local(&self, name: String, value: Primitive, variable_type: VariableType) {
+    pub fn has_value(&self, name: &str) -> bool {
+        if self.has_value_local(name) {
+            return true;
+        }
+
+        if let Some(parent) = &self.parent {
+            return parent.has_value(name);
+        }
+
+        false
+    }
+
+    pub fn set_value_local(
+        &self,
+        name: String,
+        value: Primitive,
+        declaration_type: DeclarationType,
+    ) {
+        self.values
+            .borrow_mut()
+            .insert(name, (value, declaration_type));
+    }
+
+    pub fn set_value_non_local(
+        &self,
+        name: String,
+        value: Primitive,
+        declaration_type: DeclarationType,
+    ) {
         if self.values.borrow().contains_key(&name) {
             self.values
                 .borrow_mut()
-                .insert(name, (value, variable_type));
+                .insert(name, (value, declaration_type));
             return;
         }
 
         if let Some(parent) = &self.parent {
-            parent.set_value_non_local(name, value, variable_type);
+            parent.set_value_non_local(name, value, declaration_type);
             return;
         }
 
         self.values
             .borrow_mut()
-            .insert(name, (value, variable_type));
+            .insert(name, (value, declaration_type));
     }
 
     pub fn register_function(
@@ -104,9 +125,17 @@ impl Environment {
             .insert(function_id.clone(), function_definition);
 
         if export {
-            self.set_value_non_local(name, Primitive::Function(function_id), VariableType::Export);
+            self.set_value_local(
+                name,
+                Primitive::Function(function_id),
+                DeclarationType::Export,
+            );
         } else {
-            self.set_value_local(name, Primitive::Function(function_id));
+            self.set_value_local(
+                name,
+                Primitive::Function(function_id),
+                DeclarationType::Definition,
+            );
         }
     }
 
@@ -121,7 +150,11 @@ impl Environment {
             .borrow_mut()
             .insert(function_id.clone(), native_function);
 
-        self.set_value_local(name.to_string(), Primitive::Function(function_id));
+        self.set_value_local(
+            name.to_string(),
+            Primitive::Function(function_id),
+            DeclarationType::Definition,
+        );
     }
 
     pub fn get_function(&self, function_id: &str) -> Option<FunctionDefinition> {
