@@ -318,6 +318,8 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         Action::EnterInsertMode => {
             if matches!(state.mode, Mode::Normal) {
                 state.mode = Mode::Insert;
+                perform_action(Action::LSPCompletion, state);
+                perform_action(Action::LSPSignatureHelp, state);
             }
         }
         Action::QuitInsertMode => {
@@ -332,7 +334,6 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         }
         Action::AddNewLineBelowAndEnterInsertMode => {
             if matches!(state.mode, Mode::Normal) {
-                state.mode = Mode::Insert;
                 let (buffer, instance, lsp_handle) =
                     state.get_buffer_with_lsp_by_id_mut(state.buffer_idx.unwrap());
                 instance.cursor = instance.selection.cursor;
@@ -346,6 +347,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                     buffer.add_indentation(&instance.selection, indent_size, &lsp_handle);
                 instance.cursor = instance.selection.cursor;
                 instance.column_level = instance.cursor.column;
+                perform_action(Action::EnterInsertMode, state);
             }
         }
         Action::InsertAfterSelection => {}
