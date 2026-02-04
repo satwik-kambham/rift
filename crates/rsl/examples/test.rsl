@@ -94,5 +94,21 @@ print("Table name:", table["name"])
 let keys = tableKeys(table)
 print("Keys:", keys)
 
+fn addBase(self, x) {
+    return self["base"] + x
+}
+
+let methodTable = createTable()
+methodTable["base"] = 10
+methodTable["fun"] = addBase
+print("Method call:", methodTable.fun(5))
+
+let innerTable = createTable()
+innerTable["base"] = 7
+innerTable["fun"] = addBase
+let outerTable = createTable()
+outerTable["inner"] = innerTable
+print("Nested method call:", outerTable["inner"].fun(5))
+
 let testLib = import("lib.rsl")
 print(testLib)

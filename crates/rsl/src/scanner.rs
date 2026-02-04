@@ -48,6 +48,7 @@ impl Scanner {
             '%' => self.add_token(TokenType::Percent),
             ';' => self.add_token(TokenType::Semicolon),
             ',' => self.add_token(TokenType::Comma),
+            '.' => self.add_token(TokenType::Dot),
             '(' => self.add_token(TokenType::LeftParentheses),
             ')' => self.add_token(TokenType::RightParentheses),
             '[' => self.add_token(TokenType::LeftSquareBracket),
@@ -270,6 +271,24 @@ mod tests {
         let expected = vec![
             Token::new(TokenType::String("line1\nline2\nline3".into()), 0, 19, 1),
             Token::new(TokenType::EOF, 19, 19, 3),
+        ];
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn scans_dot_token() {
+        let mut scanner = Scanner::new("table.fun(1)".to_string());
+        let tokens = scanner.scan().unwrap();
+
+        let expected = vec![
+            Token::new(TokenType::Identifier("table".into()), 0, 5, 1),
+            Token::new(TokenType::Dot, 5, 6, 1),
+            Token::new(TokenType::Identifier("fun".into()), 6, 9, 1),
+            Token::new(TokenType::LeftParentheses, 9, 10, 1),
+            Token::new(TokenType::Number(1.0), 10, 11, 1),
+            Token::new(TokenType::RightParentheses, 11, 12, 1),
+            Token::new(TokenType::EOF, 12, 12, 1),
         ];
 
         assert_eq!(tokens, expected);

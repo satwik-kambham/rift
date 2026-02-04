@@ -19,6 +19,7 @@ pub enum TokenType {
     Equals,
     IsEqual,
     NotEqual,
+    Dot,
 
     Semicolon,
     Comma,

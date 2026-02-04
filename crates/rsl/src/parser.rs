@@ -387,16 +387,42 @@ impl Parser {
     fn postfix_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
         let mut expression = self.primary_expression()?;
 
-        while matches!(self.peek().token_type, TokenType::LeftSquareBracket) {
-            let span = self.peek().span.clone();
-            self.consume();
-            let index_expression = self.expression()?;
-            expect_token!(self, TokenType::RightSquareBracket, "]");
-            expression = Box::new(expression::IndexExpression::new(
-                expression,
-                index_expression,
-                span,
-            ));
+        loop {
+            if matches!(self.peek().token_type, TokenType::LeftSquareBracket) {
+                let span = self.peek().span.clone();
+                self.consume();
+                let index_expression = self.expression()?;
+                expect_token!(self, TokenType::RightSquareBracket, "]");
+                expression = Box::new(expression::IndexExpression::new(
+                    expression,
+                    index_expression,
+                    span,
+                ));
+                continue;
+            }
+
+            if matches!(self.peek().token_type, TokenType::Dot) {
+                let span = self.peek().span.clone();
+                self.consume();
+                let key = self.expect_identifier()?;
+                expect_token!(self, TokenType::LeftParentheses, "(");
+                let mut parameters = vec![];
+                if !matches!(self.peek().token_type, TokenType::RightParentheses) {
+                    loop {
+                        parameters.push(self.expression()?);
+                        if !consume_token!(self, TokenType::Comma) {
+                            break;
+                        }
+                    }
+                }
+                expect_token!(self, TokenType::RightParentheses, ")");
+                expression = Box::new(expression::TableMethodCallExpression::new(
+                    expression, key, parameters, span,
+                ));
+                continue;
+            }
+
+            break;
         }
 
         Ok(expression)

@@ -416,7 +416,7 @@ impl Expression for FunctionCallExpression {
             if let Primitive::String(function_id) = parameters.first().unwrap() {
                 return run_function_by_id(
                     function_id.clone(),
-                    &vec![],
+                    vec![],
                     environment,
                     rsl,
                     self.span.clone(),
@@ -425,13 +425,8 @@ impl Expression for FunctionCallExpression {
 
             Ok(Primitive::Null)
         } else if let Primitive::Function(function_id) = environment.get_value(&self.identifier) {
-            run_function_by_id(
-                function_id,
-                &self.parameters,
-                environment,
-                rsl,
-                self.span.clone(),
-            )
+            let parameters = self.collect_parameters(environment.clone(), rsl)?;
+            run_function_by_id(function_id, parameters, environment, rsl, self.span.clone())
         } else {
             #[cfg(feature = "rift_rpc")]
             {
@@ -448,6 +443,79 @@ impl Expression for FunctionCallExpression {
                 self.span.clone(),
             ))
         }
+    }
+}
+
+pub struct TableMethodCallExpression {
+    target: Box<dyn Expression>,
+    key: String,
+    parameters: Vec<Box<dyn Expression>>,
+    span: Span,
+}
+
+impl TableMethodCallExpression {
+    pub fn new(
+        target: Box<dyn Expression>,
+        key: String,
+        parameters: Vec<Box<dyn Expression>>,
+        span: Span,
+    ) -> Self {
+        Self {
+            target,
+            key,
+            parameters,
+            span,
+        }
+    }
+}
+
+impl Expression for TableMethodCallExpression {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        let target_value = self.target.execute(environment.clone(), rsl)?;
+        let table = match target_value {
+            Primitive::Table(table) => table,
+            other => {
+                return Err(RuntimeError::new(
+                    format!("Expected table for method call, got {:?}", other),
+                    self.span.clone(),
+                ));
+            }
+        };
+
+        let table_ref = table.borrow();
+        if !table_ref.contains_key(&self.key) {
+            return Err(RuntimeError::new(
+                format!("Table has no key '{}'", self.key),
+                self.span.clone(),
+            ));
+        }
+        let value = table_ref.get_value(&self.key);
+        drop(table_ref);
+
+        let function_id = match value {
+            Primitive::Function(function_id) => function_id,
+            other => {
+                return Err(RuntimeError::new(
+                    format!(
+                        "Expected function for table method '{}', got {:?}",
+                        self.key, other
+                    ),
+                    self.span.clone(),
+                ));
+            }
+        };
+
+        let mut parameters = Vec::with_capacity(self.parameters.len() + 1);
+        parameters.push(Primitive::Table(table.clone()));
+        for param_expression in &self.parameters {
+            parameters.push(param_expression.execute(environment.clone(), rsl)?);
+        }
+
+        run_function_by_id(function_id, parameters, environment, rsl, self.span.clone())
     }
 }
 
@@ -693,20 +761,20 @@ fn execute_rpc_call(
 
 fn run_function_by_id(
     function_id: String,
-    raw_parameters: &Vec<Box<dyn Expression>>,
+    parameters: Vec<Primitive>,
     environment: Rc<Environment>,
     rsl: &mut RSL,
     span: Span,
 ) -> Result<Primitive, RuntimeError> {
     let local_environment = Rc::new(Environment::new(Some(environment.clone())));
     if let Some(function_definition) = local_environment.get_function(&function_id) {
-        if raw_parameters.len() != function_definition.parameters.len() {
+        if parameters.len() != function_definition.parameters.len() {
             return Err(RuntimeError::new(
                 format!(
                     "Function '{}' expects {} parameters but received {}",
                     function_id,
                     function_definition.parameters.len(),
-                    raw_parameters.len()
+                    parameters.len()
                 ),
                 span,
             ));
@@ -715,10 +783,7 @@ fn run_function_by_id(
         for i in 0..function_definition.parameters.len() {
             local_environment.set_value_local(
                 function_definition.parameters.get(i).unwrap().clone(),
-                raw_parameters
-                    .get(i)
-                    .unwrap()
-                    .execute(environment.clone(), rsl)?,
+                parameters.get(i).unwrap().clone(),
                 crate::environment::DeclarationType::Definition,
             );
         }
@@ -732,11 +797,6 @@ fn run_function_by_id(
         }
         return Ok(Primitive::Null);
     } else if let Some(native_function) = local_environment.get_native_function(&function_id) {
-        let mut parameters = vec![];
-        for param_expression in raw_parameters {
-            parameters.push(param_expression.execute(environment.clone(), rsl)?);
-        }
-
         return Ok(native_function(parameters));
     }
     Err(RuntimeError::new(

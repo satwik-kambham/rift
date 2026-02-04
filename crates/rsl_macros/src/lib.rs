@@ -41,27 +41,28 @@ fn parse_name_override(attr: TokenStream) -> syn::Result<Option<String>> {
 
     for meta in metas {
         if let Meta::NameValue(nv) = meta
-            && nv.path.is_ident("name") {
-                match nv.value {
-                    syn::Expr::Lit(expr_lit) => match expr_lit.lit {
-                        Lit::Str(lit_str) => {
-                            name_value = Some(lit_str.value());
-                        }
-                        _ => {
-                            return Err(syn::Error::new(
-                                expr_lit.span(),
-                                "expected string literal for name",
-                            ));
-                        }
-                    },
+            && nv.path.is_ident("name")
+        {
+            match nv.value {
+                syn::Expr::Lit(expr_lit) => match expr_lit.lit {
+                    Lit::Str(lit_str) => {
+                        name_value = Some(lit_str.value());
+                    }
                     _ => {
                         return Err(syn::Error::new(
-                            nv.value.span(),
+                            expr_lit.span(),
                             "expected string literal for name",
                         ));
                     }
+                },
+                _ => {
+                    return Err(syn::Error::new(
+                        nv.value.span(),
+                        "expected string literal for name",
+                    ));
                 }
             }
+        }
     }
 
     Ok(name_value)
