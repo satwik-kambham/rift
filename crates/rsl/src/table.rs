@@ -30,6 +30,10 @@ impl Table {
         self.table.get(key).unwrap_or(&Primitive::Null).clone()
     }
 
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.table.contains_key(key)
+    }
+
     pub fn keys(&self) -> Vec<String> {
         self.table.keys().cloned().collect()
     }

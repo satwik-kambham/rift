@@ -69,6 +69,21 @@ print(tableGet(user, "name"))           # Rift
 print(tableKeys(user))                  # ["name", "active"]
 ```
 
+## Indexing
+- Index expressions work on arrays and tables, and can be chained.
+- Invalid indices (wrong type, out-of-bounds for arrays) raise runtime errors. Missing
+  table keys return `null`.
+
+```rsl
+arr = createArray(1, 2, 3)
+arr[0] = arr[1] * 5
+print(arr[0])  # 10
+
+user = createTable()
+user["name"] = "Rift"
+print(user["name"])
+```
+
 ## End-to-end sample
 
 ```rsl

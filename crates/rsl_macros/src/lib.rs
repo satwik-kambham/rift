@@ -40,8 +40,8 @@ fn parse_name_override(attr: TokenStream) -> syn::Result<Option<String>> {
     let mut name_value = None;
 
     for meta in metas {
-        if let Meta::NameValue(nv) = meta {
-            if nv.path.is_ident("name") {
+        if let Meta::NameValue(nv) = meta
+            && nv.path.is_ident("name") {
                 match nv.value {
                     syn::Expr::Lit(expr_lit) => match expr_lit.lit {
                         Lit::Str(lit_str) => {
@@ -62,7 +62,6 @@ fn parse_name_override(attr: TokenStream) -> syn::Result<Option<String>> {
                     }
                 }
             }
-        }
     }
 
     Ok(name_value)

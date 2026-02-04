@@ -112,6 +112,9 @@ impl Parser {
         if matches!(self.peek().token_type, TokenType::Let | TokenType::Export) {
             return self.assignment_statement();
         }
+        if self.looks_like_index_assignment() {
+            return self.index_assignment_statement();
+        }
         if matches!(self.peek().token_type, TokenType::Identifier(_))
             && matches!(self.peek_n(1).token_type, TokenType::Equals)
         {
@@ -378,10 +381,28 @@ impl Parser {
             )));
         }
 
-        self.literal_expression()
+        self.postfix_expression()
     }
 
-    fn literal_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+    fn postfix_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        let mut expression = self.primary_expression()?;
+
+        while matches!(self.peek().token_type, TokenType::LeftSquareBracket) {
+            let span = self.peek().span.clone();
+            self.consume();
+            let index_expression = self.expression()?;
+            expect_token!(self, TokenType::RightSquareBracket, "]");
+            expression = Box::new(expression::IndexExpression::new(
+                expression,
+                index_expression,
+                span,
+            ));
+        }
+
+        Ok(expression)
+    }
+
+    fn primary_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
         if consume_token!(self, TokenType::Null) {
             return Ok(Box::new(expression::LiteralExpression::new(
                 primitive::Primitive::Null,
@@ -445,6 +466,84 @@ impl Parser {
             format!("expected expression, found {:?}", self.peek().token_type),
             self.peek().span.clone(),
         ))
+    }
+
+    fn looks_like_index_assignment(&self) -> bool {
+        if !matches!(self.peek().token_type, TokenType::Identifier(_)) {
+            return false;
+        }
+        if !matches!(self.peek_n(1).token_type, TokenType::LeftSquareBracket) {
+            return false;
+        }
+
+        let mut depth = 0usize;
+        let mut i = self.current + 1;
+
+        while i < self.tokens.len() {
+            match self.tokens[i].token_type {
+                TokenType::LeftSquareBracket => depth += 1,
+                TokenType::RightSquareBracket => {
+                    if depth == 0 {
+                        return false;
+                    }
+                    depth -= 1;
+                    if depth == 0 {
+                        let next = self.tokens.get(i + 1);
+                        match next.map(|token| &token.token_type) {
+                            Some(TokenType::Equals) => return true,
+                            Some(TokenType::LeftSquareBracket) => {}
+                            _ => return false,
+                        }
+                    }
+                }
+                TokenType::EOF => return false,
+                _ => {}
+            }
+
+            i += 1;
+        }
+
+        false
+    }
+
+    fn index_assignment_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
+        let start_span = self.peek().span.clone();
+        let mut target_expression = self.primary_expression()?;
+        let mut indices: Vec<(Box<dyn expression::Expression>, Span)> = Vec::new();
+
+        while matches!(self.peek().token_type, TokenType::LeftSquareBracket) {
+            let span = self.peek().span.clone();
+            self.consume();
+            let index_expression = self.expression()?;
+            expect_token!(self, TokenType::RightSquareBracket, "]");
+            indices.push((index_expression, span));
+        }
+
+        if indices.is_empty() {
+            return Err(ParseError::new(
+                "expected index expression before assignment".to_string(),
+                start_span,
+            ));
+        }
+
+        let (last_index, _) = indices.pop().unwrap();
+        for (index_expression, span) in indices {
+            target_expression = Box::new(expression::IndexExpression::new(
+                target_expression,
+                index_expression,
+                span,
+            ));
+        }
+
+        expect_token!(self, TokenType::Equals, "=");
+        let value_expression = self.expression()?;
+
+        Ok(Box::new(statement::IndexAssignmentStatement::new(
+            target_expression,
+            last_index,
+            value_expression,
+            start_span,
+        )))
     }
 
     fn expect_identifier(&mut self) -> Result<String, ParseError> {

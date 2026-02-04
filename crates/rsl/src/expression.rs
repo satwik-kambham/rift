@@ -451,6 +451,85 @@ impl Expression for FunctionCallExpression {
     }
 }
 
+pub struct IndexExpression {
+    target: Box<dyn Expression>,
+    index: Box<dyn Expression>,
+    span: Span,
+}
+
+impl IndexExpression {
+    pub fn new(target: Box<dyn Expression>, index: Box<dyn Expression>, span: Span) -> Self {
+        Self {
+            target,
+            index,
+            span,
+        }
+    }
+}
+
+impl Expression for IndexExpression {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        let index_value = self.index.execute(environment.clone(), rsl)?;
+        let target_value = self.target.execute(environment, rsl)?;
+
+        match target_value {
+            Primitive::Array(array) => {
+                let index = match index_value {
+                    Primitive::Number(value) => {
+                        if value.is_sign_negative() || value.fract() != 0.0 {
+                            return Err(RuntimeError::new(
+                                format!("Array index must be a non-negative integer, got {value}"),
+                                self.span.clone(),
+                            ));
+                        }
+                        value as usize
+                    }
+                    other => {
+                        return Err(RuntimeError::new(
+                            format!("Array index must be a number, got {:?}", other),
+                            self.span.clone(),
+                        ));
+                    }
+                };
+
+                let array_ref = array.borrow();
+                if index >= array_ref.len() {
+                    return Err(RuntimeError::new(
+                        format!(
+                            "Array index out of bounds: {index} (len = {})",
+                            array_ref.len()
+                        ),
+                        self.span.clone(),
+                    ));
+                }
+                Ok(array_ref.get(index))
+            }
+            Primitive::Table(table) => {
+                let key = match index_value {
+                    Primitive::String(value) => value,
+                    other => {
+                        return Err(RuntimeError::new(
+                            format!("Table index must be a string, got {:?}", other),
+                            self.span.clone(),
+                        ));
+                    }
+                };
+
+                let table_ref = table.borrow();
+                Ok(table_ref.get_value(&key))
+            }
+            other => Err(RuntimeError::new(
+                format!("Expected array or table for indexing, got {:?}", other),
+                self.span.clone(),
+            )),
+        }
+    }
+}
+
 #[cfg(feature = "rift_rpc")]
 fn execute_rpc_call(
     identifier: &str,

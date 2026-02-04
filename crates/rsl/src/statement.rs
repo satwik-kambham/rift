@@ -104,6 +104,94 @@ impl Statement for AssignmentStatement {
     }
 }
 
+pub struct IndexAssignmentStatement {
+    target: Box<dyn expression::Expression>,
+    index: Box<dyn expression::Expression>,
+    value: Box<dyn expression::Expression>,
+    span: Span,
+}
+
+impl IndexAssignmentStatement {
+    pub fn new(
+        target: Box<dyn expression::Expression>,
+        index: Box<dyn expression::Expression>,
+        value: Box<dyn expression::Expression>,
+        span: Span,
+    ) -> Self {
+        Self {
+            target,
+            index,
+            value,
+            span,
+        }
+    }
+}
+
+impl Statement for IndexAssignmentStatement {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
+        let index_value = self.index.execute(environment.clone(), rsl)?;
+        let target_value = self.target.execute(environment.clone(), rsl)?;
+        let value = self.value.execute(environment, rsl)?;
+
+        match target_value {
+            Primitive::Array(array) => {
+                let index = match index_value {
+                    Primitive::Number(value) => {
+                        if value.is_sign_negative() || value.fract() != 0.0 {
+                            return Err(RuntimeError::new(
+                                format!("Array index must be a non-negative integer, got {value}"),
+                                self.span.clone(),
+                            ));
+                        }
+                        value as usize
+                    }
+                    other => {
+                        return Err(RuntimeError::new(
+                            format!("Array index must be a number, got {:?}", other),
+                            self.span.clone(),
+                        ));
+                    }
+                };
+
+                let mut array_ref = array.borrow_mut();
+                if index >= array_ref.len() {
+                    return Err(RuntimeError::new(
+                        format!(
+                            "Array index out of bounds: {index} (len = {})",
+                            array_ref.len()
+                        ),
+                        self.span.clone(),
+                    ));
+                }
+                array_ref.set(index, value);
+                Ok(StatementResult::None)
+            }
+            Primitive::Table(table) => {
+                let key = match index_value {
+                    Primitive::String(value) => value,
+                    other => {
+                        return Err(RuntimeError::new(
+                            format!("Table index must be a string, got {:?}", other),
+                            self.span.clone(),
+                        ));
+                    }
+                };
+
+                table.borrow_mut().set_value(key, value);
+                Ok(StatementResult::None)
+            }
+            other => Err(RuntimeError::new(
+                format!("Expected array or table for indexing, got {:?}", other),
+                self.span.clone(),
+            )),
+        }
+    }
+}
+
 pub struct FunctionDefinitionStatement {
     identifier: String,
     parameters: Vec<String>,

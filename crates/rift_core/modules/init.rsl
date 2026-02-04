@@ -14,7 +14,7 @@ fn setViewportSize(rows, columns) {
 
 fn refreshViewportSize() {
     let size = fromJson(getViewportSize())
-    setViewportSize(tableGet(size, "rows"), tableGet(size, "columns"))
+    setViewportSize(size["rows"], size["columns"])
 }
 
 fn viewportVisibleRows(reservedLines) {
@@ -55,7 +55,7 @@ fn clampContentToViewport(content) {
     let i = 0
     loop {
         if i >= arrayLen(lines) { break }
-        let line = arrayGet(lines, i)
+        let line = lines[i]
         let clampedLine = clampLineToViewport(line, columns)
         if i > 0 { clamped = clamped + "\n" }
         clamped = clamped + clampedLine
@@ -72,8 +72,8 @@ fn setViewportBufferContent(bufferId, content) {
 fn viewportWindow(selectedIndex, totalItems, reservedLines) {
     let window = createTable()
     if totalItems <= 0 {
-        tableSet(window, "start", 0)
-        tableSet(window, "end", 0)
+        window["start"] = 0
+        window["end"] = 0
         return window
     }
 
@@ -89,8 +89,8 @@ fn viewportWindow(selectedIndex, totalItems, reservedLines) {
         if start < 0 { start = 0 }
     }
 
-    tableSet(window, "start", start)
-    tableSet(window, "end", end)
+    window["start"] = start
+    window["end"] = end
     return window
 }
 
@@ -106,25 +106,25 @@ fn listPanelMoveSelection(entries, selectedIndex, delta) {
 }
 
 fn listPanelRender(ctx) {
-    let title = tableGet(ctx, "title")
-    let inputHeader = tableGet(ctx, "input_header")
-    let inputValue = tableGet(ctx, "input_value")
-    let listHeader = tableGet(ctx, "list_header")
-    let entries = tableGet(ctx, "entries")
-    let selectedIndex = tableGet(ctx, "selected_index")
-    let reservedLines = tableGet(ctx, "reserved_lines")
-    let emptyText = tableGet(ctx, "empty_text")
-    let bufferId = tableGet(ctx, "buffer_id")
-    let entryToString = tableGet(ctx, "entry_to_string")
-    let headerLines = tableGet(ctx, "header_lines")
-    let extraLines = tableGet(ctx, "extra_lines")
+    let title = ctx["title"]
+    let inputHeader = ctx["input_header"]
+    let inputValue = ctx["input_value"]
+    let listHeader = ctx["list_header"]
+    let entries = ctx["entries"]
+    let selectedIndex = ctx["selected_index"]
+    let reservedLines = ctx["reserved_lines"]
+    let emptyText = ctx["empty_text"]
+    let bufferId = ctx["buffer_id"]
+    let entryToString = ctx["entry_to_string"]
+    let headerLines = ctx["header_lines"]
+    let extraLines = ctx["extra_lines"]
 
     let content = title
     if headerLines != null {
         let i = 0
         loop {
             if i >= arrayLen(headerLines) { break }
-            content = content + "\n" + arrayGet(headerLines, i)
+            content = content + "\n" + headerLines[i]
             i = i + 1
         }
     }
@@ -135,7 +135,7 @@ fn listPanelRender(ctx) {
         let i = 0
         loop {
             if i >= arrayLen(extraLines) { break }
-            content = content + "\n" + arrayGet(extraLines, i)
+            content = content + "\n" + extraLines[i]
             i = i + 1
         }
     }
@@ -149,15 +149,15 @@ fn listPanelRender(ctx) {
 
     if reservedLines == null { reservedLines = 5 }
     let window = viewportWindow(selectedIndex, total, reservedLines)
-    let start = tableGet(window, "start")
-    let end = tableGet(window, "end")
+    let start = window["start"]
+    let end = window["end"]
 
     if start > 0 { content = content + "\n   ⋯" }
 
     let i = start
     loop {
         if i >= end { break }
-        let entry = arrayGet(entries, i)
+        let entry = entries[i]
         let display = entry
         if entryToString != null {
             display = entryToString(entry)
@@ -183,14 +183,14 @@ fn inputSet(bufferId, value) {
 
 fn inputUpdated(bufferId, stateTable, key, onUpdated) {
     let value = getBufferInput(bufferId)
-    tableSet(stateTable, key, value)
+    stateTable[key] = value
     if onUpdated != null { onUpdated() }
 }
 
 fn inputAddSpace(bufferId, stateTable, key, onUpdated) {
     let value = getBufferInput(bufferId)
     value = value + " "
-    tableSet(stateTable, key, value)
+    stateTable[key] = value
     setBufferInput(bufferId, value)
     if onUpdated != null { onUpdated() }
 }
@@ -200,13 +200,13 @@ fn inputBackspace(bufferId, stateTable, key, onCleared) {
     let length = stringLen(value)
     if length <= 0 { return null }
     value = stringTruncateWidth(value, length - 1)
-    tableSet(stateTable, key, value)
+    stateTable[key] = value
     setBufferInput(bufferId, value)
     if onCleared != null { onCleared() }
 }
 
 fn inputClear(bufferId, stateTable, key, onCleared) {
-    tableSet(stateTable, key, "")
+    stateTable[key] = ""
     setBufferInput(bufferId, "")
     if onCleared != null { onCleared() }
 }
@@ -216,8 +216,8 @@ fn inputClear(bufferId, stateTable, key, onCleared) {
 let viewportRows = 0
 let viewportColumns = 0
 let dashboard = createTable()
-tableSet(dashboard, "id", -1)
-tableSet(dashboard, "text", "
+dashboard["id"] = -1
+dashboard["text"] = "
 Welcome to rift!
 
 Basic Keybinds:
@@ -228,20 +228,20 @@ space q - Quit
 space f - Fuzzy File Picker (with fd & fzf)
 space F - File Explorer
 space b - Switch Buffer
-")
+"
 
 fn renderDashboard() {
-    let dashboardId = tableGet(dashboard, "id")
+    let dashboardId = dashboard["id"]
     if dashboardId == -1 { return null }
-    let content = tableGet(dashboard, "text") + "\nViewport: " + toString(viewportRows) + " x " + toString(viewportColumns)
+    let content = dashboard["text"] + "\nViewport: " + toString(viewportRows) + " x " + toString(viewportColumns)
     setViewportBufferContent(dashboardId, content)
 }
 
 fn createDashboardBuffer() {
-    let dashboardId = tableGet(dashboard, "id")
+    let dashboardId = dashboard["id"]
     if dashboardId == -1 {
         let bufferId = createSpecialBuffer("Dashboard")
-        tableSet(dashboard, "id", bufferId)
+        dashboard["id"] = bufferId
         let activeBuffer = getActiveBuffer()
         if activeBuffer == null {
             setActiveBuffer(bufferId)
@@ -349,32 +349,32 @@ fn toolDeclarations() {
 
 fn agentRunShellCommand(command) {
     let outputs = runShellCommand(command, getWorkspaceDir())
-    return "STDOUT:\n" + tableGet(outputs, "stdout") + "\nSTDERR:\n" + tableGet(outputs, "stderr")
+    return "STDOUT:\n" + outputs["stdout"] + "\nSTDERR:\n" + outputs["stderr"]
 }
 
 fn agentFindFile(pattern) {
     let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path " + pattern, getWorkspaceDir())
-    return tableGet(results, "stdout")
+    return results["stdout"]
 }
 
 fn agentSearchWorkspace(pattern) {
     let results = runShellCommand("rg " + pattern, getWorkspaceDir())
-    return tableGet(results, "stdout")
+    return results["stdout"]
 }
 
 fn getOpenRouterProvider() {
     let provider = createTable()
-    tableSet(provider, "url", "https://openrouter.ai/api/v1/chat/completions")
-    tableSet(provider, "api_key", getEnvVar("OPENROUTER_KEY"))
-    tableSet(provider, "model", "mistralai/devstral-small")
+    provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
+    provider["api_key"] = getEnvVar("OPENROUTER_KEY")
+    provider["model"] = "mistralai/devstral-small"
     return provider
 }
 
 fn getLlamaCppProvider() {
     let provider = createTable()
-    tableSet(provider, "url", "http://127.0.0.1:8080/v1/chat/completions")
-    tableSet(provider, "api_key", null)
-    tableSet(provider, "model", "Granite-4.0-H-Tiny")
+    provider["url"] = "http://127.0.0.1:8080/v1/chat/completions"
+    provider["api_key"] = null
+    provider["model"] = "Granite-4.0-H-Tiny"
     return provider
 }
 
@@ -382,23 +382,23 @@ let openRouterProvider = getOpenRouterProvider()
 let llamaCppProvider = getLlamaCppProvider()
 
 let llmChat = createTable()
-tableSet(llmChat, "id", -1)
-tableSet(llmChat, "provider", llamaCppProvider)
-tableSet(llmChat, "history_scroll", 0)
-tableSet(llmChat, "history_page_size", 1)
-tableSet(llmChat, "input", "")
-tableSet(llmChat, "history", createArray())
-tableSet(llmChat, "pending_tool_calls", createArray())
+llmChat["id"] = -1
+llmChat["provider"] = llamaCppProvider
+llmChat["history_scroll"] = 0
+llmChat["history_page_size"] = 1
+llmChat["input"] = ""
+llmChat["history"] = createArray()
+llmChat["pending_tool_calls"] = createArray()
 
 fn llmChatRoleLabel(message) {
-    let role = tableGet(message, "role")
+    let role = message["role"]
     let label = role
     if role == "assistant" { label = "Assistant" }
     if role == "user" { label = "User" }
     if role == "system" { label = "System" }
     if role == "tool" {
         label = "Tool"
-        let name = tableGet(message, "name")
+        let name = message["name"]
         if name != null {
             label = "Tool (" + name + ")"
         }
@@ -407,9 +407,9 @@ fn llmChatRoleLabel(message) {
 }
 
 fn llmChatToolCallName(toolCall) {
-    let toolFunc = tableGet(toolCall, "function")
+    let toolFunc = toolCall["function"]
     if toolFunc == null { return "unknown" }
-    let name = tableGet(toolFunc, "name")
+    let name = toolFunc["name"]
     if name == null { return "unknown" }
     return name
 }
@@ -419,7 +419,7 @@ fn llmChatLinesToString(lines) {
     let i = 0
     loop {
         if i >= arrayLen(lines) { break }
-        let line = arrayGet(lines, i)
+        let line = lines[i]
         if i > 0 { text = text + "\n" }
         text = text + line
         i = i + 1
@@ -428,42 +428,42 @@ fn llmChatLinesToString(lines) {
 }
 
 fn llmChatScrollUp() {
-    let llmChatHistoryScroll = tableGet(llmChat, "history_scroll") + 1
-    tableSet(llmChat, "history_scroll", llmChatHistoryScroll)
+    let llmChatHistoryScroll = llmChat["history_scroll"] + 1
+    llmChat["history_scroll"] = llmChatHistoryScroll
     renderLLMChat()
 }
 
 fn llmChatScrollDown() {
-    let llmChatHistoryScroll = tableGet(llmChat, "history_scroll") - 1
+    let llmChatHistoryScroll = llmChat["history_scroll"] - 1
     if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
-    tableSet(llmChat, "history_scroll", llmChatHistoryScroll)
+    llmChat["history_scroll"] = llmChatHistoryScroll
     renderLLMChat()
 }
 
 fn llmChatPageUp() {
-    let llmChatHistoryScroll = tableGet(llmChat, "history_scroll") + tableGet(llmChat, "history_page_size")
-    tableSet(llmChat, "history_scroll", llmChatHistoryScroll)
+    let llmChatHistoryScroll = llmChat["history_scroll"] + llmChat["history_page_size"]
+    llmChat["history_scroll"] = llmChatHistoryScroll
     renderLLMChat()
 }
 
 fn llmChatPageDown() {
-    let llmChatHistoryScroll = tableGet(llmChat, "history_scroll") - tableGet(llmChat, "history_page_size")
+    let llmChatHistoryScroll = llmChat["history_scroll"] - llmChat["history_page_size"]
     if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
-    tableSet(llmChat, "history_scroll", llmChatHistoryScroll)
+    llmChat["history_scroll"] = llmChatHistoryScroll
     renderLLMChat()
 }
 
 fn renderLLMChat() {
-    let chatHistory = tableGet(llmChat, "history")
+    let chatHistory = llmChat["history"]
     let historyLines = createArray()
     let totalMessages = arrayLen(chatHistory)
     let i = 0
     loop {
         if i >= totalMessages { break }
-        let message = arrayGet(chatHistory, i)
+        let message = chatHistory[i]
         let label = llmChatRoleLabel(message)
         arrayPushBack(historyLines, label + ":")
-        let content = tableGet(message, "content")
+        let content = message["content"]
         if content == null { content = "" }
         let contentLines = stringSplitLines(content)
         if arrayLen(contentLines) == 0 or stringLen(content) == 0 {
@@ -473,17 +473,17 @@ fn renderLLMChat() {
             let j = 0
             loop {
                 if j >= arrayLen(contentLines) { break }
-                let line = arrayGet(contentLines, j)
+                let line = contentLines[j]
                 arrayPushBack(historyLines, "  " + line)
                 j = j + 1
             }
         }
-        let toolCalls = tableGet(message, "tool_calls")
+        let toolCalls = message["tool_calls"]
         if toolCalls != null {
             let j = 0
             loop {
                 if j >= arrayLen(toolCalls) { break }
-                let toolCall = arrayGet(toolCalls, j)
+                let toolCall = toolCalls[j]
                 let toolName = llmChatToolCallName(toolCall)
                 arrayPushBack(historyLines, "  • tool call: " + toolName)
                 j = j + 1
@@ -503,7 +503,7 @@ fn renderLLMChat() {
         historyContent = llmChatLinesToString(historyLines)
     }
 
-    let pendingToolCalls = tableGet(llmChat, "pending_tool_calls")
+    let pendingToolCalls = llmChat["pending_tool_calls"]
     let pendingLines = createArray()
     if arrayLen(pendingToolCalls) == 0 {
         arrayPushBack(pendingLines, "   None")
@@ -512,14 +512,14 @@ fn renderLLMChat() {
         let i = 0
         loop {
             if i >= arrayLen(pendingToolCalls) { break }
-            let toolCall = arrayGet(pendingToolCalls, i)
+            let toolCall = pendingToolCalls[i]
             let toolName = llmChatToolCallName(toolCall)
             arrayPushBack(pendingLines, " • " + toolName)
             i = i + 1
         }
     }
 
-    let chatInput = tableGet(llmChat, "input")
+    let chatInput = llmChat["input"]
     let inputLines = stringSplitLines(chatInput)
     if arrayLen(inputLines) == 0 or stringLen(chatInput) == 0 {
         inputLines = createArray()
@@ -538,7 +538,7 @@ fn renderLLMChat() {
     let totalHistoryLines = arrayLen(wrappedLines)
     if totalHistoryLines < 1 { totalHistoryLines = 1 }
 
-    let llmChatHistoryScroll = tableGet(llmChat, "history_scroll")
+    let llmChatHistoryScroll = llmChat["history_scroll"]
     let showEllipsis = llmChatHistoryScroll > 0
     if showEllipsis and historyRows <= 1 { showEllipsis = false }
     if showEllipsis { historyRows = historyRows - 1 }
@@ -547,13 +547,13 @@ fn renderLLMChat() {
     if maxScroll < 0 { maxScroll = 0 }
     if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
     if llmChatHistoryScroll > maxScroll { llmChatHistoryScroll = maxScroll }
-    tableSet(llmChat, "history_scroll", llmChatHistoryScroll)
-    tableSet(llmChat, "history_page_size", historyRows)
+    llmChat["history_scroll"] = llmChatHistoryScroll
+    llmChat["history_page_size"] = historyRows
 
     let historyBody = stringRenderViewport(historyContent, columns, historyRows, -1 * (llmChatHistoryScroll + 1))
-    let provider = tableGet(llmChat, "provider")
+    let provider = llmChat["provider"]
     let modelName = "unknown"
-    if provider != null { modelName = tableGet(provider, "model") }
+    if provider != null { modelName = provider["model"] }
     let status = "Model: " + modelName + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
 
     let content = "🤖 LLM Chat\n" + status + "\nenter: send | y/n: allow/deny tool | up/down: scroll\n"
@@ -565,24 +565,24 @@ fn renderLLMChat() {
     content = content + "╭─ Input ───────────────\n"
     content = content + llmChatLinesToString(inputLines)
 
-    setViewportBufferContent(tableGet(llmChat, "id"), content)
+    setViewportBufferContent(llmChat["id"], content)
 }
 
 fn requestChatCompletion() {
-    let provider = tableGet(llmChat, "provider")
+    let provider = llmChat["provider"]
     if provider == null { return null }
 
-    let apiKey = tableGet(provider, "api_key")
-    let modelName = tableGet(provider, "model")
-    let url = tableGet(provider, "url")
+    let apiKey = provider["api_key"]
+    let modelName = provider["model"]
+    let url = provider["url"]
 
     let request = createTable()
-    tableSet(request, "model", modelName)
-    tableSet(request, "messages", tableGet(llmChat, "history"))
-    tableSet(request, "tools", fromJson(toolDeclarations()))
-    tableSet(request, "stream", false)
-    tableSet(request, "temperature", 0.3)
-    tableSet(request, "seed", 42)
+    request["model"] = modelName
+    request["messages"] = llmChat["history"]
+    request["tools"] = fromJson(toolDeclarations())
+    request["stream"] = false
+    request["temperature"] = 0.3
+    request["seed"] = 42
 
     let body = toJson(request)
     let hasApiKey = apiKey != null and stringLen(apiKey) != 0
@@ -590,68 +590,68 @@ fn requestChatCompletion() {
     if hasApiKey { response = postRequestWithBearerToken(url, body, apiKey) }
     if !hasApiKey { response = postRequest(url, body) }
     response = fromJson(response)
-    let message = tableGet(arrayGet(tableGet(response, "choices"), 0), "message")
-    let toolCalls = tableGet(message, "tool_calls")
+    let message = response["choices"][0]["message"]
+    let toolCalls = message["tool_calls"]
     
     if toolCalls != null {
-        let pendingToolCalls = tableGet(llmChat, "pending_tool_calls")
+        let pendingToolCalls = llmChat["pending_tool_calls"]
         let i = arrayLen(toolCalls)
         loop {
             if i <= 0 { break }
-            let toolCall = arrayGet(toolCalls, i - 1)
+            let toolCall = toolCalls[i - 1]
             
             arrayPushBack(pendingToolCalls, toolCall)
             
-            let toolName = tableGet(tableGet(toolCall, "function"), "name")
-            let toolArgs = fromJson(tableGet(tableGet(toolCall, "function"), "arguments"))
-            let toolCallId = tableGet(toolCall, "id")
+            let toolName = toolCall["function"]["name"]
+            let toolArgs = fromJson(toolCall["function"]["arguments"])
+            let toolCallId = toolCall["id"]
             
             i = i - 1
         }
     }
     
-    arrayPushBack(tableGet(llmChat, "history"), message)
+    arrayPushBack(llmChat["history"], message)
 
     renderLLMChat()
 }
 
 fn getToolCallResult(allowed) {
-    let pendingToolCalls = tableGet(llmChat, "pending_tool_calls")
+    let pendingToolCalls = llmChat["pending_tool_calls"]
     let toolCall = arrayPopBack(pendingToolCalls)
     
-    let toolName = tableGet(tableGet(toolCall, "function"), "name")
-    let toolArgs = fromJson(tableGet(tableGet(toolCall, "function"), "arguments"))
-    let toolCallId = tableGet(toolCall, "id")
+    let toolName = toolCall["function"]["name"]
+    let toolArgs = fromJson(toolCall["function"]["arguments"])
+    let toolCallId = toolCall["id"]
     
     let result = "Tool call request denied by user. Await further instructions."
     
     if allowed {
         if toolName == "run_shell_command" {
-            result = agentRunShellCommand(tableGet(toolArgs, "command"))
+            result = agentRunShellCommand(toolArgs["command"])
         }
         if toolName == "find_file" {
-            result = agentFindFile(tableGet(toolArgs, "pattern"))
+            result = agentFindFile(toolArgs["pattern"])
         }
         if toolName == "search_workspace" {
-            result = agentSearchWorkspace(tableGet(toolArgs, "pattern"))
+            result = agentSearchWorkspace(toolArgs["pattern"])
         }
         if toolName == "read_file" {
-            result = agentReadFile(getWorkspaceDir(), tableGet(toolArgs, "path"))
+            result = agentReadFile(getWorkspaceDir(), toolArgs["path"])
         }
         if toolName == "write_file" {
-            result = agentFindFile(getWorkspaceDir(), tableGet(toolArgs, "file_path"), tableGet(toolArgs, "content"))
+            result = agentFindFile(getWorkspaceDir(), toolArgs["file_path"], toolArgs["content"])
         }
         if toolName == "replace" {
-            result = agentFindFile(getWorkspaceDir(), tableGet(toolArgs, "file_path"), tableGet(toolArgs, "old_string"), tableGet(toolArgs, "new_string"))
+            result = agentFindFile(getWorkspaceDir(), toolArgs["file_path"], toolArgs["old_string"], toolArgs["new_string"])
         }
     }
     
     let message = createTable()
-    tableSet(message, "role", "tool")
-    tableSet(message, "content", result)
-    tableSet(message, "name", toolName)
-    tableSet(message, "tool_call_id", toolCallId)
-    arrayPushBack(tableGet(llmChat, "history"), message)
+    message["role"] = "tool"
+    message["content"] = result
+    message["name"] = toolName
+    message["tool_call_id"] = toolCallId
+    arrayPushBack(llmChat["history"], message)
     
     renderLLMChat()
 
@@ -664,12 +664,12 @@ fn allowToolCall() { getToolCallResult(true) }
 fn denyToolCall() { getToolCallResult(false) }
 
 fn sendMessage() {
-    let pendingToolCalls = tableGet(llmChat, "pending_tool_calls")
+    let pendingToolCalls = llmChat["pending_tool_calls"]
     if arrayLen(pendingToolCalls) == 0 {
         let message = createTable()
-        tableSet(message, "role", "user")
-        tableSet(message, "content", tableGet(llmChat, "input"))
-        arrayPushBack(tableGet(llmChat, "history"), message)
+        message["role"] = "user"
+        message["content"] = llmChat["input"]
+        arrayPushBack(llmChat["history"], message)
 
         llmChatClearInput()
         renderLLMChat()
@@ -679,25 +679,25 @@ fn sendMessage() {
 }
 
 fn llmChatInputUpdated() {
-    inputUpdated(tableGet(llmChat, "id"), llmChat, "input", renderLLMChat)
+    inputUpdated(llmChat["id"], llmChat, "input", renderLLMChat)
 }
 
 fn llmChatAddSpace() {
-    inputAddSpace(tableGet(llmChat, "id"), llmChat, "input", renderLLMChat)
+    inputAddSpace(llmChat["id"], llmChat, "input", renderLLMChat)
 }
 
 fn llmChatBackspace() {
-    inputBackspace(tableGet(llmChat, "id"), llmChat, "input", renderLLMChat)
+    inputBackspace(llmChat["id"], llmChat, "input", renderLLMChat)
 }
 
 fn llmChatClearInput() {
-    inputClear(tableGet(llmChat, "id"), llmChat, "input", null)
+    inputClear(llmChat["id"], llmChat, "input", null)
 }
 
 fn createLLMChat() {
-    if tableGet(llmChat, "id") == -1 {
+    if llmChat["id"] == -1 {
         let bufferId = createSpecialBuffer("LLM Chat")
-        tableSet(llmChat, "id", bufferId)
+        llmChat["id"] = bufferId
         registerBufferKeybind(bufferId, "ins enter", sendMessage)
         registerBufferKeybind(bufferId, "nor up", llmChatScrollUp)
         registerBufferKeybind(bufferId, "nor down", llmChatScrollDown)
@@ -714,7 +714,7 @@ fn createLLMChat() {
         registerBufferInputHook(bufferId, llmChatInputUpdated)
         renderLLMChat()
     }
-    setActiveBuffer(tableGet(llmChat, "id"))
+    setActiveBuffer(llmChat["id"])
 }
 
 registerGlobalKeybind("nor space c", createLLMChat)
@@ -732,57 +732,57 @@ fn fuzzyFileFinderDependenciesError() {
 }
 
 let fuzzyFileFinder = createTable()
-tableSet(fuzzyFileFinder, "id", -1)
-tableSet(fuzzyFileFinder, "input", "")
-tableSet(fuzzyFileFinder, "results", createArray())
-tableSet(fuzzyFileFinder, "selected", 0)
-tableSet(fuzzyFileFinder, "previous_buffer_id", -1)
+fuzzyFileFinder["id"] = -1
+fuzzyFileFinder["input"] = ""
+fuzzyFileFinder["results"] = createArray()
+fuzzyFileFinder["selected"] = 0
+fuzzyFileFinder["previous_buffer_id"] = -1
 
 fn renderFuzzyFileFinder() {
     let ctx = createTable()
-    tableSet(ctx, "title", "🔎 Fuzzy File Finder")
-    tableSet(ctx, "input_header", "╭─ Query ─────────────────")
-    tableSet(ctx, "input_value", tableGet(fuzzyFileFinder, "input"))
-    tableSet(ctx, "list_header", "╰─ Matches ───────────────")
-    tableSet(ctx, "entries", tableGet(fuzzyFileFinder, "results"))
-    tableSet(ctx, "selected_index", tableGet(fuzzyFileFinder, "selected"))
-    tableSet(ctx, "reserved_lines", 5)
-    tableSet(ctx, "empty_text", "No files found")
-    tableSet(ctx, "buffer_id", tableGet(fuzzyFileFinder, "id"))
+    ctx["title"] = "🔎 Fuzzy File Finder"
+    ctx["input_header"] = "╭─ Query ─────────────────"
+    ctx["input_value"] = fuzzyFileFinder["input"]
+    ctx["list_header"] = "╰─ Matches ───────────────"
+    ctx["entries"] = fuzzyFileFinder["results"]
+    ctx["selected_index"] = fuzzyFileFinder["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No files found"
+    ctx["buffer_id"] = fuzzyFileFinder["id"]
     listPanelRender(ctx)
 }
 
 fn fuzzyFileFinderWorkspaceEntries() {
     let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path", getWorkspaceDir())
-    tableSet(fuzzyFileFinder, "results", stringSplitLines(tableGet(results, "stdout")))
-    tableSet(fuzzyFileFinder, "selected", 0)
+    fuzzyFileFinder["results"] = stringSplitLines(results["stdout"])
+    fuzzyFileFinder["selected"] = 0
     renderFuzzyFileFinder()
 }
 
 fn fuzzyFileFinderInputUpdated() {
-    inputUpdated(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", null)
-    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path | fzf -f \"" + tableGet(fuzzyFileFinder, "input") + "\"", getWorkspaceDir())
-    tableSet(fuzzyFileFinder, "results", stringSplitLines(tableGet(results, "stdout")))
-    tableSet(fuzzyFileFinder, "selected", 0)
+    inputUpdated(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
+    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path | fzf -f \"" + fuzzyFileFinder["input"] + "\"", getWorkspaceDir())
+    fuzzyFileFinder["results"] = stringSplitLines(results["stdout"])
+    fuzzyFileFinder["selected"] = 0
     renderFuzzyFileFinder()
 }
 
 fn fuzzyFileFinderAddSpace() {
-    inputAddSpace(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", renderFuzzyFileFinder)
+    inputAddSpace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", renderFuzzyFileFinder)
 }
 
 fn fuzzyFileFinderBackspace() {
-    inputBackspace(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", null)
+    inputBackspace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
 }
 
 fn fuzzyFileFinderClearInput() {
-    inputClear(tableGet(fuzzyFileFinder, "id"), fuzzyFileFinder, "input", null)
+    inputClear(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
 }
 
 fn fuzzyFileFinderMoveSelection(delta) {
-    let results = tableGet(fuzzyFileFinder, "results")
-    let selected = listPanelMoveSelection(results, tableGet(fuzzyFileFinder, "selected"), delta)
-    tableSet(fuzzyFileFinder, "selected", selected)
+    let results = fuzzyFileFinder["results"]
+    let selected = listPanelMoveSelection(results, fuzzyFileFinder["selected"], delta)
+    fuzzyFileFinder["selected"] = selected
     renderFuzzyFileFinder()
 }
 
@@ -795,10 +795,10 @@ fn fuzzyFileFinderPrevious() {
 }
 
 fn fuzzyFileFinderSelect() {
-    let results = tableGet(fuzzyFileFinder, "results")
-    let selected = tableGet(fuzzyFileFinder, "selected")
+    let results = fuzzyFileFinder["results"]
+    let selected = fuzzyFileFinder["selected"]
     if selected < arrayLen(results) {
-        let path = arrayGet(results, selected)
+        let path = results[selected]
         fuzzyFileFinderClearInput()
         openFile(path)
         runAction("quit-insert-mode")
@@ -806,7 +806,7 @@ fn fuzzyFileFinderSelect() {
 }
 
 fn fuzzyFileFinderEscape() {
-    let previousBufferId = tableGet(fuzzyFileFinder, "previous_buffer_id")
+    let previousBufferId = fuzzyFileFinder["previous_buffer_id"]
     if previousBufferId != -1 {
         fuzzyFileFinderClearInput()
         setActiveBuffer(previousBufferId)
@@ -819,10 +819,10 @@ fn createFuzzyFileFinder() {
         fuzzyFileFinderDependenciesError()
         return null
     }
-    tableSet(fuzzyFileFinder, "previous_buffer_id", getActiveBuffer())
-    if tableGet(fuzzyFileFinder, "id") == -1 {
+    fuzzyFileFinder["previous_buffer_id"] = getActiveBuffer()
+    if fuzzyFileFinder["id"] == -1 {
         let bufferId = createSpecialBuffer("Fuzzy File Finder")
-        tableSet(fuzzyFileFinder, "id", bufferId)
+        fuzzyFileFinder["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderBackspace)
         registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderNext)
@@ -833,7 +833,7 @@ fn createFuzzyFileFinder() {
         registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
     }
     fuzzyFileFinderClearInput()
-    setActiveBuffer(tableGet(fuzzyFileFinder, "id"))
+    setActiveBuffer(fuzzyFileFinder["id"])
     fuzzyFileFinderWorkspaceEntries()
     runAction("enter-insert-mode")
 }
@@ -845,18 +845,18 @@ registerGlobalKeybind("nor space f", createFuzzyFileFinder)
 # File Explorer
 
 let fileExplorer = createTable()
-tableSet(fileExplorer, "id", -1)
-tableSet(fileExplorer, "input", "")
-tableSet(fileExplorer, "entries", createArray())
-tableSet(fileExplorer, "all_entries", createArray())
-tableSet(fileExplorer, "selected", 0)
-tableSet(fileExplorer, "current_dir", "")
-tableSet(fileExplorer, "previous_buffer_id", -1)
-tableSet(fileExplorer, "error", "")
+fileExplorer["id"] = -1
+fileExplorer["input"] = ""
+fileExplorer["entries"] = createArray()
+fileExplorer["all_entries"] = createArray()
+fileExplorer["selected"] = 0
+fileExplorer["current_dir"] = ""
+fileExplorer["previous_buffer_id"] = -1
+fileExplorer["error"] = ""
 
 fn fileExplorerEntryDisplay(entry) {
-    let name = tableGet(entry, "name")
-    if tableGet(entry, "is_dir") {
+    let name = entry["name"]
+    if entry["is_dir"] {
         return name + "/"
     }
     return name
@@ -864,42 +864,42 @@ fn fileExplorerEntryDisplay(entry) {
 
 fn renderFileExplorer() {
     let headerLines = createArray()
-    arrayPushBack(headerLines, tableGet(fileExplorer, "current_dir"))
+    arrayPushBack(headerLines, fileExplorer["current_dir"])
     arrayPushBack(headerLines, "(ctrl-f: new file, ctrl-d: new folder)")
 
     let extraLines = null
-    let errorMessage = tableGet(fileExplorer, "error")
+    let errorMessage = fileExplorer["error"]
     if errorMessage != "" {
         extraLines = createArray()
         arrayPushBack(extraLines, "   Error: " + errorMessage)
     }
 
     let ctx = createTable()
-    tableSet(ctx, "title", "📂 File Explorer")
-    tableSet(ctx, "header_lines", headerLines)
-    tableSet(ctx, "input_header", "╭─ Filter ───────────────")
-    tableSet(ctx, "input_value", tableGet(fileExplorer, "input"))
-    tableSet(ctx, "list_header", "╰─ Entries ──────────────")
-    tableSet(ctx, "entries", tableGet(fileExplorer, "entries"))
-    tableSet(ctx, "selected_index", tableGet(fileExplorer, "selected"))
-    tableSet(ctx, "reserved_lines", 6)
-    tableSet(ctx, "empty_text", "No entries")
-    tableSet(ctx, "buffer_id", tableGet(fileExplorer, "id"))
-    tableSet(ctx, "entry_to_string", fileExplorerEntryDisplay)
-    tableSet(ctx, "extra_lines", extraLines)
+    ctx["title"] = "📂 File Explorer"
+    ctx["header_lines"] = headerLines
+    ctx["input_header"] = "╭─ Filter ───────────────"
+    ctx["input_value"] = fileExplorer["input"]
+    ctx["list_header"] = "╰─ Entries ──────────────"
+    ctx["entries"] = fileExplorer["entries"]
+    ctx["selected_index"] = fileExplorer["selected"]
+    ctx["reserved_lines"] = 6
+    ctx["empty_text"] = "No entries"
+    ctx["buffer_id"] = fileExplorer["id"]
+    ctx["entry_to_string"] = fileExplorerEntryDisplay
+    ctx["extra_lines"] = extraLines
     listPanelRender(ctx)
 }
 
 fn fileExplorerApplyFilter() {
-    let query = stringToLower(tableGet(fileExplorer, "input"))
+    let query = stringToLower(fileExplorer["input"])
     let entries = createArray()
-    let allEntries = tableGet(fileExplorer, "all_entries")
+    let allEntries = fileExplorer["all_entries"]
 
     let i = 0
     loop {
         if i >= arrayLen(allEntries) { break }
-        let entry = arrayGet(allEntries, i)
-        let name = stringToLower(tableGet(entry, "name"))
+        let entry = allEntries[i]
+        let name = stringToLower(entry["name"])
 
         if stringLen(query) == 0 or stringContains(name, query) {
             arrayPushBack(entries, entry)
@@ -908,74 +908,74 @@ fn fileExplorerApplyFilter() {
         i = i + 1
     }
 
-    tableSet(fileExplorer, "entries", entries)
+    fileExplorer["entries"] = entries
 
     if arrayLen(entries) == 0 {
-        tableSet(fileExplorer, "selected", 0)
+        fileExplorer["selected"] = 0
     }
-    if tableGet(fileExplorer, "selected") >= arrayLen(entries) {
-        tableSet(fileExplorer, "selected", 0)
+    if fileExplorer["selected"] >= arrayLen(entries) {
+        fileExplorer["selected"] = 0
     }
 
     renderFileExplorer()
 }
 
 fn fileExplorerRefreshEntries() {
-    let listing = listDir(tableGet(fileExplorer, "current_dir"))
+    let listing = listDir(fileExplorer["current_dir"])
     let allEntries = createArray()
-    tableSet(fileExplorer, "error", "")
+    fileExplorer["error"] = ""
 
-    let errorMessage = tableGet(listing, "error")
+    let errorMessage = listing["error"]
     if errorMessage != null {
-        tableSet(fileExplorer, "error", errorMessage)
+        fileExplorer["error"] = errorMessage
     }
 
-    let entries = tableGet(listing, "entries")
+    let entries = listing["entries"]
 
     let parentEntry = createTable()
-    tableSet(parentEntry, "name", "..")
-    tableSet(parentEntry, "path", parentPath(tableGet(fileExplorer, "current_dir")))
-    tableSet(parentEntry, "is_dir", true)
+    parentEntry["name"] = ".."
+    parentEntry["path"] = parentPath(fileExplorer["current_dir"])
+    parentEntry["is_dir"] = true
     arrayPushBack(allEntries, parentEntry)
 
     let i = 0
     loop {
         if i >= arrayLen(entries) { break }
-        let entry = arrayGet(entries, i)
+        let entry = entries[i]
         arrayPushBack(allEntries, entry)
         i = i + 1
     }
 
-    tableSet(fileExplorer, "all_entries", allEntries)
-    tableSet(fileExplorer, "selected", 0)
+    fileExplorer["all_entries"] = allEntries
+    fileExplorer["selected"] = 0
     fileExplorerApplyFilter()
 }
 
 fn fileExplorerSetDirectory(path) {
-    tableSet(fileExplorer, "current_dir", path)
+    fileExplorer["current_dir"] = path
     fileExplorerRefreshEntries()
 }
 
 fn fileExplorerInputUpdated() {
-    inputUpdated(tableGet(fileExplorer, "id"), fileExplorer, "input", fileExplorerApplyFilter)
+    inputUpdated(fileExplorer["id"], fileExplorer, "input", fileExplorerApplyFilter)
 }
 
 fn fileExplorerAddSpace() {
-    inputAddSpace(tableGet(fileExplorer, "id"), fileExplorer, "input", renderFileExplorer)
+    inputAddSpace(fileExplorer["id"], fileExplorer, "input", renderFileExplorer)
 }
 
 fn fileExplorerBackspace() {
-    inputBackspace(tableGet(fileExplorer, "id"), fileExplorer, "input", null)
+    inputBackspace(fileExplorer["id"], fileExplorer, "input", null)
 }
 
 fn fileExplorerClearInput() {
-    inputClear(tableGet(fileExplorer, "id"), fileExplorer, "input", null)
+    inputClear(fileExplorer["id"], fileExplorer, "input", null)
 }
 
 fn fileExplorerMoveSelection(delta) {
-    let entries = tableGet(fileExplorer, "entries")
-    let selected = listPanelMoveSelection(entries, tableGet(fileExplorer, "selected"), delta)
-    tableSet(fileExplorer, "selected", selected)
+    let entries = fileExplorer["entries"]
+    let selected = listPanelMoveSelection(entries, fileExplorer["selected"], delta)
+    fileExplorer["selected"] = selected
     renderFileExplorer()
 }
 
@@ -988,12 +988,12 @@ fn fileExplorerPrevious() {
 }
 
 fn fileExplorerSelect() {
-    let entries = tableGet(fileExplorer, "entries")
-    let selected = tableGet(fileExplorer, "selected")
+    let entries = fileExplorer["entries"]
+    let selected = fileExplorer["selected"]
     if selected < arrayLen(entries) {
-        let entry = arrayGet(entries, selected)
-        let path = tableGet(entry, "path")
-        if tableGet(entry, "is_dir") {
+        let entry = entries[selected]
+        let path = entry["path"]
+        if entry["is_dir"] {
             fileExplorerClearInput()
             fileExplorerSetDirectory(path)
             return null
@@ -1005,7 +1005,7 @@ fn fileExplorerSelect() {
 }
 
 fn fileExplorerEscape() {
-    let previousBufferId = tableGet(fileExplorer, "previous_buffer_id")
+    let previousBufferId = fileExplorer["previous_buffer_id"]
     if previousBufferId != -1 {
         fileExplorerClearInput()
         setActiveBuffer(previousBufferId)
@@ -1019,7 +1019,7 @@ fn fileExplorerCreateFileSubmit(pathInput) {
         return null
     }
 
-    let targetPath = joinPath(tableGet(fileExplorer, "current_dir"), pathInput)
+    let targetPath = joinPath(fileExplorer["current_dir"], pathInput)
     let result = createBlankFile(targetPath)
 
     if result != null {
@@ -1034,7 +1034,7 @@ fn fileExplorerCreateFileSubmit(pathInput) {
 }
 
 fn fileExplorerCreateFilePrompt() {
-    let prompt = "Create File\n" + tableGet(fileExplorer, "current_dir") + "\nEnter file name or path:"
+    let prompt = "Create File\n" + fileExplorer["current_dir"] + "\nEnter file name or path:"
     dialogModalOpen(prompt, fileExplorerCreateFileSubmit)
 }
 
@@ -1044,7 +1044,7 @@ fn fileExplorerCreateFolderSubmit(pathInput) {
         return null
     }
 
-    let targetPath = joinPath(tableGet(fileExplorer, "current_dir"), pathInput)
+    let targetPath = joinPath(fileExplorer["current_dir"], pathInput)
     let result = createDirectory(targetPath)
 
     if result != null {
@@ -1058,16 +1058,16 @@ fn fileExplorerCreateFolderSubmit(pathInput) {
 }
 
 fn fileExplorerCreateFolderPrompt() {
-    let prompt = "Create Folder\n" + tableGet(fileExplorer, "current_dir") + "\nEnter folder name or path:"
+    let prompt = "Create Folder\n" + fileExplorer["current_dir"] + "\nEnter folder name or path:"
     dialogModalOpen(prompt, fileExplorerCreateFolderSubmit)
 }
 
 fn createFileExplorer() {
-    tableSet(fileExplorer, "previous_buffer_id", getActiveBuffer())
+    fileExplorer["previous_buffer_id"] = getActiveBuffer()
 
-    if tableGet(fileExplorer, "id") == -1 {
+    if fileExplorer["id"] == -1 {
         let bufferId = createSpecialBuffer("File Explorer")
-        tableSet(fileExplorer, "id", bufferId)
+        fileExplorer["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", fileExplorerAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", fileExplorerBackspace)
         registerBufferKeybind(bufferId, "ins tab", fileExplorerNext)
@@ -1082,7 +1082,7 @@ fn createFileExplorer() {
 
     fileExplorerClearInput()
     fileExplorerSetDirectory(getWorkspaceDir())
-    setActiveBuffer(tableGet(fileExplorer, "id"))
+    setActiveBuffer(fileExplorer["id"])
     runAction("enter-insert-mode")
 }
 
@@ -1093,24 +1093,24 @@ registerGlobalKeybind("nor space s-f", createFileExplorer)
 # Switch Buffer
 
 let switchBuffer = createTable()
-tableSet(switchBuffer, "id", -1)
-tableSet(switchBuffer, "input", "")
-tableSet(switchBuffer, "results", createArray())
-tableSet(switchBuffer, "buffers", createArray())
-tableSet(switchBuffer, "selected", 0)
-tableSet(switchBuffer, "selected_id", -1)
-tableSet(switchBuffer, "previous_buffer_id", -1)
-tableSet(switchBuffer, "initial_active_id", -1)
+switchBuffer["id"] = -1
+switchBuffer["input"] = ""
+switchBuffer["results"] = createArray()
+switchBuffer["buffers"] = createArray()
+switchBuffer["selected"] = 0
+switchBuffer["selected_id"] = -1
+switchBuffer["previous_buffer_id"] = -1
+switchBuffer["initial_active_id"] = -1
 
 fn switchBufferDisplay(entry) {
-    let display = tableGet(entry, "display_name")
-    if tableGet(entry, "special") {
+    let display = entry["display_name"]
+    if entry["special"] {
         display = "[special] " + display
     }
-    if tableGet(entry, "modified") {
+    if entry["modified"] {
         display = display + " *"
     }
-    if tableGet(entry, "is_active") {
+    if entry["is_active"] {
         display = display + " (active)"
     }
     return display
@@ -1118,29 +1118,29 @@ fn switchBufferDisplay(entry) {
 
 fn renderSwitchBuffer() {
     let ctx = createTable()
-    tableSet(ctx, "title", "🗂 Switch Buffer")
-    tableSet(ctx, "input_header", "╭─ Filter ──────────────")
-    tableSet(ctx, "input_value", tableGet(switchBuffer, "input"))
-    tableSet(ctx, "list_header", "╰─ Buffers ─────────────")
-    tableSet(ctx, "entries", tableGet(switchBuffer, "results"))
-    tableSet(ctx, "selected_index", tableGet(switchBuffer, "selected"))
-    tableSet(ctx, "reserved_lines", 5)
-    tableSet(ctx, "empty_text", "No buffers")
-    tableSet(ctx, "buffer_id", tableGet(switchBuffer, "id"))
-    tableSet(ctx, "entry_to_string", switchBufferDisplay)
+    ctx["title"] = "🗂 Switch Buffer"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = switchBuffer["input"]
+    ctx["list_header"] = "╰─ Buffers ─────────────"
+    ctx["entries"] = switchBuffer["results"]
+    ctx["selected_index"] = switchBuffer["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No buffers"
+    ctx["buffer_id"] = switchBuffer["id"]
+    ctx["entry_to_string"] = switchBufferDisplay
     listPanelRender(ctx)
 }
 
 fn switchBufferLoadBuffers() {
     let buffers = listBuffers()
-    tableSet(switchBuffer, "buffers", fromJson(buffers))
+    switchBuffer["buffers"] = fromJson(buffers)
 }
 
 fn switchBufferUpdateSelectionFromId(targetId) {
-    let results = tableGet(switchBuffer, "results")
+    let results = switchBuffer["results"]
     if arrayLen(results) == 0 {
-        tableSet(switchBuffer, "selected", 0)
-        tableSet(switchBuffer, "selected_id", -1)
+        switchBuffer["selected"] = 0
+        switchBuffer["selected_id"] = -1
         renderSwitchBuffer()
         return null
     }
@@ -1149,75 +1149,75 @@ fn switchBufferUpdateSelectionFromId(targetId) {
     let i = 0
     loop {
         if i >= arrayLen(results) { break }
-        let entry = arrayGet(results, i)
-        if tableGet(entry, "id") == targetId {
+        let entry = results[i]
+        if entry["id"] == targetId {
             selectedEntry = i
             break
         }
         i = i + 1
     }
 
-    let selectedEntryValue = arrayGet(results, selectedEntry)
-    tableSet(switchBuffer, "selected", selectedEntry)
-    tableSet(switchBuffer, "selected_id", tableGet(selectedEntryValue, "id"))
+    let selectedEntryValue = results[selectedEntry]
+    switchBuffer["selected"] = selectedEntry
+    switchBuffer["selected_id"] = selectedEntryValue["id"]
     renderSwitchBuffer()
 }
 
 fn switchBufferUpdateResults() {
     switchBufferLoadBuffers()
 
-    let previousSelectionId = tableGet(switchBuffer, "selected_id")
+    let previousSelectionId = switchBuffer["selected_id"]
     if previousSelectionId == -1 {
-        previousSelectionId = tableGet(switchBuffer, "initial_active_id")
+        previousSelectionId = switchBuffer["initial_active_id"]
     }
 
-    let query = stringToLower(tableGet(switchBuffer, "input"))
+    let query = stringToLower(switchBuffer["input"])
     let results = createArray()
-    let buffers = tableGet(switchBuffer, "buffers")
+    let buffers = switchBuffer["buffers"]
 
     let i = 0
     loop {
         if i >= arrayLen(buffers) { break }
-        let entry = arrayGet(buffers, i)
-        let name = stringToLower(tableGet(entry, "display_name"))
+        let entry = buffers[i]
+        let name = stringToLower(entry["display_name"])
         if stringLen(query) == 0 or stringContains(name, query) {
             arrayPushBack(results, entry)
         }
         i = i + 1
     }
 
-    tableSet(switchBuffer, "results", results)
-    tableSet(switchBuffer, "selected_id", -1)
-    tableSet(switchBuffer, "selected", 0)
+    switchBuffer["results"] = results
+    switchBuffer["selected_id"] = -1
+    switchBuffer["selected"] = 0
     switchBufferUpdateSelectionFromId(previousSelectionId)
 }
 
 fn switchBufferInputUpdated() {
-    inputUpdated(tableGet(switchBuffer, "id"), switchBuffer, "input", switchBufferUpdateResults)
+    inputUpdated(switchBuffer["id"], switchBuffer, "input", switchBufferUpdateResults)
 }
 
 fn switchBufferAddSpace() {
-    inputAddSpace(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
+    inputAddSpace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
 }
 
 fn switchBufferBackspace() {
-    inputBackspace(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
+    inputBackspace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
 }
 
 fn switchBufferClearInput() {
-    inputClear(tableGet(switchBuffer, "id"), switchBuffer, "input", renderSwitchBuffer)
+    inputClear(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
 }
 
 fn switchBufferMoveSelection(delta) {
-    let results = tableGet(switchBuffer, "results")
-    let selected = listPanelMoveSelection(results, tableGet(switchBuffer, "selected"), delta)
-    tableSet(switchBuffer, "selected", selected)
+    let results = switchBuffer["results"]
+    let selected = listPanelMoveSelection(results, switchBuffer["selected"], delta)
+    switchBuffer["selected"] = selected
     if arrayLen(results) == 0 {
-        tableSet(switchBuffer, "selected_id", -1)
+        switchBuffer["selected_id"] = -1
     }
     if arrayLen(results) != 0 {
-        let entry = arrayGet(results, selected)
-        tableSet(switchBuffer, "selected_id", tableGet(entry, "id"))
+        let entry = results[selected]
+        switchBuffer["selected_id"] = entry["id"]
     }
     renderSwitchBuffer()
 }
@@ -1231,11 +1231,11 @@ fn switchBufferPrevious() {
 }
 
 fn switchBufferSelect() {
-    let results = tableGet(switchBuffer, "results")
-    let selected = tableGet(switchBuffer, "selected")
+    let results = switchBuffer["results"]
+    let selected = switchBuffer["selected"]
     if selected < arrayLen(results) {
-        let selection = arrayGet(results, selected)
-        let bufferId = tableGet(selection, "id")
+        let selection = results[selected]
+        let bufferId = selection["id"]
         switchBufferClearInput()
         setActiveBuffer(bufferId)
         runAction("quit-insert-mode")
@@ -1243,7 +1243,7 @@ fn switchBufferSelect() {
 }
 
 fn switchBufferEscape() {
-    let previousBufferId = tableGet(switchBuffer, "previous_buffer_id")
+    let previousBufferId = switchBuffer["previous_buffer_id"]
     if previousBufferId != -1 {
         switchBufferClearInput()
         setActiveBuffer(previousBufferId)
@@ -1253,13 +1253,13 @@ fn switchBufferEscape() {
 
 fn createSwitchBuffer() {
     let previousBufferId = getActiveBuffer()
-    tableSet(switchBuffer, "previous_buffer_id", previousBufferId)
-    tableSet(switchBuffer, "initial_active_id", previousBufferId)
-    tableSet(switchBuffer, "selected_id", -1)
+    switchBuffer["previous_buffer_id"] = previousBufferId
+    switchBuffer["initial_active_id"] = previousBufferId
+    switchBuffer["selected_id"] = -1
 
-    if tableGet(switchBuffer, "id") == -1 {
+    if switchBuffer["id"] == -1 {
         let bufferId = createSpecialBuffer("Switch Buffer")
-        tableSet(switchBuffer, "id", bufferId)
+        switchBuffer["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", switchBufferAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", switchBufferBackspace)
         registerBufferKeybind(bufferId, "ins tab", switchBufferNext)
@@ -1272,7 +1272,7 @@ fn createSwitchBuffer() {
 
     switchBufferClearInput()
     switchBufferUpdateResults()
-    setActiveBuffer(tableGet(switchBuffer, "id"))
+    setActiveBuffer(switchBuffer["id"])
     runAction("enter-insert-mode")
 }
 
@@ -1291,82 +1291,82 @@ fn workspaceSearchDependenciesError() {
 }
 
 let workspaceSearch = createTable()
-tableSet(workspaceSearch, "id", -1)
-tableSet(workspaceSearch, "input", "")
-tableSet(workspaceSearch, "results", createArray())
-tableSet(workspaceSearch, "selected", 0)
-tableSet(workspaceSearch, "previous_buffer_id", -1)
+workspaceSearch["id"] = -1
+workspaceSearch["input"] = ""
+workspaceSearch["results"] = createArray()
+workspaceSearch["selected"] = 0
+workspaceSearch["previous_buffer_id"] = -1
 
 fn workspaceSearchDisplay(entry) {
-    return tableGet(entry, "display")
+    return entry["display"]
 }
 
 fn renderWorkspaceSearch() {
     let ctx = createTable()
-    tableSet(ctx, "title", "🔍 Workspace Search")
-    tableSet(ctx, "input_header", "╭─ Query ───────────────")
-    tableSet(ctx, "input_value", tableGet(workspaceSearch, "input"))
-    tableSet(ctx, "list_header", "╰─ Matches ─────────────")
-    tableSet(ctx, "entries", tableGet(workspaceSearch, "results"))
-    tableSet(ctx, "selected_index", tableGet(workspaceSearch, "selected"))
-    tableSet(ctx, "reserved_lines", 5)
-    tableSet(ctx, "empty_text", "No matches")
-    tableSet(ctx, "buffer_id", tableGet(workspaceSearch, "id"))
-    tableSet(ctx, "entry_to_string", workspaceSearchDisplay)
+    ctx["title"] = "🔍 Workspace Search"
+    ctx["input_header"] = "╭─ Query ───────────────"
+    ctx["input_value"] = workspaceSearch["input"]
+    ctx["list_header"] = "╰─ Matches ─────────────"
+    ctx["entries"] = workspaceSearch["results"]
+    ctx["selected_index"] = workspaceSearch["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No matches"
+    ctx["buffer_id"] = workspaceSearch["id"]
+    ctx["entry_to_string"] = workspaceSearchDisplay
     listPanelRender(ctx)
 }
 
 fn workspaceSearchClearInput() {
-    inputClear(tableGet(workspaceSearch, "id"), workspaceSearch, "input", null)
+    inputClear(workspaceSearch["id"], workspaceSearch, "input", null)
 }
 
 fn workspaceSearchBackspace() {
-    inputBackspace(tableGet(workspaceSearch, "id"), workspaceSearch, "input", null)
+    inputBackspace(workspaceSearch["id"], workspaceSearch, "input", null)
 }
 
 fn workspaceSearchUpdateResults() {
-    tableSet(workspaceSearch, "results", createArray())
-    if stringLen(tableGet(workspaceSearch, "input")) <= 1 {
-        tableSet(workspaceSearch, "selected", 0)
+    workspaceSearch["results"] = createArray()
+    if stringLen(workspaceSearch["input"]) <= 1 {
+        workspaceSearch["selected"] = 0
         renderWorkspaceSearch()
         return null
     }
 
-    let results = runShellCommand("rg --json --color=never --smart-case --max-count 100 \"" + tableGet(workspaceSearch, "input") + "\"", getWorkspaceDir())
-    let lines = stringSplitLines(tableGet(results, "stdout"))
+    let results = runShellCommand("rg --json --color=never --smart-case --max-count 100 \"" + workspaceSearch["input"] + "\"", getWorkspaceDir())
+    let lines = stringSplitLines(results["stdout"])
     let entries = createArray()
 
     let i = 0
     loop {
         if i >= arrayLen(lines) { break }
-        let line = arrayGet(lines, i)
+        let line = lines[i]
         if line != "" {
             let rgResult = fromJson(line)
-            if tableGet(rgResult, "type") == "match" {
-                let data = tableGet(rgResult, "data")
-                let filePath = tableGet(tableGet(data, "path"), "text")
-                let row = tableGet(data, "line_number") - 1
-                let lineText = tableGet(tableGet(data, "lines"), "text")
+            if rgResult["type"] == "match" {
+                let data = rgResult["data"]
+                let filePath = data["path"]["text"]
+                let row = data["line_number"] - 1
+                let lineText = data["lines"]["text"]
                 let lineParts = stringSplitLines(lineText)
                 if arrayLen(lineParts) > 0 {
-                    lineText = arrayGet(lineParts, 0)
+                    lineText = lineParts[0]
                 }
-                let submatches = tableGet(data, "submatches")
+                let submatches = data["submatches"]
                 let j = 0
                 loop {
                     if j >= arrayLen(submatches) { break }
-                    let submatch = arrayGet(submatches, j)
-                    let start = tableGet(submatch, "start")
-                    let end = tableGet(submatch, "end")
+                    let submatch = submatches[j]
+                    let start = submatch["start"]
+                    let end = submatch["end"]
 
                     let display = filePath + ":" + toJson(row) + ":" + toJson(start) + " " + lineText
 
                     let entry = createTable()
-                    tableSet(entry, "file_path", filePath)
-                    tableSet(entry, "row", row)
-                    tableSet(entry, "start", start)
-                    tableSet(entry, "end", end)
-                    tableSet(entry, "display", display)
+                    entry["file_path"] = filePath
+                    entry["row"] = row
+                    entry["start"] = start
+                    entry["end"] = end
+                    entry["display"] = display
                     arrayPushBack(entries, entry)
                     j = j + 1
                 }
@@ -1374,23 +1374,23 @@ fn workspaceSearchUpdateResults() {
         }
         i = i + 1
     }
-    tableSet(workspaceSearch, "results", entries)
-    tableSet(workspaceSearch, "selected", 0)
+    workspaceSearch["results"] = entries
+    workspaceSearch["selected"] = 0
     renderWorkspaceSearch()
 }
 
 fn workspaceSearchInputUpdated() {
-    inputUpdated(tableGet(workspaceSearch, "id"), workspaceSearch, "input", workspaceSearchUpdateResults)
+    inputUpdated(workspaceSearch["id"], workspaceSearch, "input", workspaceSearchUpdateResults)
 }
 
 fn workspaceSearchAddSpace() {
-    inputAddSpace(tableGet(workspaceSearch, "id"), workspaceSearch, "input", renderWorkspaceSearch)
+    inputAddSpace(workspaceSearch["id"], workspaceSearch, "input", renderWorkspaceSearch)
 }
 
 fn workspaceSearchMoveSelection(delta) {
-    let results = tableGet(workspaceSearch, "results")
-    let selected = listPanelMoveSelection(results, tableGet(workspaceSearch, "selected"), delta)
-    tableSet(workspaceSearch, "selected", selected)
+    let results = workspaceSearch["results"]
+    let selected = listPanelMoveSelection(results, workspaceSearch["selected"], delta)
+    workspaceSearch["selected"] = selected
     renderWorkspaceSearch()
 }
 
@@ -1403,25 +1403,25 @@ fn workspaceSearchPrevious() {
 }
 
 fn workspaceSearchSelect() {
-    let results = tableGet(workspaceSearch, "results")
-    let selected = tableGet(workspaceSearch, "selected")
+    let results = workspaceSearch["results"]
+    let selected = workspaceSearch["selected"]
     if selected < arrayLen(results) {
-        let selection = arrayGet(results, selected)
-        let path = tableGet(selection, "file_path")
-        let row = tableGet(selection, "row")
-        let start = tableGet(selection, "start")
-        let end = tableGet(selection, "end")
+        let selection = results[selected]
+        let path = selection["file_path"]
+        let row = selection["row"]
+        let start = selection["start"]
+        let end = selection["end"]
 
         let range = createTable()
         let cursor = createTable()
         let mark = createTable()
 
-        tableSet(mark, "row", row)
-        tableSet(mark, "column", start)
-        tableSet(cursor, "row", row)
-        tableSet(cursor, "column", end)
-        tableSet(range, "cursor", cursor)
-        tableSet(range, "mark", mark)
+        mark["row"] = row
+        mark["column"] = start
+        cursor["row"] = row
+        cursor["column"] = end
+        range["cursor"] = cursor
+        range["mark"] = mark
 
         workspaceSearchClearInput()
         openFile(path)
@@ -1431,7 +1431,7 @@ fn workspaceSearchSelect() {
 }
 
 fn workspaceSearchEscape() {
-    let previousBufferId = tableGet(workspaceSearch, "previous_buffer_id")
+    let previousBufferId = workspaceSearch["previous_buffer_id"]
     if previousBufferId != -1 {
         workspaceSearchClearInput()
         setActiveBuffer(previousBufferId)
@@ -1444,10 +1444,10 @@ fn createWorkspaceSearch() {
         workspaceSearchDependenciesError()
         return null
     }
-    tableSet(workspaceSearch, "previous_buffer_id", getActiveBuffer())
-    if tableGet(workspaceSearch, "id") == -1 {
+    workspaceSearch["previous_buffer_id"] = getActiveBuffer()
+    if workspaceSearch["id"] == -1 {
         let bufferId = createSpecialBuffer("Workspace Search")
-        tableSet(workspaceSearch, "id", bufferId)
+        workspaceSearch["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", workspaceSearchAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", workspaceSearchBackspace)
         registerBufferKeybind(bufferId, "ins tab", workspaceSearchNext)
@@ -1458,7 +1458,7 @@ fn createWorkspaceSearch() {
         registerBufferInputHook(bufferId, workspaceSearchInputUpdated)
     }
     workspaceSearchClearInput()
-    setActiveBuffer(tableGet(workspaceSearch, "id"))
+    setActiveBuffer(workspaceSearch["id"])
     workspaceSearchUpdateResults()
     runAction("enter-insert-mode")
 }
@@ -1468,23 +1468,23 @@ fn createWorkspaceSearch() {
 # Workspace Diagnostics
 
 let workspaceDiagnostics = createTable()
-tableSet(workspaceDiagnostics, "id", -1)
-tableSet(workspaceDiagnostics, "input", "")
-tableSet(workspaceDiagnostics, "all", createArray())
-tableSet(workspaceDiagnostics, "results", createArray())
-tableSet(workspaceDiagnostics, "selected", 0)
-tableSet(workspaceDiagnostics, "previous_buffer_id", -1)
+workspaceDiagnostics["id"] = -1
+workspaceDiagnostics["input"] = ""
+workspaceDiagnostics["all"] = createArray()
+workspaceDiagnostics["results"] = createArray()
+workspaceDiagnostics["selected"] = 0
+workspaceDiagnostics["previous_buffer_id"] = -1
 
 fn workspaceDiagnosticsDisplay(entry) {
-    let filePath = tableGet(entry, "file_path")
-    let range = tableGet(entry, "range")
-    let mark = tableGet(range, "mark")
-    let row = tableGet(mark, "row") + 1
-    let column = tableGet(mark, "column") + 1
-    let severity = tableGet(entry, "severity")
-    let source = tableGet(entry, "source")
-    let code = tableGet(entry, "code")
-    let message = tableGet(entry, "message")
+    let filePath = entry["file_path"]
+    let range = entry["range"]
+    let mark = range["mark"]
+    let row = mark["row"] + 1
+    let column = mark["column"] + 1
+    let severity = entry["severity"]
+    let source = entry["source"]
+    let code = entry["code"]
+    let message = entry["message"]
 
     if source == "null" { source = "" }
     if code == "null" { code = "" }
@@ -1504,33 +1504,33 @@ fn workspaceDiagnosticsDisplay(entry) {
 
 fn renderWorkspaceDiagnostics() {
     let ctx = createTable()
-    tableSet(ctx, "title", "🩺 Diagnostics")
-    tableSet(ctx, "input_header", "╭─ Filter ──────────────")
-    tableSet(ctx, "input_value", tableGet(workspaceDiagnostics, "input"))
-    tableSet(ctx, "list_header", "╰─ Issues ──────────────")
-    tableSet(ctx, "entries", tableGet(workspaceDiagnostics, "results"))
-    tableSet(ctx, "selected_index", tableGet(workspaceDiagnostics, "selected"))
-    tableSet(ctx, "reserved_lines", 5)
-    tableSet(ctx, "empty_text", "No diagnostics")
-    tableSet(ctx, "buffer_id", tableGet(workspaceDiagnostics, "id"))
-    tableSet(ctx, "entry_to_string", workspaceDiagnosticsDisplay)
+    ctx["title"] = "🩺 Diagnostics"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = workspaceDiagnostics["input"]
+    ctx["list_header"] = "╰─ Issues ──────────────"
+    ctx["entries"] = workspaceDiagnostics["results"]
+    ctx["selected_index"] = workspaceDiagnostics["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No diagnostics"
+    ctx["buffer_id"] = workspaceDiagnostics["id"]
+    ctx["entry_to_string"] = workspaceDiagnosticsDisplay
     listPanelRender(ctx)
 }
 
 fn workspaceDiagnosticsFilterResults() {
     let results = createArray()
-    let query = stringToLower(tableGet(workspaceDiagnostics, "input"))
-    let allEntries = tableGet(workspaceDiagnostics, "all")
+    let query = stringToLower(workspaceDiagnostics["input"])
+    let allEntries = workspaceDiagnostics["all"]
 
     let i = 0
     loop {
         if i >= arrayLen(allEntries) { break }
-        let entry = arrayGet(allEntries, i)
+        let entry = allEntries[i]
 
-        let message = stringToLower(tableGet(entry, "message"))
-        let filePath = stringToLower(tableGet(entry, "file_path"))
-        let severity = stringToLower(tableGet(entry, "severity"))
-        let source = stringToLower(tableGet(entry, "source"))
+        let message = stringToLower(entry["message"])
+        let filePath = stringToLower(entry["file_path"])
+        let severity = stringToLower(entry["severity"])
+        let source = stringToLower(entry["source"])
 
         if stringLen(query) == 0 or stringContains(message, query) or stringContains(filePath, query) or stringContains(severity, query) or stringContains(source, query) {
             arrayPushBack(results, entry)
@@ -1538,31 +1538,31 @@ fn workspaceDiagnosticsFilterResults() {
         i = i + 1
     }
 
-    tableSet(workspaceDiagnostics, "results", results)
-    tableSet(workspaceDiagnostics, "selected", 0)
+    workspaceDiagnostics["results"] = results
+    workspaceDiagnostics["selected"] = 0
     renderWorkspaceDiagnostics()
 }
 
 fn workspaceDiagnosticsInputUpdated() {
-    inputUpdated(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", workspaceDiagnosticsFilterResults)
+    inputUpdated(workspaceDiagnostics["id"], workspaceDiagnostics, "input", workspaceDiagnosticsFilterResults)
 }
 
 fn workspaceDiagnosticsAddSpace() {
-    inputAddSpace(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", renderWorkspaceDiagnostics)
+    inputAddSpace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", renderWorkspaceDiagnostics)
 }
 
 fn workspaceDiagnosticsBackspace() {
-    inputBackspace(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", null)
+    inputBackspace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", null)
 }
 
 fn workspaceDiagnosticsClearInput() {
-    inputClear(tableGet(workspaceDiagnostics, "id"), workspaceDiagnostics, "input", null)
+    inputClear(workspaceDiagnostics["id"], workspaceDiagnostics, "input", null)
 }
 
 fn workspaceDiagnosticsMoveSelection(delta) {
-    let results = tableGet(workspaceDiagnostics, "results")
-    let selected = listPanelMoveSelection(results, tableGet(workspaceDiagnostics, "selected"), delta)
-    tableSet(workspaceDiagnostics, "selected", selected)
+    let results = workspaceDiagnostics["results"]
+    let selected = listPanelMoveSelection(results, workspaceDiagnostics["selected"], delta)
+    workspaceDiagnostics["selected"] = selected
     renderWorkspaceDiagnostics()
 }
 
@@ -1575,12 +1575,12 @@ fn workspaceDiagnosticsPrevious() {
 }
 
 fn workspaceDiagnosticsSelect() {
-    let results = tableGet(workspaceDiagnostics, "results")
-    let selected = tableGet(workspaceDiagnostics, "selected")
+    let results = workspaceDiagnostics["results"]
+    let selected = workspaceDiagnostics["selected"]
     if selected < arrayLen(results) {
-        let entry = arrayGet(results, selected)
-        let path = tableGet(entry, "file_path")
-        let range = tableGet(entry, "range")
+        let entry = results[selected]
+        let path = entry["file_path"]
+        let range = entry["range"]
 
         workspaceDiagnosticsClearInput()
         openFile(path)
@@ -1590,7 +1590,7 @@ fn workspaceDiagnosticsSelect() {
 }
 
 fn workspaceDiagnosticsEscape() {
-    let previousBufferId = tableGet(workspaceDiagnostics, "previous_buffer_id")
+    let previousBufferId = workspaceDiagnostics["previous_buffer_id"]
     if previousBufferId != -1 {
         workspaceDiagnosticsClearInput()
         setActiveBuffer(previousBufferId)
@@ -1600,15 +1600,15 @@ fn workspaceDiagnosticsEscape() {
 
 fn workspaceDiagnosticsReload() {
     let diagnostics = getWorkspaceDiagnostics()
-    tableSet(workspaceDiagnostics, "all", fromJson(diagnostics))
+    workspaceDiagnostics["all"] = fromJson(diagnostics)
     workspaceDiagnosticsFilterResults()
 }
 
 fn createWorkspaceDiagnostics() {
-    tableSet(workspaceDiagnostics, "previous_buffer_id", getActiveBuffer())
-    if tableGet(workspaceDiagnostics, "id") == -1 {
+    workspaceDiagnostics["previous_buffer_id"] = getActiveBuffer()
+    if workspaceDiagnostics["id"] == -1 {
         let bufferId = createSpecialBuffer("Workspace Diagnostics")
-        tableSet(workspaceDiagnostics, "id", bufferId)
+        workspaceDiagnostics["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", workspaceDiagnosticsAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", workspaceDiagnosticsBackspace)
         registerBufferKeybind(bufferId, "ins tab", workspaceDiagnosticsNext)
@@ -1620,7 +1620,7 @@ fn createWorkspaceDiagnostics() {
     }
     workspaceDiagnosticsClearInput()
     workspaceDiagnosticsReload()
-    setActiveBuffer(tableGet(workspaceDiagnostics, "id"))
+    setActiveBuffer(workspaceDiagnostics["id"])
     runAction("enter-insert-mode")
 }
 
@@ -1629,36 +1629,36 @@ fn createWorkspaceDiagnostics() {
 # Command Dispatcher
 
 let commandDispatcher = createTable()
-tableSet(commandDispatcher, "id", -1)
-tableSet(commandDispatcher, "input", "")
-tableSet(commandDispatcher, "all", createArray())
-tableSet(commandDispatcher, "results", createArray())
-tableSet(commandDispatcher, "selected", 0)
-tableSet(commandDispatcher, "previous_buffer_id", -1)
+commandDispatcher["id"] = -1
+commandDispatcher["input"] = ""
+commandDispatcher["all"] = createArray()
+commandDispatcher["results"] = createArray()
+commandDispatcher["selected"] = 0
+commandDispatcher["previous_buffer_id"] = -1
 
 fn renderCommandDispatcher() {
     let ctx = createTable()
-    tableSet(ctx, "title", "⚡ Command Palette")
-    tableSet(ctx, "input_header", "╭─ Filter ──────────────")
-    tableSet(ctx, "input_value", tableGet(commandDispatcher, "input"))
-    tableSet(ctx, "list_header", "╰─ Commands ────────────")
-    tableSet(ctx, "entries", tableGet(commandDispatcher, "results"))
-    tableSet(ctx, "selected_index", tableGet(commandDispatcher, "selected"))
-    tableSet(ctx, "reserved_lines", 5)
-    tableSet(ctx, "empty_text", "No commands")
-    tableSet(ctx, "buffer_id", tableGet(commandDispatcher, "id"))
+    ctx["title"] = "⚡ Command Palette"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = commandDispatcher["input"]
+    ctx["list_header"] = "╰─ Commands ────────────"
+    ctx["entries"] = commandDispatcher["results"]
+    ctx["selected_index"] = commandDispatcher["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No commands"
+    ctx["buffer_id"] = commandDispatcher["id"]
     listPanelRender(ctx)
 }
 
 fn commandDispatcherFilterResults() {
     let results = createArray()
-    let query = stringToLower(tableGet(commandDispatcher, "input"))
-    let allActions = tableGet(commandDispatcher, "all")
+    let query = stringToLower(commandDispatcher["input"])
+    let allActions = commandDispatcher["all"]
 
     let i = 0
     loop {
         if i >= arrayLen(allActions) { break }
-        let action = arrayGet(allActions, i)
+        let action = allActions[i]
         let actionLower = stringToLower(action)
 
         if stringLen(query) == 0 or stringContains(actionLower, query) {
@@ -1667,31 +1667,31 @@ fn commandDispatcherFilterResults() {
         i = i + 1
     }
 
-    tableSet(commandDispatcher, "results", results)
-    tableSet(commandDispatcher, "selected", 0)
+    commandDispatcher["results"] = results
+    commandDispatcher["selected"] = 0
     renderCommandDispatcher()
 }
 
 fn commandDispatcherInputUpdated() {
-    inputUpdated(tableGet(commandDispatcher, "id"), commandDispatcher, "input", commandDispatcherFilterResults)
+    inputUpdated(commandDispatcher["id"], commandDispatcher, "input", commandDispatcherFilterResults)
 }
 
 fn commandDispatcherAddSpace() {
-    inputAddSpace(tableGet(commandDispatcher, "id"), commandDispatcher, "input", renderCommandDispatcher)
+    inputAddSpace(commandDispatcher["id"], commandDispatcher, "input", renderCommandDispatcher)
 }
 
 fn commandDispatcherBackspace() {
-    inputBackspace(tableGet(commandDispatcher, "id"), commandDispatcher, "input", null)
+    inputBackspace(commandDispatcher["id"], commandDispatcher, "input", null)
 }
 
 fn commandDispatcherClearInput() {
-    inputClear(tableGet(commandDispatcher, "id"), commandDispatcher, "input", null)
+    inputClear(commandDispatcher["id"], commandDispatcher, "input", null)
 }
 
 fn commandDispatcherMoveSelection(delta) {
-    let results = tableGet(commandDispatcher, "results")
-    let selected = listPanelMoveSelection(results, tableGet(commandDispatcher, "selected"), delta)
-    tableSet(commandDispatcher, "selected", selected)
+    let results = commandDispatcher["results"]
+    let selected = listPanelMoveSelection(results, commandDispatcher["selected"], delta)
+    commandDispatcher["selected"] = selected
     renderCommandDispatcher()
 }
 
@@ -1704,11 +1704,11 @@ fn commandDispatcherPrevious() {
 }
 
 fn commandDispatcherSelect() {
-    let results = tableGet(commandDispatcher, "results")
-    let selected = tableGet(commandDispatcher, "selected")
+    let results = commandDispatcher["results"]
+    let selected = commandDispatcher["selected"]
     if selected < arrayLen(results) {
-        let action = arrayGet(results, selected)
-        let previousBufferId = tableGet(commandDispatcher, "previous_buffer_id")
+        let action = results[selected]
+        let previousBufferId = commandDispatcher["previous_buffer_id"]
         commandDispatcherClearInput()
         if previousBufferId != -1 {
             setActiveBuffer(previousBufferId)
@@ -1719,7 +1719,7 @@ fn commandDispatcherSelect() {
 }
 
 fn commandDispatcherEscape() {
-    let previousBufferId = tableGet(commandDispatcher, "previous_buffer_id")
+    let previousBufferId = commandDispatcher["previous_buffer_id"]
     if previousBufferId != -1 {
         commandDispatcherClearInput()
         setActiveBuffer(previousBufferId)
@@ -1729,15 +1729,15 @@ fn commandDispatcherEscape() {
 
 fn commandDispatcherReload() {
     let actions = getActions()
-    tableSet(commandDispatcher, "all", fromJson(actions))
+    commandDispatcher["all"] = fromJson(actions)
     commandDispatcherFilterResults()
 }
 
 fn createCommandDispatcher() {
-    tableSet(commandDispatcher, "previous_buffer_id", getActiveBuffer())
-    if tableGet(commandDispatcher, "id") == -1 {
+    commandDispatcher["previous_buffer_id"] = getActiveBuffer()
+    if commandDispatcher["id"] == -1 {
         let bufferId = createSpecialBuffer("Command Dispatcher")
-        tableSet(commandDispatcher, "id", bufferId)
+        commandDispatcher["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", commandDispatcherAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", commandDispatcherBackspace)
         registerBufferKeybind(bufferId, "ins tab", commandDispatcherNext)
@@ -1749,7 +1749,7 @@ fn createCommandDispatcher() {
     }
     commandDispatcherClearInput()
     commandDispatcherReload()
-    setActiveBuffer(tableGet(commandDispatcher, "id"))
+    setActiveBuffer(commandDispatcher["id"])
     runAction("enter-insert-mode")
 }
 
@@ -1758,20 +1758,20 @@ fn createCommandDispatcher() {
 # Go To Definition
 
 let goToDefinition = createTable()
-tableSet(goToDefinition, "id", -1)
-tableSet(goToDefinition, "input", "")
-tableSet(goToDefinition, "all", createArray())
-tableSet(goToDefinition, "results", createArray())
-tableSet(goToDefinition, "selected", 0)
-tableSet(goToDefinition, "previous_buffer_id", -1)
+goToDefinition["id"] = -1
+goToDefinition["input"] = ""
+goToDefinition["all"] = createArray()
+goToDefinition["results"] = createArray()
+goToDefinition["selected"] = 0
+goToDefinition["previous_buffer_id"] = -1
 
 fn goToDefinitionDisplay(entry) {
-    let filePath = tableGet(entry, "file_path")
-    let range = tableGet(entry, "range")
-    let mark = tableGet(range, "mark")
-    let row = tableGet(mark, "row") + 1
-    let column = tableGet(mark, "column") + 1
-    let preview = tableGet(entry, "preview")
+    let filePath = entry["file_path"]
+    let range = entry["range"]
+    let mark = range["mark"]
+    let row = mark["row"] + 1
+    let column = mark["column"] + 1
+    let preview = entry["preview"]
 
     let location = filePath + ":" + toJson(row) + ":" + toJson(column)
     if stringLen(preview) > 0 {
@@ -1782,31 +1782,31 @@ fn goToDefinitionDisplay(entry) {
 
 fn renderGoToDefinition() {
     let ctx = createTable()
-    tableSet(ctx, "title", "📌 Definitions")
-    tableSet(ctx, "input_header", "╭─ Filter ──────────────")
-    tableSet(ctx, "input_value", tableGet(goToDefinition, "input"))
-    tableSet(ctx, "list_header", "╰─ Locations ───────────")
-    tableSet(ctx, "entries", tableGet(goToDefinition, "results"))
-    tableSet(ctx, "selected_index", tableGet(goToDefinition, "selected"))
-    tableSet(ctx, "reserved_lines", 5)
-    tableSet(ctx, "empty_text", "No definitions")
-    tableSet(ctx, "buffer_id", tableGet(goToDefinition, "id"))
-    tableSet(ctx, "entry_to_string", goToDefinitionDisplay)
+    ctx["title"] = "📌 Definitions"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = goToDefinition["input"]
+    ctx["list_header"] = "╰─ Locations ───────────"
+    ctx["entries"] = goToDefinition["results"]
+    ctx["selected_index"] = goToDefinition["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No definitions"
+    ctx["buffer_id"] = goToDefinition["id"]
+    ctx["entry_to_string"] = goToDefinitionDisplay
     listPanelRender(ctx)
 }
 
 fn goToDefinitionFilterResults() {
     let results = createArray()
-    let query = stringToLower(tableGet(goToDefinition, "input"))
-    let allEntries = tableGet(goToDefinition, "all")
+    let query = stringToLower(goToDefinition["input"])
+    let allEntries = goToDefinition["all"]
 
     let i = 0
     loop {
         if i >= arrayLen(allEntries) { break }
-        let entry = arrayGet(allEntries, i)
+        let entry = allEntries[i]
 
-        let filePath = stringToLower(tableGet(entry, "file_path"))
-        let preview = stringToLower(tableGet(entry, "preview"))
+        let filePath = stringToLower(entry["file_path"])
+        let preview = stringToLower(entry["preview"])
 
         if stringLen(query) == 0 or stringContains(filePath, query) or stringContains(preview, query) {
             arrayPushBack(results, entry)
@@ -1814,31 +1814,31 @@ fn goToDefinitionFilterResults() {
         i = i + 1
     }
 
-    tableSet(goToDefinition, "results", results)
-    tableSet(goToDefinition, "selected", 0)
+    goToDefinition["results"] = results
+    goToDefinition["selected"] = 0
     renderGoToDefinition()
 }
 
 fn goToDefinitionInputUpdated() {
-    inputUpdated(tableGet(goToDefinition, "id"), goToDefinition, "input", goToDefinitionFilterResults)
+    inputUpdated(goToDefinition["id"], goToDefinition, "input", goToDefinitionFilterResults)
 }
 
 fn goToDefinitionAddSpace() {
-    inputAddSpace(tableGet(goToDefinition, "id"), goToDefinition, "input", renderGoToDefinition)
+    inputAddSpace(goToDefinition["id"], goToDefinition, "input", renderGoToDefinition)
 }
 
 fn goToDefinitionBackspace() {
-    inputBackspace(tableGet(goToDefinition, "id"), goToDefinition, "input", null)
+    inputBackspace(goToDefinition["id"], goToDefinition, "input", null)
 }
 
 fn goToDefinitionClearInput() {
-    inputClear(tableGet(goToDefinition, "id"), goToDefinition, "input", null)
+    inputClear(goToDefinition["id"], goToDefinition, "input", null)
 }
 
 fn goToDefinitionMoveSelection(delta) {
-    let results = tableGet(goToDefinition, "results")
-    let selected = listPanelMoveSelection(results, tableGet(goToDefinition, "selected"), delta)
-    tableSet(goToDefinition, "selected", selected)
+    let results = goToDefinition["results"]
+    let selected = listPanelMoveSelection(results, goToDefinition["selected"], delta)
+    goToDefinition["selected"] = selected
     renderGoToDefinition()
 }
 
@@ -1851,12 +1851,12 @@ fn goToDefinitionPrevious() {
 }
 
 fn goToDefinitionSelect() {
-    let results = tableGet(goToDefinition, "results")
-    let selected = tableGet(goToDefinition, "selected")
+    let results = goToDefinition["results"]
+    let selected = goToDefinition["selected"]
     if selected < arrayLen(results) {
-        let entry = arrayGet(results, selected)
-        let path = tableGet(entry, "file_path")
-        let range = tableGet(entry, "range")
+        let entry = results[selected]
+        let path = entry["file_path"]
+        let range = entry["range"]
 
         goToDefinitionClearInput()
         openFile(path)
@@ -1866,7 +1866,7 @@ fn goToDefinitionSelect() {
 }
 
 fn goToDefinitionEscape() {
-    let previousBufferId = tableGet(goToDefinition, "previous_buffer_id")
+    let previousBufferId = goToDefinition["previous_buffer_id"]
     if previousBufferId != -1 {
         goToDefinitionClearInput()
         setActiveBuffer(previousBufferId)
@@ -1876,15 +1876,15 @@ fn goToDefinitionEscape() {
 
 fn goToDefinitionReload() {
     let definitions = getDefinitions()
-    tableSet(goToDefinition, "all", fromJson(definitions))
+    goToDefinition["all"] = fromJson(definitions)
     goToDefinitionFilterResults()
 }
 
 fn createGoToDefinition() {
-    tableSet(goToDefinition, "previous_buffer_id", getActiveBuffer())
-    if tableGet(goToDefinition, "id") == -1 {
+    goToDefinition["previous_buffer_id"] = getActiveBuffer()
+    if goToDefinition["id"] == -1 {
         let bufferId = createSpecialBuffer("Definitions")
-        tableSet(goToDefinition, "id", bufferId)
+        goToDefinition["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", goToDefinitionAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", goToDefinitionBackspace)
         registerBufferKeybind(bufferId, "ins tab", goToDefinitionNext)
@@ -1896,27 +1896,27 @@ fn createGoToDefinition() {
     }
     goToDefinitionClearInput()
     goToDefinitionReload()
-    setActiveBuffer(tableGet(goToDefinition, "id"))
+    setActiveBuffer(goToDefinition["id"])
     runAction("enter-insert-mode")
 }
 
 # Go To References
 
 let goToReferences = createTable()
-tableSet(goToReferences, "id", -1)
-tableSet(goToReferences, "input", "")
-tableSet(goToReferences, "all", createArray())
-tableSet(goToReferences, "results", createArray())
-tableSet(goToReferences, "selected", 0)
-tableSet(goToReferences, "previous_buffer_id", -1)
+goToReferences["id"] = -1
+goToReferences["input"] = ""
+goToReferences["all"] = createArray()
+goToReferences["results"] = createArray()
+goToReferences["selected"] = 0
+goToReferences["previous_buffer_id"] = -1
 
 fn goToReferencesDisplay(entry) {
-    let filePath = tableGet(entry, "file_path")
-    let range = tableGet(entry, "range")
-    let mark = tableGet(range, "mark")
-    let row = tableGet(mark, "row") + 1
-    let column = tableGet(mark, "column") + 1
-    let preview = tableGet(entry, "preview")
+    let filePath = entry["file_path"]
+    let range = entry["range"]
+    let mark = range["mark"]
+    let row = mark["row"] + 1
+    let column = mark["column"] + 1
+    let preview = entry["preview"]
 
     let location = filePath + ":" + toJson(row) + ":" + toJson(column)
     if stringLen(preview) > 0 {
@@ -1927,31 +1927,31 @@ fn goToReferencesDisplay(entry) {
 
 fn renderGoToReferences() {
     let ctx = createTable()
-    tableSet(ctx, "title", "🔗 References")
-    tableSet(ctx, "input_header", "╭─ Filter ──────────────")
-    tableSet(ctx, "input_value", tableGet(goToReferences, "input"))
-    tableSet(ctx, "list_header", "╰─ Locations ───────────")
-    tableSet(ctx, "entries", tableGet(goToReferences, "results"))
-    tableSet(ctx, "selected_index", tableGet(goToReferences, "selected"))
-    tableSet(ctx, "reserved_lines", 5)
-    tableSet(ctx, "empty_text", "No references")
-    tableSet(ctx, "buffer_id", tableGet(goToReferences, "id"))
-    tableSet(ctx, "entry_to_string", goToReferencesDisplay)
+    ctx["title"] = "🔗 References"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = goToReferences["input"]
+    ctx["list_header"] = "╰─ Locations ───────────"
+    ctx["entries"] = goToReferences["results"]
+    ctx["selected_index"] = goToReferences["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No references"
+    ctx["buffer_id"] = goToReferences["id"]
+    ctx["entry_to_string"] = goToReferencesDisplay
     listPanelRender(ctx)
 }
 
 fn goToReferencesFilterResults() {
     let results = createArray()
-    let query = stringToLower(tableGet(goToReferences, "input"))
-    let allEntries = tableGet(goToReferences, "all")
+    let query = stringToLower(goToReferences["input"])
+    let allEntries = goToReferences["all"]
 
     let i = 0
     loop {
         if i >= arrayLen(allEntries) { break }
-        let entry = arrayGet(allEntries, i)
+        let entry = allEntries[i]
 
-        let filePath = stringToLower(tableGet(entry, "file_path"))
-        let preview = stringToLower(tableGet(entry, "preview"))
+        let filePath = stringToLower(entry["file_path"])
+        let preview = stringToLower(entry["preview"])
 
         if stringLen(query) == 0 or stringContains(filePath, query) or stringContains(preview, query) {
             arrayPushBack(results, entry)
@@ -1959,31 +1959,31 @@ fn goToReferencesFilterResults() {
         i = i + 1
     }
 
-    tableSet(goToReferences, "results", results)
-    tableSet(goToReferences, "selected", 0)
+    goToReferences["results"] = results
+    goToReferences["selected"] = 0
     renderGoToReferences()
 }
 
 fn goToReferencesInputUpdated() {
-    inputUpdated(tableGet(goToReferences, "id"), goToReferences, "input", goToReferencesFilterResults)
+    inputUpdated(goToReferences["id"], goToReferences, "input", goToReferencesFilterResults)
 }
 
 fn goToReferencesAddSpace() {
-    inputAddSpace(tableGet(goToReferences, "id"), goToReferences, "input", renderGoToReferences)
+    inputAddSpace(goToReferences["id"], goToReferences, "input", renderGoToReferences)
 }
 
 fn goToReferencesBackspace() {
-    inputBackspace(tableGet(goToReferences, "id"), goToReferences, "input", null)
+    inputBackspace(goToReferences["id"], goToReferences, "input", null)
 }
 
 fn goToReferencesClearInput() {
-    inputClear(tableGet(goToReferences, "id"), goToReferences, "input", null)
+    inputClear(goToReferences["id"], goToReferences, "input", null)
 }
 
 fn goToReferencesMoveSelection(delta) {
-    let results = tableGet(goToReferences, "results")
-    let selected = listPanelMoveSelection(results, tableGet(goToReferences, "selected"), delta)
-    tableSet(goToReferences, "selected", selected)
+    let results = goToReferences["results"]
+    let selected = listPanelMoveSelection(results, goToReferences["selected"], delta)
+    goToReferences["selected"] = selected
     renderGoToReferences()
 }
 
@@ -1996,12 +1996,12 @@ fn goToReferencesPrevious() {
 }
 
 fn goToReferencesSelect() {
-    let results = tableGet(goToReferences, "results")
-    let selected = tableGet(goToReferences, "selected")
+    let results = goToReferences["results"]
+    let selected = goToReferences["selected"]
     if selected < arrayLen(results) {
-        let entry = arrayGet(results, selected)
-        let path = tableGet(entry, "file_path")
-        let range = tableGet(entry, "range")
+        let entry = results[selected]
+        let path = entry["file_path"]
+        let range = entry["range"]
 
         goToReferencesClearInput()
         openFile(path)
@@ -2011,7 +2011,7 @@ fn goToReferencesSelect() {
 }
 
 fn goToReferencesEscape() {
-    let previousBufferId = tableGet(goToReferences, "previous_buffer_id")
+    let previousBufferId = goToReferences["previous_buffer_id"]
     if previousBufferId != -1 {
         goToReferencesClearInput()
         setActiveBuffer(previousBufferId)
@@ -2021,15 +2021,15 @@ fn goToReferencesEscape() {
 
 fn goToReferencesReload() {
     let references = getReferences()
-    tableSet(goToReferences, "all", fromJson(references))
+    goToReferences["all"] = fromJson(references)
     goToReferencesFilterResults()
 }
 
 fn createGoToReferences() {
-    tableSet(goToReferences, "previous_buffer_id", getActiveBuffer())
-    if tableGet(goToReferences, "id") == -1 {
+    goToReferences["previous_buffer_id"] = getActiveBuffer()
+    if goToReferences["id"] == -1 {
         let bufferId = createSpecialBuffer("References")
-        tableSet(goToReferences, "id", bufferId)
+        goToReferences["id"] = bufferId
         registerBufferKeybind(bufferId, "ins space", goToReferencesAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", goToReferencesBackspace)
         registerBufferKeybind(bufferId, "ins tab", goToReferencesNext)
@@ -2041,7 +2041,7 @@ fn createGoToReferences() {
     }
     goToReferencesClearInput()
     goToReferencesReload()
-    setActiveBuffer(tableGet(goToReferences, "id"))
+    setActiveBuffer(goToReferences["id"])
     runAction("enter-insert-mode")
 }
 
@@ -2050,12 +2050,12 @@ fn createGoToReferences() {
 # Dialog Modal
 
 let dialogModal = createTable()
-tableSet(dialogModal, "id", -1)
-tableSet(dialogModal, "previous_buffer_id", -1)
-tableSet(dialogModal, "active", false)
-tableSet(dialogModal, "input", "")
-tableSet(dialogModal, "prompt", "")
-tableSet(dialogModal, "callback", null)
+dialogModal["id"] = -1
+dialogModal["previous_buffer_id"] = -1
+dialogModal["active"] = false
+dialogModal["input"] = ""
+dialogModal["prompt"] = ""
+dialogModal["callback"] = null
 
 fn setSearchQueryFromDialog(query) {
     setSearchQuery(query)
@@ -2063,14 +2063,14 @@ fn setSearchQueryFromDialog(query) {
 }
 
 fn dialogModalRender() {
-    let content = "💬 Dialog\n" + tableGet(dialogModal, "prompt") + "\n╭─ Input ───────────────\n" + tableGet(dialogModal, "input") + "\n\nenter: submit | esc: cancel"
-    setViewportBufferContent(tableGet(dialogModal, "id"), content)
+    let content = "💬 Dialog\n" + dialogModal["prompt"] + "\n╭─ Input ───────────────\n" + dialogModal["input"] + "\n\nenter: submit | esc: cancel"
+    setViewportBufferContent(dialogModal["id"], content)
 }
 
 fn dialogModalEnsureBuffer() {
-    if tableGet(dialogModal, "id") == -1 {
+    if dialogModal["id"] == -1 {
         let bufferId = createSpecialBuffer("Dialog")
-        tableSet(dialogModal, "id", bufferId)
+        dialogModal["id"] = bufferId
         registerBufferKeybind(bufferId, "ins enter", dialogModalSubmit)
         registerBufferKeybind(bufferId, "ins escape", dialogModalClose)
         registerBufferKeybind(bufferId, "ins backspace", dialogModalBackspace)
@@ -2081,13 +2081,13 @@ fn dialogModalEnsureBuffer() {
 
 fn dialogModalOpen(prompt, callback) {
     dialogModalEnsureBuffer()
-    tableSet(dialogModal, "previous_buffer_id", getActiveBuffer())
-    tableSet(dialogModal, "active", true)
-    tableSet(dialogModal, "prompt", prompt)
-    tableSet(dialogModal, "callback", callback)
-    tableSet(dialogModal, "input", "")
+    dialogModal["previous_buffer_id"] = getActiveBuffer()
+    dialogModal["active"] = true
+    dialogModal["prompt"] = prompt
+    dialogModal["callback"] = callback
+    dialogModal["input"] = ""
 
-    let bufferId = tableGet(dialogModal, "id")
+    let bufferId = dialogModal["id"]
     setActiveBuffer(bufferId)
     setBufferInput(bufferId, "")
     dialogModalRender()
@@ -2095,11 +2095,11 @@ fn dialogModalOpen(prompt, callback) {
 }
 
 fn dialogModalClose() {
-    tableSet(dialogModal, "active", false)
-    tableSet(dialogModal, "input", "")
-    tableSet(dialogModal, "prompt", "")
-    tableSet(dialogModal, "callback", null)
-    let previousBufferId = tableGet(dialogModal, "previous_buffer_id")
+    dialogModal["active"] = false
+    dialogModal["input"] = ""
+    dialogModal["prompt"] = ""
+    dialogModal["callback"] = null
+    let previousBufferId = dialogModal["previous_buffer_id"]
     if previousBufferId != -1 {
         setActiveBuffer(previousBufferId)
     }
@@ -2107,9 +2107,9 @@ fn dialogModalClose() {
 }
 
 fn dialogModalSubmit() {
-    if !tableGet(dialogModal, "active") { return null }
-    let value = getBufferInput(tableGet(dialogModal, "id"))
-    let callback = tableGet(dialogModal, "callback")
+    if !dialogModal["active"] { return null }
+    let value = getBufferInput(dialogModal["id"])
+    let callback = dialogModal["callback"]
     dialogModalClose()
     if callback != null {
         callback(value)
@@ -2117,20 +2117,20 @@ fn dialogModalSubmit() {
 }
 
 fn dialogModalInputUpdated() {
-    inputUpdated(tableGet(dialogModal, "id"), dialogModal, "input", dialogModalRender)
+    inputUpdated(dialogModal["id"], dialogModal, "input", dialogModalRender)
 }
 
 fn dialogModalInsertSpace() {
-    inputAddSpace(tableGet(dialogModal, "id"), dialogModal, "input", dialogModalRender)
+    inputAddSpace(dialogModal["id"], dialogModal, "input", dialogModalRender)
 }
 
 fn dialogModalBackspace() {
-    let inputValue = getBufferInput(tableGet(dialogModal, "id"))
+    let inputValue = getBufferInput(dialogModal["id"])
     let length = stringLen(inputValue)
     if length <= 0 { return null }
     inputValue = stringTruncateWidth(inputValue, length - 1)
-    tableSet(dialogModal, "input", inputValue)
-    setBufferInput(tableGet(dialogModal, "id"), inputValue)
+    dialogModal["input"] = inputValue
+    setBufferInput(dialogModal["id"], inputValue)
     dialogModalRender()
 }
 
@@ -2139,25 +2139,25 @@ fn dialogModalBackspace() {
 # Info Modal
 
 let infoModal = createTable()
-tableSet(infoModal, "id", -1)
-tableSet(infoModal, "previous_buffer_id", -1)
-tableSet(infoModal, "content", "")
-tableSet(infoModal, "scroll", 0)
-tableSet(infoModal, "active", false)
-tableSet(infoModal, "page_size", 48)
+infoModal["id"] = -1
+infoModal["previous_buffer_id"] = -1
+infoModal["content"] = ""
+infoModal["scroll"] = 0
+infoModal["active"] = false
+infoModal["page_size"] = 48
 
 fn infoModalClampScroll(totalLines, pageSize) {
     let maxScroll = totalLines - pageSize
     if maxScroll < 0 { maxScroll = 0 }
-    let infoModalScroll = tableGet(infoModal, "scroll")
+    let infoModalScroll = infoModal["scroll"]
     if infoModalScroll < 0 { infoModalScroll = 0 }
     if infoModalScroll > maxScroll { infoModalScroll = maxScroll }
-    tableSet(infoModal, "scroll", infoModalScroll)
+    infoModal["scroll"] = infoModalScroll
 }
 
 fn infoModalRender() {
     let content = "Info Modal (esc to close, up/down to scroll)\n------"
-    let infoModalContent = tableGet(infoModal, "content")
+    let infoModalContent = infoModal["content"]
     let columns = viewportVisibleColumns()
     let wrappedAll = stringRenderViewport(infoModalContent, columns, 100000, 0)
     let wrappedLines = stringSplitLines(wrappedAll)
@@ -2165,7 +2165,7 @@ fn infoModalRender() {
 
     if totalLines == 0 {
         content = content + "\n\n   No information available"
-        setViewportBufferContent(tableGet(infoModal, "id"), content)
+        setViewportBufferContent(infoModal["id"], content)
         return null
     }
 
@@ -2174,15 +2174,15 @@ fn infoModalRender() {
     if bodyRows < 1 { bodyRows = 1 }
 
     let footerLines = 0
-    if tableGet(infoModal, "scroll") + bodyRows < totalLines and bodyRows > 2 {
+    if infoModal["scroll"] + bodyRows < totalLines and bodyRows > 2 {
         footerLines = 2
         bodyRows = bodyRows - footerLines
     }
 
-    tableSet(infoModal, "page_size", bodyRows)
+    infoModal["page_size"] = bodyRows
     infoModalClampScroll(totalLines, bodyRows)
 
-    let scroll = tableGet(infoModal, "scroll")
+    let scroll = infoModal["scroll"]
     let body = stringRenderViewport(infoModalContent, columns, bodyRows, scroll)
     content = content + "\n\n" + body
 
@@ -2191,13 +2191,13 @@ fn infoModalRender() {
         content = content + "\n\n... (" + toJson(remaining) + " more lines)"
     }
 
-    setViewportBufferContent(tableGet(infoModal, "id"), content)
+    setViewportBufferContent(infoModal["id"], content)
 }
 
 fn infoModalEnsureBuffer() {
-    if tableGet(infoModal, "id") == -1 {
+    if infoModal["id"] == -1 {
         let bufferId = createSpecialBuffer("Info")
-        tableSet(infoModal, "id", bufferId)
+        infoModal["id"] = bufferId
         registerBufferKeybind(bufferId, "ins escape", infoModalClose)
         registerBufferKeybind(bufferId, "ins up", infoModalScrollUp)
         registerBufferKeybind(bufferId, "ins down", infoModalScrollDown)
@@ -2208,23 +2208,23 @@ fn infoModalEnsureBuffer() {
 
 fn infoModalOpen(content) {
     infoModalEnsureBuffer()
-    if !tableGet(infoModal, "active") {
-        tableSet(infoModal, "previous_buffer_id", getActiveBuffer())
+    if !infoModal["active"] {
+        infoModal["previous_buffer_id"] = getActiveBuffer()
     }
-    tableSet(infoModal, "active", true)
-    tableSet(infoModal, "content", content)
-    tableSet(infoModal, "scroll", 0)
+    infoModal["active"] = true
+    infoModal["content"] = content
+    infoModal["scroll"] = 0
     infoModalRender()
-    let bufferId = tableGet(infoModal, "id")
+    let bufferId = infoModal["id"]
     setActiveBuffer(bufferId)
     setBufferInput(bufferId, "")
     runAction("enter-insert-mode")
 }
 
 fn infoModalClose() {
-    tableSet(infoModal, "active", false)
-    tableSet(infoModal, "scroll", 0)
-    let previousBufferId = tableGet(infoModal, "previous_buffer_id")
+    infoModal["active"] = false
+    infoModal["scroll"] = 0
+    let previousBufferId = infoModal["previous_buffer_id"]
     if previousBufferId != -1 {
         setActiveBuffer(previousBufferId)
     }
@@ -2232,30 +2232,30 @@ fn infoModalClose() {
 }
 
 fn infoModalScrollUp() {
-    if !tableGet(infoModal, "active") { return null }
-    let infoModalScroll = tableGet(infoModal, "scroll") - 1
-    tableSet(infoModal, "scroll", infoModalScroll)
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] - 1
+    infoModal["scroll"] = infoModalScroll
     infoModalRender()
 }
 
 fn infoModalScrollDown() {
-    if !tableGet(infoModal, "active") { return null }
-    let infoModalScroll = tableGet(infoModal, "scroll") + 1
-    tableSet(infoModal, "scroll", infoModalScroll)
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] + 1
+    infoModal["scroll"] = infoModalScroll
     infoModalRender()
 }
 
 fn infoModalPageUp() {
-    if !tableGet(infoModal, "active") { return null }
-    let infoModalScroll = tableGet(infoModal, "scroll") - tableGet(infoModal, "page_size")
-    tableSet(infoModal, "scroll", infoModalScroll)
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] - infoModal["page_size"]
+    infoModal["scroll"] = infoModalScroll
     infoModalRender()
 }
 
 fn infoModalPageDown() {
-    if !tableGet(infoModal, "active") { return null }
-    let infoModalScroll = tableGet(infoModal, "scroll") + tableGet(infoModal, "page_size")
-    tableSet(infoModal, "scroll", infoModalScroll)
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] + infoModal["page_size"]
+    infoModal["scroll"] = infoModalScroll
     infoModalRender()
 }
 
@@ -2264,16 +2264,16 @@ fn infoModalPageDown() {
 fn rerenderAllUi() {
     renderDashboard()
 
-    if tableGet(llmChat, "id") != -1 { renderLLMChat() }
-    if tableGet(fuzzyFileFinder, "id") != -1 { renderFuzzyFileFinder() }
-    if tableGet(switchBuffer, "id") != -1 { renderSwitchBuffer() }
-    if tableGet(workspaceSearch, "id") != -1 { renderWorkspaceSearch() }
-    if tableGet(workspaceDiagnostics, "id") != -1 { renderWorkspaceDiagnostics() }
-    if tableGet(commandDispatcher, "id") != -1 { renderCommandDispatcher() }
-    if tableGet(goToDefinition, "id") != -1 { renderGoToDefinition() }
-    if tableGet(goToReferences, "id") != -1 { renderGoToReferences() }
-    if tableGet(dialogModal, "active") { dialogModalRender() }
-    if tableGet(infoModal, "active") { infoModalRender() }
+    if llmChat["id"] != -1 { renderLLMChat() }
+    if fuzzyFileFinder["id"] != -1 { renderFuzzyFileFinder() }
+    if switchBuffer["id"] != -1 { renderSwitchBuffer() }
+    if workspaceSearch["id"] != -1 { renderWorkspaceSearch() }
+    if workspaceDiagnostics["id"] != -1 { renderWorkspaceDiagnostics() }
+    if commandDispatcher["id"] != -1 { renderCommandDispatcher() }
+    if goToDefinition["id"] != -1 { renderGoToDefinition() }
+    if goToReferences["id"] != -1 { renderGoToReferences() }
+    if dialogModal["active"] { dialogModalRender() }
+    if infoModal["active"] { infoModalRender() }
 }
 
 createDashboardBuffer()
