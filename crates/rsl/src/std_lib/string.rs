@@ -6,7 +6,9 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use crate::array::Array;
 use crate::primitive::Primitive;
 use crate::std_lib::args;
+use rsl_macros::rsl_native;
 
+#[rsl_native]
 pub fn string_split_lines(arguments: Vec<Primitive>) -> Primitive {
     let string = args!(arguments; string: String);
     let lines: Vec<Primitive> = string
@@ -17,26 +19,31 @@ pub fn string_split_lines(arguments: Vec<Primitive>) -> Primitive {
     Primitive::Array(Rc::new(RefCell::new(Array::new(lines))))
 }
 
+#[rsl_native]
 pub fn string_len(arguments: Vec<Primitive>) -> Primitive {
     let string = args!(arguments; string: String);
     Primitive::Number(string.chars().count() as f32)
 }
 
+#[rsl_native]
 pub fn string_contains(arguments: Vec<Primitive>) -> Primitive {
     let (string, pattern) = args!(arguments; string: String, pattern: String);
     Primitive::Boolean(string.contains(&pattern))
 }
 
+#[rsl_native]
 pub fn string_to_lower(arguments: Vec<Primitive>) -> Primitive {
     let string = args!(arguments; string: String);
     Primitive::String(string.to_lowercase())
 }
 
+#[rsl_native]
 pub fn string_width(arguments: Vec<Primitive>) -> Primitive {
     let string = args!(arguments; string: String);
     Primitive::Number(UnicodeWidthStr::width(string.as_str()) as f32)
 }
 
+#[rsl_native]
 pub fn string_truncate_width(arguments: Vec<Primitive>) -> Primitive {
     let (string, max_width) = args!(arguments; string: String, max_width: Number);
     let max_width = if max_width < 0.0 {
@@ -99,6 +106,7 @@ fn wrap_lines(text: &str, width: usize) -> Vec<String> {
     lines
 }
 
+#[rsl_native]
 pub fn string_render_viewport(arguments: Vec<Primitive>) -> Primitive {
     let (string, viewport_width, viewport_height, scroll_amount) = args!(arguments; string: String, viewport_width: Number, viewport_height: Number, scroll_amount: Number);
 

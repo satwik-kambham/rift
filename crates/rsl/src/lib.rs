@@ -12,11 +12,39 @@ pub mod std_lib;
 pub mod table;
 pub mod token;
 
+extern crate self as rsl;
+
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::{environment::Environment, errors::RSLError};
+use crate::{
+    environment::{Environment, NativeFunction},
+    errors::RSLError,
+};
 use anyhow::Context;
+
+pub struct NativeFnRegistration {
+    pub name: &'static str,
+    pub func: NativeFunction,
+}
+
+inventory::collect!(NativeFnRegistration);
+
+#[macro_export]
+macro_rules! submit_native_function {
+    ($name:expr, $func:path) => {
+        inventory::submit!(rsl::NativeFnRegistration {
+            name: $name,
+            func: $func,
+        });
+    };
+}
+
+pub fn register_native_functions(environment: &Environment) {
+    for registration in inventory::iter::<NativeFnRegistration> {
+        environment.register_native_function(registration.name, registration.func);
+    }
+}
 
 pub struct RSL {
     pub environment: Rc<Environment>,
@@ -39,54 +67,7 @@ impl RSL {
     ) -> Self {
         let environment = Environment::new(None);
 
-        environment.register_native_function("print", std_lib::print);
-        environment.register_native_function("toString", std_lib::to_string);
-        environment.register_native_function("toJson", std_lib::to_json);
-        environment.register_native_function("fromJson", std_lib::from_json);
-        environment.register_native_function("createArray", std_lib::array::create_array);
-        environment.register_native_function("arrayLen", std_lib::array::array_len);
-        environment.register_native_function("arrayGet", std_lib::array::array_get);
-        environment.register_native_function("arraySet", std_lib::array::array_set);
-        environment.register_native_function("arrayPushBack", std_lib::array::array_push_back);
-        environment.register_native_function("arrayRemove", std_lib::array::array_remove);
-        environment.register_native_function("arrayPopBack", std_lib::array::array_pop_back);
-        environment.register_native_function("createTable", std_lib::table::create_table);
-        environment.register_native_function("tableSet", std_lib::table::table_set);
-        environment.register_native_function("tableGet", std_lib::table::table_get);
-        environment.register_native_function("tableKeys", std_lib::table::table_keys);
-        environment.register_native_function("floor", std_lib::number::floor);
-        environment
-            .register_native_function("stringSplitLines", std_lib::string::string_split_lines);
-        environment.register_native_function("stringLen", std_lib::string::string_len);
-        environment.register_native_function("stringContains", std_lib::string::string_contains);
-        environment.register_native_function("stringToLower", std_lib::string::string_to_lower);
-        environment.register_native_function("stringWidth", std_lib::string::string_width);
-        environment.register_native_function(
-            "stringTruncateWidth",
-            std_lib::string::string_truncate_width,
-        );
-        environment.register_native_function(
-            "stringRenderViewport",
-            std_lib::string::string_render_viewport,
-        );
-        environment.register_native_function("getRequest", std_lib::web_requests::get_request);
-        environment.register_native_function("postRequest", std_lib::web_requests::post_request);
-        environment.register_native_function(
-            "postRequestWithBearerToken",
-            std_lib::web_requests::post_request_with_bearer_token,
-        );
-        environment.register_native_function("readFile", std_lib::io::read_file);
-        environment.register_native_function("getEnvVar", std_lib::io::get_env_var);
-        environment.register_native_function("runShellCommand", std_lib::io::run_shell_command);
-        environment.register_native_function("commandExists", std_lib::io::command_exists);
-        environment.register_native_function("agentReadFile", std_lib::io::agent_read_file);
-        environment.register_native_function("agentWriteFile", std_lib::io::agent_write_file);
-        environment.register_native_function("agentReplace", std_lib::io::agent_replace);
-        environment.register_native_function("createBlankFile", std_lib::io::create_blank_file);
-        environment.register_native_function("createDirectory", std_lib::io::create_directory);
-        environment.register_native_function("listDir", std_lib::io::list_dir);
-        environment.register_native_function("joinPath", std_lib::io::join_path);
-        environment.register_native_function("parentPath", std_lib::io::parent_path);
+        register_native_functions(&environment);
 
         #[cfg(feature = "rift_rpc")]
         let rpc_client =

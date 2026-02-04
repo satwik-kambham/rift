@@ -14,6 +14,8 @@ thiserror = { workspace = true }
 reedline = "0.41.0"
 uuid = { version = "1.16.0", features = ["v4"] }
 tokio = { workspace = true }
+inventory = "0.3.15"
+rsl_macros = { path = "../rsl_macros" }
 rift_rpc = { path = "../rift_rpc", optional = true }
 tarpc = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }

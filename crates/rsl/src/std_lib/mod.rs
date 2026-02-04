@@ -6,6 +6,7 @@ pub mod table;
 pub mod web_requests;
 
 use crate::primitive::Primitive;
+use rsl_macros::rsl_native;
 
 macro_rules! args {
     ($args:expr; $($name:ident $( : $variant:ident )?),+ $(,)?) => {{
@@ -36,6 +37,7 @@ macro_rules! args {
 
 pub(crate) use args;
 
+#[rsl_native]
 pub fn print(arguments: Vec<Primitive>) -> Primitive {
     let text = arguments
         .iter()
@@ -46,17 +48,20 @@ pub fn print(arguments: Vec<Primitive>) -> Primitive {
     Primitive::Null
 }
 
+#[rsl_native]
 pub fn to_string(arguments: Vec<Primitive>) -> Primitive {
     let value = args!(arguments; value);
     Primitive::String(format!("{}", value))
 }
 
+#[rsl_native]
 pub fn to_json(arguments: Vec<Primitive>) -> Primitive {
     let argument = args!(arguments; argument);
     let serialized = serde_json::to_string(&argument).unwrap();
     Primitive::String(serialized)
 }
 
+#[rsl_native]
 pub fn from_json(arguments: Vec<Primitive>) -> Primitive {
     let json = args!(arguments; json: String);
     serde_json::from_str(&json).unwrap()

@@ -4,22 +4,27 @@ use std::rc::Rc;
 use crate::primitive::Primitive;
 use crate::std_lib::args;
 use crate::table::Table;
+use rsl_macros::rsl_native;
 
+#[rsl_native]
 pub fn create_table(_arguments: Vec<Primitive>) -> Primitive {
     Primitive::Table(Rc::new(RefCell::new(Table::new())))
 }
 
+#[rsl_native]
 pub fn table_set(arguments: Vec<Primitive>) -> Primitive {
     let (table, key, value) = args!(arguments; table: Table, key: String, value);
     table.borrow_mut().set_value(key, value);
     Primitive::Null
 }
 
+#[rsl_native]
 pub fn table_get(arguments: Vec<Primitive>) -> Primitive {
     let (table, key) = args!(arguments; table: Table, key: String);
     table.borrow().get_value(&key)
 }
 
+#[rsl_native]
 pub fn table_keys(arguments: Vec<Primitive>) -> Primitive {
     let table = args!(arguments; table: Table);
     let keys = table.borrow().keys();

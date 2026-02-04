@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::primitive::{FunctionDefinition, Primitive};
 use crate::table::Table;
 
-type NativeFunction = fn(Vec<Primitive>) -> Primitive;
+pub type NativeFunction = fn(Vec<Primitive>) -> Primitive;
 type NativeFunctionMap = HashMap<String, NativeFunction>;
 
 #[derive(Clone, Copy)]

@@ -10,6 +10,7 @@ use crate::array::Array;
 use crate::primitive::Primitive;
 use crate::std_lib::args;
 use crate::table::Table;
+use rsl_macros::rsl_native;
 
 pub fn is_absolute_path(path: &str) -> bool {
     Path::new(path).is_absolute()
@@ -21,6 +22,7 @@ pub fn is_in_workspace(workspace_dir: &str, path: &str) -> bool {
     file_path.starts_with(workspace_path)
 }
 
+#[rsl_native]
 pub fn agent_read_file(arguments: Vec<Primitive>) -> Primitive {
     let (workspace_dir, path) = args!(arguments; workspace_dir: String, path: String);
 
@@ -45,6 +47,7 @@ pub fn agent_read_file(arguments: Vec<Primitive>) -> Primitive {
     Primitive::String(output)
 }
 
+#[rsl_native]
 pub fn agent_write_file(arguments: Vec<Primitive>) -> Primitive {
     let (workspace_dir, file_path, content) =
         args!(arguments; workspace_dir: String, file_path: String, content: String);
@@ -71,6 +74,7 @@ pub fn agent_write_file(arguments: Vec<Primitive>) -> Primitive {
     Primitive::String(output)
 }
 
+#[rsl_native]
 pub fn agent_replace(arguments: Vec<Primitive>) -> Primitive {
     let (workspace_dir, file_path, old_string, new_string) = args!(
         arguments;
@@ -116,6 +120,7 @@ pub fn agent_replace(arguments: Vec<Primitive>) -> Primitive {
     Primitive::String(output)
 }
 
+#[rsl_native]
 pub fn create_blank_file(arguments: Vec<Primitive>) -> Primitive {
     let path = args!(arguments; path: String);
 
@@ -130,6 +135,7 @@ pub fn create_blank_file(arguments: Vec<Primitive>) -> Primitive {
     }
 }
 
+#[rsl_native]
 pub fn create_directory(arguments: Vec<Primitive>) -> Primitive {
     let path = args!(arguments; path: String);
 
@@ -139,12 +145,14 @@ pub fn create_directory(arguments: Vec<Primitive>) -> Primitive {
     }
 }
 
+#[rsl_native]
 pub fn read_file(arguments: Vec<Primitive>) -> Primitive {
     let path = args!(arguments; path: String);
     let content = std::fs::read_to_string(path).unwrap();
     Primitive::String(content)
 }
 
+#[rsl_native]
 pub fn get_env_var(arguments: Vec<Primitive>) -> Primitive {
     let key = args!(arguments; key: String);
     match std::env::var(key) {
@@ -154,6 +162,7 @@ pub fn get_env_var(arguments: Vec<Primitive>) -> Primitive {
     }
 }
 
+#[rsl_native]
 pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {
     let (command, workspace_dir) = args!(arguments; command: String, workspace_dir: String);
 
@@ -183,11 +192,13 @@ pub fn run_shell_command(arguments: Vec<Primitive>) -> Primitive {
     }
 }
 
+#[rsl_native]
 pub fn command_exists(arguments: Vec<Primitive>) -> Primitive {
     let command = args!(arguments; command: String);
     Primitive::Boolean(which(command).is_ok())
 }
 
+#[rsl_native]
 pub fn list_dir(arguments: Vec<Primitive>) -> Primitive {
     let path = args!(arguments; path: String);
 
@@ -256,6 +267,7 @@ pub fn list_dir(arguments: Vec<Primitive>) -> Primitive {
     Primitive::Table(Rc::new(RefCell::new(result)))
 }
 
+#[rsl_native]
 pub fn join_path(arguments: Vec<Primitive>) -> Primitive {
     let (base, segment) = args!(arguments; base: String, segment: String);
 
@@ -265,6 +277,7 @@ pub fn join_path(arguments: Vec<Primitive>) -> Primitive {
     Primitive::String(path.to_string_lossy().to_string())
 }
 
+#[rsl_native]
 pub fn parent_path(arguments: Vec<Primitive>) -> Primitive {
     let path = args!(arguments; path: String);
 
