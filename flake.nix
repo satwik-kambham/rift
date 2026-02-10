@@ -33,7 +33,7 @@
         buildDeps = with pkgs; [
           toolchain
           rust-analyzer
-          nixfmt-rfc-style
+          nixfmt
           cargo-flamegraph
           perf
         ];
@@ -52,10 +52,10 @@
           wayland
 
           # x11 libraries
-          xorg.libXcursor
-          xorg.libXrandr
-          xorg.libXi
-          xorg.libX11
+          libxcursor
+          libxrandr
+          libxi
+          libx11
 
           alsa-lib
 

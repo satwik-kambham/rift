@@ -374,7 +374,7 @@ fn getLlamaCppProvider() {
     let provider = createTable()
     provider["url"] = "http://127.0.0.1:8080/v1/chat/completions"
     provider["api_key"] = null
-    provider["model"] = "Granite-4.0-H-Tiny"
+    provider["model"] = ""
     return provider
 }
 
@@ -581,7 +581,7 @@ fn requestChatCompletion() {
     request["messages"] = llmChat["history"]
     request["tools"] = fromJson(toolDeclarations())
     request["stream"] = false
-    request["temperature"] = 0.3
+    # request["temperature"] = 0.3
     request["seed"] = 42
 
     let body = toJson(request)

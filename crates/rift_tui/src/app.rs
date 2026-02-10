@@ -5,24 +5,21 @@ use ratatui::{
     crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text,
-    widgets::{self},
+    text, widgets,
 };
+
 use rift_core::{
     actions::{Action, perform_action},
     buffer::instance::Attribute,
     io::file_io::handle_file_event,
     lsp::handle_lsp_messages,
-    preferences::Color,
     rendering::update_visible_lines,
     state::{CompletionMenu, EditorState, Mode},
 };
 
-pub fn color_from_rgb(c: Color) -> ratatui::style::Color {
-    ratatui::style::Color::Rgb(c.r, c.g, c.b)
-}
+use crate::util::color_from_rgb;
 
-pub struct App {
+pub(crate) struct App {
     pub state: EditorState,
 }
 
@@ -33,22 +30,21 @@ impl Default for App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let mut state = EditorState::new();
         state.post_initialization();
 
         Self { state }
     }
 
-    pub fn perform_action(&mut self, action: Action) -> String {
+    fn perform_action(&mut self, action: Action) -> String {
         perform_action(action, &mut self.state).unwrap_or_default()
     }
 
-    pub fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
+    pub(crate) fn run(&mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
         while !self.state.quit {
             terminal.draw(|frame| {
                 let show_gutter = !matches!(self.state.is_active_buffer_special(), Some(true));
-                // Layout
                 let gutter_width = if show_gutter {
                     if let Some(buffer_idx) = self.state.buffer_idx {
                         let (buffer, _) = self.state.get_buffer_by_id(buffer_idx);

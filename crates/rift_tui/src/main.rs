@@ -1,4 +1,5 @@
-pub mod app;
+mod app;
+mod util;
 
 fn main() -> anyhow::Result<()> {
     rift_core::logging::initialize_tracing();

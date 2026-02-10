@@ -21,7 +21,10 @@ pub fn get_request(arguments: Vec<Primitive>) -> Primitive {
 #[rsl_native]
 pub fn post_request(arguments: Vec<Primitive>) -> Primitive {
     let (url, body) = args!(arguments; url: String, body: String);
-    let client = reqwest::blocking::Client::new();
+    let client = match reqwest::blocking::Client::builder().timeout(None).build() {
+        Ok(c) => c,
+        Err(e) => return Primitive::Error(format!("Failed to build HTTP client: {}", e)),
+    };
     match client.post(&url).body(body.clone()).send() {
         Ok(response) => {
             let status = response.status();
@@ -41,7 +44,10 @@ pub fn post_request(arguments: Vec<Primitive>) -> Primitive {
 pub fn post_request_with_bearer_token(arguments: Vec<Primitive>) -> Primitive {
     let (url, body, bearer_token) =
         args!(arguments; url: String, body: String, bearer_token: String);
-    let client = reqwest::blocking::Client::new();
+    let client = match reqwest::blocking::Client::builder().timeout(None).build() {
+        Ok(c) => c,
+        Err(e) => return Primitive::Error(format!("Failed to build HTTP client: {}", e)),
+    };
     match client
         .post(&url)
         .bearer_auth(bearer_token)
