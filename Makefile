@@ -4,7 +4,7 @@
 
 help:
 	@echo "Common targets:"
-	@echo "  check            - cargo check"
+	@echo "  check            - cargo check; cargo clippy"
 	@echo "  fmt              - cargo fmt"
 	@echo "  clippy           - cargo clippy -- -D warnings"
 	@echo "  build            - cargo build"
@@ -20,7 +20,7 @@ help:
 	@echo "  clean            - cargo clean"
 
 check:
-	cargo check
+	cargo check; cargo clippy
 
 fmt:
 	cargo fmt

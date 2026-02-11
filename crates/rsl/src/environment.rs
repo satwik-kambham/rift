@@ -34,6 +34,13 @@ impl Environment {
         }
     }
 
+    fn root(&self) -> &Environment {
+        match &self.parent {
+            Some(parent) => parent.root(),
+            None => self,
+        }
+    }
+
     pub fn get_value(&self, name: &str) -> Primitive {
         if let Some(value) = self.values.borrow().get(name) {
             return value.0.clone();
@@ -114,13 +121,11 @@ impl Environment {
         function_definition: FunctionDefinition,
         export: bool,
     ) {
-        if let Some(parent) = &self.parent {
-            return parent.register_function(name, function_definition, export);
-        }
+        let root = self.root();
 
         let function_id = Uuid::new_v4().to_string();
 
-        self.functions
+        root.functions
             .borrow_mut()
             .insert(function_id.clone(), function_definition);
 

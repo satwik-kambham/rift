@@ -14,6 +14,8 @@ pub mod token;
 
 extern crate self as rsl;
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -46,19 +48,22 @@ pub fn register_native_functions(environment: &Environment) {
     }
 }
 
-pub struct RSL {
+pub struct RSL<'a> {
     pub environment: Rc<Environment>,
     pub rt_handle: tokio::runtime::Handle,
     working_dir: PathBuf,
+    modules: HashMap<&'a str, &'a str>,
+    cached_modules: HashMap<String, Rc<RefCell<table::Table>>>,
 
     #[cfg(feature = "rift_rpc")]
     pub rift_rpc_client: rift_rpc::RiftRPCClient,
 }
 
-impl RSL {
+impl<'a> RSL<'a> {
     pub fn new(
         working_dir: Option<PathBuf>,
         rt_handle: tokio::runtime::Handle,
+        modules: HashMap<&'a str, &'a str>,
         #[cfg(feature = "rift_rpc")]
         rpc_client_transport: tarpc::transport::channel::UnboundedChannel<
             tarpc::Response<rift_rpc::RiftRPCResponse>,
@@ -82,6 +87,8 @@ impl RSL {
             environment: Rc::new(environment),
             rt_handle,
             working_dir,
+            modules,
+            cached_modules: HashMap::new(),
             #[cfg(feature = "rift_rpc")]
             rift_rpc_client: rpc_client,
         }
@@ -111,6 +118,10 @@ impl RSL {
     }
 
     pub fn get_package_code(&self, package_name: &str) -> anyhow::Result<String> {
+        if let Some(source) = self.modules.get(package_name) {
+            return Ok(source.to_string());
+        }
+
         let candidate = self.working_dir.join(package_name);
         if candidate.is_file() {
             let source = std::fs::read_to_string(&candidate)
@@ -118,5 +129,38 @@ impl RSL {
             return Ok(source);
         }
         anyhow::bail!("Package not found at {:?}", candidate)
+    }
+
+    pub fn cached_import(
+        &mut self,
+        package_name: &String,
+        span: token::Span,
+    ) -> Result<primitive::Primitive, errors::RuntimeError> {
+        if let Some(exported_values) = self.cached_modules.get(package_name) {
+            return Ok(primitive::Primitive::Table(exported_values.clone()));
+        }
+
+        match self.get_package_code(package_name) {
+            Ok(source) => {
+                let local_environment = Rc::new(Environment::new(Some(self.environment.clone())));
+                self.run_with_environment(source, local_environment.clone())
+                    .map_err(|e| {
+                        errors::RuntimeError::new(
+                            format!("Failed to import package {}: {}", package_name, e),
+                            span,
+                        )
+                    })?;
+                let exported_values = local_environment.get_exported_values();
+                let exported_values = Rc::new(RefCell::new(exported_values));
+                self.cached_modules
+                    .insert(package_name.clone(), exported_values.clone());
+                let exported_values = primitive::Primitive::Table(exported_values);
+                Ok(exported_values)
+            }
+            Err(err) => {
+                eprintln!("Failed to import package {}: {}", package_name, err);
+                Ok(primitive::Primitive::Null)
+            }
+        }
     }
 }

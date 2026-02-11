@@ -366,7 +366,7 @@ fn getOpenRouterProvider() {
     let provider = createTable()
     provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
     provider["api_key"] = getEnvVar("OPENROUTER_KEY")
-    provider["model"] = "mistralai/devstral-small"
+    provider["model"] = "minimax/minimax-m2.1"
     return provider
 }
 
@@ -383,7 +383,7 @@ let llamaCppProvider = getLlamaCppProvider()
 
 let llmChat = createTable()
 llmChat["id"] = -1
-llmChat["provider"] = llamaCppProvider
+llmChat["provider"] = openRouterProvider
 llmChat["history_scroll"] = 0
 llmChat["history_page_size"] = 1
 llmChat["input"] = ""
@@ -589,6 +589,7 @@ fn requestChatCompletion() {
     let response = null
     if hasApiKey { response = postRequestWithBearerToken(url, body, apiKey) }
     if !hasApiKey { response = postRequest(url, body) }
+    log(response)
     response = fromJson(response)
     let message = response["choices"][0]["message"]
     let toolCalls = message["tool_calls"]

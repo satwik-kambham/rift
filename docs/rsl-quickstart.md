@@ -24,11 +24,11 @@ export answer = 42
 ## Functions and modules
 - Define with `fn name(params) { ... }`; `return` exits with a value.
 - Functions are first-class and can be reassigned.
-- Mark exported functions with `export fn` to expose them to importers.
+- Mark exported functions with `fn export` to expose them to importers.
 - Import another script file with `import("path/to/file.rsl")`; it returns a table of exported bindings.
 
 ```rsl
-export fn square(n) { return n * n }
+fn export square(n) { return n * n }
 
 fn run() {
     let lib = import("crates/rsl/examples/lib.rsl")

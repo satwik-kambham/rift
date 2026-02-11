@@ -38,7 +38,7 @@ fn main() {
             return;
         }
     };
-    let mut rsl = RSL::new(None, rt.handle().clone());
+    let mut rsl = RSL::new(None, rt.handle().clone(), std::collections::HashMap::new());
     if let Some(path) = cli_args.script_path {
         match std::fs::read_to_string(&path) {
             Ok(source) => {

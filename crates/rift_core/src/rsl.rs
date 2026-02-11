@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
+use include_dir::{Dir, include_dir};
 use tokio::sync::mpsc;
 
 use rsl::RSL;
@@ -9,7 +11,33 @@ use crate::{
     state::EditorState,
 };
 
-pub fn start_rsl_interpreter(
+static RSL_MODULES: Dir = include_dir!("$CARGO_MANIFEST_DIR/modules");
+
+fn walk_dir<'a>(dir: &Dir<'a>, map: &mut HashMap<&'a str, &'a str>) {
+    for file in dir.files() {
+        let path = file.path().to_str().unwrap();
+        let contents = file.contents_utf8().unwrap();
+        map.insert(path, contents);
+    }
+    for subdir in dir.dirs() {
+        walk_dir(subdir, map);
+    }
+}
+
+fn embedded_text_files() -> HashMap<&'static str, &'static str> {
+    let mut map = HashMap::new();
+
+    for file in RSL_MODULES.files() {
+        let path = file.path().to_str().unwrap();
+        let contents = file.contents_utf8().unwrap();
+        map.insert(path, contents);
+    }
+
+    walk_dir(&RSL_MODULES, &mut map);
+    map
+}
+
+pub(crate) fn start_rsl_interpreter(
     initial_folder: String,
     rpc_client_transport: tarpc::transport::channel::UnboundedChannel<
         tarpc::Response<rift_rpc::RiftRPCResponse>,
@@ -30,9 +58,11 @@ pub fn start_rsl_interpreter(
             }
         };
 
+        let rsl_modules = embedded_text_files();
         let mut rsl_interpreter = RSL::new(
             Some(PathBuf::from(&initial_folder)),
             rt.handle().clone(),
+            rsl_modules,
             rpc_client_transport,
         );
         while let Some(source) = rsl_reciever.blocking_recv() {
@@ -46,15 +76,6 @@ pub fn start_rsl_interpreter(
 }
 
 pub fn initialize_rsl(state: &mut EditorState) {
-    #[cfg(not(debug_assertions))]
     let init_module = include_str!("../modules/init.rsl").to_string();
-    #[cfg(debug_assertions)]
-    let init_module = match std::fs::read_to_string("crates/rift_core/modules/init.rsl") {
-        Ok(content) => content,
-        Err(err) => {
-            tracing::error!(%err, "Failed to load init.rsl; skipping RSL initialization");
-            return;
-        }
-    };
     perform_action(Action::RunSource(init_module), state);
 }

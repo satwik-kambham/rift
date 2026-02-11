@@ -11,6 +11,7 @@ target/
 
 # Direnv
 .direnv
+.env
 
 # Nix build results
 result
