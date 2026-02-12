@@ -589,7 +589,7 @@ fn requestChatCompletion() {
     let response = null
     if hasApiKey { response = postRequestWithBearerToken(url, body, apiKey) }
     if !hasApiKey { response = postRequest(url, body) }
-    log(response)
+    if !(typeOf(response) == "string" ) { log(response) }
     response = fromJson(response)
     let message = response["choices"][0]["message"]
     let toolCalls = message["tool_calls"]

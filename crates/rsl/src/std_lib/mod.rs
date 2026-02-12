@@ -64,5 +64,29 @@ pub fn to_json(arguments: Vec<Primitive>) -> Primitive {
 #[rsl_native]
 pub fn from_json(arguments: Vec<Primitive>) -> Primitive {
     let json = args!(arguments; json: String);
-    serde_json::from_str(&json).unwrap()
+    serde_json::from_str(&json).unwrap_or(Primitive::Error("Failed to deserialize string".into()))
+}
+
+#[rsl_native]
+pub fn type_of(arguments: Vec<Primitive>) -> Primitive {
+    let argument = args!(arguments; argument);
+    Primitive::String(
+        match argument {
+            Primitive::Null => "null",
+            Primitive::Boolean(_) => "bool",
+            Primitive::Number(_) => "number",
+            Primitive::String(_) => "string",
+            Primitive::Function(_) => "function",
+            Primitive::Array(_) => "array",
+            Primitive::Table(_) => "table",
+            Primitive::Error(_) => "error",
+        }
+        .into(),
+    )
+}
+
+#[rsl_native]
+pub fn is_null(arguments: Vec<Primitive>) -> Primitive {
+    let argument = args!(arguments; argument);
+    Primitive::Boolean(matches!(argument, Primitive::Null))
 }

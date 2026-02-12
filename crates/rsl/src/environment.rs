@@ -145,17 +145,15 @@ impl Environment {
     }
 
     pub fn register_native_function(&self, name: &str, native_function: NativeFunction) {
-        if let Some(parent) = &self.parent {
-            return parent.register_native_function(name, native_function);
-        }
+        let root = self.root();
 
         let function_id = Uuid::new_v4().to_string();
 
-        self.native_functions
+        root.native_functions
             .borrow_mut()
             .insert(function_id.clone(), native_function);
 
-        self.set_value_local(
+        root.set_value_local(
             name.to_string(),
             Primitive::Function(function_id),
             DeclarationType::Definition,
