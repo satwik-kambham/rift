@@ -259,6 +259,7 @@ impl Statement for ReturnStatement {
 pub struct IfStatement {
     condition: Box<dyn expression::Expression>,
     body: Vec<Box<dyn Statement>>,
+    else_body: Option<Vec<Box<dyn Statement>>>,
     span: Span,
 }
 
@@ -266,11 +267,13 @@ impl IfStatement {
     pub fn new(
         condition: Box<dyn expression::Expression>,
         body: Vec<Box<dyn Statement>>,
+        else_body: Option<Vec<Box<dyn Statement>>>,
         span: Span,
     ) -> Self {
         Self {
             condition,
             body,
+            else_body,
             span,
         }
     }
@@ -287,6 +290,17 @@ impl Statement for IfStatement {
             if condition {
                 let local_environment = Rc::new(Environment::new(Some(environment.clone())));
                 for statement in &self.body {
+                    let statement_result = statement.execute(local_environment.clone(), rsl)?;
+                    if matches!(
+                        statement_result,
+                        StatementResult::Break | StatementResult::Return(_)
+                    ) {
+                        return Ok(statement_result);
+                    }
+                }
+            } else if let Some(ref else_body) = self.else_body {
+                let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+                for statement in else_body {
                     let statement_result = statement.execute(local_environment.clone(), rsl)?;
                     if matches!(
                         statement_result,

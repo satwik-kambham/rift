@@ -34,6 +34,7 @@ pub enum TokenType {
     Or,
     Not,
     If,
+    Else,
     Loop,
     Fn,
     Break,

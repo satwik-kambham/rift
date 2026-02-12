@@ -154,6 +154,7 @@ impl Scanner {
                         "and" => TokenType::And,
                         "or" => TokenType::Or,
                         "if" => TokenType::If,
+                        "else" => TokenType::Else,
                         "loop" => TokenType::Loop,
                         "fn" => TokenType::Fn,
                         "null" => TokenType::Null,
