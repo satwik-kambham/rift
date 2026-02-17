@@ -20,12 +20,6 @@ impl Color {
     }
 }
 
-impl From<Color> for ecolor::Color32 {
-    fn from(val: Color) -> Self {
-        ecolor::Color32::from_rgb(val.r, val.g, val.b)
-    }
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Preferences {
     pub theme: Theme,

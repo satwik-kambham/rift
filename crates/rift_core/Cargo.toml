@@ -27,7 +27,6 @@ copypasta = "0.10.1"
 notify = "8.0.0"
 which = "7.0.2"
 ropey = "1.6.1"
-ecolor = { git = "https://github.com/satwik-kambham/egui.git", branch = "master", package = "ecolor" }
 cpal = "0.17.1"
 hound = "3.5.1"
 rodio = "0.21.1"

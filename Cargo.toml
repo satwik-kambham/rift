@@ -4,10 +4,11 @@ resolver = "3"
 members = [
   "crates/rift_core",
   "crates/rift_tui",
-  "crates/rift_egui",
   "crates/rsl",
   "crates/rsl_macros",
   "crates/rift_rpc",
+  "crates/rift_server",
+  "crates/rift_ipc",
 ]
 
 [workspace.package]
@@ -39,6 +40,7 @@ tracing = "0.1.41"
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 include_dir = "0.7.4"
+bincode = "2.0.1"
 
 [workspace.metadata.crane]
 name = "rift-workspace"

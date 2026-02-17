@@ -43,20 +43,6 @@
           openssl
           pkg-config
 
-          # GUI libs
-          libxkbcommon
-          libGL
-          fontconfig
-
-          # wayland libraries
-          wayland
-
-          # x11 libraries
-          libxcursor
-          libxrandr
-          libxi
-          libx11
-
           alsa-lib
 
           clang
@@ -81,6 +67,9 @@
               file:
               pkgs.lib.any file.hasExt [
                 "rsl"
+                "html"
+                "css"
+                "js"
               ]
             ) unfilteredRoot)
             # folder for images, icons, etc
@@ -112,22 +101,22 @@
             '';
           }
         );
-        rift_egui = craneLib.buildPackage (
-          individualCrateArgs
-          // {
-            pname = "rift_egui";
-            cargoExtraArgs = "-p rift_egui";
-            postInstall = ''
-              wrapProgram $out/bin/re \
-                --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
-                --set LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath runtimeDeps}
-            '';
-          }
-        );
+        # rift_egui = craneLib.buildPackage (
+        #   individualCrateArgs
+        #   // {
+        #     pname = "rift_egui";
+        #     cargoExtraArgs = "-p rift_egui";
+        #     postInstall = ''
+        #       wrapProgram $out/bin/re \
+        #         --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
+        #         --set LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath runtimeDeps}
+        #     '';
+        #   }
+        # );
       in
       {
         checks = {
-          inherit rift_tui rift_egui;
+          inherit rift_tui;
 
           rift-clippy = craneLib.cargoClippy (
             commonArgs
@@ -143,17 +132,13 @@
         };
 
         packages = {
-          inherit rift_tui rift_egui;
+          inherit rift_tui;
         };
 
         apps = {
           rift_tui = flake-utils.lib.mkApp {
             drv = rift_tui;
             exePath = "/bin/rt";
-          };
-          rift_egui = flake-utils.lib.mkApp {
-            drv = rift_egui;
-            exePath = "/bin/re";
           };
         };
 

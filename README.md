@@ -10,10 +10,6 @@ Prebuilt executables: [Latest release](https://github.com/satwik-kambham/rift/re
 
 ### Run with Nix (Preferred)
 
-- GUI frontend:
-  ```
-    nix run github:satwik-kambham/rift#rift_egui
-  ```
 - TUI frontend:
   ```
     nix run github:satwik-kambham/rift#rift_tui

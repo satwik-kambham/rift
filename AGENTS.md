@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 - Rust workspace rooted at this repo; crates live under `crates/`.
 - `crates/rift_core` holds editor primitives, buffer/state, and shared utilities.
-- Frontends: `crates/rift_tui` (ratatui), `crates/rift_egui` (egui GUI), and `crates/rift_web` (egui + wasm + trunk).
+- Frontends: `crates/rift_tui` (ratatui) and `crates/rift_server` (axum + js).
 - `crates/rift_server` is an in-progress backend host; current frontends do not rely on it yet.
 - `crates/rift_rpc` provides RPC between `rift_core` and RSL.
 - `crates/rsl` contains the Rift scripting language implementation.
@@ -16,7 +16,7 @@
 - Enter dev env: `nix develop` (or `direnv allow` in this repo).
 - Fast feedback: `cargo check` to validate the workspace compiles.
 - Lint/format: `cargo fmt` then `cargo clippy -- -D warnings`.
-- Run frontends: `cargo run -p rift_tui` for the TUI, `cargo run -p rift_egui` for the GUI; add `--release` for performance testing.
+- Run frontends: `cargo run -p rift_tui` for the TUI, `cargo run -p rift_server` for the server; add `--release` for performance testing.
 - Full release build: `cargo build -r` (or `cargo build -r -p rift_tui` to target one binary).
 - Web builds use the wasm32 target; it's preinstalled in the Nix devshell. If you are outside the devshell, add it via `rustup target add wasm32-unknown-unknown` and install trunk/wasm-bindgen as needed.
 
