@@ -13,3 +13,4 @@ axum = { version = "0.8.7", features = ["ws"] }
 bincode = { workspace = true }
 bytes = "1.11.0"
 futures = { workspace = true }
+tower-http = { version = "0.6.8", features = ["fs"] }

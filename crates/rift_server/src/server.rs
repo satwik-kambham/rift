@@ -7,6 +7,7 @@ use axum::{
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
 use tokio::sync::{broadcast, mpsc};
+use tower_http::services::ServeDir;
 
 use rift_core::{
     actions::{Action, perform_action},
@@ -19,12 +20,15 @@ pub async fn start_axum_server(
     sender_to_ws: broadcast::Sender<Bytes>,
     sender_from_ws: mpsc::Sender<Bytes>,
 ) {
-    let app = axum::Router::new().route(
-        "/ws",
-        axum::routing::get(move |ws, info| {
-            ws_handler(ws, info, sender_to_ws.subscribe(), sender_from_ws.clone())
-        }),
-    );
+    let static_files = ServeDir::new("static");
+    let app = axum::Router::new()
+        .route(
+            "/ws",
+            axum::routing::get(move |ws, info| {
+                ws_handler(ws, info, sender_to_ws.subscribe(), sender_from_ws.clone())
+            }),
+        )
+        .fallback_service(static_files);
     tokio::spawn(async move {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
             .await
