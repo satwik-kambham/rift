@@ -36,6 +36,7 @@ pub struct Preferences {
     pub gutter_padding: i8,
     pub editor_padding: i8,
     pub no_lsp: bool,
+    pub no_audio: bool,
 }
 
 impl Default for Preferences {
@@ -61,6 +62,7 @@ impl Default for Preferences {
             gutter_padding: 4,
             editor_padding: 4,
             no_lsp: false,
+            no_audio: false,
         }
     }
 }

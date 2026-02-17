@@ -1,5 +1,5 @@
 .PHONY: help check fmt clippy build build-release run-tui run-tui-release \
-	flamegraph-tui flamegraph-tui-debug clean
+	flamegraph-tui flamegraph-tui-debug clean run-tui-minimal
 
 help:
 	@echo "Common targets:"
@@ -10,6 +10,7 @@ help:
 	@echo "  build-release    - cargo build -r"
 	@echo "  run-tui          - cargo run -p rift_tui"
 	@echo "  run-tui-release  - cargo run -p rift_tui --release"
+	@echo "  run-tui-minimal  - cargo run -p rift_tui --release -- --no-lsp --no-audio"
 	@echo "  flamegraph-tui   - cargo flamegraph -p rift_tui"
 	@echo "  flamegraph-tui-debug  - CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p rift_tui"
 	@echo "  clean            - cargo clean"
@@ -34,6 +35,9 @@ run-tui:
 
 run-tui-release:
 	cargo run -p rift_tui --release
+
+run-tui-minimal:
+	cargo run -p rift_tui --release -- --no-lsp --no-audio
 
 flamegraph-tui:
 	cargo flamegraph -p rift_tui
