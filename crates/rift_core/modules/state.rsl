@@ -1,0 +1,99 @@
+export state = createTable()
+state["viewportRows"] = 0
+state["viewportColumns"] = 0
+
+fn setViewportSize(self, rows, columns) {
+    self["viewportRows"] = rows
+    self["viewportColumns"] = columns
+    rerenderAllUi()
+}
+state["setViewportSize"] = setViewportSize
+
+fn refreshViewportSize(self) {
+    let size = fromJson(getViewportSize())
+    self.setViewportSize(size["rows"], size["columns"])
+}
+state["refreshViewportSize"] = refreshViewportSize
+
+fn viewportVisibleRows(self, reservedLines) {
+    # Keep a reasonable default even if the viewport has not reported yet.
+    let available = self["viewportRows"] - reservedLines
+    if available < 5 { available = 5 }
+    return available
+}
+state["viewportVisibleRows"] = viewportVisibleRows
+
+fn viewportVisibleColumns(self) {
+    # Rendering reserves 3 columns (see RopeBuffer::get_visible_lines); clamp to visible width.
+    let columns = self["viewportColumns"]
+    if columns <= 0 { columns = 20 }
+    columns = columns - 3
+    if columns < 1 { columns = 1 }
+    return columns
+}
+state["viewportVisibleColumns"] = viewportVisibleColumns
+
+fn clampLineToViewport(self, line, columns) {
+    if columns <= 0 { return "" }
+    if stringWidth(line) <= columns { return line }
+
+    let ellipsis = "…"
+    let ellipsisWidth = stringWidth(ellipsis)
+
+    if ellipsisWidth >= columns { return stringTruncateWidth(ellipsis, columns) }
+
+    let available = columns - ellipsisWidth
+    if available < 0 { available = 0 }
+    return stringTruncateWidth(line, available) + ellipsis
+}
+state["clampLineToViewport"] = clampLineToViewport
+
+fn clampContentToViewport(self, content) {
+    let columns = self.viewportVisibleColumns()
+    let lines = stringSplitLines(content)
+    let clamped = ""
+
+    let i = 0
+    loop {
+        if i >= arrayLen(lines) { break }
+        let line = lines[i]
+        let clampedLine = self.clampLineToViewport(line, columns)
+        if i > 0 { clamped = clamped + "\n" }
+        clamped = clamped + clampedLine
+        i = i + 1
+    }
+
+    return clamped
+}
+state["clampContentToViewport"] = clampContentToViewport
+
+fn setViewportBufferContent(self, bufferId, content) {
+    setBufferContent(bufferId, self.clampContentToViewport(content))
+}
+state["setViewportBufferContent"] = setViewportBufferContent
+
+fn viewportWindow(self, selectedIndex, totalItems, reservedLines) {
+    let window = createTable()
+    if totalItems <= 0 {
+        window["start"] = 0
+        window["end"] = 0
+        return window
+    }
+
+    let visible = self.viewportVisibleRows(reservedLines)
+    if visible > totalItems { visible = totalItems }
+
+    let start = floor(selectedIndex - (visible / 2))
+    if start < 0 { start = 0 }
+    let end = start + visible
+    if end > totalItems {
+        end = totalItems
+        start = end - visible
+        if start < 0 { start = 0 }
+    }
+
+    window["start"] = start
+    window["end"] = end
+    return window
+}
+state["viewportWindow"] = viewportWindow

@@ -1,97 +1,11 @@
+# State
+
+let state = import("state.rsl")["state"]
+
 # Callbacks
 
 fn onViewportSizeChanged(rows, columns) {
-    setViewportSize(rows, columns)
-}
-
-# UI Helper Methods
-
-fn setViewportSize(rows, columns) {
-    viewportRows = rows
-    viewportColumns = columns
-    rerenderAllUi()
-}
-
-fn refreshViewportSize() {
-    let size = fromJson(getViewportSize())
-    setViewportSize(size["rows"], size["columns"])
-}
-
-fn viewportVisibleRows(reservedLines) {
-    # Keep a reasonable default even if the viewport has not reported yet.
-    let available = viewportRows - reservedLines
-    if available < 5 { available = 5 }
-    return available
-}
-
-fn viewportVisibleColumns() {
-    # Rendering reserves 3 columns (see RopeBuffer::get_visible_lines); clamp to visible width.
-    let columns = viewportColumns
-    if columns <= 0 { columns = 20 }
-    columns = columns - 3
-    if columns < 1 { columns = 1 }
-    return columns
-}
-
-fn clampLineToViewport(line, columns) {
-    if columns <= 0 { return "" }
-    if stringWidth(line) <= columns { return line }
-
-    let ellipsis = "…"
-    let ellipsisWidth = stringWidth(ellipsis)
-
-    if ellipsisWidth >= columns { return stringTruncateWidth(ellipsis, columns) }
-
-    let available = columns - ellipsisWidth
-    if available < 0 { available = 0 }
-    return stringTruncateWidth(line, available) + ellipsis
-}
-
-fn clampContentToViewport(content) {
-    let columns = viewportVisibleColumns()
-    let lines = stringSplitLines(content)
-    let clamped = ""
-
-    let i = 0
-    loop {
-        if i >= arrayLen(lines) { break }
-        let line = lines[i]
-        let clampedLine = clampLineToViewport(line, columns)
-        if i > 0 { clamped = clamped + "\n" }
-        clamped = clamped + clampedLine
-        i = i + 1
-    }
-
-    return clamped
-}
-
-fn setViewportBufferContent(bufferId, content) {
-    setBufferContent(bufferId, clampContentToViewport(content))
-}
-
-fn viewportWindow(selectedIndex, totalItems, reservedLines) {
-    let window = createTable()
-    if totalItems <= 0 {
-        window["start"] = 0
-        window["end"] = 0
-        return window
-    }
-
-    let visible = viewportVisibleRows(reservedLines)
-    if visible > totalItems { visible = totalItems }
-
-    let start = floor(selectedIndex - (visible / 2))
-    if start < 0 { start = 0 }
-    let end = start + visible
-    if end > totalItems {
-        end = totalItems
-        start = end - visible
-        if start < 0 { start = 0 }
-    }
-
-    window["start"] = start
-    window["end"] = end
-    return window
+    state.setViewportSize(rows, columns)
 }
 
 # Shared List + Input Helpers
@@ -106,7 +20,6 @@ fn listPanelMoveSelection(entries, selectedIndex, delta) {
 }
 
 fn listPanelRender(ctx) {
-    let title = ctx["title"]
     let inputHeader = ctx["input_header"]
     let inputValue = ctx["input_value"]
     let listHeader = ctx["list_header"]
@@ -119,7 +32,7 @@ fn listPanelRender(ctx) {
     let headerLines = ctx["header_lines"]
     let extraLines = ctx["extra_lines"]
 
-    let content = title
+    let content = ctx["title"]
     if headerLines != null {
         let i = 0
         loop {
@@ -143,12 +56,12 @@ fn listPanelRender(ctx) {
     let total = arrayLen(entries)
     if total == 0 {
         content = content + "\n   " + emptyText
-        setViewportBufferContent(bufferId, content)
+        state.setViewportBufferContent(bufferId, content)
         return null
     }
 
     if reservedLines == null { reservedLines = 5 }
-    let window = viewportWindow(selectedIndex, total, reservedLines)
+    let window = state.viewportWindow(selectedIndex, total, reservedLines)
     let start = window["start"]
     let end = window["end"]
 
@@ -170,7 +83,7 @@ fn listPanelRender(ctx) {
 
     if end < total { content = content + "\n   ⋯" }
 
-    setViewportBufferContent(bufferId, content)
+    state.setViewportBufferContent(bufferId, content)
 }
 
 fn inputGet(bufferId) {
@@ -213,8 +126,6 @@ fn inputClear(bufferId, stateTable, key, onCleared) {
 
 # Dashboard
 
-let viewportRows = 0
-let viewportColumns = 0
 let dashboard = createTable()
 dashboard["id"] = -1
 dashboard["text"] = "
@@ -233,8 +144,8 @@ space b - Switch Buffer
 fn renderDashboard() {
     let dashboardId = dashboard["id"]
     if dashboardId == -1 { return null }
-    let content = dashboard["text"] + "\nViewport: " + toString(viewportRows) + " x " + toString(viewportColumns)
-    setViewportBufferContent(dashboardId, content)
+    let content = dashboard["text"]
+    state.setViewportBufferContent(dashboardId, content)
 }
 
 fn createDashboardBuffer() {
@@ -253,114 +164,6 @@ fn createDashboardBuffer() {
 #################
 
 # Agentic Chat
-
-fn toolDeclarations() {
-    return
-"[
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"run_shell_command\",
-            \"description\": \"Run a shell command and return the output\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"command\": {\"type\": \"string\"}
-                },
-                \"required\": [\"command\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"find_file\",
-            \"description\": \"Returns paths matching regex pattern by searching recursively in the workspace folder, returning absolute paths. Does not accept glob patterns.\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"pattern\": {\"type\": \"string\"}
-                },
-                \"required\": [\"pattern\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"search_workspace\",
-            \"description\": \"Grep search in the current workspace for matching patterns\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"pattern\": {\"type\": \"string\"}
-                },
-                \"required\": [\"pattern\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"read_file\",
-            \"description\": \"Get the content of a file with line numbers\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"path\": {\"type\": \"string\"}
-                },
-                \"required\": [\"path\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"write_file\",
-            \"description\": \"Writes content to a specified file replacing the existing content.\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"file_path\": {\"type\": \"string\"},
-                    \"content\": {\"type\": \"string\"}
-                },
-                \"required\": [\"file_path\", \"content\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"replace\",
-            \"description\": \"Replaces text within a file. Can replace single or multiple occurrences.\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"file_path\": {\"type\": \"string\"},
-                    \"old_string\": {\"type\": \"string\"},
-                    \"new_string\": {\"type\": \"string\"}
-                },
-                \"required\": [\"file_path\", \"old_string\", \"new_string\"]
-            }
-        }
-    }
-]"
-}
-
-fn agentRunShellCommand(command) {
-    let outputs = runShellCommand(command, getWorkspaceDir())
-    return "STDOUT:\n" + outputs["stdout"] + "\nSTDERR:\n" + outputs["stderr"]
-}
-
-fn agentFindFile(pattern) {
-    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path " + pattern, getWorkspaceDir())
-    return results["stdout"]
-}
-
-fn agentSearchWorkspace(pattern) {
-    let results = runShellCommand("rg " + pattern, getWorkspaceDir())
-    return results["stdout"]
-}
 
 fn getOpenRouterProvider() {
     let provider = createTable()
@@ -529,10 +332,10 @@ fn renderLLMChat() {
     let headerLines = 3
     let sectionLines = 3
     let reservedLines = headerLines + sectionLines + arrayLen(pendingLines) + arrayLen(inputLines)
-    let historyRows = viewportVisibleRows(reservedLines)
+    let historyRows = state.viewportVisibleRows(reservedLines)
     if historyRows < 1 { historyRows = 1 }
 
-    let columns = viewportVisibleColumns()
+    let columns = state.viewportVisibleColumns()
     let wrappedAll = stringRenderViewport(historyContent, columns, 100000, 0)
     let wrappedLines = stringSplitLines(wrappedAll)
     let totalHistoryLines = arrayLen(wrappedLines)
@@ -565,7 +368,7 @@ fn renderLLMChat() {
     content = content + "╭─ Input ───────────────\n"
     content = content + llmChatLinesToString(inputLines)
 
-    setViewportBufferContent(llmChat["id"], content)
+    state.setViewportBufferContent(llmChat["id"], content)
 }
 
 fn requestChatCompletion() {
@@ -2065,7 +1868,7 @@ fn setSearchQueryFromDialog(query) {
 
 fn dialogModalRender() {
     let content = "💬 Dialog\n" + dialogModal["prompt"] + "\n╭─ Input ───────────────\n" + dialogModal["input"] + "\n\nenter: submit | esc: cancel"
-    setViewportBufferContent(dialogModal["id"], content)
+    state.setViewportBufferContent(dialogModal["id"], content)
 }
 
 fn dialogModalEnsureBuffer() {
@@ -2159,18 +1962,18 @@ fn infoModalClampScroll(totalLines, pageSize) {
 fn infoModalRender() {
     let content = "Info Modal (esc to close, up/down to scroll)\n------"
     let infoModalContent = infoModal["content"]
-    let columns = viewportVisibleColumns()
+    let columns = state.viewportVisibleColumns()
     let wrappedAll = stringRenderViewport(infoModalContent, columns, 100000, 0)
     let wrappedLines = stringSplitLines(wrappedAll)
     let totalLines = arrayLen(wrappedLines)
 
     if totalLines == 0 {
         content = content + "\n\n   No information available"
-        setViewportBufferContent(infoModal["id"], content)
+        state.setViewportBufferContent(infoModal["id"], content)
         return null
     }
 
-    let visibleRows = viewportVisibleRows(0)
+    let visibleRows = state.viewportVisibleRows(0)
     let bodyRows = visibleRows - 3
     if bodyRows < 1 { bodyRows = 1 }
 
@@ -2192,7 +1995,7 @@ fn infoModalRender() {
         content = content + "\n\n... (" + toJson(remaining) + " more lines)"
     }
 
-    setViewportBufferContent(infoModal["id"], content)
+    state.setViewportBufferContent(infoModal["id"], content)
 }
 
 fn infoModalEnsureBuffer() {
@@ -2278,5 +2081,5 @@ fn rerenderAllUi() {
 }
 
 createDashboardBuffer()
-refreshViewportSize()
+state.refreshViewportSize()
 runAction("set-init-rsl-complete")

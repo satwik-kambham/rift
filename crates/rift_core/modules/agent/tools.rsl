@@ -1,0 +1,107 @@
+fn toolDeclarations() {
+    return
+"[
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"run_shell_command\",
+            \"description\": \"Run a shell command and return the output\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"command\": {\"type\": \"string\"}
+                },
+                \"required\": [\"command\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"find_file\",
+            \"description\": \"Returns paths matching regex pattern by searching recursively in the workspace folder, returning absolute paths. Does not accept glob patterns.\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"pattern\": {\"type\": \"string\"}
+                },
+                \"required\": [\"pattern\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"search_workspace\",
+            \"description\": \"Grep search in the current workspace for matching patterns\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"pattern\": {\"type\": \"string\"}
+                },
+                \"required\": [\"pattern\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"read_file\",
+            \"description\": \"Get the content of a file with line numbers\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"path\": {\"type\": \"string\"}
+                },
+                \"required\": [\"path\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"write_file\",
+            \"description\": \"Writes content to a specified file replacing the existing content.\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"file_path\": {\"type\": \"string\"},
+                    \"content\": {\"type\": \"string\"}
+                },
+                \"required\": [\"file_path\", \"content\"]
+            }
+        }
+    },
+    {
+        \"type\": \"function\",
+        \"function\": {
+            \"name\": \"replace\",
+            \"description\": \"Replaces text within a file. Can replace single or multiple occurrences.\",
+            \"parameters\": {
+                \"type\": \"object\",
+                \"properties\": {
+                    \"file_path\": {\"type\": \"string\"},
+                    \"old_string\": {\"type\": \"string\"},
+                    \"new_string\": {\"type\": \"string\"}
+                },
+                \"required\": [\"file_path\", \"old_string\", \"new_string\"]
+            }
+        }
+    }
+]"
+}
+
+fn agentRunShellCommand(command) {
+    let outputs = runShellCommand(command, getWorkspaceDir())
+    return "STDOUT:\n" + outputs["stdout"] + "\nSTDERR:\n" + outputs["stderr"]
+}
+
+fn agentFindFile(pattern) {
+    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path " + pattern, getWorkspaceDir())
+    return results["stdout"]
+}
+
+fn agentSearchWorkspace(pattern) {
+    let results = runShellCommand("rg " + pattern, getWorkspaceDir())
+    return results["stdout"]
+}
