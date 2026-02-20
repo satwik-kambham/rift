@@ -1,6 +1,8 @@
 # Agentic Chat
 
-fn getOpenRouterProvider() {
+# Providers
+
+fn openRouterProvider() {
     let provider = createTable()
     provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
     provider["api_key"] = getEnvVar("OPENROUTER_KEY")
@@ -8,7 +10,7 @@ fn getOpenRouterProvider() {
     return provider
 }
 
-fn getLlamaCppProvider() {
+fn llamaCppProvider() {
     let provider = createTable()
     provider["url"] = "http://127.0.0.1:8080/v1/chat/completions"
     provider["api_key"] = null
@@ -16,12 +18,14 @@ fn getLlamaCppProvider() {
     return provider
 }
 
-let openRouterProvider = getOpenRouterProvider()
-let llamaCppProvider = getLlamaCppProvider()
+runScript("agent/tools.rsl")
+
+let modes = import("agent/modes.rsl")
 
 let llmChat = createTable()
 llmChat["id"] = -1
-llmChat["provider"] = openRouterProvider
+llmChat["provider"] = openRouterProvider()
+llmChat["mode"] = modes["edit"]
 llmChat["history_scroll"] = 0
 llmChat["history_page_size"] = 1
 llmChat["input"] = ""
@@ -211,16 +215,15 @@ fn requestChatCompletion() {
     if provider == null { return null }
 
     let apiKey = provider["api_key"]
-    let modelName = provider["model"]
     let url = provider["url"]
 
     let request = createTable()
-    request["model"] = modelName
+    request["model"] = provider["model"]
     request["messages"] = llmChat["history"]
-    request["tools"] = fromJson(toolDeclarations())
+    request["tools"] = fromJson(getToolDeclarations(tableKeys(llmChat["mode"]["tools"])))
     request["stream"] = false
     # request["temperature"] = 0.3
-    request["seed"] = 42
+    # request["seed"] = 42
 
     let body = toJson(request)
     let hasApiKey = apiKey != null and stringLen(apiKey) != 0
@@ -238,17 +241,43 @@ fn requestChatCompletion() {
         loop {
             if i <= 0 { break }
             let toolCall = toolCalls[i - 1]
-            
-            arrayPushBack(pendingToolCalls, toolCall)
-            
+        
             let toolName = toolCall["function"]["name"]
-            let toolArgs = fromJson(toolCall["function"]["arguments"])
-            let toolCallId = toolCall["id"]
+            
+            if !tableGet(llmChat["mode"]["tools"], toolName) {
+                runToolCall(toolCall, true)
+            }
+            else { arrayPushBack(pendingToolCalls, toolCall) }
             
             i = i - 1
         }
+
+        if arrayLen(llmChat["pending_tool_calls"]) == 0 {
+            requestChatCompletion()
+        }
     }
     
+    arrayPushBack(llmChat["history"], message)
+
+    renderLLMChat()
+}
+
+fn runToolCall(toolCall, allowed) {
+    let toolName = toolCall["function"]["name"]
+    let toolArgs = fromJson(toolCall["function"]["arguments"])
+    let toolCallId = toolCall["id"]
+
+    let result = "Tool call request denied by user. Await further instructions."
+
+    if allowed {
+        result = runTool(toolName, toolArgs)
+    }
+
+    let message = createTable()
+    message["role"] = "tool"
+    message["content"] = result
+    message["name"] = toolName
+    message["tool_call_id"] = toolCallId
     arrayPushBack(llmChat["history"], message)
 
     renderLLMChat()
@@ -258,41 +287,7 @@ fn getToolCallResult(allowed) {
     let pendingToolCalls = llmChat["pending_tool_calls"]
     let toolCall = arrayPopBack(pendingToolCalls)
     
-    let toolName = toolCall["function"]["name"]
-    let toolArgs = fromJson(toolCall["function"]["arguments"])
-    let toolCallId = toolCall["id"]
-    
-    let result = "Tool call request denied by user. Await further instructions."
-    
-    if allowed {
-        if toolName == "run_shell_command" {
-            result = agentRunShellCommand(toolArgs["command"])
-        }
-        if toolName == "find_file" {
-            result = agentFindFile(toolArgs["pattern"])
-        }
-        if toolName == "search_workspace" {
-            result = agentSearchWorkspace(toolArgs["pattern"])
-        }
-        if toolName == "read_file" {
-            result = agentReadFile(getWorkspaceDir(), toolArgs["path"])
-        }
-        if toolName == "write_file" {
-            result = agentFindFile(getWorkspaceDir(), toolArgs["file_path"], toolArgs["content"])
-        }
-        if toolName == "replace" {
-            result = agentFindFile(getWorkspaceDir(), toolArgs["file_path"], toolArgs["old_string"], toolArgs["new_string"])
-        }
-    }
-    
-    let message = createTable()
-    message["role"] = "tool"
-    message["content"] = result
-    message["name"] = toolName
-    message["tool_call_id"] = toolCallId
-    arrayPushBack(llmChat["history"], message)
-    
-    renderLLMChat()
+    runToolCall(toolCall, allowed)
 
     if arrayLen(pendingToolCalls) == 0 {
         requestChatCompletion()
@@ -314,6 +309,8 @@ fn sendMessage() {
         renderLLMChat()
     
         requestChatCompletion()
+    } else {
+        log("Cannot send message with pending toolcalls")
     }
 }
 

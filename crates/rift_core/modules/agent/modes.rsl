@@ -1,14 +1,16 @@
+let prompts = import("agent/prompts.rsl")
+
 # Minimal Mode
 
-export minimalMode = createTable()
-minimalMode["systemPrompt"] = ""
-minimalMode["tools"] = fromJson("{}")
+export minimal = createTable()
+minimal["systemPrompt"] = ""
+minimal["tools"] = fromJson("{}")
 
 # Plan Mode
 
-export planMode = createTable()
-planMode["systemPrompt"] = "Plan"
-planMode["tools"] = fromJson("{
+export plan = createTable()
+plan["systemPrompt"] = prompts["planSystemPrompt"]
+plan["tools"] = fromJson("{
     \"run_shell_command\": true,
     \"read_file\": false,
     \"search_workspace\": false,
@@ -17,9 +19,9 @@ planMode["tools"] = fromJson("{
 
 # Edit Mode
 
-export editMode = createTable()
-editMode["systemPrompt"] = "Edit"
-editMode["tools"] = fromJson("{
+export edit = createTable()
+edit["systemPrompt"] = prompts["editSystemPrompt"}
+edit["tools"] = fromJson("{
     \"run_shell_command\": true,
     \"read_file\": false,
     \"search_workspace\": false,
