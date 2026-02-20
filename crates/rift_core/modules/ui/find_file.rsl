@@ -1,0 +1,118 @@
+# Fuzzy Find File
+
+fn fuzzyFileFinderDependenciesAvailable() {
+    return commandExists("fd") and commandExists("fzf")
+}
+
+fn fuzzyFileFinderDependenciesError() {
+    infoModalOpen("Fuzzy File Finder requires `fd` and `fzf` to be installed and available in PATH.")
+}
+
+let fuzzyFileFinder = createTable()
+fuzzyFileFinder["id"] = -1
+fuzzyFileFinder["input"] = ""
+fuzzyFileFinder["results"] = createArray()
+fuzzyFileFinder["selected"] = 0
+fuzzyFileFinder["previous_buffer_id"] = -1
+
+fn renderFuzzyFileFinder() {
+    let ctx = createTable()
+    ctx["title"] = "🔎 Fuzzy File Finder"
+    ctx["input_header"] = "╭─ Query ─────────────────"
+    ctx["input_value"] = fuzzyFileFinder["input"]
+    ctx["list_header"] = "╰─ Matches ───────────────"
+    ctx["entries"] = fuzzyFileFinder["results"]
+    ctx["selected_index"] = fuzzyFileFinder["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No files found"
+    ctx["buffer_id"] = fuzzyFileFinder["id"]
+    listPanelRender(ctx)
+}
+
+fn fuzzyFileFinderWorkspaceEntries() {
+    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path", getWorkspaceDir())
+    fuzzyFileFinder["results"] = stringSplitLines(results["stdout"])
+    fuzzyFileFinder["selected"] = 0
+    renderFuzzyFileFinder()
+}
+
+fn fuzzyFileFinderInputUpdated() {
+    inputUpdated(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
+    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path | fzf -f \"" + fuzzyFileFinder["input"] + "\"", getWorkspaceDir())
+    fuzzyFileFinder["results"] = stringSplitLines(results["stdout"])
+    fuzzyFileFinder["selected"] = 0
+    renderFuzzyFileFinder()
+}
+
+fn fuzzyFileFinderAddSpace() {
+    inputAddSpace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", renderFuzzyFileFinder)
+}
+
+fn fuzzyFileFinderBackspace() {
+    inputBackspace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
+}
+
+fn fuzzyFileFinderClearInput() {
+    inputClear(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
+}
+
+fn fuzzyFileFinderMoveSelection(delta) {
+    let results = fuzzyFileFinder["results"]
+    let selected = listPanelMoveSelection(results, fuzzyFileFinder["selected"], delta)
+    fuzzyFileFinder["selected"] = selected
+    renderFuzzyFileFinder()
+}
+
+fn fuzzyFileFinderNext() {
+    fuzzyFileFinderMoveSelection(1)
+}
+
+fn fuzzyFileFinderPrevious() {
+    fuzzyFileFinderMoveSelection(-1)
+}
+
+fn fuzzyFileFinderSelect() {
+    let results = fuzzyFileFinder["results"]
+    let selected = fuzzyFileFinder["selected"]
+    if selected < arrayLen(results) {
+        let path = results[selected]
+        fuzzyFileFinderClearInput()
+        openFile(path)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn fuzzyFileFinderEscape() {
+    let previousBufferId = fuzzyFileFinder["previous_buffer_id"]
+    if previousBufferId != -1 {
+        fuzzyFileFinderClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn createFuzzyFileFinder() {
+    if !fuzzyFileFinderDependenciesAvailable() {
+        fuzzyFileFinderDependenciesError()
+        return null
+    }
+    fuzzyFileFinder["previous_buffer_id"] = getActiveBuffer()
+    if fuzzyFileFinder["id"] == -1 {
+        let bufferId = createSpecialBuffer("Fuzzy File Finder")
+        fuzzyFileFinder["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderBackspace)
+        registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderNext)
+        registerBufferKeybind(bufferId, "ins down", fuzzyFileFinderNext)
+        registerBufferKeybind(bufferId, "ins up", fuzzyFileFinderPrevious)
+        registerBufferKeybind(bufferId, "ins enter", fuzzyFileFinderSelect)
+        registerBufferKeybind(bufferId, "ins escape", fuzzyFileFinderEscape)
+        registerBufferInputHook(bufferId, fuzzyFileFinderInputUpdated)
+    }
+    fuzzyFileFinderClearInput()
+    setActiveBuffer(fuzzyFileFinder["id"])
+    fuzzyFileFinderWorkspaceEntries()
+    runAction("enter-insert-mode")
+}
+
+registerGlobalKeybind("nor space f", createFuzzyFileFinder)

@@ -1,0 +1,126 @@
+# Command Dispatcher
+
+let commandDispatcher = createTable()
+commandDispatcher["id"] = -1
+commandDispatcher["input"] = ""
+commandDispatcher["all"] = createArray()
+commandDispatcher["results"] = createArray()
+commandDispatcher["selected"] = 0
+commandDispatcher["previous_buffer_id"] = -1
+
+fn renderCommandDispatcher() {
+    let ctx = createTable()
+    ctx["title"] = "⚡ Command Palette"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = commandDispatcher["input"]
+    ctx["list_header"] = "╰─ Commands ────────────"
+    ctx["entries"] = commandDispatcher["results"]
+    ctx["selected_index"] = commandDispatcher["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No commands"
+    ctx["buffer_id"] = commandDispatcher["id"]
+    listPanelRender(ctx)
+}
+
+fn commandDispatcherFilterResults() {
+    let results = createArray()
+    let query = stringToLower(commandDispatcher["input"])
+    let allActions = commandDispatcher["all"]
+
+    let i = 0
+    loop {
+        if i >= arrayLen(allActions) { break }
+        let action = allActions[i]
+        let actionLower = stringToLower(action)
+
+        if stringLen(query) == 0 or stringContains(actionLower, query) {
+            arrayPushBack(results, action)
+        }
+        i = i + 1
+    }
+
+    commandDispatcher["results"] = results
+    commandDispatcher["selected"] = 0
+    renderCommandDispatcher()
+}
+
+fn commandDispatcherInputUpdated() {
+    inputUpdated(commandDispatcher["id"], commandDispatcher, "input", commandDispatcherFilterResults)
+}
+
+fn commandDispatcherAddSpace() {
+    inputAddSpace(commandDispatcher["id"], commandDispatcher, "input", renderCommandDispatcher)
+}
+
+fn commandDispatcherBackspace() {
+    inputBackspace(commandDispatcher["id"], commandDispatcher, "input", null)
+}
+
+fn commandDispatcherClearInput() {
+    inputClear(commandDispatcher["id"], commandDispatcher, "input", null)
+}
+
+fn commandDispatcherMoveSelection(delta) {
+    let results = commandDispatcher["results"]
+    let selected = listPanelMoveSelection(results, commandDispatcher["selected"], delta)
+    commandDispatcher["selected"] = selected
+    renderCommandDispatcher()
+}
+
+fn commandDispatcherNext() {
+    commandDispatcherMoveSelection(1)
+}
+
+fn commandDispatcherPrevious() {
+    commandDispatcherMoveSelection(-1)
+}
+
+fn commandDispatcherSelect() {
+    let results = commandDispatcher["results"]
+    let selected = commandDispatcher["selected"]
+    if selected < arrayLen(results) {
+        let action = results[selected]
+        let previousBufferId = commandDispatcher["previous_buffer_id"]
+        commandDispatcherClearInput()
+        if previousBufferId != -1 {
+            setActiveBuffer(previousBufferId)
+        }
+        runAction("quit-insert-mode")
+        runAction(action)
+    }
+}
+
+fn commandDispatcherEscape() {
+    let previousBufferId = commandDispatcher["previous_buffer_id"]
+    if previousBufferId != -1 {
+        commandDispatcherClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn commandDispatcherReload() {
+    let actions = getActions()
+    commandDispatcher["all"] = fromJson(actions)
+    commandDispatcherFilterResults()
+}
+
+fn createCommandDispatcher() {
+    commandDispatcher["previous_buffer_id"] = getActiveBuffer()
+    if commandDispatcher["id"] == -1 {
+        let bufferId = createSpecialBuffer("Command Dispatcher")
+        commandDispatcher["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", commandDispatcherAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", commandDispatcherBackspace)
+        registerBufferKeybind(bufferId, "ins tab", commandDispatcherNext)
+        registerBufferKeybind(bufferId, "ins down", commandDispatcherNext)
+        registerBufferKeybind(bufferId, "ins up", commandDispatcherPrevious)
+        registerBufferKeybind(bufferId, "ins enter", commandDispatcherSelect)
+        registerBufferKeybind(bufferId, "ins escape", commandDispatcherEscape)
+        registerBufferInputHook(bufferId, commandDispatcherInputUpdated)
+    }
+    commandDispatcherClearInput()
+    commandDispatcherReload()
+    setActiveBuffer(commandDispatcher["id"])
+    runAction("enter-insert-mode")
+}

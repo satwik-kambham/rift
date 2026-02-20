@@ -1,0 +1,144 @@
+# Go To Definition
+
+let goToDefinition = createTable()
+goToDefinition["id"] = -1
+goToDefinition["input"] = ""
+goToDefinition["all"] = createArray()
+goToDefinition["results"] = createArray()
+goToDefinition["selected"] = 0
+goToDefinition["previous_buffer_id"] = -1
+
+fn goToDefinitionDisplay(entry) {
+    let filePath = entry["file_path"]
+    let range = entry["range"]
+    let mark = range["mark"]
+    let row = mark["row"] + 1
+    let column = mark["column"] + 1
+    let preview = entry["preview"]
+
+    let location = filePath + ":" + toJson(row) + ":" + toJson(column)
+    if stringLen(preview) > 0 {
+        return location + " " + preview
+    }
+    return location
+}
+
+fn renderGoToDefinition() {
+    let ctx = createTable()
+    ctx["title"] = "📌 Definitions"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = goToDefinition["input"]
+    ctx["list_header"] = "╰─ Locations ───────────"
+    ctx["entries"] = goToDefinition["results"]
+    ctx["selected_index"] = goToDefinition["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No definitions"
+    ctx["buffer_id"] = goToDefinition["id"]
+    ctx["entry_to_string"] = goToDefinitionDisplay
+    listPanelRender(ctx)
+}
+
+fn goToDefinitionFilterResults() {
+    let results = createArray()
+    let query = stringToLower(goToDefinition["input"])
+    let allEntries = goToDefinition["all"]
+
+    let i = 0
+    loop {
+        if i >= arrayLen(allEntries) { break }
+        let entry = allEntries[i]
+
+        let filePath = stringToLower(entry["file_path"])
+        let preview = stringToLower(entry["preview"])
+
+        if stringLen(query) == 0 or stringContains(filePath, query) or stringContains(preview, query) {
+            arrayPushBack(results, entry)
+        }
+        i = i + 1
+    }
+
+    goToDefinition["results"] = results
+    goToDefinition["selected"] = 0
+    renderGoToDefinition()
+}
+
+fn goToDefinitionInputUpdated() {
+    inputUpdated(goToDefinition["id"], goToDefinition, "input", goToDefinitionFilterResults)
+}
+
+fn goToDefinitionAddSpace() {
+    inputAddSpace(goToDefinition["id"], goToDefinition, "input", renderGoToDefinition)
+}
+
+fn goToDefinitionBackspace() {
+    inputBackspace(goToDefinition["id"], goToDefinition, "input", null)
+}
+
+fn goToDefinitionClearInput() {
+    inputClear(goToDefinition["id"], goToDefinition, "input", null)
+}
+
+fn goToDefinitionMoveSelection(delta) {
+    let results = goToDefinition["results"]
+    let selected = listPanelMoveSelection(results, goToDefinition["selected"], delta)
+    goToDefinition["selected"] = selected
+    renderGoToDefinition()
+}
+
+fn goToDefinitionNext() {
+    goToDefinitionMoveSelection(1)
+}
+
+fn goToDefinitionPrevious() {
+    goToDefinitionMoveSelection(-1)
+}
+
+fn goToDefinitionSelect() {
+    let results = goToDefinition["results"]
+    let selected = goToDefinition["selected"]
+    if selected < arrayLen(results) {
+        let entry = results[selected]
+        let path = entry["file_path"]
+        let range = entry["range"]
+
+        goToDefinitionClearInput()
+        openFile(path)
+        runAction("quit-insert-mode")
+        selectRange(toJson(range))
+    }
+}
+
+fn goToDefinitionEscape() {
+    let previousBufferId = goToDefinition["previous_buffer_id"]
+    if previousBufferId != -1 {
+        goToDefinitionClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn goToDefinitionReload() {
+    let definitions = getDefinitions()
+    goToDefinition["all"] = fromJson(definitions)
+    goToDefinitionFilterResults()
+}
+
+fn createGoToDefinition() {
+    goToDefinition["previous_buffer_id"] = getActiveBuffer()
+    if goToDefinition["id"] == -1 {
+        let bufferId = createSpecialBuffer("Definitions")
+        goToDefinition["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", goToDefinitionAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", goToDefinitionBackspace)
+        registerBufferKeybind(bufferId, "ins tab", goToDefinitionNext)
+        registerBufferKeybind(bufferId, "ins down", goToDefinitionNext)
+        registerBufferKeybind(bufferId, "ins up", goToDefinitionPrevious)
+        registerBufferKeybind(bufferId, "ins enter", goToDefinitionSelect)
+        registerBufferKeybind(bufferId, "ins escape", goToDefinitionEscape)
+        registerBufferInputHook(bufferId, goToDefinitionInputUpdated)
+    }
+    goToDefinitionClearInput()
+    goToDefinitionReload()
+    setActiveBuffer(goToDefinition["id"])
+    runAction("enter-insert-mode")
+}

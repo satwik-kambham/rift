@@ -1,0 +1,187 @@
+# Switch Buffer
+
+let switchBuffer = createTable()
+switchBuffer["id"] = -1
+switchBuffer["input"] = ""
+switchBuffer["results"] = createArray()
+switchBuffer["buffers"] = createArray()
+switchBuffer["selected"] = 0
+switchBuffer["selected_id"] = -1
+switchBuffer["previous_buffer_id"] = -1
+switchBuffer["initial_active_id"] = -1
+
+fn switchBufferDisplay(entry) {
+    let display = entry["display_name"]
+    if entry["special"] {
+        display = "[special] " + display
+    }
+    if entry["modified"] {
+        display = display + " *"
+    }
+    if entry["is_active"] {
+        display = display + " (active)"
+    }
+    return display
+}
+
+fn renderSwitchBuffer() {
+    let ctx = createTable()
+    ctx["title"] = "🗂 Switch Buffer"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = switchBuffer["input"]
+    ctx["list_header"] = "╰─ Buffers ─────────────"
+    ctx["entries"] = switchBuffer["results"]
+    ctx["selected_index"] = switchBuffer["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No buffers"
+    ctx["buffer_id"] = switchBuffer["id"]
+    ctx["entry_to_string"] = switchBufferDisplay
+    listPanelRender(ctx)
+}
+
+fn switchBufferLoadBuffers() {
+    let buffers = listBuffers()
+    switchBuffer["buffers"] = fromJson(buffers)
+}
+
+fn switchBufferUpdateSelectionFromId(targetId) {
+    let results = switchBuffer["results"]
+    if arrayLen(results) == 0 {
+        switchBuffer["selected"] = 0
+        switchBuffer["selected_id"] = -1
+        renderSwitchBuffer()
+        return null
+    }
+
+    let selectedEntry = 0
+    let i = 0
+    loop {
+        if i >= arrayLen(results) { break }
+        let entry = results[i]
+        if entry["id"] == targetId {
+            selectedEntry = i
+            break
+        }
+        i = i + 1
+    }
+
+    let selectedEntryValue = results[selectedEntry]
+    switchBuffer["selected"] = selectedEntry
+    switchBuffer["selected_id"] = selectedEntryValue["id"]
+    renderSwitchBuffer()
+}
+
+fn switchBufferUpdateResults() {
+    switchBufferLoadBuffers()
+
+    let previousSelectionId = switchBuffer["selected_id"]
+    if previousSelectionId == -1 {
+        previousSelectionId = switchBuffer["initial_active_id"]
+    }
+
+    let query = stringToLower(switchBuffer["input"])
+    let results = createArray()
+    let buffers = switchBuffer["buffers"]
+
+    let i = 0
+    loop {
+        if i >= arrayLen(buffers) { break }
+        let entry = buffers[i]
+        let name = stringToLower(entry["display_name"])
+        if stringLen(query) == 0 or stringContains(name, query) {
+            arrayPushBack(results, entry)
+        }
+        i = i + 1
+    }
+
+    switchBuffer["results"] = results
+    switchBuffer["selected_id"] = -1
+    switchBuffer["selected"] = 0
+    switchBufferUpdateSelectionFromId(previousSelectionId)
+}
+
+fn switchBufferInputUpdated() {
+    inputUpdated(switchBuffer["id"], switchBuffer, "input", switchBufferUpdateResults)
+}
+
+fn switchBufferAddSpace() {
+    inputAddSpace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
+}
+
+fn switchBufferBackspace() {
+    inputBackspace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
+}
+
+fn switchBufferClearInput() {
+    inputClear(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
+}
+
+fn switchBufferMoveSelection(delta) {
+    let results = switchBuffer["results"]
+    let selected = listPanelMoveSelection(results, switchBuffer["selected"], delta)
+    switchBuffer["selected"] = selected
+    if arrayLen(results) == 0 {
+        switchBuffer["selected_id"] = -1
+    }
+    if arrayLen(results) != 0 {
+        let entry = results[selected]
+        switchBuffer["selected_id"] = entry["id"]
+    }
+    renderSwitchBuffer()
+}
+
+fn switchBufferNext() {
+    switchBufferMoveSelection(1)
+}
+
+fn switchBufferPrevious() {
+    switchBufferMoveSelection(-1)
+}
+
+fn switchBufferSelect() {
+    let results = switchBuffer["results"]
+    let selected = switchBuffer["selected"]
+    if selected < arrayLen(results) {
+        let selection = results[selected]
+        let bufferId = selection["id"]
+        switchBufferClearInput()
+        setActiveBuffer(bufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn switchBufferEscape() {
+    let previousBufferId = switchBuffer["previous_buffer_id"]
+    if previousBufferId != -1 {
+        switchBufferClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn createSwitchBuffer() {
+    let previousBufferId = getActiveBuffer()
+    switchBuffer["previous_buffer_id"] = previousBufferId
+    switchBuffer["initial_active_id"] = previousBufferId
+    switchBuffer["selected_id"] = -1
+
+    if switchBuffer["id"] == -1 {
+        let bufferId = createSpecialBuffer("Switch Buffer")
+        switchBuffer["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", switchBufferAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", switchBufferBackspace)
+        registerBufferKeybind(bufferId, "ins tab", switchBufferNext)
+        registerBufferKeybind(bufferId, "ins down", switchBufferNext)
+        registerBufferKeybind(bufferId, "ins up", switchBufferPrevious)
+        registerBufferKeybind(bufferId, "ins enter", switchBufferSelect)
+        registerBufferKeybind(bufferId, "ins escape", switchBufferEscape)
+        registerBufferInputHook(bufferId, switchBufferInputUpdated)
+    }
+
+    switchBufferClearInput()
+    switchBufferUpdateResults()
+    setActiveBuffer(switchBuffer["id"])
+    runAction("enter-insert-mode")
+}
+
+registerGlobalKeybind("nor space b", createSwitchBuffer)

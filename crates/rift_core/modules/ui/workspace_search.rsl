@@ -1,0 +1,182 @@
+# Workspace Search
+
+fn workspaceSearchDependenciesAvailable() {
+    return commandExists("rg")
+}
+
+fn workspaceSearchDependenciesError() {
+    infoModalOpen("Workspace Search requires `rg` (ripgrep) to be installed and available in PATH.")
+}
+
+let workspaceSearch = createTable()
+workspaceSearch["id"] = -1
+workspaceSearch["input"] = ""
+workspaceSearch["results"] = createArray()
+workspaceSearch["selected"] = 0
+workspaceSearch["previous_buffer_id"] = -1
+
+fn workspaceSearchDisplay(entry) {
+    return entry["display"]
+}
+
+fn renderWorkspaceSearch() {
+    let ctx = createTable()
+    ctx["title"] = "🔍 Workspace Search"
+    ctx["input_header"] = "╭─ Query ───────────────"
+    ctx["input_value"] = workspaceSearch["input"]
+    ctx["list_header"] = "╰─ Matches ─────────────"
+    ctx["entries"] = workspaceSearch["results"]
+    ctx["selected_index"] = workspaceSearch["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No matches"
+    ctx["buffer_id"] = workspaceSearch["id"]
+    ctx["entry_to_string"] = workspaceSearchDisplay
+    listPanelRender(ctx)
+}
+
+fn workspaceSearchClearInput() {
+    inputClear(workspaceSearch["id"], workspaceSearch, "input", null)
+}
+
+fn workspaceSearchBackspace() {
+    inputBackspace(workspaceSearch["id"], workspaceSearch, "input", null)
+}
+
+fn workspaceSearchUpdateResults() {
+    workspaceSearch["results"] = createArray()
+    if stringLen(workspaceSearch["input"]) <= 1 {
+        workspaceSearch["selected"] = 0
+        renderWorkspaceSearch()
+        return null
+    }
+
+    let results = runShellCommand("rg --json --color=never --smart-case --max-count 100 \"" + workspaceSearch["input"] + "\"", getWorkspaceDir())
+    let lines = stringSplitLines(results["stdout"])
+    let entries = createArray()
+
+    let i = 0
+    loop {
+        if i >= arrayLen(lines) { break }
+        let line = lines[i]
+        if line != "" {
+            let rgResult = fromJson(line)
+            if rgResult["type"] == "match" {
+                let data = rgResult["data"]
+                let filePath = data["path"]["text"]
+                let row = data["line_number"] - 1
+                let lineText = data["lines"]["text"]
+                let lineParts = stringSplitLines(lineText)
+                if arrayLen(lineParts) > 0 {
+                    lineText = lineParts[0]
+                }
+                let submatches = data["submatches"]
+                let j = 0
+                loop {
+                    if j >= arrayLen(submatches) { break }
+                    let submatch = submatches[j]
+                    let start = submatch["start"]
+                    let end = submatch["end"]
+
+                    let display = filePath + ":" + toJson(row) + ":" + toJson(start) + " " + lineText
+
+                    let entry = createTable()
+                    entry["file_path"] = filePath
+                    entry["row"] = row
+                    entry["start"] = start
+                    entry["end"] = end
+                    entry["display"] = display
+                    arrayPushBack(entries, entry)
+                    j = j + 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    workspaceSearch["results"] = entries
+    workspaceSearch["selected"] = 0
+    renderWorkspaceSearch()
+}
+
+fn workspaceSearchInputUpdated() {
+    inputUpdated(workspaceSearch["id"], workspaceSearch, "input", workspaceSearchUpdateResults)
+}
+
+fn workspaceSearchAddSpace() {
+    inputAddSpace(workspaceSearch["id"], workspaceSearch, "input", renderWorkspaceSearch)
+}
+
+fn workspaceSearchMoveSelection(delta) {
+    let results = workspaceSearch["results"]
+    let selected = listPanelMoveSelection(results, workspaceSearch["selected"], delta)
+    workspaceSearch["selected"] = selected
+    renderWorkspaceSearch()
+}
+
+fn workspaceSearchNext() {
+    workspaceSearchMoveSelection(1)
+}
+
+fn workspaceSearchPrevious() {
+    workspaceSearchMoveSelection(-1)
+}
+
+fn workspaceSearchSelect() {
+    let results = workspaceSearch["results"]
+    let selected = workspaceSearch["selected"]
+    if selected < arrayLen(results) {
+        let selection = results[selected]
+        let path = selection["file_path"]
+        let row = selection["row"]
+        let start = selection["start"]
+        let end = selection["end"]
+
+        let range = createTable()
+        let cursor = createTable()
+        let mark = createTable()
+
+        mark["row"] = row
+        mark["column"] = start
+        cursor["row"] = row
+        cursor["column"] = end
+        range["cursor"] = cursor
+        range["mark"] = mark
+
+        workspaceSearchClearInput()
+        openFile(path)
+        runAction("quit-insert-mode")
+        selectRange(toJson(range))
+    }
+}
+
+fn workspaceSearchEscape() {
+    let previousBufferId = workspaceSearch["previous_buffer_id"]
+    if previousBufferId != -1 {
+        workspaceSearchClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn createWorkspaceSearch() {
+    if !workspaceSearchDependenciesAvailable() {
+        workspaceSearchDependenciesError()
+        return null
+    }
+    workspaceSearch["previous_buffer_id"] = getActiveBuffer()
+    if workspaceSearch["id"] == -1 {
+        let bufferId = createSpecialBuffer("Workspace Search")
+        workspaceSearch["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", workspaceSearchAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", workspaceSearchBackspace)
+        registerBufferKeybind(bufferId, "ins tab", workspaceSearchNext)
+        registerBufferKeybind(bufferId, "ins down", workspaceSearchNext)
+        registerBufferKeybind(bufferId, "ins up", workspaceSearchPrevious)
+        registerBufferKeybind(bufferId, "ins enter", workspaceSearchSelect)
+        registerBufferKeybind(bufferId, "ins escape", workspaceSearchEscape)
+        registerBufferInputHook(bufferId, workspaceSearchInputUpdated)
+    }
+    workspaceSearchClearInput()
+    setActiveBuffer(workspaceSearch["id"])
+    workspaceSearchUpdateResults()
+    runAction("enter-insert-mode")
+}

@@ -1,0 +1,115 @@
+# Shared List + Input Helpers
+
+fn listPanelMoveSelection(entries, selectedIndex, delta) {
+    let total = arrayLen(entries)
+    if total == 0 { return 0 }
+    let nextIndex = selectedIndex + delta
+    if nextIndex < 0 { nextIndex = total - 1 }
+    if nextIndex >= total { nextIndex = 0 }
+    return nextIndex
+}
+
+fn listPanelRender(ctx) {
+    let inputHeader = ctx["input_header"]
+    let inputValue = ctx["input_value"]
+    let listHeader = ctx["list_header"]
+    let entries = ctx["entries"]
+    let selectedIndex = ctx["selected_index"]
+    let reservedLines = ctx["reserved_lines"]
+    let emptyText = ctx["empty_text"]
+    let bufferId = ctx["buffer_id"]
+    let entryToString = ctx["entry_to_string"]
+    let headerLines = ctx["header_lines"]
+    let extraLines = ctx["extra_lines"]
+
+    let content = ctx["title"]
+    if headerLines != null {
+        let i = 0
+        loop {
+            if i >= arrayLen(headerLines) { break }
+            content = content + "\n" + headerLines[i]
+            i = i + 1
+        }
+    }
+
+    content = content + "\n" + inputHeader + "\n" + inputValue + "\n" + listHeader
+
+    if extraLines != null {
+        let i = 0
+        loop {
+            if i >= arrayLen(extraLines) { break }
+            content = content + "\n" + extraLines[i]
+            i = i + 1
+        }
+    }
+
+    let total = arrayLen(entries)
+    if total == 0 {
+        content = content + "\n   " + emptyText
+        state.setViewportBufferContent(bufferId, content)
+        return null
+    }
+
+    if reservedLines == null { reservedLines = 5 }
+    let window = state.viewportWindow(selectedIndex, total, reservedLines)
+    let start = window["start"]
+    let end = window["end"]
+
+    if start > 0 { content = content + "\n   ⋯" }
+
+    let i = start
+    loop {
+        if i >= end { break }
+        let entry = entries[i]
+        let display = entry
+        if entryToString != null {
+            display = entryToString(entry)
+        }
+        let prefix = "•"
+        if selectedIndex == i { prefix = "➤" }
+        content = content + "\n " + prefix + " " + display
+        i = i + 1
+    }
+
+    if end < total { content = content + "\n   ⋯" }
+
+    state.setViewportBufferContent(bufferId, content)
+}
+
+fn inputGet(bufferId) {
+    return getBufferInput(bufferId)
+}
+
+fn inputSet(bufferId, value) {
+    setBufferInput(bufferId, value)
+}
+
+fn inputUpdated(bufferId, stateTable, key, onUpdated) {
+    let value = getBufferInput(bufferId)
+    stateTable[key] = value
+    if onUpdated != null { onUpdated() }
+}
+
+fn inputAddSpace(bufferId, stateTable, key, onUpdated) {
+    let value = getBufferInput(bufferId)
+    value = value + " "
+    stateTable[key] = value
+    setBufferInput(bufferId, value)
+    if onUpdated != null { onUpdated() }
+}
+
+fn inputBackspace(bufferId, stateTable, key, onCleared) {
+    let value = getBufferInput(bufferId)
+    let length = stringLen(value)
+    if length <= 0 { return null }
+    value = stringTruncateWidth(value, length - 1)
+    stateTable[key] = value
+    setBufferInput(bufferId, value)
+    if onCleared != null { onCleared() }
+}
+
+fn inputClear(bufferId, stateTable, key, onCleared) {
+    stateTable[key] = ""
+    setBufferInput(bufferId, "")
+    if onCleared != null { onCleared() }
+}

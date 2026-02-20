@@ -1,0 +1,359 @@
+# Agentic Chat
+
+fn getOpenRouterProvider() {
+    let provider = createTable()
+    provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
+    provider["api_key"] = getEnvVar("OPENROUTER_KEY")
+    provider["model"] = "minimax/minimax-m2.1"
+    return provider
+}
+
+fn getLlamaCppProvider() {
+    let provider = createTable()
+    provider["url"] = "http://127.0.0.1:8080/v1/chat/completions"
+    provider["api_key"] = null
+    provider["model"] = ""
+    return provider
+}
+
+let openRouterProvider = getOpenRouterProvider()
+let llamaCppProvider = getLlamaCppProvider()
+
+let llmChat = createTable()
+llmChat["id"] = -1
+llmChat["provider"] = openRouterProvider
+llmChat["history_scroll"] = 0
+llmChat["history_page_size"] = 1
+llmChat["input"] = ""
+llmChat["history"] = createArray()
+llmChat["pending_tool_calls"] = createArray()
+
+fn llmChatRoleLabel(message) {
+    let role = message["role"]
+    let label = role
+    if role == "assistant" { label = "Assistant" }
+    if role == "user" { label = "User" }
+    if role == "system" { label = "System" }
+    if role == "tool" {
+        label = "Tool"
+        let name = message["name"]
+        if name != null {
+            label = "Tool (" + name + ")"
+        }
+    }
+    return label
+}
+
+fn llmChatToolCallName(toolCall) {
+    let toolFunc = toolCall["function"]
+    if toolFunc == null { return "unknown" }
+    let name = toolFunc["name"]
+    if name == null { return "unknown" }
+    return name
+}
+
+fn llmChatLinesToString(lines) {
+    let text = ""
+    let i = 0
+    loop {
+        if i >= arrayLen(lines) { break }
+        let line = lines[i]
+        if i > 0 { text = text + "\n" }
+        text = text + line
+        i = i + 1
+    }
+    return text
+}
+
+fn llmChatScrollUp() {
+    let llmChatHistoryScroll = llmChat["history_scroll"] + 1
+    llmChat["history_scroll"] = llmChatHistoryScroll
+    renderLLMChat()
+}
+
+fn llmChatScrollDown() {
+    let llmChatHistoryScroll = llmChat["history_scroll"] - 1
+    if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
+    llmChat["history_scroll"] = llmChatHistoryScroll
+    renderLLMChat()
+}
+
+fn llmChatPageUp() {
+    let llmChatHistoryScroll = llmChat["history_scroll"] + llmChat["history_page_size"]
+    llmChat["history_scroll"] = llmChatHistoryScroll
+    renderLLMChat()
+}
+
+fn llmChatPageDown() {
+    let llmChatHistoryScroll = llmChat["history_scroll"] - llmChat["history_page_size"]
+    if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
+    llmChat["history_scroll"] = llmChatHistoryScroll
+    renderLLMChat()
+}
+
+fn renderLLMChat() {
+    let chatHistory = llmChat["history"]
+    let historyLines = createArray()
+    let totalMessages = arrayLen(chatHistory)
+    let i = 0
+    loop {
+        if i >= totalMessages { break }
+        let message = chatHistory[i]
+        let label = llmChatRoleLabel(message)
+        arrayPushBack(historyLines, label + ":")
+        let content = message["content"]
+        if content == null { content = "" }
+        let contentLines = stringSplitLines(content)
+        if arrayLen(contentLines) == 0 or stringLen(content) == 0 {
+            arrayPushBack(historyLines, "  (empty)")
+        }
+        if arrayLen(contentLines) != 0 and stringLen(content) != 0 {
+            let j = 0
+            loop {
+                if j >= arrayLen(contentLines) { break }
+                let line = contentLines[j]
+                arrayPushBack(historyLines, "  " + line)
+                j = j + 1
+            }
+        }
+        let toolCalls = message["tool_calls"]
+        if toolCalls != null {
+            let j = 0
+            loop {
+                if j >= arrayLen(toolCalls) { break }
+                let toolCall = toolCalls[j]
+                let toolName = llmChatToolCallName(toolCall)
+                arrayPushBack(historyLines, "  • tool call: " + toolName)
+                j = j + 1
+            }
+        }
+        if i < totalMessages - 1 {
+            arrayPushBack(historyLines, "")
+        }
+        i = i + 1
+    }
+
+    let historyContent = ""
+    if arrayLen(historyLines) == 0 {
+        historyContent = "   No messages yet"
+    }
+    if arrayLen(historyLines) != 0 {
+        historyContent = llmChatLinesToString(historyLines)
+    }
+
+    let pendingToolCalls = llmChat["pending_tool_calls"]
+    let pendingLines = createArray()
+    if arrayLen(pendingToolCalls) == 0 {
+        arrayPushBack(pendingLines, "   None")
+    }
+    if arrayLen(pendingToolCalls) != 0 {
+        let i = 0
+        loop {
+            if i >= arrayLen(pendingToolCalls) { break }
+            let toolCall = pendingToolCalls[i]
+            let toolName = llmChatToolCallName(toolCall)
+            arrayPushBack(pendingLines, " • " + toolName)
+            i = i + 1
+        }
+    }
+
+    let chatInput = llmChat["input"]
+    let inputLines = stringSplitLines(chatInput)
+    if arrayLen(inputLines) == 0 or stringLen(chatInput) == 0 {
+        inputLines = createArray()
+        arrayPushBack(inputLines, "Type a message...")
+    }
+
+    let headerLines = 3
+    let sectionLines = 3
+    let reservedLines = headerLines + sectionLines + arrayLen(pendingLines) + arrayLen(inputLines)
+    let historyRows = state.viewportVisibleRows(reservedLines)
+    if historyRows < 1 { historyRows = 1 }
+
+    let columns = state.viewportVisibleColumns()
+    let wrappedAll = stringRenderViewport(historyContent, columns, 100000, 0)
+    let wrappedLines = stringSplitLines(wrappedAll)
+    let totalHistoryLines = arrayLen(wrappedLines)
+    if totalHistoryLines < 1 { totalHistoryLines = 1 }
+
+    let llmChatHistoryScroll = llmChat["history_scroll"]
+    let showEllipsis = llmChatHistoryScroll > 0
+    if showEllipsis and historyRows <= 1 { showEllipsis = false }
+    if showEllipsis { historyRows = historyRows - 1 }
+
+    let maxScroll = totalHistoryLines - historyRows
+    if maxScroll < 0 { maxScroll = 0 }
+    if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
+    if llmChatHistoryScroll > maxScroll { llmChatHistoryScroll = maxScroll }
+    llmChat["history_scroll"] = llmChatHistoryScroll
+    llmChat["history_page_size"] = historyRows
+
+    let historyBody = stringRenderViewport(historyContent, columns, historyRows, -1 * (llmChatHistoryScroll + 1))
+    let provider = llmChat["provider"]
+    let modelName = "unknown"
+    if provider != null { modelName = provider["model"] }
+    let status = "Model: " + modelName + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
+
+    let content = "🤖 LLM Chat\n" + status + "\nenter: send | y/n: allow/deny tool | up/down: scroll\n"
+    content = content + "╭─ History ─────────────\n"
+    if showEllipsis { content = content + "   ⋯\n" }
+    content = content + historyBody + "\n"
+    content = content + "╰─ Pending Tools ───────\n"
+    content = content + llmChatLinesToString(pendingLines) + "\n"
+    content = content + "╭─ Input ───────────────\n"
+    content = content + llmChatLinesToString(inputLines)
+
+    state.setViewportBufferContent(llmChat["id"], content)
+}
+
+fn requestChatCompletion() {
+    let provider = llmChat["provider"]
+    if provider == null { return null }
+
+    let apiKey = provider["api_key"]
+    let modelName = provider["model"]
+    let url = provider["url"]
+
+    let request = createTable()
+    request["model"] = modelName
+    request["messages"] = llmChat["history"]
+    request["tools"] = fromJson(toolDeclarations())
+    request["stream"] = false
+    # request["temperature"] = 0.3
+    request["seed"] = 42
+
+    let body = toJson(request)
+    let hasApiKey = apiKey != null and stringLen(apiKey) != 0
+    let response = null
+    if hasApiKey { response = postRequestWithBearerToken(url, body, apiKey) }
+    if !hasApiKey { response = postRequest(url, body) }
+    if !(typeOf(response) == "string" ) { log(response) }
+    response = fromJson(response)
+    let message = response["choices"][0]["message"]
+    let toolCalls = message["tool_calls"]
+    
+    if toolCalls != null {
+        let pendingToolCalls = llmChat["pending_tool_calls"]
+        let i = arrayLen(toolCalls)
+        loop {
+            if i <= 0 { break }
+            let toolCall = toolCalls[i - 1]
+            
+            arrayPushBack(pendingToolCalls, toolCall)
+            
+            let toolName = toolCall["function"]["name"]
+            let toolArgs = fromJson(toolCall["function"]["arguments"])
+            let toolCallId = toolCall["id"]
+            
+            i = i - 1
+        }
+    }
+    
+    arrayPushBack(llmChat["history"], message)
+
+    renderLLMChat()
+}
+
+fn getToolCallResult(allowed) {
+    let pendingToolCalls = llmChat["pending_tool_calls"]
+    let toolCall = arrayPopBack(pendingToolCalls)
+    
+    let toolName = toolCall["function"]["name"]
+    let toolArgs = fromJson(toolCall["function"]["arguments"])
+    let toolCallId = toolCall["id"]
+    
+    let result = "Tool call request denied by user. Await further instructions."
+    
+    if allowed {
+        if toolName == "run_shell_command" {
+            result = agentRunShellCommand(toolArgs["command"])
+        }
+        if toolName == "find_file" {
+            result = agentFindFile(toolArgs["pattern"])
+        }
+        if toolName == "search_workspace" {
+            result = agentSearchWorkspace(toolArgs["pattern"])
+        }
+        if toolName == "read_file" {
+            result = agentReadFile(getWorkspaceDir(), toolArgs["path"])
+        }
+        if toolName == "write_file" {
+            result = agentFindFile(getWorkspaceDir(), toolArgs["file_path"], toolArgs["content"])
+        }
+        if toolName == "replace" {
+            result = agentFindFile(getWorkspaceDir(), toolArgs["file_path"], toolArgs["old_string"], toolArgs["new_string"])
+        }
+    }
+    
+    let message = createTable()
+    message["role"] = "tool"
+    message["content"] = result
+    message["name"] = toolName
+    message["tool_call_id"] = toolCallId
+    arrayPushBack(llmChat["history"], message)
+    
+    renderLLMChat()
+
+    if arrayLen(pendingToolCalls) == 0 {
+        requestChatCompletion()
+    }
+}
+
+fn allowToolCall() { getToolCallResult(true) }
+fn denyToolCall() { getToolCallResult(false) }
+
+fn sendMessage() {
+    let pendingToolCalls = llmChat["pending_tool_calls"]
+    if arrayLen(pendingToolCalls) == 0 {
+        let message = createTable()
+        message["role"] = "user"
+        message["content"] = llmChat["input"]
+        arrayPushBack(llmChat["history"], message)
+
+        llmChatClearInput()
+        renderLLMChat()
+    
+        requestChatCompletion()
+    }
+}
+
+fn llmChatInputUpdated() {
+    inputUpdated(llmChat["id"], llmChat, "input", renderLLMChat)
+}
+
+fn llmChatAddSpace() {
+    inputAddSpace(llmChat["id"], llmChat, "input", renderLLMChat)
+}
+
+fn llmChatBackspace() {
+    inputBackspace(llmChat["id"], llmChat, "input", renderLLMChat)
+}
+
+fn llmChatClearInput() {
+    inputClear(llmChat["id"], llmChat, "input", null)
+}
+
+fn createLLMChat() {
+    if llmChat["id"] == -1 {
+        let bufferId = createSpecialBuffer("LLM Chat")
+        llmChat["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins enter", sendMessage)
+        registerBufferKeybind(bufferId, "nor up", llmChatScrollUp)
+        registerBufferKeybind(bufferId, "nor down", llmChatScrollDown)
+        registerBufferKeybind(bufferId, "nor pageup", llmChatPageUp)
+        registerBufferKeybind(bufferId, "nor pagedown", llmChatPageDown)
+        registerBufferKeybind(bufferId, "ins space", llmChatAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", llmChatBackspace)
+        registerBufferKeybind(bufferId, "ins up", llmChatScrollUp)
+        registerBufferKeybind(bufferId, "ins down", llmChatScrollDown)
+        registerBufferKeybind(bufferId, "ins pageup", llmChatPageUp)
+        registerBufferKeybind(bufferId, "ins pagedown", llmChatPageDown)
+        registerBufferKeybind(bufferId, "nor y", allowToolCall)
+        registerBufferKeybind(bufferId, "nor n", denyToolCall)
+        registerBufferInputHook(bufferId, llmChatInputUpdated)
+        renderLLMChat()
+    }
+    setActiveBuffer(llmChat["id"])
+}
+
+registerGlobalKeybind("nor space c", createLLMChat)

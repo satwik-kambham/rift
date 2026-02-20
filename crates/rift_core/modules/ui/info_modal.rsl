@@ -1,0 +1,122 @@
+# Info Modal
+
+let infoModal = createTable()
+infoModal["id"] = -1
+infoModal["previous_buffer_id"] = -1
+infoModal["content"] = ""
+infoModal["scroll"] = 0
+infoModal["active"] = false
+infoModal["page_size"] = 48
+
+fn infoModalClampScroll(totalLines, pageSize) {
+    let maxScroll = totalLines - pageSize
+    if maxScroll < 0 { maxScroll = 0 }
+    let infoModalScroll = infoModal["scroll"]
+    if infoModalScroll < 0 { infoModalScroll = 0 }
+    if infoModalScroll > maxScroll { infoModalScroll = maxScroll }
+    infoModal["scroll"] = infoModalScroll
+}
+
+fn infoModalRender() {
+    let content = "Info Modal (esc to close, up/down to scroll)\n------"
+    let infoModalContent = infoModal["content"]
+    let columns = state.viewportVisibleColumns()
+    let wrappedAll = stringRenderViewport(infoModalContent, columns, 100000, 0)
+    let wrappedLines = stringSplitLines(wrappedAll)
+    let totalLines = arrayLen(wrappedLines)
+
+    if totalLines == 0 {
+        content = content + "\n\n   No information available"
+        state.setViewportBufferContent(infoModal["id"], content)
+        return null
+    }
+
+    let visibleRows = state.viewportVisibleRows(0)
+    let bodyRows = visibleRows - 3
+    if bodyRows < 1 { bodyRows = 1 }
+
+    let footerLines = 0
+    if infoModal["scroll"] + bodyRows < totalLines and bodyRows > 2 {
+        footerLines = 2
+        bodyRows = bodyRows - footerLines
+    }
+
+    infoModal["page_size"] = bodyRows
+    infoModalClampScroll(totalLines, bodyRows)
+
+    let scroll = infoModal["scroll"]
+    let body = stringRenderViewport(infoModalContent, columns, bodyRows, scroll)
+    content = content + "\n\n" + body
+
+    let remaining = totalLines - (scroll + bodyRows)
+    if remaining > 0 {
+        content = content + "\n\n... (" + toJson(remaining) + " more lines)"
+    }
+
+    state.setViewportBufferContent(infoModal["id"], content)
+}
+
+fn infoModalEnsureBuffer() {
+    if infoModal["id"] == -1 {
+        let bufferId = createSpecialBuffer("Info")
+        infoModal["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins escape", infoModalClose)
+        registerBufferKeybind(bufferId, "ins up", infoModalScrollUp)
+        registerBufferKeybind(bufferId, "ins down", infoModalScrollDown)
+        registerBufferKeybind(bufferId, "ins pageup", infoModalPageUp)
+        registerBufferKeybind(bufferId, "ins pagedown", infoModalPageDown)
+    }
+}
+
+fn infoModalOpen(content) {
+    infoModalEnsureBuffer()
+    if !infoModal["active"] {
+        infoModal["previous_buffer_id"] = getActiveBuffer()
+    }
+    infoModal["active"] = true
+    infoModal["content"] = content
+    infoModal["scroll"] = 0
+    infoModalRender()
+    let bufferId = infoModal["id"]
+    setActiveBuffer(bufferId)
+    setBufferInput(bufferId, "")
+    runAction("enter-insert-mode")
+}
+
+fn infoModalClose() {
+    infoModal["active"] = false
+    infoModal["scroll"] = 0
+    let previousBufferId = infoModal["previous_buffer_id"]
+    if previousBufferId != -1 {
+        setActiveBuffer(previousBufferId)
+    }
+    runAction("quit-insert-mode")
+}
+
+fn infoModalScrollUp() {
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] - 1
+    infoModal["scroll"] = infoModalScroll
+    infoModalRender()
+}
+
+fn infoModalScrollDown() {
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] + 1
+    infoModal["scroll"] = infoModalScroll
+    infoModalRender()
+}
+
+fn infoModalPageUp() {
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] - infoModal["page_size"]
+    infoModal["scroll"] = infoModalScroll
+    infoModalRender()
+}
+
+fn infoModalPageDown() {
+    if !infoModal["active"] { return null }
+    let infoModalScroll = infoModal["scroll"] + infoModal["page_size"]
+    infoModal["scroll"] = infoModalScroll
+    infoModalRender()
+}
