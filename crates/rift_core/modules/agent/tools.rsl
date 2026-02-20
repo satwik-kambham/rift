@@ -1,107 +1,240 @@
-fn toolDeclarations() {
-    return
-"[
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"run_shell_command\",
-            \"description\": \"Run a shell command and return the output\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"command\": {\"type\": \"string\"}
-                },
-                \"required\": [\"command\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"find_file\",
-            \"description\": \"Returns paths matching regex pattern by searching recursively in the workspace folder, returning absolute paths. Does not accept glob patterns.\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"pattern\": {\"type\": \"string\"}
-                },
-                \"required\": [\"pattern\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"search_workspace\",
-            \"description\": \"Grep search in the current workspace for matching patterns\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"pattern\": {\"type\": \"string\"}
-                },
-                \"required\": [\"pattern\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"read_file\",
-            \"description\": \"Get the content of a file with line numbers\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"path\": {\"type\": \"string\"}
-                },
-                \"required\": [\"path\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"write_file\",
-            \"description\": \"Writes content to a specified file replacing the existing content.\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"file_path\": {\"type\": \"string\"},
-                    \"content\": {\"type\": \"string\"}
-                },
-                \"required\": [\"file_path\", \"content\"]
-            }
-        }
-    },
-    {
-        \"type\": \"function\",
-        \"function\": {
-            \"name\": \"replace\",
-            \"description\": \"Replaces text within a file. Can replace single or multiple occurrences.\",
-            \"parameters\": {
-                \"type\": \"object\",
-                \"properties\": {
-                    \"file_path\": {\"type\": \"string\"},
-                    \"old_string\": {\"type\": \"string\"},
-                    \"new_string\": {\"type\": \"string\"}
-                },
-                \"required\": [\"file_path\", \"old_string\", \"new_string\"]
-            }
+# Code Tools
+
+# Run Shell Command
+
+let agentRunShellCommandDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"run_shell_command\",
+        \"description\": \"Run a shell command and return the output\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"command\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"command\"]
         }
     }
-]"
-}
+}"
 
-fn agentRunShellCommand(command) {
-    let outputs = runShellCommand(command, getWorkspaceDir())
+fn agentRunShellCommand(inputs) {
+    let outputs = runShellCommand(inputs["command"], getWorkspaceDir())
     return "STDOUT:\n" + outputs["stdout"] + "\nSTDERR:\n" + outputs["stderr"]
 }
 
-fn agentFindFile(pattern) {
-    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path " + pattern, getWorkspaceDir())
+fn agentRunShellCommandPreview(inputs) {
+    return "Run: `" + inputs["command"] + "`"
+}
+
+fn agentRunShellCommandOutputPreview(inputs, output) {
+    return "Run: `"+ inputs["command"] + "`\n" + output
+}
+
+# Find File
+
+let agentFindFileDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"find_file\",
+        \"description\": \"Returns paths matching regex pattern by searching recursively in the workspace folder, returning absolute paths. Does not accepts glob patterns.\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"pattern\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"pattern\"]
+        }
+    }
+}"
+
+fn agentFindFile(inputs) {
+    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path " + inputs["pattern"], getWorkspaceDir())
     return results["stdout"]
 }
 
-fn agentSearchWorkspace(pattern) {
-    let results = runShellCommand("rg " + pattern, getWorkspaceDir())
+fn agentFindFilePreview(inputs) {
+    return "Find File: `" + inputs["pattern"] + "`"
+}
+
+fn agentFindFileOutputPreview(inputs, output) {
+    return "Find File: `" + inputs["pattern"] + "`"
+}
+
+# Search Workspace
+
+let agentSearchWorkspaceDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"search_workspace\",
+        \"description\": \"Regex search in the current workspace for matching patterns\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"pattern\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"pattern\"]
+        }
+    }
+}"
+
+fn agentSearchWorkspace(inputs) {
+    let results = runShellCommand("rg " + inputs["pattern"], getWorkspaceDir())
     return results["stdout"]
+}
+
+fn agentSearchWorkspacePreview(inputs) {
+    return "Search: `" + inputs["pattern"] + "`"
+}
+
+fn agentSearchWorkspaceOutputPreview(inputs, output) {
+    return "Search: `" + inputs["pattern"] + "`"
+}
+
+# Read File
+
+let agentReadFileDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"read_file\",
+        \"description\": \"Get the content of a file with line numbers\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"path\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"path\"]
+        }
+    }
+}"
+
+fn agentReadFile(inputs) {
+    let output = agentReadFileTool(getWorkspaceDir(), inputs["path"])
+    return output
+}
+
+fn agentReadFilePreview(inputs) {
+    return "Read: `" + inputs["path"] + "`"
+}
+
+fn agentReadFileOutputPreview(inputs, output) {
+    return "Read: `" + inputs["path"] + "`"
+}
+
+# Write File
+
+let agentWriteFileDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"write_file\",
+        \"description\": \"Writes content to file overriding the existing content\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"path\" : { \"type\": \"string\" },
+                \"content\": { \"type\": \"string\" }
+            },
+            \"required\": [\"path\", \"content\"]
+        }
+    }
+}"
+
+fn agentWriteFile(inputs) {
+    let output = agentWriteFileTool(getWorkspaceDir(), inputs["path"], inputs["content"])
+    return output
+}
+
+fn agentWriteFilePreview(inputs) {
+    return "Write: `" + inputs["path"] + "`"
+}
+
+fn agentWriteFileOutputPreview(inputs, output) {
+    return "Write: `" + inputs["path"] + "`\n" + output
+}
+
+# Replace
+
+let agentReplaceDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"replace\",
+        \"description\": \"Replaces text within a file. Will replace multiple matches.\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"path\" : { \"type\": \"string\" },
+                \"old_string\": { \"type\": \"string\" }
+                \"new_string\": { \"type\": \"string\" }
+            },
+            \"required\": [\"path\", \"old_string\", \"new_string\"]
+        }
+    }
+}"
+
+fn agentReplace(inputs) {
+    let output = agentReplaceTool(getWorkspaceDir(), inputs["path"], inputs["old_string"], inputs["new_string"])
+    return output
+}
+
+fn agentReplacePreview(inputs) {
+    return "Replace: `" + inputs["path"] + "`"
+}
+
+fn agentReplaceOutputPreview(inputs, output) {
+    return "Replace: `" + inputs["path"] + "`\n" + output
+}
+
+#############
+
+fn getToolDeclarations(tools) {
+    let declarations = createArray()
+    
+    let i = 0
+    loop {
+        if i >= arrayLen(tools) { break }
+        let toolName = tools[i]
+        let declaration = ""
+        if toolName == "run_shell_command" { declaration = agentRunShellCommandDeclaration() }
+        if toolName == "find_file" { declaration = agentFindFileDeclaration() }
+        if toolName == "search_workspace" { declaration = agentSearchWorkspaceDeclaration() }
+        if toolName == "read_file" { declaration = agentReadFileDeclaration() }
+        if toolName == "write_file" { declaration = agentWriteFileDeclaration() }
+        if toolName == "replace" { declaration = agentReplaceDeclaration() }
+        arrayPushBack(declarations, fromJson(declaration))
+        i = i + 1
+    }
+
+    return declarations
+}
+
+fn runTool(toolName, inputs) {
+    let output = ""
+    if toolName == "run_shell_command" { output = agentRunShellCommand() }
+    if toolName == "find_file" { output = agentFindFile() }
+    if toolName == "search_workspace" { output = agentSearchWorkspace() }
+    if toolName == "read_file" { output = agentReadFile() }
+    if toolName == "write_file" { output = agentWriteFile() }
+    if toolName == "replace" { output = agentReplace() }
+    return output
+}
+
+fn toolPreview(toolName, inputs) {
+    let output = ""
+    if toolName == "run_shell_command" { output = agentRunShellCommandPreview() }
+    if toolName == "find_file" { output = agentFindFilePreview() }
+    if toolName == "search_workspace" { output = agentSearchWorkspacePreview() }
+    if toolName == "read_file" { output = agentReadFilePreview() }
+    if toolName == "write_file" { output = agentWriteFilePreview() }
+    if toolName == "replace" { output = agentReplacePreview() }
+    return output
+}
+
+fn toolOutputPreview(toolName, inputs) {
+    let output = ""
+    if toolName == "run_shell_command" { output = agentRunShellCommandOutputPreview() }
+    if toolName == "find_file" { output = agentFindFileOutputPreview() }
+    if toolName == "search_workspace" { output = agentSearchWorkspaceOutputPreview() }
+    if toolName == "read_file" { output = agentReadFileOutputPreview() }
+    if toolName == "write_file" { output = agentWriteFileOutputPreview() }
+    if toolName == "replace" { output = agentReplaceOutputPreview() }
+    return output
 }

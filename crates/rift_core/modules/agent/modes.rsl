@@ -1,0 +1,29 @@
+# Minimal Mode
+
+export minimalMode = createTable()
+minimalMode["systemPrompt"] = ""
+minimalMode["tools"] = fromJson("{}")
+
+# Plan Mode
+
+export planMode = createTable()
+planMode["systemPrompt"] = "Plan"
+planMode["tools"] = fromJson("{
+    \"run_shell_command\": true,
+    \"read_file\": false,
+    \"search_workspace\": false,
+    \"find_file\": false
+}")
+
+# Edit Mode
+
+export editMode = createTable()
+editMode["systemPrompt"] = "Edit"
+editMode["tools"] = fromJson("{
+    \"run_shell_command\": true,
+    \"read_file\": false,
+    \"search_workspace\": false,
+    \"find_file\": false,
+    \"write_file\": true,
+    \"replace\": true,
+}")

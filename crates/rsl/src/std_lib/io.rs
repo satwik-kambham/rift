@@ -23,7 +23,7 @@ pub fn is_in_workspace(workspace_dir: &str, path: &str) -> bool {
 }
 
 #[rsl_native]
-pub fn agent_read_file(arguments: Vec<Primitive>) -> Primitive {
+pub fn agent_read_file_tool(arguments: Vec<Primitive>) -> Primitive {
     let (workspace_dir, path) = args!(arguments; workspace_dir: String, path: String);
 
     if !is_absolute_path(&path) {
@@ -48,7 +48,7 @@ pub fn agent_read_file(arguments: Vec<Primitive>) -> Primitive {
 }
 
 #[rsl_native]
-pub fn agent_write_file(arguments: Vec<Primitive>) -> Primitive {
+pub fn agent_write_file_tool(arguments: Vec<Primitive>) -> Primitive {
     let (workspace_dir, file_path, content) =
         args!(arguments; workspace_dir: String, file_path: String, content: String);
 
@@ -75,7 +75,7 @@ pub fn agent_write_file(arguments: Vec<Primitive>) -> Primitive {
 }
 
 #[rsl_native]
-pub fn agent_replace(arguments: Vec<Primitive>) -> Primitive {
+pub fn agent_replace_tool(arguments: Vec<Primitive>) -> Primitive {
     let (workspace_dir, file_path, old_string, new_string) = args!(
         arguments;
         workspace_dir: String,
