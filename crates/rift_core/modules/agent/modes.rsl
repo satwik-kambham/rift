@@ -20,7 +20,7 @@ plan["tools"] = fromJson("{
 # Edit Mode
 
 export edit = createTable()
-edit["systemPrompt"] = prompts["editSystemPrompt"}
+edit["systemPrompt"] = prompts["editSystemPrompt"]
 edit["tools"] = fromJson("{
     \"run_shell_command\": true,
     \"read_file\": false,
