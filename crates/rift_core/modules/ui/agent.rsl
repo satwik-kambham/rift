@@ -26,11 +26,20 @@ let llmChat = createTable()
 llmChat["id"] = -1
 llmChat["provider"] = openRouterProvider()
 llmChat["mode"] = modes["edit"]
+llmChat["history"] = createArray()
 llmChat["history_scroll"] = 0
 llmChat["history_page_size"] = 1
 llmChat["input"] = ""
-llmChat["history"] = createArray()
 llmChat["pending_tool_calls"] = createArray()
+
+fn llmChatReset() {
+    let agentsMD = readFile(joinPath(getWorkspaceDir(), "AGENTS.md"))
+    llmChat["history"] = createArray()
+    let message = createTable()
+    message["role"] = "system"
+    message["content"] = llmChat["mode"]["systemPrompt"] + "\nAGENTS.md: \n" + agentsMD
+    arrayPushBack(llmChat["history"], message)
+}
 
 fn llmChatRoleLabel(message) {
     let role = message["role"]
@@ -116,7 +125,7 @@ fn renderLLMChat() {
             loop {
                 if j >= arrayLen(contentLines) { break }
                 let line = contentLines[j]
-                arrayPushBack(historyLines, "  " + line)
+                arrayPushBack(historyLines, line)
                 j = j + 1
             }
         }
@@ -127,7 +136,7 @@ fn renderLLMChat() {
                 if j >= arrayLen(toolCalls) { break }
                 let toolCall = toolCalls[j]
                 let toolName = llmChatToolCallName(toolCall)
-                arrayPushBack(historyLines, "  • tool call: " + toolName)
+                arrayPushBack(historyLines, " • tool call: " + toolName)
                 j = j + 1
             }
         }
@@ -168,8 +177,8 @@ fn renderLLMChat() {
         arrayPushBack(inputLines, "Type a message...")
     }
 
-    let headerLines = 3
-    let sectionLines = 3
+    let headerLines = 1
+    let sectionLines = 2
     let reservedLines = headerLines + sectionLines + arrayLen(pendingLines) + arrayLen(inputLines)
     let historyRows = state.viewportVisibleRows(reservedLines)
     if historyRows < 1 { historyRows = 1 }
@@ -198,14 +207,13 @@ fn renderLLMChat() {
     if provider != null { modelName = provider["model"] }
     let status = "Model: " + modelName + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
 
-    let content = "🤖 LLM Chat\n" + status + "\nenter: send | y/n: allow/deny tool | up/down: scroll\n"
-    content = content + "╭─ History ─────────────\n"
+    let content = status
+    content = content + "\n╭───────────────────────\n"
     if showEllipsis { content = content + "   ⋯\n" }
     content = content + historyBody + "\n"
     content = content + "╰─ Pending Tools ───────\n"
     content = content + llmChatLinesToString(pendingLines) + "\n"
-    content = content + "╭─ Input ───────────────\n"
-    content = content + llmChatLinesToString(inputLines)
+    content = content + "➤ " + llmChatLinesToString(inputLines)
 
     state.setViewportBufferContent(llmChat["id"], content)
 }
@@ -348,8 +356,9 @@ fn createLLMChat() {
         registerBufferKeybind(bufferId, "nor y", allowToolCall)
         registerBufferKeybind(bufferId, "nor n", denyToolCall)
         registerBufferInputHook(bufferId, llmChatInputUpdated)
-        renderLLMChat()
+        llmChatReset()
     }
+    renderLLMChat()
     setActiveBuffer(llmChat["id"])
 }
 

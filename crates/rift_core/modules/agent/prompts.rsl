@@ -1,3 +1,7 @@
-export planSystemPrompt = ""
+export planSystemPrompt = 
+"You are a coding agent for the Rift code editor.
+"
 
-export editSystemPrompt = ""
+export editSystemPrompt = 
+"You are a coding agent for the Rift code editor.
+"
