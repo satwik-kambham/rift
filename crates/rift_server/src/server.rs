@@ -16,9 +16,15 @@ use rift_core::{
     state::EditorState,
 };
 
-pub async fn start_axum_server(
-    sender_to_ws: broadcast::Sender<Bytes>,
-    sender_from_ws: mpsc::Sender<Bytes>,
+#[derive(Clone)]
+enum WSMessage {
+    Bytes(Bytes),
+    Text(String),
+}
+
+async fn start_axum_server(
+    sender_to_ws: broadcast::Sender<WSMessage>,
+    sender_from_ws: mpsc::Sender<WSMessage>,
 ) {
     let static_files = ServeDir::new("static");
     let app = axum::Router::new()
@@ -45,8 +51,8 @@ pub async fn start_axum_server(
 async fn ws_handler(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    receiver_to_ws: broadcast::Receiver<Bytes>,
-    sender_from_ws: mpsc::Sender<Bytes>,
+    receiver_to_ws: broadcast::Receiver<WSMessage>,
+    sender_from_ws: mpsc::Sender<WSMessage>,
 ) -> impl axum::response::IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, addr, receiver_to_ws, sender_from_ws))
 }
@@ -54,15 +60,21 @@ async fn ws_handler(
 async fn handle_socket(
     socket: WebSocket,
     _addr: SocketAddr,
-    mut receiver_to_ws: broadcast::Receiver<Bytes>,
-    sender_from_ws: mpsc::Sender<Bytes>,
+    mut receiver_to_ws: broadcast::Receiver<WSMessage>,
+    sender_from_ws: mpsc::Sender<WSMessage>,
 ) {
     let (mut socket_sender, mut socket_receiver) = socket.split();
     tokio::spawn(async move {
         while let Some(Ok(message)) = socket_receiver.next().await {
             match message {
+                Message::Text(text) => {
+                    sender_from_ws
+                        .send(WSMessage::Text(text.to_string()))
+                        .await
+                        .unwrap();
+                }
                 Message::Binary(bytes) => {
-                    sender_from_ws.send(bytes).await.unwrap();
+                    sender_from_ws.send(WSMessage::Bytes(bytes)).await.unwrap();
                 }
                 Message::Close(_) => {
                     break;
@@ -73,16 +85,20 @@ async fn handle_socket(
     });
 
     tokio::spawn(async move {
-        while let Ok(bytes) = receiver_to_ws.recv().await {
-            socket_sender.send(Message::Binary(bytes)).await.unwrap();
+        while let Ok(message) = receiver_to_ws.recv().await {
+            let message = match message {
+                WSMessage::Bytes(bytes) => Message::Binary(bytes),
+                WSMessage::Text(text) => Message::Text(text.into()),
+            };
+            socket_sender.send(message).await.unwrap();
         }
     });
 }
 
-pub struct Server {
-    pub state: EditorState,
-    pub sender_to_ws: broadcast::Sender<Bytes>,
-    pub receiver_from_ws: mpsc::Receiver<Bytes>,
+pub(crate) struct Server {
+    state: EditorState,
+    sender_to_ws: broadcast::Sender<WSMessage>,
+    receiver_from_ws: mpsc::Receiver<WSMessage>,
 }
 
 impl Default for Server {
@@ -92,9 +108,9 @@ impl Default for Server {
 }
 
 impl Server {
-    pub fn new() -> Self {
-        let (sender_to_ws, _) = broadcast::channel::<Bytes>(32);
-        let (sender_from_ws, receiver_from_ws) = mpsc::channel::<Bytes>(32);
+    pub(crate) fn new() -> Self {
+        let (sender_to_ws, _) = broadcast::channel::<WSMessage>(32);
+        let (sender_from_ws, receiver_from_ws) = mpsc::channel::<WSMessage>(32);
 
         let mut state = EditorState::new();
         state.post_initialization();
@@ -114,7 +130,7 @@ impl Server {
         perform_action(action, &mut self.state).unwrap_or_default()
     }
 
-    pub fn run(&mut self) -> anyhow::Result<()> {
+    pub(crate) fn run(&mut self) -> anyhow::Result<()> {
         while !self.state.quit {
             // Run async callbacks
             if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
@@ -140,7 +156,7 @@ impl Server {
             handle_lsp_messages(&mut self.state);
 
             // Handle websocket messages
-            if let Ok(_bytes) = self.receiver_from_ws.try_recv() {
+            if let Ok(_message) = self.receiver_from_ws.try_recv() {
                 self.state.update_view = true;
             }
 
