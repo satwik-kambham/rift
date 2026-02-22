@@ -162,7 +162,7 @@ let agentReplaceDeclaration = "{
             \"type\": \"object\",
             \"properties\": {
                 \"path\" : { \"type\": \"string\" },
-                \"old_string\": { \"type\": \"string\" }
+                \"old_string\": { \"type\": \"string\" },
                 \"new_string\": { \"type\": \"string\" }
             },
             \"required\": [\"path\", \"old_string\", \"new_string\"]
