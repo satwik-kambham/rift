@@ -27,5 +27,5 @@ edit["tools"] = fromJson("{
     \"search_workspace\": false,
     \"find_file\": false,
     \"write_file\": false,
-    \"replace\": false,
+    \"replace\": false
 }")
