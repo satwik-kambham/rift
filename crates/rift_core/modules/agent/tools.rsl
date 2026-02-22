@@ -26,8 +26,8 @@ fn agentRunShellCommandPreview(inputs) {
     return "Run: `" + inputs["command"] + "`"
 }
 
-fn agentRunShellCommandOutputPreview(inputs, output) {
-    return "Run: `"+ inputs["command"] + "`\n" + output
+fn agentRunShellCommandOutputPreview(output) {
+    return output
 }
 
 # Find File
@@ -56,8 +56,8 @@ fn agentFindFilePreview(inputs) {
     return "Find File: `" + inputs["pattern"] + "`"
 }
 
-fn agentFindFileOutputPreview(inputs, output) {
-    return "Find File: `" + inputs["pattern"] + "`"
+fn agentFindFileOutputPreview(output) {
+    return "Find File"
 }
 
 # Search Workspace
@@ -86,8 +86,8 @@ fn agentSearchWorkspacePreview(inputs) {
     return "Search: `" + inputs["pattern"] + "`"
 }
 
-fn agentSearchWorkspaceOutputPreview(inputs, output) {
-    return "Search: `" + inputs["pattern"] + "`"
+fn agentSearchWorkspaceOutputPreview(output) {
+    return "Search"
 }
 
 # Read File
@@ -116,8 +116,8 @@ fn agentReadFilePreview(inputs) {
     return "Read: `" + inputs["path"] + "`"
 }
 
-fn agentReadFileOutputPreview(inputs, output) {
-    return "Read: `" + inputs["path"] + "`"
+fn agentReadFileOutputPreview(output) {
+    return "Read"
 }
 
 # Write File
@@ -147,8 +147,8 @@ fn agentWriteFilePreview(inputs) {
     return "Write: `" + inputs["path"] + "`"
 }
 
-fn agentWriteFileOutputPreview(inputs, output) {
-    return "Write: `" + inputs["path"] + "`\n" + output
+fn agentWriteFileOutputPreview(output) {
+    return "Write:\n" + output
 }
 
 # Replace
@@ -179,8 +179,8 @@ fn agentReplacePreview(inputs) {
     return "Replace: `" + inputs["path"] + "`"
 }
 
-fn agentReplaceOutputPreview(inputs, output) {
-    return "Replace: `" + inputs["path"] + "`\n" + output
+fn agentReplaceOutputPreview(output) {
+    return "Replace:\n" + output
 }
 
 #############
@@ -228,13 +228,13 @@ fn toolPreview(toolName, inputs) {
     return output
 }
 
-fn toolOutputPreview(toolName, inputs, outputs) {
+fn toolOutputPreview(toolName, outputs) {
     let output = ""
-    if toolName == "run_shell_command" { output = agentRunShellCommandOutputPreview(inputs, outputs) }
-    if toolName == "find_file" { output = agentFindFileOutputPreview(inputs, outputs) }
-    if toolName == "search_workspace" { output = agentSearchWorkspaceOutputPreview(inputs, outputs) }
-    if toolName == "read_file" { output = agentReadFileOutputPreview(inputs, outputs) }
-    if toolName == "write_file" { output = agentWriteFileOutputPreview(inputs, outputs) }
-    if toolName == "replace" { output = agentReplaceOutputPreview(inputs, outputs) }
+    if toolName == "run_shell_command" { output = agentRunShellCommandOutputPreview(outputs) }
+    if toolName == "find_file" { output = agentFindFileOutputPreview(outputs) }
+    if toolName == "search_workspace" { output = agentSearchWorkspaceOutputPreview(outputs) }
+    if toolName == "read_file" { output = agentReadFileOutputPreview(outputs) }
+    if toolName == "write_file" { output = agentWriteFileOutputPreview(outputs) }
+    if toolName == "replace" { output = agentReplaceOutputPreview(outputs) }
     return output
 }

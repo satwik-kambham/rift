@@ -26,6 +26,6 @@ edit["tools"] = fromJson("{
     \"read_file\": false,
     \"search_workspace\": false,
     \"find_file\": false,
-    \"write_file\": true,
-    \"replace\": true,
+    \"write_file\": false,
+    \"replace\": false,
 }")

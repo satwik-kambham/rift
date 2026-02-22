@@ -6,7 +6,7 @@ fn openRouterProvider() {
     let provider = createTable()
     provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
     provider["api_key"] = getEnvVar("OPENROUTER_KEY")
-    provider["model"] = "minimax/minimax-m2.1"
+    provider["model"] = "minimax/minimax-m2.5"
     return provider
 }
 
@@ -114,19 +114,34 @@ fn renderLLMChat() {
         let message = chatHistory[i]
         let label = llmChatRoleLabel(message)
         arrayPushBack(historyLines, label + ":")
+        let role = message["role"]
         let content = message["content"]
         if content == null { content = "" }
-        let contentLines = stringSplitLines(content)
-        if arrayLen(contentLines) == 0 or stringLen(content) == 0 {
-            arrayPushBack(historyLines, "  (empty)")
-        }
-        if arrayLen(contentLines) != 0 and stringLen(content) != 0 {
+        if role == "tool" {
+            let toolName = message["name"]
+            let preview = toolOutputPreview(toolName, content)
+            let previewLines = stringSplitLines(preview)
             let j = 0
             loop {
-                if j >= arrayLen(contentLines) { break }
-                let line = contentLines[j]
+                if j >= arrayLen(previewLines) { break }
+                let line = previewLines[j]
                 arrayPushBack(historyLines, line)
                 j = j + 1
+            }
+        } else if role == "system" {
+        } else {
+            let contentLines = stringSplitLines(content)
+            if arrayLen(contentLines) == 0 or stringLen(content) == 0 {
+                arrayPushBack(historyLines, "  (empty)")
+            }
+            if arrayLen(contentLines) != 0 and stringLen(content) != 0 {
+                let j = 0
+                loop {
+                    if j >= arrayLen(contentLines) { break }
+                    let line = contentLines[j]
+                    arrayPushBack(historyLines, line)
+                    j = j + 1
+                }
             }
         }
         let toolCalls = message["tool_calls"]
@@ -165,7 +180,16 @@ fn renderLLMChat() {
             if i >= arrayLen(pendingToolCalls) { break }
             let toolCall = pendingToolCalls[i]
             let toolName = llmChatToolCallName(toolCall)
-            arrayPushBack(pendingLines, " • " + toolName)
+            let toolArgs = fromJson(toolCall["function"]["arguments"])
+            let preview = toolPreview(toolName, toolArgs)
+            let previewLines = stringSplitLines(preview)
+            let j = 0
+            loop {
+                if j >= arrayLen(previewLines) { break }
+                let line = previewLines[j]
+                arrayPushBack(pendingLines, " • " + line)
+                j = j + 1
+            }
             i = i + 1
         }
     }
