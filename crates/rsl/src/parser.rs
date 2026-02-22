@@ -3,7 +3,6 @@ use crate::errors::ParseError;
 use crate::expression;
 use crate::operator;
 use crate::primitive;
-use crate::primitive::Primitive;
 use crate::statement;
 use crate::token::Span;
 use crate::token::Token;
@@ -140,47 +139,45 @@ impl Parser {
 
         let else_body = if consume_token!(self, TokenType::Else) {
             if consume_token!(self, TokenType::If) {
-                let else_if_condition = self.expression()?;
+                let first_condition = self.expression()?;
                 expect_token!(self, TokenType::LeftBrace, "{");
-                let else_if_body = self.block()?;
+                let first_body = self.block()?;
                 expect_token!(self, TokenType::RightBrace, "}");
 
-                let mut else_if_stmt: Box<dyn statement::Statement> =
-                    Box::new(statement::IfStatement::new(
-                        else_if_condition,
-                        else_if_body,
-                        None,
-                        start_span.clone(),
-                    ));
+                let mut else_if_branches: Vec<(
+                    Box<dyn expression::Expression>,
+                    Vec<Box<dyn statement::Statement>>,
+                )> = vec![(first_condition, first_body)];
+
+                let mut final_else: Option<Vec<Box<dyn statement::Statement>>> = None;
 
                 while consume_token!(self, TokenType::Else) {
                     if consume_token!(self, TokenType::If) {
-                        let nested_condition = self.expression()?;
+                        let cond = self.expression()?;
                         expect_token!(self, TokenType::LeftBrace, "{");
-                        let nested_body = self.block()?;
+                        let body = self.block()?;
                         expect_token!(self, TokenType::RightBrace, "}");
-
-                        else_if_stmt = Box::new(statement::IfStatement::new(
-                            nested_condition,
-                            nested_body,
-                            Some(vec![else_if_stmt]),
-                            start_span.clone(),
-                        ));
+                        else_if_branches.push((cond, body));
                     } else {
                         expect_token!(self, TokenType::LeftBrace, "{");
-                        let else_body = self.block()?;
+                        final_else = Some(self.block()?);
                         expect_token!(self, TokenType::RightBrace, "}");
-                        else_if_stmt = Box::new(statement::IfStatement::new(
-                            Box::new(expression::LiteralExpression::new(Primitive::Boolean(true))),
-                            else_body,
-                            Some(vec![else_if_stmt]),
-                            start_span.clone(),
-                        ));
                         break;
                     }
                 }
 
-                Some(vec![else_if_stmt])
+                let mut chain_else_body = final_else;
+                for (cond, body) in else_if_branches.into_iter().rev() {
+                    let node = Box::new(statement::IfStatement::new(
+                        cond,
+                        body,
+                        chain_else_body,
+                        start_span.clone(),
+                    ));
+                    chain_else_body = Some(vec![node]);
+                }
+
+                chain_else_body
             } else {
                 expect_token!(self, TokenType::LeftBrace, "{");
                 let else_body = self.block()?;
