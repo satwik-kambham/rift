@@ -10,12 +10,14 @@ let prompts = import("agent/prompts.rsl")
 # Minimal Mode
 
 export minimal = createTable()
+minimal["displayName"] = "Minimal"
 minimal["systemPrompt"] = ""
 minimal["tools"] = fromJson("{}")
 
 # Plan Mode
 
 export plan = createTable()
+plan["displayName"] = "Plan"
 plan["systemPrompt"] = prompts["planSystemPrompt"]
 plan["tools"] = fromJson("{
     \"run_shell_command\": true,
@@ -27,6 +29,7 @@ plan["tools"] = fromJson("{
 # Edit Mode
 
 export edit = createTable()
+edit["displayName"] = "Edit"
 edit["systemPrompt"] = prompts["editSystemPrompt"]
 edit["tools"] = fromJson("{
     \"run_shell_command\": true,

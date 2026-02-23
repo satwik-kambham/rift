@@ -309,7 +309,10 @@ fn renderLLMChat() {
     let provider = llmChat["provider"]
     let modelName = "unknown"
     if provider != null { modelName = provider["model"] }
-    let status = "Model: " + modelName + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
+    let currentMode = llmChat["mode"]
+    let modeName = "unknown"
+    if currentMode != null { modeName = currentMode["displayName"] }
+    let status = "Mode: " + modeName + " | Model: " + modelName + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
 
     let content = status
     content = content + "\n╭───────────────────────\n"
