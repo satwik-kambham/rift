@@ -6,7 +6,10 @@ fn openRouterProvider() {
     let provider = createTable()
     provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
     provider["api_key"] = getEnvVar("OPENROUTER_KEY")
-    provider["model"] = "minimax/minimax-m2.5"
+    provider["model"] = "mistralai/devstral-small"
+    # provider["model"] = "minimax/minimax-m2.5"
+    # provider["model"] = "z-ai/glm-5"
+    # provider["model"] = "moonshotai/kimi-k2.5"
     return provider
 }
 
@@ -252,7 +255,7 @@ fn requestChatCompletion() {
     let request = createTable()
     request["model"] = provider["model"]
     request["messages"] = llmChat["history"]
-    request["tools"] = fromJson(getToolDeclarations(tableKeys(llmChat["mode"]["tools"])))
+    request["tools"] = getToolDeclarations(tableKeys(llmChat["mode"]["tools"]))
     request["stream"] = false
     # request["temperature"] = 0.3
     # request["seed"] = 42

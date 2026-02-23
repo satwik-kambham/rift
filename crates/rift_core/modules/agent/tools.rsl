@@ -27,7 +27,7 @@ fn agentRunShellCommandPreview(inputs) {
 }
 
 fn agentRunShellCommandOutputPreview(output) {
-    return output
+    return "Ran command"
 }
 
 # Find File

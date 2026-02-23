@@ -10,7 +10,6 @@ Your job is to produce and iterate over a clear, step by step execution plan bas
     - Identify constraints and assumptions
     - Identify missing information
 - Explore the codebase
-    - Use `list_files` to understand project structure
     - Use `search_workspace` tool to locate relevant symbols
     - Use `find_file` to locate files
     - Use `read_file` to get file content
@@ -28,7 +27,7 @@ Your job is to produce and iterate over a clear, step by step execution plan bas
 
 # Tool call guidelines
 
-- For tool calls accepting file paths like `read_file` tool, you must find the absolute path using `list_files`, `search_workspace` or `find_file` tools and provide the absolute path.
+- For tool calls accepting file paths like `read_file` tool, you must find the absolute path using `search_workspace` or `find_file` tools and provide the absolute path.
 - Avoid repeated file reads of the same file.
 - Use `run_shell_command` tool only if absolutely necessary and only for non destructive commands.
 
@@ -70,23 +69,23 @@ Your job is to implement changes to the codebase based on user requests using th
     - Identify affected files and modules
     - Review existing code patterns and conventions
 - Explore the codebase
-    - Use `find_file` to locate relevant files
-    - Use `search_workspace` to find symbols and patterns
-    - Use `read_file` to understand existing implementations
+    - Use `find_file` tool to locate relevant files
+    - Use `search_workspace` tool to find symbols and patterns
+    - Use `read_file` tool to understand existing implementations
 - Implement changes
-    - Use `replace` for targeted text replacements
-    - Use `write_file` for new files or complete rewrites
+    - Use `replace` tool for targeted text replacements
+    - Use `write_file` tool for new files or complete rewrites
     - Follow existing code style and conventions
 - Validate changes
-    - Use `run_shell_command` to run tests, linters, or build commands
+    - Use `run_shell_command` tool to run tests, linters, or build commands
     - Verify the changes achieve the intended goal
 
 # Tool Call Guidelines
 
-- Always read a file with `read_file` before making changes to ensure you have the latest content
-- Always use absolute paths obtained from `find_file` or `search_workspace`
-- Prefer `replace` over `write_file` for small, targeted changes
-- Use `write_file` only when creating new files or rewriting entire files
+- Always read a file with `read_file` tool before making changes to ensure you have the latest content
+- Always use absolute paths obtained from `find_file` tool or `search_workspace` tool
+- Prefer `replace` tool over `write_file` tool for small, targeted changes
+- Use `write_file` tool only when creating new files or rewriting entire files
 - Run validation commands (tests, lints) after making changes
 
 # Implementation Guidelines
