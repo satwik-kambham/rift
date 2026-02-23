@@ -68,6 +68,48 @@ fn llmChatToolCallName(toolCall) {
     return name
 }
 
+fn llmChatToolErrorOutput(toolName, errorCode, message, hint) {
+    let output = createTable()
+    output["ok"] = false
+    output["tool"] = toolName
+    output["error_code"] = errorCode
+    output["message"] = message
+    let hints = createArray()
+    if hint != null and stringLen(hint) > 0 {
+        arrayPushBack(hints, hint)
+    }
+    output["hints"] = hints
+    output["data"] = fromJson("{}")
+    return toJson(output)
+}
+
+fn llmChatParseToolArgs(toolCall) {
+    let result = createTable()
+    result["ok"] = false
+    result["args"] = null
+    result["error"] = ""
+
+    let fnData = toolCall["function"]
+    if typeOf(fnData) != "table" {
+        result["error"] = "Tool call is missing a valid function object."
+        return result
+    }
+    let rawArgs = fnData["arguments"]
+    if typeOf(rawArgs) != "string" {
+        result["error"] = "Tool call arguments are missing or malformed."
+        return result
+    }
+    let parsed = fromJson(rawArgs)
+    if typeOf(parsed) != "table" {
+        result["error"] = "Tool call arguments could not be parsed into a valid parameter object."
+        return result
+    }
+
+    result["ok"] = true
+    result["args"] = parsed
+    return result
+}
+
 fn llmChatLinesToString(lines) {
     let text = ""
     let i = 0
@@ -154,7 +196,27 @@ fn renderLLMChat() {
                 if j >= arrayLen(toolCalls) { break }
                 let toolCall = toolCalls[j]
                 let toolName = llmChatToolCallName(toolCall)
-                arrayPushBack(historyLines, " • tool call: " + toolName)
+                let parsedArgs = llmChatParseToolArgs(toolCall)
+                let preview = ""
+                if parsedArgs["ok"] {
+                    preview = toolPreview(toolName, parsedArgs["args"])
+                }
+                if !parsedArgs["ok"] {
+                    preview = "Invalid tool args for `" + toolName + "`: " + parsedArgs["error"]
+                }
+                let previewLines = stringSplitLines(preview)
+                if arrayLen(previewLines) == 0 {
+                    arrayPushBack(historyLines, " • tool call: " + toolName)
+                }
+                if arrayLen(previewLines) != 0 {
+                    let k = 0
+                    loop {
+                        if k >= arrayLen(previewLines) { break }
+                        let line = previewLines[k]
+                        arrayPushBack(historyLines, " • " + line)
+                        k = k + 1
+                    }
+                }
                 j = j + 1
             }
         }
@@ -183,8 +245,14 @@ fn renderLLMChat() {
             if i >= arrayLen(pendingToolCalls) { break }
             let toolCall = pendingToolCalls[i]
             let toolName = llmChatToolCallName(toolCall)
-            let toolArgs = fromJson(toolCall["function"]["arguments"])
-            let preview = toolPreview(toolName, toolArgs)
+            let parsedArgs = llmChatParseToolArgs(toolCall)
+            let preview = ""
+            if parsedArgs["ok"] {
+                preview = toolPreview(toolName, parsedArgs["args"])
+            }
+            if !parsedArgs["ok"] {
+                preview = "Invalid tool args for `" + toolName + "`: " + parsedArgs["error"]
+            }
             let previewLines = stringSplitLines(preview)
             let j = 0
             loop {
@@ -279,7 +347,7 @@ fn requestChatCompletion() {
             if i <= 0 { break }
             let toolCall = toolCalls[i - 1]
         
-            let toolName = toolCall["function"]["name"]
+            let toolName = llmChatToolCallName(toolCall)
             
             if !tableGet(llmChat["mode"]["tools"], toolName) {
                 runToolCall(toolCall, true)
@@ -297,14 +365,24 @@ fn requestChatCompletion() {
 }
 
 fn runToolCall(toolCall, allowed) {
-    let toolName = toolCall["function"]["name"]
-    let toolArgs = fromJson(toolCall["function"]["arguments"])
+    let toolName = llmChatToolCallName(toolCall)
     let toolCallId = toolCall["id"]
 
     let result = "Tool call request denied by user. Await further instructions."
 
     if allowed {
-        result = runTool(toolName, toolArgs)
+        let parsedArgs = llmChatParseToolArgs(toolCall)
+        if !parsedArgs["ok"] {
+            result = llmChatToolErrorOutput(
+                toolName,
+                "INVALID_ARGUMENTS",
+                parsedArgs["error"],
+                "Retry with valid tool arguments that match the exact parameter keys and value types."
+            )
+        }
+        if parsedArgs["ok"] {
+            result = runTool(toolName, parsedArgs["args"])
+        }
     }
 
     let message = createTable()

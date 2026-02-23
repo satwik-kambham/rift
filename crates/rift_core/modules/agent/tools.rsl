@@ -36,7 +36,7 @@ let agentFindFileDeclaration = "{
     \"type\": \"function\",
     \"function\": {
         \"name\": \"find_file\",
-        \"description\": \"Returns paths matching regex pattern by searching recursively in the workspace folder, returning absolute paths. Does not accepts glob patterns.\",
+        \"description\": \"Find files using a regex pattern and return a structured JSON result with absolute paths.\",
         \"parameters\": {
             \"type\": \"object\",
             \"properties\": {
@@ -48,8 +48,7 @@ let agentFindFileDeclaration = "{
 }"
 
 fn agentFindFile(inputs) {
-    let results = runShellCommand("fd --type f --strip-cwd-prefix --full-path --absolute-path " + inputs["pattern"], getWorkspaceDir())
-    return results["stdout"]
+    return agentFindFileTool(getWorkspaceDir(), inputs["pattern"])
 }
 
 fn agentFindFilePreview(inputs) {
@@ -57,7 +56,17 @@ fn agentFindFilePreview(inputs) {
 }
 
 fn agentFindFileOutputPreview(output) {
-    return "Find File"
+    let parsed = fromJson(output)
+    if typeOf(parsed) != "table" {
+        return "Find File:\n" + output
+    }
+    let status = "ok"
+    if !parsed["ok"] { status = "error" }
+    let message = parsed["message"]
+    let result = "Find File (" + status + ")"
+    if !isNull(parsed["error_code"]) { result = result + " [" + parsed["error_code"] + "]" }
+    if !isNull(message) and stringLen(message) > 0 { result = result + "\n" + message }
+    return result
 }
 
 # Search Workspace
@@ -66,7 +75,7 @@ let agentSearchWorkspaceDeclaration = "{
     \"type\": \"function\",
     \"function\": {
         \"name\": \"search_workspace\",
-        \"description\": \"Regex search in the current workspace for matching patterns\",
+        \"description\": \"Regex search in the current workspace and return structured JSON matches with absolute paths.\",
         \"parameters\": {
             \"type\": \"object\",
             \"properties\": {
@@ -78,8 +87,7 @@ let agentSearchWorkspaceDeclaration = "{
 }"
 
 fn agentSearchWorkspace(inputs) {
-    let results = runShellCommand("rg " + inputs["pattern"], getWorkspaceDir())
-    return results["stdout"]
+    return agentSearchWorkspaceTool(getWorkspaceDir(), inputs["pattern"])
 }
 
 fn agentSearchWorkspacePreview(inputs) {
@@ -87,7 +95,17 @@ fn agentSearchWorkspacePreview(inputs) {
 }
 
 fn agentSearchWorkspaceOutputPreview(output) {
-    return "Search"
+    let parsed = fromJson(output)
+    if typeOf(parsed) != "table" {
+        return "Search:\n" + output
+    }
+    let status = "ok"
+    if !parsed["ok"] { status = "error" }
+    let message = parsed["message"]
+    let result = "Search (" + status + ")"
+    if !isNull(parsed["error_code"]) { result = result + " [" + parsed["error_code"] + "]" }
+    if !isNull(message) and stringLen(message) > 0 { result = result + "\n" + message }
+    return result
 }
 
 # Read File
@@ -157,13 +175,14 @@ let agentReplaceDeclaration = "{
     \"type\": \"function\",
     \"function\": {
         \"name\": \"replace\",
-        \"description\": \"Replaces text within a file. Will replace multiple matches.\",
+        \"description\": \"Replaces text within a file and returns structured JSON. Defaults to a single replacement unless `max_replacements` is set.\",
         \"parameters\": {
             \"type\": \"object\",
             \"properties\": {
                 \"path\" : { \"type\": \"string\" },
                 \"old_string\": { \"type\": \"string\" },
-                \"new_string\": { \"type\": \"string\" }
+                \"new_string\": { \"type\": \"string\" },
+                \"max_replacements\": { \"type\": \"number\", \"description\": \"Optional. 0 means replace all matches. Defaults to 1.\" }
             },
             \"required\": [\"path\", \"old_string\", \"new_string\"]
         }
@@ -171,8 +190,11 @@ let agentReplaceDeclaration = "{
 }"
 
 fn agentReplace(inputs) {
-    let output = agentReplaceTool(getWorkspaceDir(), inputs["path"], inputs["old_string"], inputs["new_string"])
-    return output
+    let maxReplacements = inputs["max_replacements"]
+    if isNull(maxReplacements) {
+        return agentReplaceTool(getWorkspaceDir(), inputs["path"], inputs["old_string"], inputs["new_string"])
+    }
+    return agentReplaceTool(getWorkspaceDir(), inputs["path"], inputs["old_string"], inputs["new_string"], maxReplacements)
 }
 
 fn agentReplacePreview(inputs) {
@@ -180,7 +202,17 @@ fn agentReplacePreview(inputs) {
 }
 
 fn agentReplaceOutputPreview(output) {
-    return "Replace:\n" + output
+    let parsed = fromJson(output)
+    if typeOf(parsed) != "table" {
+        return "Replace:\n" + output
+    }
+    let status = "ok"
+    if !parsed["ok"] { status = "error" }
+    let message = parsed["message"]
+    let result = "Replace (" + status + ")"
+    if !isNull(parsed["error_code"]) { result = result + " [" + parsed["error_code"] + "]" }
+    if !isNull(message) and stringLen(message) > 0 { result = result + "\n" + message }
+    return result
 }
 
 #############

@@ -30,6 +30,9 @@ Your job is to produce and iterate over a clear, step by step execution plan bas
 - For tool calls accepting file paths like `read_file` tool, you must find the absolute path using `search_workspace` or `find_file` tools and provide the absolute path.
 - Avoid repeated file reads of the same file.
 - Use `run_shell_command` tool only if absolutely necessary and only for non destructive commands.
+- Tool arguments must match the tool parameter schema exactly (correct keys and value types).
+- `search_workspace`, `find_file`, and `replace` return structured JSON with `ok`, `error_code`, `message`, `hints`, and `data`.
+- If a tool call returns `ok=false`, read `error_code` and `hints`, fix the arguments, and retry once before asking the user.
 
 # Planning Structure
 
@@ -87,6 +90,10 @@ Your job is to implement changes to the codebase based on user requests using th
 - Prefer `replace` tool over `write_file` tool for small, targeted changes
 - Use `write_file` tool only when creating new files or rewriting entire files
 - Run validation commands (tests, lints) after making changes
+- Tool arguments must match the tool parameter schema exactly (correct keys and value types).
+- `search_workspace`, `find_file`, and `replace` return structured JSON. Check `ok` before proceeding.
+- On `ok=false`, inspect `error_code` and `hints`, then retry once with corrected inputs.
+- For `replace`, set `max_replacements` intentionally. Omit it for a single replacement, or use `0` to replace all matches.
 
 # Implementation Guidelines
 
