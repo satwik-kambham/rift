@@ -132,6 +132,40 @@ fn llmChatLinesToString(lines) {
     return text
 }
 
+fn llmChatRenderInputBlock(chatInput, columns) {
+    let firstPrefix = "➤ "
+    let continuationPrefix = "  "
+    let inputText = chatInput
+    if stringLen(inputText) == 0 {
+        inputText = "Type a message..."
+    }
+
+    let wrapColumns = columns - stringWidth(firstPrefix)
+    if wrapColumns < 1 { wrapColumns = 1 }
+    let wrappedInput = stringRenderViewport(inputText, wrapColumns, 100000, 0)
+    let wrappedLines = stringSplitLines(wrappedInput)
+    if arrayLen(wrappedLines) == 0 {
+        wrappedLines = createArray()
+        arrayPushBack(wrappedLines, "")
+    }
+
+    let renderedLines = createArray()
+    let i = 0
+    loop {
+        if i >= arrayLen(wrappedLines) { break }
+        let line = wrappedLines[i]
+        let prefix = continuationPrefix
+        if i == 0 { prefix = firstPrefix }
+        arrayPushBack(renderedLines, prefix + line)
+        i = i + 1
+    }
+
+    let result = createTable()
+    result["content"] = llmChatLinesToString(renderedLines)
+    result["line_count"] = arrayLen(renderedLines)
+    return result
+}
+
 fn llmChatScrollUp() {
     let llmChatHistoryScroll = llmChat["history_scroll"] + 1
     llmChat["history_scroll"] = llmChatHistoryScroll
@@ -274,20 +308,16 @@ fn renderLLMChat() {
         }
     }
 
-    let chatInput = llmChat["input"]
-    let inputLines = stringSplitLines(chatInput)
-    if arrayLen(inputLines) == 0 or stringLen(chatInput) == 0 {
-        inputLines = createArray()
-        arrayPushBack(inputLines, "Type a message...")
-    }
+    let columns = state.viewportVisibleColumns()
+    let inputBlock = llmChatRenderInputBlock(llmChat["input"], columns)
+    let inputLineCount = inputBlock["line_count"]
 
     let headerLines = 1
     let sectionLines = 2
-    let reservedLines = headerLines + sectionLines + arrayLen(pendingLines) + arrayLen(inputLines)
+    let reservedLines = headerLines + sectionLines + arrayLen(pendingLines) + inputLineCount
     let historyRows = state.viewportVisibleRows(reservedLines)
     if historyRows < 1 { historyRows = 1 }
 
-    let columns = state.viewportVisibleColumns()
     let wrappedAll = stringRenderViewport(historyContent, columns, 100000, 0)
     let wrappedLines = stringSplitLines(wrappedAll)
     let totalHistoryLines = arrayLen(wrappedLines)
@@ -320,7 +350,7 @@ fn renderLLMChat() {
     content = content + historyBody + "\n"
     content = content + "╰─ Pending Tools ───────\n"
     content = content + llmChatLinesToString(pendingLines) + "\n"
-    content = content + "➤ " + llmChatLinesToString(inputLines)
+    content = content + inputBlock["content"]
 
     state.setViewportBufferContent(llmChat["id"], content)
 }
