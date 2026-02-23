@@ -207,7 +207,7 @@ fn getToolDeclarations(tools) {
 }
 
 fn runTool(toolName, inputs) {
-    let output = ""
+    let output = "Unknown tool call."
     if toolName == "run_shell_command" { output = agentRunShellCommand(inputs) }
     if toolName == "find_file" { output = agentFindFile(inputs) }
     if toolName == "search_workspace" { output = agentSearchWorkspace(inputs) }

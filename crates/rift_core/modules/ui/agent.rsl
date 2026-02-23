@@ -269,6 +269,8 @@ fn requestChatCompletion() {
     response = fromJson(response)
     let message = response["choices"][0]["message"]
     let toolCalls = message["tool_calls"]
+    arrayPushBack(llmChat["history"], message)
+    renderLLMChat()
     
     if toolCalls != null {
         let pendingToolCalls = llmChat["pending_tool_calls"]
@@ -286,15 +288,12 @@ fn requestChatCompletion() {
             
             i = i - 1
         }
+        renderLLMChat()
 
         if arrayLen(llmChat["pending_tool_calls"]) == 0 {
             requestChatCompletion()
         }
     }
-    
-    arrayPushBack(llmChat["history"], message)
-
-    renderLLMChat()
 }
 
 fn runToolCall(toolCall, allowed) {
@@ -320,6 +319,10 @@ fn runToolCall(toolCall, allowed) {
 
 fn getToolCallResult(allowed) {
     let pendingToolCalls = llmChat["pending_tool_calls"]
+    if arrayLen(pendingToolCalls) == 0 {
+        log("No pending tool call to resolve")
+        return null
+    }
     let toolCall = arrayPopBack(pendingToolCalls)
     
     runToolCall(toolCall, allowed)

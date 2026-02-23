@@ -1,5 +1,12 @@
 let prompts = import("agent/prompts.rsl")
 
+# Agent mode contract:
+# - `systemPrompt`: system prompt sent to the model.
+# - `tools`: map of tool name -> approval policy used by `ui/agent.rsl`.
+#   - `true`: tool call is queued in `pending_tool_calls` and requires explicit user approval.
+#   - `false`: tool call is auto-executed without prompting.
+# Omitted tools are unavailable to the model for that mode.
+
 # Minimal Mode
 
 export minimal = createTable()
