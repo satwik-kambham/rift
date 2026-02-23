@@ -6,8 +6,8 @@ fn openRouterProvider() {
     let provider = createTable()
     provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
     provider["api_key"] = getEnvVar("OPENROUTER_KEY")
-    provider["model"] = "mistralai/devstral-small"
-    # provider["model"] = "minimax/minimax-m2.5"
+    # provider["model"] = "mistralai/devstral-small"
+    provider["model"] = "minimax/minimax-m2.5"
     # provider["model"] = "z-ai/glm-5"
     # provider["model"] = "moonshotai/kimi-k2.5"
     return provider
@@ -336,6 +336,7 @@ fn requestChatCompletion() {
     if !(typeOf(response) == "string" ) { log(response) }
     response = fromJson(response)
     let message = response["choices"][0]["message"]
+    if !(typeOf(message) == "table" ) { log(response) }
     let toolCalls = message["tool_calls"]
     arrayPushBack(llmChat["history"], message)
     renderLLMChat()
@@ -405,7 +406,7 @@ fn getToolCallResult(allowed) {
     
     runToolCall(toolCall, allowed)
 
-    if arrayLen(pendingToolCalls) == 0 {
+    if allowed and arrayLen(pendingToolCalls) == 0 {
         requestChatCompletion()
     }
 }

@@ -8,6 +8,11 @@ use crate::token::Span;
 use crate::token::Token;
 use crate::token::TokenType;
 
+type ElseIfBranch = (
+    Box<dyn expression::Expression>,
+    Vec<Box<dyn statement::Statement>>,
+);
+
 macro_rules! expect_token {
     ($parser:expr, $pattern:pat, $msg:expr) => {
         if matches!($parser.peek().token_type, $pattern) {
@@ -144,10 +149,7 @@ impl Parser {
                 let first_body = self.block()?;
                 expect_token!(self, TokenType::RightBrace, "}");
 
-                let mut else_if_branches: Vec<(
-                    Box<dyn expression::Expression>,
-                    Vec<Box<dyn statement::Statement>>,
-                )> = vec![(first_condition, first_body)];
+                let mut else_if_branches: Vec<ElseIfBranch> = vec![(first_condition, first_body)];
 
                 let mut final_else: Option<Vec<Box<dyn statement::Statement>>> = None;
 
