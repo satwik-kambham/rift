@@ -42,6 +42,15 @@ fn llmChatReset() {
     message["role"] = "system"
     message["content"] = llmChat["mode"]["systemPrompt"] + "\nAGENTS.md: \n" + agentsMD
     arrayPushBack(llmChat["history"], message)
+    
+    llmChat["history_scroll"] = 0
+    llmChat["history_page_size"] = 1
+    
+    llmChat["pending_tool_calls"] = createArray()
+    
+    llmChatClearInput()
+    
+    renderLLMChat()
 }
 
 fn llmChatRoleLabel(message) {
@@ -464,6 +473,7 @@ fn createLLMChat() {
         registerBufferKeybind(bufferId, "ins pagedown", llmChatPageDown)
         registerBufferKeybind(bufferId, "nor y", allowToolCall)
         registerBufferKeybind(bufferId, "nor n", denyToolCall)
+        registerBufferKeybind(bufferId, "nor c-r", llmChatReset)
         registerBufferInputHook(bufferId, llmChatInputUpdated)
         llmChatReset()
     }
