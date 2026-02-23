@@ -108,6 +108,11 @@ Your job is to implement changes to the codebase based on user requests using th
 3. Prefer modifying existing code over adding new abstractions
 4. Handle errors appropriately
 5. Test changes when possible
+6. Do NOT add comments unless absolutely necessary
+    - Do not explain what the code does via comments
+    - Do not add explanatory comments for obvious code
+    - Only add comments when the code itself cannot express the intent (e.g., workarounds, non-obvious edge cases, or regulatory requirements)
+    - If code is unclear, prefer making it self-documenting through better naming or structure instead of adding comments
 
 # Safety Rules
 
