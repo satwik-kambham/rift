@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use crate::lsp::types;
+use bitflags::bitflags;
 
 /// Struct representing a position in the buffer
 #[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
@@ -116,15 +115,113 @@ pub enum HighlightType {
     Turquoise,
 }
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub enum Attribute {
-    None,
-    Visible,
-    Highlight(HighlightType),
-    Underline,
-    DiagnosticSeverity(types::DiagnosticSeverity),
-    Select,
-    Cursor,
+bitflags! {
+    #[derive(Debug, Clone, Copy, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
+    pub struct TextAttributes: u32 {
+        const NONE = 0;
+        const VISIBLE = 1 << 0;
+        const UNDERLINE = 1 << 1;
+        const SELECT = 1 << 2;
+        const CURSOR = 1 << 3;
+
+        const HIGHLIGHT_NONE = 1 << 4;
+        const HIGHLIGHT_WHITE = 1 << 5;
+        const HIGHLIGHT_RED = 1 << 6;
+        const HIGHLIGHT_ORANGE = 1 << 7;
+        const HIGHLIGHT_BLUE = 1 << 8;
+        const HIGHLIGHT_GREEN = 1 << 9;
+        const HIGHLIGHT_PURPLE = 1 << 10;
+        const HIGHLIGHT_YELLOW = 1 << 11;
+        const HIGHLIGHT_GRAY = 1 << 12;
+        const HIGHLIGHT_TURQUOISE = 1 << 13;
+
+        const DIAG_HINT = 1 << 14;
+        const DIAG_INFORMATION = 1 << 15;
+        const DIAG_WARNING = 1 << 16;
+        const DIAG_ERROR = 1 << 17;
+    }
+}
+
+impl TextAttributes {
+    pub fn from_highlight(highlight_type: HighlightType) -> Self {
+        match highlight_type {
+            HighlightType::None => Self::HIGHLIGHT_NONE,
+            HighlightType::White => Self::HIGHLIGHT_WHITE,
+            HighlightType::Red => Self::HIGHLIGHT_RED,
+            HighlightType::Orange => Self::HIGHLIGHT_ORANGE,
+            HighlightType::Blue => Self::HIGHLIGHT_BLUE,
+            HighlightType::Green => Self::HIGHLIGHT_GREEN,
+            HighlightType::Purple => Self::HIGHLIGHT_PURPLE,
+            HighlightType::Yellow => Self::HIGHLIGHT_YELLOW,
+            HighlightType::Gray => Self::HIGHLIGHT_GRAY,
+            HighlightType::Turquoise => Self::HIGHLIGHT_TURQUOISE,
+        }
+    }
+
+    pub fn from_diagnostic_severity(severity: &types::DiagnosticSeverity) -> Self {
+        match severity {
+            types::DiagnosticSeverity::Hint => Self::DIAG_HINT,
+            types::DiagnosticSeverity::Information => Self::DIAG_INFORMATION,
+            types::DiagnosticSeverity::Warning => Self::DIAG_WARNING,
+            types::DiagnosticSeverity::Error => Self::DIAG_ERROR,
+        }
+    }
+
+    pub fn resolve_highlight(self) -> Option<HighlightType> {
+        if self.contains(Self::HIGHLIGHT_TURQUOISE) {
+            return Some(HighlightType::Turquoise);
+        }
+        if self.contains(Self::HIGHLIGHT_PURPLE) {
+            return Some(HighlightType::Purple);
+        }
+        if self.contains(Self::HIGHLIGHT_YELLOW) {
+            return Some(HighlightType::Yellow);
+        }
+        if self.contains(Self::HIGHLIGHT_ORANGE) {
+            return Some(HighlightType::Orange);
+        }
+        if self.contains(Self::HIGHLIGHT_BLUE) {
+            return Some(HighlightType::Blue);
+        }
+        if self.contains(Self::HIGHLIGHT_GREEN) {
+            return Some(HighlightType::Green);
+        }
+        if self.contains(Self::HIGHLIGHT_RED) {
+            return Some(HighlightType::Red);
+        }
+        if self.contains(Self::HIGHLIGHT_GRAY) {
+            return Some(HighlightType::Gray);
+        }
+        if self.contains(Self::HIGHLIGHT_WHITE) {
+            return Some(HighlightType::White);
+        }
+        if self.contains(Self::HIGHLIGHT_NONE) {
+            return Some(HighlightType::None);
+        }
+        None
+    }
+
+    pub fn has_diagnostic(self) -> bool {
+        self.intersects(
+            Self::DIAG_HINT | Self::DIAG_INFORMATION | Self::DIAG_WARNING | Self::DIAG_ERROR,
+        )
+    }
+
+    pub fn resolve_diagnostic_severity(self) -> Option<types::DiagnosticSeverity> {
+        if self.contains(Self::DIAG_ERROR) {
+            return Some(types::DiagnosticSeverity::Error);
+        }
+        if self.contains(Self::DIAG_WARNING) {
+            return Some(types::DiagnosticSeverity::Warning);
+        }
+        if self.contains(Self::DIAG_INFORMATION) {
+            return Some(types::DiagnosticSeverity::Information);
+        }
+        if self.contains(Self::DIAG_HINT) {
+            return Some(types::DiagnosticSeverity::Hint);
+        }
+        None
+    }
 }
 
 /// Struct representing a position in the buffer
@@ -132,7 +229,7 @@ pub enum Attribute {
 pub struct Range {
     pub start: usize,
     pub end: usize,
-    pub attributes: HashSet<Attribute>,
+    pub attributes: TextAttributes,
 }
 
 /// An instance of a buffer (a single buffer can have multiple instances)
@@ -193,7 +290,10 @@ impl BufferInstance {
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::instance::{Cursor, Selection};
+    use crate::{
+        buffer::instance::{Cursor, HighlightType, Selection, TextAttributes},
+        lsp::types::DiagnosticSeverity,
+    };
 
     #[test]
     fn cursor_eq() {
@@ -220,5 +320,26 @@ mod tests {
         let (start_ord, end_ord) = selection.in_order();
         assert_eq!(end, *start_ord);
         assert_eq!(start, *end_ord);
+    }
+
+    #[test]
+    fn highlight_resolution_uses_priority() {
+        let attrs = TextAttributes::HIGHLIGHT_BLUE | TextAttributes::HIGHLIGHT_TURQUOISE;
+        assert_eq!(attrs.resolve_highlight(), Some(HighlightType::Turquoise));
+    }
+
+    #[test]
+    fn diagnostic_flags_are_detected() {
+        let attrs = TextAttributes::from_diagnostic_severity(&DiagnosticSeverity::Warning);
+        assert!(attrs.has_diagnostic());
+    }
+
+    #[test]
+    fn diagnostic_resolution_uses_priority() {
+        let attrs = TextAttributes::DIAG_HINT | TextAttributes::DIAG_ERROR;
+        assert_eq!(
+            attrs.resolve_diagnostic_severity(),
+            Some(DiagnosticSeverity::Error)
+        );
     }
 }

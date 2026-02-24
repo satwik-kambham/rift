@@ -10,7 +10,7 @@ use ratatui::{
 
 use rift_core::{
     actions::{Action, perform_action},
-    buffer::instance::Attribute,
+    buffer::instance::{HighlightType, TextAttributes},
     io::file_io::handle_file_event,
     lsp::handle_lsp_messages,
     rendering::update_visible_lines,
@@ -121,104 +121,89 @@ impl App {
                         let mut line_widget = vec![];
                         for token in line {
                             let mut style = Style::new();
-                            let mut attributes: Vec<&Attribute> = token.1.iter().collect();
-                            attributes.sort();
-                            for attribute in attributes {
-                                match attribute {
-                                    Attribute::None => {}
-                                    Attribute::Visible => {}
-                                    Attribute::Underline => {}
-                                    Attribute::Highlight(highlight_type) => match highlight_type {
-                                        rift_core::buffer::instance::HighlightType::None => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_none,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::White => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_white,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Red => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_red,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Orange => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_orange,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Blue => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_blue,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Green => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_green,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Purple => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_purple,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Yellow => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_yellow,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Gray => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_gray,
-                                            ));
-                                        }
-                                        rift_core::buffer::instance::HighlightType::Turquoise => {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.highlight_turquoise,
-                                            ));
-                                        }
-                                    },
-                                    Attribute::Select => {
-                                        style = style.bg(color_from_rgb(
-                                            self.state.preferences.theme.selection_bg,
+                            let attributes = token.1;
+
+                            if let Some(highlight_type) = attributes.resolve_highlight() {
+                                match highlight_type {
+                                    HighlightType::None => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_none,
                                         ));
                                     }
-                                    Attribute::Cursor => {
-                                        if matches!(self.state.mode, Mode::Normal) {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.cursor_normal_mode_fg,
-                                            ));
-                                            style = style.bg(color_from_rgb(
-                                                self.state.preferences.theme.cursor_normal_mode_bg,
-                                            ));
-                                        } else {
-                                            style = style.fg(color_from_rgb(
-                                                self.state.preferences.theme.cursor_insert_mode_fg,
-                                            ));
-                                            style = style.bg(color_from_rgb(
-                                                self.state.preferences.theme.cursor_insert_mode_bg,
-                                            ));
-                                        }
+                                    HighlightType::White => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_white,
+                                        ));
                                     }
-                                    Attribute::DiagnosticSeverity(_severity) => {
-                                        style = style.add_modifier(Modifier::UNDERLINED);
-                                        // .underline_color(color_from_rgb(match severity {
-                                        //     types::DiagnosticSeverity::Error => {
-                                        //         self.preferences.theme.error
-                                        //     }
-                                        //     types::DiagnosticSeverity::Warning => {
-                                        //         self.preferences.theme.warning
-                                        //     }
-                                        //     types::DiagnosticSeverity::Information => {
-                                        //         self.preferences.theme.information
-                                        //     }
-                                        //     types::DiagnosticSeverity::Hint => {
-                                        //         self.preferences.theme.hint
-                                        //     }
-                                        // }));
+                                    HighlightType::Red => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_red,
+                                        ));
                                     }
+                                    HighlightType::Orange => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_orange,
+                                        ));
+                                    }
+                                    HighlightType::Blue => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_blue,
+                                        ));
+                                    }
+                                    HighlightType::Green => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_green,
+                                        ));
+                                    }
+                                    HighlightType::Purple => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_purple,
+                                        ));
+                                    }
+                                    HighlightType::Yellow => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_yellow,
+                                        ));
+                                    }
+                                    HighlightType::Gray => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_gray,
+                                        ));
+                                    }
+                                    HighlightType::Turquoise => {
+                                        style = style.fg(color_from_rgb(
+                                            self.state.preferences.theme.highlight_turquoise,
+                                        ));
+                                    }
+                                }
+                            }
+
+                            if attributes.contains(TextAttributes::UNDERLINE)
+                                || attributes.has_diagnostic()
+                            {
+                                style = style.add_modifier(Modifier::UNDERLINED);
+                            }
+
+                            if attributes.contains(TextAttributes::SELECT) {
+                                style = style
+                                    .bg(color_from_rgb(self.state.preferences.theme.selection_bg));
+                            }
+
+                            if attributes.contains(TextAttributes::CURSOR) {
+                                if matches!(self.state.mode, Mode::Normal) {
+                                    style = style.fg(color_from_rgb(
+                                        self.state.preferences.theme.cursor_normal_mode_fg,
+                                    ));
+                                    style = style.bg(color_from_rgb(
+                                        self.state.preferences.theme.cursor_normal_mode_bg,
+                                    ));
+                                } else {
+                                    style = style.fg(color_from_rgb(
+                                        self.state.preferences.theme.cursor_insert_mode_fg,
+                                    ));
+                                    style = style.bg(color_from_rgb(
+                                        self.state.preferences.theme.cursor_insert_mode_bg,
+                                    ));
                                 }
                             }
                             line_widget.push(text::Span::styled(&token.0, style));

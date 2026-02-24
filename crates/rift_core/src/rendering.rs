@@ -1,8 +1,6 @@
-use std::collections::HashSet;
-
 use crate::{
     buffer::{
-        instance::{Attribute, Cursor, Range},
+        instance::{Cursor, Range, TextAttributes},
         rope_buffer::VisibleLineParams,
     },
     state::EditorState,
@@ -38,9 +36,9 @@ pub fn update_visible_lines(
                         extra_segments.push(Range {
                             start: buffer.byte_index_from_cursor(&diagnostic.range.mark),
                             end: buffer.byte_index_from_cursor(&diagnostic.range.cursor),
-                            attributes: HashSet::from([Attribute::DiagnosticSeverity(
-                                diagnostic.severity.clone(),
-                            )]),
+                            attributes: TextAttributes::from_diagnostic_severity(
+                                &diagnostic.severity,
+                            ),
                         });
                     }
                 }

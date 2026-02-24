@@ -1,6 +1,6 @@
 use std::{
     cmp::{max, min},
-    collections::{HashSet, VecDeque},
+    collections::VecDeque,
     sync::{Arc, Mutex},
 };
 
@@ -8,7 +8,7 @@ use crate::lsp::client::LSPClientHandle;
 
 use super::highlight::{TreeSitterParams, build_highlight_params, detect_language};
 use super::instance::{
-    Attribute, Cursor, Edit, GutterInfo, HighlightType, Language, Range, Selection,
+    Cursor, Edit, GutterInfo, HighlightType, Language, Range, Selection, TextAttributes,
 };
 
 use ropey::Rope;
@@ -31,7 +31,7 @@ pub struct RopeBuffer {
     pub input_hook: Option<String>,
 }
 
-pub type HighlightedText = Vec<Vec<(String, HashSet<Attribute>)>>;
+pub type HighlightedText = Vec<Vec<(String, TextAttributes)>>;
 pub struct VisibleLineParams {
     pub viewport_rows: usize,
     pub viewport_columns: usize,
@@ -134,10 +134,10 @@ impl RopeBuffer {
             let start = window[0];
             let end = window[1] - 1;
 
-            let mut active_attributes = HashSet::new();
+            let mut active_attributes = TextAttributes::empty();
             for range in &ranges {
                 if start <= range.end && end >= range.start {
-                    active_attributes.extend(range.attributes.clone());
+                    active_attributes |= range.attributes;
                 }
             }
 
@@ -238,7 +238,7 @@ impl RopeBuffer {
             segments.push(Range {
                 start: gutter_line.start_byte,
                 end: visible_end,
-                attributes: HashSet::from([Attribute::Visible]),
+                attributes: TextAttributes::VISIBLE,
             });
         }
 
@@ -289,14 +289,14 @@ impl RopeBuffer {
                 segments.push(Range {
                     start: self.byte_index_from_cursor(selection_start),
                     end: self.byte_index_from_cursor(selection_end),
-                    attributes: HashSet::from([Attribute::Select]),
+                    attributes: TextAttributes::SELECT,
                 });
             }
 
             segments.push(Range {
                 start: self.byte_index_from_cursor(cursor),
                 end: self.byte_index_from_cursor(cursor),
-                attributes: HashSet::from([Attribute::Cursor]),
+                attributes: TextAttributes::CURSOR,
             });
         } else {
             range_start = 0;
@@ -333,9 +333,9 @@ impl RopeBuffer {
                                         segments.push(Range {
                                             start,
                                             end: end.saturating_sub(1),
-                                            attributes: HashSet::from([Attribute::Highlight(
+                                            attributes: TextAttributes::from_highlight(
                                                 highlight_type,
-                                            )]),
+                                            ),
                                         });
                                     }
                                 }
@@ -390,10 +390,11 @@ impl RopeBuffer {
                     .buffer
                     .slice((line_start + seg_start_in_line)..(line_start + seg_end_in_line))
                     .to_string();
-                if segment.attributes.contains(&Attribute::Cursor) && buffer_segment.is_empty() {
+                if segment.attributes.contains(TextAttributes::CURSOR) && buffer_segment.is_empty()
+                {
                     buffer_segment.push(' ');
                 }
-                let attributes = segment.attributes.clone();
+                let attributes = segment.attributes;
                 highlighted_line.push((buffer_segment, attributes));
                 if segment.end == line_info.end_byte.saturating_sub(1) {
                     lines.push(highlighted_line);
@@ -1038,6 +1039,39 @@ impl RopeBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn split_ranges_merges_attributes_with_bitwise_or() {
+        let ranges = vec![
+            Range {
+                start: 0,
+                end: 2,
+                attributes: TextAttributes::SELECT,
+            },
+            Range {
+                start: 1,
+                end: 3,
+                attributes: TextAttributes::CURSOR,
+            },
+        ];
+
+        let split = RopeBuffer::split_ranges(ranges);
+        assert_eq!(split.len(), 3);
+        assert_eq!(split[0].start, 0);
+        assert_eq!(split[0].end, 0);
+        assert!(split[0].attributes.contains(TextAttributes::SELECT));
+        assert!(!split[0].attributes.contains(TextAttributes::CURSOR));
+
+        assert_eq!(split[1].start, 1);
+        assert_eq!(split[1].end, 2);
+        assert!(split[1].attributes.contains(TextAttributes::SELECT));
+        assert!(split[1].attributes.contains(TextAttributes::CURSOR));
+
+        assert_eq!(split[2].start, 3);
+        assert_eq!(split[2].end, 3);
+        assert!(!split[2].attributes.contains(TextAttributes::SELECT));
+        assert!(split[2].attributes.contains(TextAttributes::CURSOR));
+    }
 
     #[test]
     fn find_same_line_from_start() {

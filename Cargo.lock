@@ -2425,6 +2425,7 @@ name = "rift_core"
 version = "1.0.23"
 dependencies = [
  "anyhow",
+ "bitflags 2.11.0",
  "cc",
  "clap",
  "copypasta",
