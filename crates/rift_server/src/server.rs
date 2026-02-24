@@ -68,6 +68,7 @@ async fn handle_socket(
         while let Some(Ok(message)) = socket_receiver.next().await {
             match message {
                 Message::Text(text) => {
+                    tracing::info!("{:#?}", text);
                     sender_from_ws
                         .send(WSMessage::Text(text.to_string()))
                         .await
@@ -156,7 +157,7 @@ impl Server {
             handle_lsp_messages(&mut self.state);
 
             // Handle websocket messages
-            if let Ok(_message) = self.receiver_from_ws.try_recv() {
+            if let Ok(message) = self.receiver_from_ws.try_recv() {
                 self.state.update_view = true;
             }
 
