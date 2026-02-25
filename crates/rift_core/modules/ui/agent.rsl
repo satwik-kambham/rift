@@ -345,10 +345,10 @@ fn renderLLMChat() {
     let status = "Mode: " + modeName + " | Model: " + modelName + " | Pending tools: " + toString(arrayLen(pendingToolCalls))
 
     let content = status
-    content = content + "\n╭───────────────────────\n"
+    content = content + "\n────────────────────────\n"
     if showEllipsis { content = content + "   ⋯\n" }
     content = content + historyBody + "\n"
-    content = content + "╰─ Pending Tools ───────\n"
+    content = content + "── Pending Tools ───────\n"
     content = content + llmChatLinesToString(pendingLines) + "\n"
     content = content + inputBlock["content"]
 
