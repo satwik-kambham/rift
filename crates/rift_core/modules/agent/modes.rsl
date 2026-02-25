@@ -39,3 +39,9 @@ edit["tools"] = fromJson("{
     \"write_file\": false,
     \"replace\": false
 }")
+
+# Canonical mode ordering used by UI mode cycling.
+export all = createArray()
+arrayPushBack(all, edit)
+arrayPushBack(all, plan)
+arrayPushBack(all, minimal)

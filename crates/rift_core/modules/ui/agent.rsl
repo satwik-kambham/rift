@@ -28,20 +28,59 @@ let modes = import("agent/modes.rsl")
 let llmChat = createTable()
 llmChat["id"] = -1
 llmChat["provider"] = openRouterProvider()
-llmChat["mode"] = modes["edit"]
+llmChat["mode_index"] = 0
+llmChat["mode"] = modes["all"][llmChat["mode_index"]]
 llmChat["history"] = createArray()
 llmChat["history_scroll"] = 0
 llmChat["history_page_size"] = 1
 llmChat["input"] = ""
 llmChat["pending_tool_calls"] = createArray()
 
-fn llmChatReset() {
+fn llmChatBuildSystemMessageContent() {
+    let systemPrompt = llmChat["mode"]["systemPrompt"]
+    if systemPrompt == null or stringLen(systemPrompt) == 0 {
+        return null
+    }
     let agentsMD = readFile(joinPath(getWorkspaceDir(), "AGENTS.md"))
-    llmChat["history"] = createArray()
+    return systemPrompt + "\nAGENTS.md: \n" + agentsMD
+}
+
+fn llmChatRewriteSystemMessageInHistory() {
+    let chatHistory = llmChat["history"]
+    let systemMessageContent = llmChatBuildSystemMessageContent()
     let message = createTable()
     message["role"] = "system"
-    message["content"] = llmChat["mode"]["systemPrompt"] + "\nAGENTS.md: \n" + agentsMD
-    arrayPushBack(llmChat["history"], message)
+    message["content"] = systemMessageContent
+
+    let historyLen = arrayLen(chatHistory)
+    if historyLen == 0 {
+        if systemMessageContent != null {
+            arrayPushBack(chatHistory, message)
+        }
+        return null
+    }
+
+    let firstMessage = chatHistory[0]
+    let firstRole = firstMessage["role"]
+    if firstRole == "system" {
+        if systemMessageContent == null {
+            arrayRemove(chatHistory, 0)
+            return null
+        }
+        arraySet(chatHistory, 0, message)
+        return null
+    } else {
+        if systemMessageContent == null {
+            return null
+        }
+        # Fallback path: preserve history and ensure a system message exists.
+        arrayPushBack(chatHistory, message)
+    }
+}
+
+fn llmChatReset() {
+    llmChat["history"] = createArray()
+    llmChatRewriteSystemMessageInHistory()
     
     llmChat["history_scroll"] = 0
     llmChat["history_page_size"] = 1
@@ -189,6 +228,20 @@ fn llmChatPageDown() {
     let llmChatHistoryScroll = llmChat["history_scroll"] - llmChat["history_page_size"]
     if llmChatHistoryScroll < 0 { llmChatHistoryScroll = 0 }
     llmChat["history_scroll"] = llmChatHistoryScroll
+    renderLLMChat()
+}
+
+fn llmChatCycleMode() {
+    let allModes = modes["all"]
+    let modeCount = arrayLen(allModes)
+    if modeCount == 0 { return null }
+
+    let modeIndex = llmChat["mode_index"] + 1
+    if modeIndex >= modeCount { modeIndex = 0 }
+
+    llmChat["mode_index"] = modeIndex
+    llmChat["mode"] = allModes[modeIndex]
+    llmChatRewriteSystemMessageInHistory()
     renderLLMChat()
 }
 
@@ -498,6 +551,7 @@ fn createLLMChat() {
         registerBufferKeybind(bufferId, "nor down", llmChatScrollDown)
         registerBufferKeybind(bufferId, "nor pageup", llmChatPageUp)
         registerBufferKeybind(bufferId, "nor pagedown", llmChatPageDown)
+        registerBufferKeybind(bufferId, "nor tab", llmChatCycleMode)
         registerBufferKeybind(bufferId, "ins space", llmChatAddSpace)
         registerBufferKeybind(bufferId, "ins backspace", llmChatBackspace)
         registerBufferKeybind(bufferId, "ins up", llmChatScrollUp)
