@@ -14,3 +14,5 @@ bincode = { workspace = true }
 bytes = "1.11.0"
 futures = { workspace = true }
 tower-http = { version = "0.6.8", features = ["fs"] }
+serde_json = { workspace = true }
+serde = { workspace = true }

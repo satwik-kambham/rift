@@ -2493,6 +2493,8 @@ dependencies = [
  "clap",
  "futures",
  "rift_core",
+ "serde",
+ "serde_json",
  "tokio",
  "tower-http",
  "tracing",

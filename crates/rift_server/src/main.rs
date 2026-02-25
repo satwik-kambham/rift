@@ -1,3 +1,4 @@
+pub mod message;
 pub mod server;
 
 fn main() -> anyhow::Result<()> {
