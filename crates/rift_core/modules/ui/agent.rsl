@@ -74,7 +74,7 @@ fn llmChatRewriteSystemMessageInHistory() {
             return null
         }
         # Fallback path: preserve history and ensure a system message exists.
-        arrayPushBack(chatHistory, message)
+        arrayInsert(chatHistory, 0, message)
     }
 }
 

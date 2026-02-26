@@ -56,6 +56,15 @@ impl Array {
             self.items.pop().unwrap()
         }
     }
+
+    pub fn insert(&mut self, index: usize, value: Primitive) -> Primitive {
+        if index > self.items.len() {
+            Primitive::Error("Index out of bounds".to_string())
+        } else {
+            self.items.insert(index, value);
+            Primitive::Null
+        }
+    }
 }
 
 impl PartialEq for Array {

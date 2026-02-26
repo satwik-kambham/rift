@@ -48,3 +48,9 @@ pub fn array_pop_back(arguments: Vec<Primitive>) -> Primitive {
     let array = args!(arguments; array: Array);
     array.borrow_mut().pop_back()
 }
+
+#[rsl_native]
+pub fn array_insert(arguments: Vec<Primitive>) -> Primitive {
+    let (array, index, value) = args!(arguments; array: Array, index: Number, value);
+    array.borrow_mut().insert(index as usize, value)
+}
