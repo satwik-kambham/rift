@@ -6,6 +6,7 @@ use axum::{
 };
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
+use serde_json::to_value;
 use tokio::sync::{broadcast, mpsc};
 use tower_http::services::ServeDir;
 
@@ -15,6 +16,8 @@ use rift_core::{
     lsp::handle_lsp_messages,
     state::EditorState,
 };
+
+use crate::message::{ConnectionStatus, InitializeData, Message as JsonMessage};
 
 #[derive(Clone)]
 enum WSMessage {
@@ -100,6 +103,7 @@ pub(crate) struct Server {
     state: EditorState,
     sender_to_ws: broadcast::Sender<WSMessage>,
     receiver_from_ws: mpsc::Receiver<WSMessage>,
+    status: ConnectionStatus,
 }
 
 impl Default for Server {
@@ -124,6 +128,7 @@ impl Server {
             state,
             sender_to_ws,
             receiver_from_ws,
+            status: ConnectionStatus::Disconnected,
         }
     }
 
@@ -158,6 +163,34 @@ impl Server {
 
             // Handle websocket messages
             if let Ok(message) = self.receiver_from_ws.try_recv() {
+                match message {
+                    WSMessage::Text(text) => {
+                        if let Ok(msg) = serde_json::from_str::<JsonMessage>(&text) {
+                            match msg.method.as_str() {
+                                "connected" => {
+                                    self.status = ConnectionStatus::Connected;
+                                    let initialize_data = InitializeData {
+                                        editor_font_size: self.state.preferences.editor_font_size,
+                                    };
+                                    let response = JsonMessage {
+                                        method: "initialize".to_string(),
+                                        data: Some(to_value(initialize_data).unwrap()),
+                                    };
+                                    if let Ok(json) = serde_json::to_string(&response) {
+                                        let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                                    }
+                                    self.status = ConnectionStatus::Initialized;
+                                }
+                                _ => {
+                                    tracing::info!("Unknown method: {}", msg.method);
+                                }
+                            }
+                        }
+                    }
+                    WSMessage::Bytes(bytes) => {
+                        tracing::info!("Received binary: {:?}", bytes);
+                    }
+                }
                 self.state.update_view = true;
             }
 
