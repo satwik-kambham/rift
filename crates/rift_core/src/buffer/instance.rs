@@ -116,7 +116,7 @@ pub enum HighlightType {
 }
 
 bitflags! {
-    #[derive(Debug, Clone, Copy, Default, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, Clone, Copy, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
     pub struct TextAttributes: u32 {
         const NONE = 0;
         const VISIBLE = 1 << 0;
@@ -139,6 +139,15 @@ bitflags! {
         const DIAG_INFORMATION = 1 << 15;
         const DIAG_WARNING = 1 << 16;
         const DIAG_ERROR = 1 << 17;
+    }
+}
+
+impl serde::Serialize for TextAttributes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u32(self.bits())
     }
 }
 
@@ -341,5 +350,12 @@ mod tests {
             attrs.resolve_diagnostic_severity(),
             Some(DiagnosticSeverity::Error)
         );
+    }
+
+    #[test]
+    fn text_attributes_serialize_as_u32_bits() {
+        let attrs = TextAttributes::VISIBLE | TextAttributes::UNDERLINE;
+        let serialized = serde_json::to_string(&attrs).unwrap();
+        assert_eq!(serialized, "3");
     }
 }
