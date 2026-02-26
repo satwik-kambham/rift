@@ -112,18 +112,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 socket.addEventListener('open', () => {
-    console.log('Connected to WebSocket');
     connectionStatus = 'connected';
     socket.send(JSON.stringify({ method: 'connected' }));
 });
 
 socket.addEventListener('message', (event) => {
-    console.log('Received:', event.data);
     try {
         const msg = JSON.parse(event.data);
         if (msg.method === 'initialize') {
             const editorFontSize = msg.data.editor_font_size;
-            console.log('Editor font size:', editorFontSize);
 
             if (editorEl) {
                 editorEl.style.fontSize = editorFontSize + 'px';
