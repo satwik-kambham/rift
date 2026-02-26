@@ -9,7 +9,7 @@ function getClassesFromAttributes(attrs) {
     const classes = ['segment'];
 
     if (attrs & 0x10) {
-        // HIGHLIGHT_NONE
+        classes.push('highlight-none');
     }
     if (attrs & 0x20) {
         classes.push('highlight-white');
@@ -115,6 +115,10 @@ socket.addEventListener('open', () => {
     connectionStatus = 'connected';
     socket.send(JSON.stringify({ method: 'connected' }));
 });
+
+function runAction(actionName) {
+    socket.send(JSON.stringify({ method: 'run_action', data: actionName }));
+}
 
 socket.addEventListener('message', (event) => {
     try {

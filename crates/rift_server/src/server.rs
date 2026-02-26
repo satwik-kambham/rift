@@ -200,6 +200,15 @@ impl Server {
                                         }
                                     }
                                 }
+                                "run_action" => {
+                                    if let Some(data) = msg.data {
+                                        if let Some(action_name) = data.as_str() {
+                                            self.perform_action(Action::RunAction(
+                                                action_name.to_string(),
+                                            ));
+                                        }
+                                    }
+                                }
                                 _ => {
                                     tracing::info!("Unknown method: {}", msg.method);
                                 }
