@@ -116,7 +116,7 @@ pub enum HighlightType {
 }
 
 bitflags! {
-    #[derive(Debug, Clone, Copy, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
+    #[derive(Debug, Clone, Copy, Default, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
     pub struct TextAttributes: u32 {
         const NONE = 0;
         const VISIBLE = 1 << 0;

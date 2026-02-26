@@ -14,6 +14,7 @@ use rift_core::{
     actions::{Action, perform_action},
     io::file_io::handle_file_event,
     lsp::handle_lsp_messages,
+    rendering::update_visible_lines,
     state::EditorState,
 };
 
@@ -104,6 +105,8 @@ pub(crate) struct Server {
     sender_to_ws: broadcast::Sender<WSMessage>,
     receiver_from_ws: mpsc::Receiver<WSMessage>,
     status: ConnectionStatus,
+    viewport_rows: usize,
+    viewport_columns: usize,
 }
 
 impl Default for Server {
@@ -129,6 +132,8 @@ impl Server {
             sender_to_ws,
             receiver_from_ws,
             status: ConnectionStatus::Disconnected,
+            viewport_rows: 24,
+            viewport_columns: 80,
         }
     }
 
@@ -179,7 +184,21 @@ impl Server {
                                     if let Ok(json) = serde_json::to_string(&response) {
                                         let _ = self.sender_to_ws.send(WSMessage::Text(json));
                                     }
+                                }
+                                "initialized" => {
                                     self.status = ConnectionStatus::Initialized;
+                                    if let Some(data) = msg.data {
+                                        if let Some(rows) =
+                                            data.get("viewport_rows").and_then(|v| v.as_u64())
+                                        {
+                                            self.viewport_rows = rows as usize;
+                                        }
+                                        if let Some(cols) =
+                                            data.get("viewport_columns").and_then(|v| v.as_u64())
+                                        {
+                                            self.viewport_columns = cols as usize;
+                                        }
+                                    }
                                 }
                                 _ => {
                                     tracing::info!("Unknown method: {}", msg.method);
@@ -196,8 +215,21 @@ impl Server {
 
             // Update view and send to websocket connection
             if self.state.update_view {
-                // self.state.relative_cursor =
-                //     update_visible_lines(&mut self.state, viewport_rows, viewport_columns);
+                self.state.relative_cursor = update_visible_lines(
+                    &mut self.state,
+                    self.viewport_rows,
+                    self.viewport_columns,
+                );
+
+                if self.status == ConnectionStatus::Initialized {
+                    let response = JsonMessage {
+                        method: "render".to_string(),
+                        data: Some(to_value(&self.state.highlighted_text).unwrap()),
+                    };
+                    if let Ok(json) = serde_json::to_string(&response) {
+                        let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                    }
+                }
 
                 self.state.update_view = false;
             }
