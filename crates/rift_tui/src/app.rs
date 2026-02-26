@@ -107,7 +107,7 @@ impl App {
 
                 handle_lsp_messages(&mut self.state);
 
-                if self.state.buffer_idx.is_some() {
+                if let Some(buffer_idx) = self.state.buffer_idx {
                     // Compute view if updated
                     if self.state.update_view {
                         self.state.relative_cursor =
@@ -275,12 +275,11 @@ impl App {
                     let status_bar_style = Style::new()
                         .bg(color_from_rgb(self.state.preferences.theme.status_bar_bg))
                         .fg(color_from_rgb(self.state.preferences.theme.ui_text));
-                    let (buffer, instance) =
-                        self.state.get_buffer_by_id(self.state.buffer_idx.unwrap());
+                    let (buffer, instance) = self.state.get_buffer_by_id(buffer_idx);
                     let file_label = buffer
                         .display_name
                         .clone()
-                        .unwrap_or(self.state.buffer_idx.unwrap().to_string());
+                        .unwrap_or(buffer_idx.to_string());
                     let mut left_spans = vec![text::Span::styled(
                         format!(" {:#?} ", self.state.mode),
                         status_mode_style,

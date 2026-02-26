@@ -11,8 +11,8 @@ pub fn update_visible_lines(
     viewport_rows: usize,
     viewport_columns: usize,
 ) -> Cursor {
-    if state.buffer_idx.is_some() {
-        let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+    if let Some(buffer_idx) = state.buffer_idx {
+        let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
         let mut extra_segments = vec![];
 
         if let Some(path) = buffer.file_path() {
@@ -46,7 +46,7 @@ pub fn update_visible_lines(
             }
         }
 
-        let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+        let (buffer, instance) = state.get_buffer_by_id_mut(buffer_idx);
         let visible_line_params = VisibleLineParams {
             viewport_rows,
             viewport_columns,
