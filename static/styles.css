@@ -1,0 +1,111 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0d0c0c;
+}
+
+#editor {
+  width: 100vw;
+  height: 100vh;
+  background: #0d0c0c;
+  font-family: monospace;
+  font-size: 21px;
+  line-height: 1.5;
+  color: #c5c9c5;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.line {
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.segment {
+  white-space: pre;
+}
+
+.gutter {
+  color: #5c5f5c;
+}
+
+.underline {
+  text-decoration: underline;
+}
+
+.selection {
+  background: #3e3e4a;
+}
+
+.cursor {
+  background: #a6acac;
+  color: #1d1f21;
+}
+
+/* Syntax highlighting colors (Kanagawa) */
+.highlight-none {
+  color: #c5c9c5;
+}
+
+.highlight-white {
+  color: #c5c9c5;
+}
+
+.highlight-red {
+  color: #c4746e;
+}
+
+.highlight-orange {
+  color: #b69272;
+}
+
+.highlight-blue {
+  color: #8ab4b0;
+}
+
+.highlight-green {
+  color: #879869;
+}
+
+.highlight-purple {
+  color: #a292a3;
+}
+
+.highlight-yellow {
+  color: #c4b46a;
+}
+
+.highlight-gray {
+  color: #a69c94;
+}
+
+.highlight-turquoise {
+  color: #94b5a1;
+}
+
+/* Diagnostic severity colors */
+.diag-hint {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.diag-info {
+  color: #8ab4b0;
+}
+
+.diag-warning {
+  color: #c4b46a;
+}
+
+.diag-error {
+  color: #c4746e;
+  text-decoration: underline;
+  text-decoration-style: wavy;
+}
