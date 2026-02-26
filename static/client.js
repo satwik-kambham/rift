@@ -99,8 +99,8 @@ function roughGrid(fontSizePx) {
     const lineHeight = fontSizePx * 1.5;
 
     return {
-        viewport_rows: Math.max(1, Math.floor(h / lineHeight)),
-        viewport_columns: Math.max(1, Math.floor(w / charWidth)),
+        viewport_rows: Math.max(1, Math.floor(h / lineHeight) - 3),
+        viewport_columns: Math.max(1, Math.floor(w / charWidth) - 3),
     };
 }
 

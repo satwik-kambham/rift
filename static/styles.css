@@ -16,7 +16,6 @@ html, body {
   height: 100vh;
   background: #0d0c0c;
   font-family: monospace;
-  font-size: 21px;
   line-height: 1.5;
   color: #c5c9c5;
   white-space: pre;
@@ -24,12 +23,12 @@ html, body {
 }
 
 .line {
-  display: flex;
   flex-wrap: nowrap;
 }
 
 .segment {
   white-space: pre;
+  display: inline-block;
 }
 
 .gutter {
