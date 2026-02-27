@@ -8,9 +8,9 @@ help:
 	@echo "  clippy           - cargo clippy -- -D warnings"
 	@echo "  build            - cargo build"
 	@echo "  build-release    - cargo build -r"
-	@echo "  run-tui          - cargo run -p rift_tui"
-	@echo "  run-tui-release  - cargo run -p rift_tui --release"
+	@echo "  run-tui          - cargo run -p rift_tui --release"
 	@echo "  run-tui-minimal  - cargo run -p rift_tui --release -- --no-lsp --no-audio"
+	@echo "  run-server       - cargo run -p rift_server --release -- --no-audio"
 	@echo "  flamegraph-tui   - cargo flamegraph -p rift_tui"
 	@echo "  flamegraph-tui-debug  - CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p rift_tui"
 	@echo "  clean            - cargo clean"
@@ -31,13 +31,14 @@ build-release:
 	cargo build -r
 
 run-tui:
-	cargo run -p rift_tui
-
-run-tui-release:
 	cargo run -p rift_tui --release
 
 run-tui-minimal:
 	cargo run -p rift_tui --release -- --no-lsp --no-audio
+
+
+run-server:
+	cargo run -p rift_server --release -- -no-audio
 
 flamegraph-tui:
 	cargo flamegraph -p rift_tui
