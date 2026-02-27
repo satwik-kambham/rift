@@ -160,7 +160,7 @@ impl RopeBuffer {
     pub fn get_visible_lines(
         &mut self,
         scroll: &mut Cursor,
-        cursor: &Cursor,
+        cursor: Option<&Cursor>,
         selection: &Selection,
         params: &VisibleLineParams,
         mut extra_segments: Vec<Range>,
@@ -173,7 +173,9 @@ impl RopeBuffer {
         let mut range_start = scroll.row.min(num_lines.saturating_sub(1));
         let mut range_end = range_start + params.viewport_rows + 3;
 
-        if !self.special {
+        if !self.special
+            && let Some(cursor) = cursor
+        {
             if cursor < scroll {
                 range_start = cursor.row;
                 range_end = range_start + params.viewport_rows;
@@ -242,62 +244,77 @@ impl RopeBuffer {
             });
         }
 
-        let mut relative_cursor = Cursor {
-            row: 0,
-            column: cursor.column,
-        };
+        let mut relative_cursor = Cursor { row: 0, column: 0 };
 
         if !self.special {
-            let mut cursor_idx: usize = 0;
-            for line_info in &gutter_info {
-                if cursor.row == line_info.start.row
-                    && cursor.column >= line_info.start.column
-                    && (cursor.column < line_info.end
-                        || (cursor.column == line_info.end && line_info.wrap_end))
-                {
-                    relative_cursor.column -= line_info.start.column;
-                    break;
+            if let Some(cursor) = cursor {
+                let mut cursor_idx: usize = 0;
+                for line_info in &gutter_info {
+                    if cursor.row == line_info.start.row
+                        && cursor.column >= line_info.start.column
+                        && (cursor.column < line_info.end
+                            || (cursor.column == line_info.end && line_info.wrap_end))
+                    {
+                        relative_cursor.column = cursor.column - line_info.start.column;
+                        break;
+                    }
+                    cursor_idx += 1;
                 }
-                cursor_idx += 1;
-            }
 
-            if cursor < scroll {
-                range_start = cursor_idx.saturating_sub(1);
-                range_end = range_start + params.viewport_rows;
-            } else if cursor.row >= scroll.row + params.viewport_rows {
-                range_end = cursor_idx + 1;
-                range_start = range_end.saturating_sub(params.viewport_rows);
+                if cursor < scroll {
+                    range_start = cursor_idx.saturating_sub(1);
+                    range_end = range_start + params.viewport_rows;
+                } else if cursor.row >= scroll.row + params.viewport_rows {
+                    range_end = cursor_idx + 1;
+                    range_start = range_end.saturating_sub(params.viewport_rows);
+                } else {
+                    range_start = 0;
+                    range_end = params.viewport_rows;
+                    if cursor_idx >= params.viewport_rows {
+                        range_end = cursor_idx + 1;
+                        range_start = range_end.saturating_sub(params.viewport_rows);
+                    }
+                }
+
+                range_end = gutter_info.len().min(range_end);
+                relative_cursor.row = cursor_idx - range_start;
+
+                if !gutter_info.is_empty() {
+                    scroll.row = gutter_info[range_start].start.row;
+                    scroll.column = gutter_info[range_start].start.column;
+                }
+
+                let (selection_start, selection_end) = selection.in_order();
+                if selection_start != selection_end {
+                    segments.push(Range {
+                        start: self.byte_index_from_cursor(selection_start),
+                        end: self.byte_index_from_cursor(selection_end),
+                        attributes: TextAttributes::SELECT,
+                    });
+                }
+
+                segments.push(Range {
+                    start: self.byte_index_from_cursor(cursor),
+                    end: self.byte_index_from_cursor(cursor),
+                    attributes: TextAttributes::CURSOR,
+                });
             } else {
                 range_start = 0;
                 range_end = params.viewport_rows;
-                if cursor_idx >= params.viewport_rows {
-                    range_end = cursor_idx + 1;
-                    range_start = range_end.saturating_sub(params.viewport_rows);
+                range_end = gutter_info.len().min(range_end);
+
+                if !gutter_info.is_empty() {
+                    let gutter_len = gutter_info.len();
+                    let max_range_start = gutter_len.saturating_sub(1);
+                    range_start = range_start.min(max_range_start);
+                    if range_start < max_range_start {
+                        range_end = (range_start + params.viewport_rows).min(gutter_len);
+                    }
+
+                    scroll.row = gutter_info[range_start].start.row;
+                    scroll.column = gutter_info[range_start].start.column;
                 }
             }
-
-            range_end = gutter_info.len().min(range_end);
-            relative_cursor.row = cursor_idx - range_start;
-
-            if !gutter_info.is_empty() {
-                scroll.row = gutter_info[range_start].start.row;
-                scroll.column = gutter_info[range_start].start.column;
-            }
-
-            let (selection_start, selection_end) = selection.in_order();
-            if selection_start != selection_end {
-                segments.push(Range {
-                    start: self.byte_index_from_cursor(selection_start),
-                    end: self.byte_index_from_cursor(selection_end),
-                    attributes: TextAttributes::SELECT,
-                });
-            }
-
-            segments.push(Range {
-                start: self.byte_index_from_cursor(cursor),
-                end: self.byte_index_from_cursor(cursor),
-                attributes: TextAttributes::CURSOR,
-            });
         } else {
             range_start = 0;
             range_end = params.viewport_rows;

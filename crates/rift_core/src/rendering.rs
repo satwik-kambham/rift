@@ -10,6 +10,7 @@ pub fn update_visible_lines(
     state: &mut EditorState,
     viewport_rows: usize,
     viewport_columns: usize,
+    free_scroll: bool,
 ) -> Cursor {
     if let Some(buffer_idx) = state.buffer_idx {
         let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
@@ -52,9 +53,14 @@ pub fn update_visible_lines(
             viewport_columns,
             eol_sequence: "\n".into(),
         };
+        let cursor = if free_scroll {
+            None
+        } else {
+            Some(&instance.cursor)
+        };
         let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
             &mut instance.scroll,
-            &instance.cursor,
+            cursor,
             &instance.selection,
             &visible_line_params,
             extra_segments,

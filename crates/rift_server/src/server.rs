@@ -72,7 +72,6 @@ async fn handle_socket(
         while let Some(Ok(message)) = socket_receiver.next().await {
             match message {
                 Message::Text(text) => {
-                    tracing::info!("{:#?}", text);
                     sender_from_ws
                         .send(WSMessage::Text(text.to_string()))
                         .await
@@ -215,8 +214,8 @@ impl Server {
                             }
                         }
                     }
-                    WSMessage::Bytes(bytes) => {
-                        tracing::info!("Received binary: {:?}", bytes);
+                    WSMessage::Bytes(_bytes) => {
+                        tracing::info!("Received binary");
                     }
                 }
                 self.state.update_view = true;
@@ -228,6 +227,7 @@ impl Server {
                     &mut self.state,
                     self.viewport_rows,
                     self.viewport_columns,
+                    true,
                 );
 
                 if self.status == ConnectionStatus::Initialized {

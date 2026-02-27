@@ -110,8 +110,12 @@ impl App {
                 if let Some(buffer_idx) = self.state.buffer_idx {
                     // Compute view if updated
                     if self.state.update_view {
-                        self.state.relative_cursor =
-                            update_visible_lines(&mut self.state, viewport_rows, viewport_columns);
+                        self.state.relative_cursor = update_visible_lines(
+                            &mut self.state,
+                            viewport_rows,
+                            viewport_columns,
+                            false,
+                        );
                         self.state.update_view = false;
                     }
 
