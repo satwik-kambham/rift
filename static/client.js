@@ -1,11 +1,17 @@
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsUrl = `${protocol}//${window.location.host}/ws`;
 
+const PING_ENABLED = true;
+const PING_INTERVAL_MS = 5000;
+
 const socket = new WebSocket(wsUrl);
 let connectionStatus = 'disconnected';
 let editorEl = null;
 let wheelDeltaAccumulator = 0;
 let touchLastY = null;
+let pingStart = null;
+let pingInterval = null;
+let lastLatency = null;
 
 const WHEEL_STEP_PX = 40;
 const WHEEL_LINE_PX = 40;
@@ -204,6 +210,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!editorEl) {
         console.error('Could not find editor element');
     }
+
+    const statusEl = document.createElement('div');
+    statusEl.id = 'connection-status';
+    statusEl.style.cssText = 'position: fixed; top: 10px; right: 10px; padding: 4px 8px; background: #333; color: #fff; font-family: monospace; font-size: 12px; border-radius: 4px; z-index: 1000;';
+    statusEl.textContent = 'Disconnected';
+    document.body.appendChild(statusEl);
+
     window.addEventListener('wheel', onWheelScroll, { passive: false });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -214,6 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
 socket.addEventListener('open', () => {
     connectionStatus = 'connected';
     socket.send(JSON.stringify({ method: 'connected' }));
+    startPing();
+    updateStatusDisplay(null);
 });
 
 function runAction(actionName) {
@@ -221,6 +236,38 @@ function runAction(actionName) {
         return;
     }
     socket.send(JSON.stringify({ method: 'run_action', data: actionName }));
+}
+
+function startPing() {
+    if (!PING_ENABLED) return;
+    pingInterval = setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) {
+            pingStart = Date.now();
+            socket.send(JSON.stringify({ method: 'ping', data: { time: pingStart } }));
+        }
+    }, PING_INTERVAL_MS);
+}
+
+function stopPing() {
+    if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+    }
+    pingStart = null;
+    lastLatency = null;
+}
+
+function updateStatusDisplay(latency) {
+    const statusEl = document.getElementById('connection-status');
+    if (statusEl) {
+        if (latency !== null) {
+            statusEl.textContent = `Connected (${latency}ms)`;
+        } else if (connectionStatus === 'connected' || connectionStatus === 'initialized') {
+            statusEl.textContent = 'Connected';
+        } else {
+            statusEl.textContent = 'Disconnected';
+        }
+    }
 }
 
 socket.addEventListener('message', (event) => {
@@ -239,9 +286,16 @@ socket.addEventListener('message', (event) => {
                 data: grid,
             }));
             connectionStatus = 'initialized';
+            updateStatusDisplay(null);
         } else if (msg.method === 'render') {
             const bufferView = msg.data;
             updateEditor(bufferView);
+        } else if (msg.method === 'pong') {
+            if (pingStart) {
+                lastLatency = Date.now() - pingStart;
+                updateStatusDisplay(lastLatency);
+                pingStart = null;
+            }
         }
     } catch (e) {
         console.error('Failed to parse message:', e);
@@ -252,4 +306,6 @@ socket.addEventListener('close', () => {
     console.log('Disconnected from WebSocket');
     connectionStatus = 'disconnected';
     wheelDeltaAccumulator = 0;
+    stopPing();
+    updateStatusDisplay(null);
 });

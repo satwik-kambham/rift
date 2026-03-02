@@ -208,6 +208,15 @@ impl Server {
                                         ));
                                     }
                                 }
+                                "ping" => {
+                                    let response = JsonMessage {
+                                        method: "pong".to_string(),
+                                        data: msg.data,
+                                    };
+                                    if let Ok(json) = serde_json::to_string(&response) {
+                                        let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                                    }
+                                }
                                 _ => {
                                     tracing::info!("Unknown method: {}", msg.method);
                                 }
