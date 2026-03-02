@@ -38,7 +38,7 @@ run-tui-minimal:
 
 
 run-server:
-	cargo run -p rift_server --release -- -no-audio
+	cargo run -p rift_server --release -- --no-audio
 
 flamegraph-tui:
 	cargo flamegraph -p rift_tui
