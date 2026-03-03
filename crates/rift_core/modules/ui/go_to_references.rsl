@@ -1,0 +1,144 @@
+# Go To References
+
+let goToReferences = createTable()
+goToReferences["id"] = -1
+goToReferences["input"] = ""
+goToReferences["all"] = createArray()
+goToReferences["results"] = createArray()
+goToReferences["selected"] = 0
+goToReferences["previous_buffer_id"] = -1
+
+fn goToReferencesDisplay(entry) {
+    let filePath = entry["file_path"]
+    let range = entry["range"]
+    let mark = range["mark"]
+    let row = mark["row"] + 1
+    let column = mark["column"] + 1
+    let preview = entry["preview"]
+
+    let location = filePath + ":" + toJson(row) + ":" + toJson(column)
+    if stringLen(preview) > 0 {
+        return location + " " + preview
+    }
+    return location
+}
+
+fn renderGoToReferences() {
+    let ctx = createTable()
+    ctx["title"] = "🔗 References"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = goToReferences["input"]
+    ctx["list_header"] = "╰─ Locations ───────────"
+    ctx["entries"] = goToReferences["results"]
+    ctx["selected_index"] = goToReferences["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No references"
+    ctx["buffer_id"] = goToReferences["id"]
+    ctx["entry_to_string"] = goToReferencesDisplay
+    listPanelRender(ctx)
+}
+
+fn goToReferencesFilterResults() {
+    let results = createArray()
+    let query = stringToLower(goToReferences["input"])
+    let allEntries = goToReferences["all"]
+
+    let i = 0
+    loop {
+        if i >= arrayLen(allEntries) { break }
+        let entry = allEntries[i]
+
+        let filePath = stringToLower(entry["file_path"])
+        let preview = stringToLower(entry["preview"])
+
+        if stringLen(query) == 0 or stringContains(filePath, query) or stringContains(preview, query) {
+            arrayPushBack(results, entry)
+        }
+        i = i + 1
+    }
+
+    goToReferences["results"] = results
+    goToReferences["selected"] = 0
+    renderGoToReferences()
+}
+
+fn goToReferencesInputUpdated() {
+    inputUpdated(goToReferences["id"], goToReferences, "input", goToReferencesFilterResults)
+}
+
+fn goToReferencesAddSpace() {
+    inputAddSpace(goToReferences["id"], goToReferences, "input", renderGoToReferences)
+}
+
+fn goToReferencesBackspace() {
+    inputBackspace(goToReferences["id"], goToReferences, "input", null)
+}
+
+fn goToReferencesClearInput() {
+    inputClear(goToReferences["id"], goToReferences, "input", null)
+}
+
+fn goToReferencesMoveSelection(delta) {
+    let results = goToReferences["results"]
+    let selected = listPanelMoveSelection(results, goToReferences["selected"], delta)
+    goToReferences["selected"] = selected
+    renderGoToReferences()
+}
+
+fn goToReferencesNext() {
+    goToReferencesMoveSelection(1)
+}
+
+fn goToReferencesPrevious() {
+    goToReferencesMoveSelection(-1)
+}
+
+fn goToReferencesSelect() {
+    let results = goToReferences["results"]
+    let selected = goToReferences["selected"]
+    if selected < arrayLen(results) {
+        let entry = results[selected]
+        let path = entry["file_path"]
+        let range = entry["range"]
+
+        goToReferencesClearInput()
+        openFile(path)
+        runAction("quit-insert-mode")
+        selectRange(toJson(range))
+    }
+}
+
+fn goToReferencesEscape() {
+    let previousBufferId = goToReferences["previous_buffer_id"]
+    if previousBufferId != -1 {
+        goToReferencesClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn goToReferencesReload() {
+    let references = getReferences()
+    goToReferences["all"] = fromJson(references)
+    goToReferencesFilterResults()
+}
+
+fn createGoToReferences() {
+    goToReferences["previous_buffer_id"] = getActiveBuffer()
+    if goToReferences["id"] == -1 {
+        let bufferId = createSpecialBuffer("References")
+        goToReferences["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", goToReferencesAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", goToReferencesBackspace)
+        registerBufferKeybind(bufferId, "ins tab", goToReferencesNext)
+        registerBufferKeybind(bufferId, "ins down", goToReferencesNext)
+        registerBufferKeybind(bufferId, "ins up", goToReferencesPrevious)
+        registerBufferKeybind(bufferId, "ins enter", goToReferencesSelect)
+        registerBufferKeybind(bufferId, "ins escape", goToReferencesEscape)
+        registerBufferInputHook(bufferId, goToReferencesInputUpdated)
+    }
+    goToReferencesClearInput()
+    goToReferencesReload()
+    setActiveBuffer(goToReferences["id"])
+    runAction("enter-insert-mode")
+}

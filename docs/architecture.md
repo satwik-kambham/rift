@@ -1,7 +1,7 @@
 # Architecture
 
 ## Overview
-Rift uses a Rust core (`crates/rift_core`) that owns editor state, buffers, and the LSP client. Frontends (TUI/egui/wasm) render the state and drive input. RSL scripts provide UI wiring and editor workflows by calling into RPC methods exposed by the core.
+Rift uses a Rust core (`crates/rift_core`) that owns editor state, buffers, and the LSP client. Frontends (TUI/server) render the state and drive input. RSL scripts provide UI wiring and editor workflows by calling into RPC methods exposed by the core.
 
 ## LSP
 

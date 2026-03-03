@@ -1,6 +1,5 @@
-.PHONY: help check fmt clippy build build-release run-tui run-egui run-tui-release \
-	run-egui-release flamegraph-egui flamegraph-tui flamegraph-egui-debug \
-	flamegraph-tui-debug clean
+.PHONY: help check fmt clippy build build-release run-tui run-tui-release \
+	flamegraph-tui flamegraph-tui-debug clean run-tui-minimal
 
 help:
 	@echo "Common targets:"
@@ -9,13 +8,10 @@ help:
 	@echo "  clippy           - cargo clippy -- -D warnings"
 	@echo "  build            - cargo build"
 	@echo "  build-release    - cargo build -r"
-	@echo "  run-tui          - cargo run -p rift_tui"
-	@echo "  run-egui         - cargo run -p rift_egui"
-	@echo "  run-tui-release  - cargo run -p rift_tui --release"
-	@echo "  run-egui-release - cargo run -p rift_egui --release"
-	@echo "  flamegraph-egui  - cargo flamegraph -p rift_egui"
+	@echo "  run-tui          - cargo run -p rift_tui --release"
+	@echo "  run-tui-minimal  - cargo run -p rift_tui --release -- --no-lsp --no-audio"
+	@echo "  run-server       - cargo run -p rift_server --release -- --no-audio"
 	@echo "  flamegraph-tui   - cargo flamegraph -p rift_tui"
-	@echo "  flamegraph-egui-debug - CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p rift_egui"
 	@echo "  flamegraph-tui-debug  - CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p rift_tui"
 	@echo "  clean            - cargo clean"
 
@@ -35,25 +31,17 @@ build-release:
 	cargo build -r
 
 run-tui:
-	cargo run -p rift_tui
-
-run-egui:
-	cargo run -p rift_egui
-
-run-tui-release:
 	cargo run -p rift_tui --release
 
-run-egui-release:
-	cargo run -p rift_egui --release
+run-tui-minimal:
+	cargo run -p rift_tui --release -- --no-lsp --no-audio
 
-flamegraph-egui:
-	cargo flamegraph -p rift_egui
+
+run-server:
+	cargo run -p rift_server --release -- --no-audio
 
 flamegraph-tui:
 	cargo flamegraph -p rift_tui
-
-flamegraph-egui-debug:
-	CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p rift_egui
 
 flamegraph-tui-debug:
 	CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p rift_tui

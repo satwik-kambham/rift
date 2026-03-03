@@ -10,10 +10,6 @@ Prebuilt executables: [Latest release](https://github.com/satwik-kambham/rift/re
 
 ### Run with Nix (Preferred)
 
-- GUI frontend:
-  ```
-    nix run github:satwik-kambham/rift#rift_egui
-  ```
 - TUI frontend:
   ```
     nix run github:satwik-kambham/rift#rift_tui
@@ -36,5 +32,4 @@ See the Synapse repo for setup and run instructions: https://github.com/satwik-k
 ## Documentation
 
 - RSL quick start: [docs/rsl-quickstart.md](docs/rsl-quickstart.md)
-- Build from source: [docs/build-from-source.md](docs/build-from-source.md)
 - Additional docs in the `docs/` directory.

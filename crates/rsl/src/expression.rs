@@ -382,6 +382,21 @@ impl Expression for FunctionCallExpression {
             }
 
             Ok(Primitive::Null)
+        } else if self.identifier == "runScript" {
+            if self.parameters.len() != 1 {
+                return Err(RuntimeError::new(
+                    format!("Expected 1 parameter, got {}", self.parameters.len()),
+                    self.span.clone(),
+                ));
+            }
+
+            let parameters = self.collect_parameters(environment.clone(), rsl)?;
+
+            if let Primitive::String(package_name) = parameters.first().unwrap() {
+                return rsl.run_script(package_name, self.span.clone());
+            }
+
+            Ok(Primitive::Null)
         } else if self.identifier == "runFunctionById" {
             if self.parameters.len() != 1 {
                 return Err(RuntimeError::new(

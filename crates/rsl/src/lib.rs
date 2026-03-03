@@ -131,6 +131,30 @@ impl<'a> RSL<'a> {
         anyhow::bail!("Package not found at {:?}", candidate)
     }
 
+    pub fn run_script(
+        &mut self,
+        package_name: &str,
+        span: token::Span,
+    ) -> Result<primitive::Primitive, errors::RuntimeError> {
+        match self.get_package_code(package_name) {
+            Ok(source) => {
+                let local_environment = self.environment.clone();
+                self.run_with_environment(source, local_environment.clone())
+                    .map_err(|e| {
+                        errors::RuntimeError::new(
+                            format!("Failed to import package {}: {}", package_name, e),
+                            span,
+                        )
+                    })?;
+                Ok(primitive::Primitive::Null)
+            }
+            Err(err) => {
+                eprintln!("Failed to import package {}: {}", package_name, err);
+                Ok(primitive::Primitive::Null)
+            }
+        }
+    }
+
     pub fn cached_import(
         &mut self,
         package_name: &String,

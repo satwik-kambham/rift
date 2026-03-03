@@ -1,0 +1,86 @@
+# Dialog Modal
+
+let dialogModal = createTable()
+dialogModal["id"] = -1
+dialogModal["previous_buffer_id"] = -1
+dialogModal["active"] = false
+dialogModal["input"] = ""
+dialogModal["prompt"] = ""
+dialogModal["callback"] = null
+
+fn setSearchQueryFromDialog(query) {
+    setSearchQuery(query)
+    runAction("find-next-with-query")
+}
+
+fn dialogModalRender() {
+    let content = "💬 Dialog\n" + dialogModal["prompt"] + "\n╭─ Input ───────────────\n" + dialogModal["input"] + "\n\nenter: submit | esc: cancel"
+    state.setViewportBufferContent(dialogModal["id"], content)
+}
+
+fn dialogModalEnsureBuffer() {
+    if dialogModal["id"] == -1 {
+        let bufferId = createSpecialBuffer("Dialog")
+        dialogModal["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins enter", dialogModalSubmit)
+        registerBufferKeybind(bufferId, "ins escape", dialogModalClose)
+        registerBufferKeybind(bufferId, "ins backspace", dialogModalBackspace)
+        registerBufferKeybind(bufferId, "ins space", dialogModalInsertSpace)
+        registerBufferInputHook(bufferId, dialogModalInputUpdated)
+    }
+}
+
+fn dialogModalOpen(prompt, callback) {
+    dialogModalEnsureBuffer()
+    dialogModal["previous_buffer_id"] = getActiveBuffer()
+    dialogModal["active"] = true
+    dialogModal["prompt"] = prompt
+    dialogModal["callback"] = callback
+    dialogModal["input"] = ""
+
+    let bufferId = dialogModal["id"]
+    setActiveBuffer(bufferId)
+    setBufferInput(bufferId, "")
+    dialogModalRender()
+    runAction("enter-insert-mode")
+}
+
+fn dialogModalClose() {
+    dialogModal["active"] = false
+    dialogModal["input"] = ""
+    dialogModal["prompt"] = ""
+    dialogModal["callback"] = null
+    let previousBufferId = dialogModal["previous_buffer_id"]
+    if previousBufferId != -1 {
+        setActiveBuffer(previousBufferId)
+    }
+    runAction("quit-insert-mode")
+}
+
+fn dialogModalSubmit() {
+    if !dialogModal["active"] { return null }
+    let value = getBufferInput(dialogModal["id"])
+    let callback = dialogModal["callback"]
+    dialogModalClose()
+    if callback != null {
+        callback(value)
+    }
+}
+
+fn dialogModalInputUpdated() {
+    inputUpdated(dialogModal["id"], dialogModal, "input", dialogModalRender)
+}
+
+fn dialogModalInsertSpace() {
+    inputAddSpace(dialogModal["id"], dialogModal, "input", dialogModalRender)
+}
+
+fn dialogModalBackspace() {
+    let inputValue = getBufferInput(dialogModal["id"])
+    let length = stringLen(inputValue)
+    if length <= 0 { return null }
+    inputValue = stringTruncateWidth(inputValue, length - 1)
+    dialogModal["input"] = inputValue
+    setBufferInput(dialogModal["id"], inputValue)
+    dialogModalRender()
+}

@@ -130,17 +130,6 @@ impl EditorState {
 
         let rsl_sender = start_rsl_interpreter(initial_folder_str.clone(), rpc_client_transport);
 
-        let tts_output_stream = match OutputStreamBuilder::open_default_stream() {
-            Ok(mut stream) => {
-                stream.log_on_drop(false);
-                Some(stream)
-            }
-            Err(err) => {
-                tracing::warn!(%err, "Failed to initialize TTS output stream");
-                None
-            }
-        };
-
         Self {
             quit: false,
             rt,
@@ -179,7 +168,7 @@ impl EditorState {
             lsp_handles: HashMap::new(),
             init_rsl_complete: false,
             transcription_handle: None,
-            tts_output_stream,
+            tts_output_stream: None,
             audio_recording: false,
         }
     }
@@ -189,6 +178,19 @@ impl EditorState {
 
         if let Err(err) = process_cli_args(cli_args, self) {
             tracing::error!(%err, "Failed to process CLI args");
+        }
+
+        if !self.preferences.no_audio {
+            self.tts_output_stream = match OutputStreamBuilder::open_default_stream() {
+                Ok(mut stream) => {
+                    stream.log_on_drop(false);
+                    Some(stream)
+                }
+                Err(err) => {
+                    tracing::warn!(%err, "Failed to initialize TTS output stream");
+                    None
+                }
+            };
         }
 
         initialize_rsl(self);

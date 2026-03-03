@@ -396,8 +396,8 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             state.cycle_buffer(true, true);
         }
         Action::CloseCurrentBuffer => {
-            if state.buffer_idx.is_some() {
-                state.remove_buffer(state.buffer_idx.unwrap());
+            if let Some(buffer_id) = state.buffer_idx {
+                state.remove_buffer(buffer_id);
             }
         }
         Action::SaveCurrentBuffer => {
@@ -765,8 +765,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             return Some(serde_json::to_string(&state.definitions).unwrap());
         }
         Action::GoToReferences => {
-            if state.buffer_idx.is_some() {
-                let buffer_id = state.buffer_idx.unwrap();
+            if let Some(buffer_id) = state.buffer_idx {
                 let (file_path, cursor) = ({
                     let (buffer, instance) = state.get_buffer_by_id(buffer_id);
                     buffer
@@ -1006,8 +1005,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             );
         }
         Action::GetReferences => {
-            if state.buffer_idx.is_some() {
-                let buffer_id = state.buffer_idx.unwrap();
+            if let Some(buffer_id) = state.buffer_idx {
                 let (buffer, _instance) = state.get_buffer_by_id(buffer_id);
                 if buffer.file_path().is_none() {
                     state.references.clear();

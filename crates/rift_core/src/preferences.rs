@@ -20,12 +20,6 @@ impl Color {
     }
 }
 
-impl From<Color> for ecolor::Color32 {
-    fn from(val: Color) -> Self {
-        ecolor::Color32::from_rgb(val.r, val.g, val.b)
-    }
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Preferences {
     pub theme: Theme,
@@ -42,6 +36,7 @@ pub struct Preferences {
     pub gutter_padding: i8,
     pub editor_padding: i8,
     pub no_lsp: bool,
+    pub no_audio: bool,
 }
 
 impl Default for Preferences {
@@ -57,7 +52,7 @@ impl Default for Preferences {
             line_ending,
             tab_width: 4,
             editor_font_family: "Monaspace Neon".into(),
-            editor_font_size: 21,
+            editor_font_size: 14,
             ui_font_family: "Open Sans".into(),
             ui_font_size: 14,
             ui_font_size_heading: 16,
@@ -67,6 +62,7 @@ impl Default for Preferences {
             gutter_padding: 4,
             editor_padding: 4,
             no_lsp: false,
+            no_audio: false,
         }
     }
 }

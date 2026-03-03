@@ -10,10 +10,13 @@ pub struct CLIArgs {
     pub path: Option<PathBuf>,
     #[arg(long, default_value_t = false, help = "Do not start language servers")]
     pub no_lsp: bool,
+    #[arg(long, default_value_t = false, help = "Do not start audio services")]
+    pub no_audio: bool,
 }
 
 pub fn process_cli_args(cli_args: CLIArgs, state: &mut EditorState) -> Result<()> {
     state.preferences.no_lsp = cli_args.no_lsp;
+    state.preferences.no_audio = cli_args.no_audio;
 
     let mut path = cli_args
         .path

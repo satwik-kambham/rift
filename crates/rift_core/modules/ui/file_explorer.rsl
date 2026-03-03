@@ -1,0 +1,245 @@
+# File Explorer
+
+let fileExplorer = createTable()
+fileExplorer["id"] = -1
+fileExplorer["input"] = ""
+fileExplorer["entries"] = createArray()
+fileExplorer["all_entries"] = createArray()
+fileExplorer["selected"] = 0
+fileExplorer["current_dir"] = ""
+fileExplorer["previous_buffer_id"] = -1
+fileExplorer["error"] = ""
+
+fn fileExplorerEntryDisplay(entry) {
+    let name = entry["name"]
+    if entry["is_dir"] {
+        return name + "/"
+    }
+    return name
+}
+
+fn renderFileExplorer() {
+    let headerLines = createArray()
+    arrayPushBack(headerLines, fileExplorer["current_dir"])
+    arrayPushBack(headerLines, "(ctrl-f: new file, ctrl-d: new folder)")
+
+    let extraLines = null
+    let errorMessage = fileExplorer["error"]
+    if errorMessage != "" {
+        extraLines = createArray()
+        arrayPushBack(extraLines, "   Error: " + errorMessage)
+    }
+
+    let ctx = createTable()
+    ctx["title"] = "📂 File Explorer"
+    ctx["header_lines"] = headerLines
+    ctx["input_header"] = "╭─ Filter ───────────────"
+    ctx["input_value"] = fileExplorer["input"]
+    ctx["list_header"] = "╰─ Entries ──────────────"
+    ctx["entries"] = fileExplorer["entries"]
+    ctx["selected_index"] = fileExplorer["selected"]
+    ctx["reserved_lines"] = 6
+    ctx["empty_text"] = "No entries"
+    ctx["buffer_id"] = fileExplorer["id"]
+    ctx["entry_to_string"] = fileExplorerEntryDisplay
+    ctx["extra_lines"] = extraLines
+    listPanelRender(ctx)
+}
+
+fn fileExplorerApplyFilter() {
+    let query = stringToLower(fileExplorer["input"])
+    let entries = createArray()
+    let allEntries = fileExplorer["all_entries"]
+
+    let i = 0
+    loop {
+        if i >= arrayLen(allEntries) { break }
+        let entry = allEntries[i]
+        let name = stringToLower(entry["name"])
+
+        if stringLen(query) == 0 or stringContains(name, query) {
+            arrayPushBack(entries, entry)
+        }
+
+        i = i + 1
+    }
+
+    fileExplorer["entries"] = entries
+
+    if arrayLen(entries) == 0 {
+        fileExplorer["selected"] = 0
+    }
+    if fileExplorer["selected"] >= arrayLen(entries) {
+        fileExplorer["selected"] = 0
+    }
+
+    renderFileExplorer()
+}
+
+fn fileExplorerRefreshEntries() {
+    let listing = listDir(fileExplorer["current_dir"])
+    let allEntries = createArray()
+    fileExplorer["error"] = ""
+
+    let errorMessage = listing["error"]
+    if errorMessage != null {
+        fileExplorer["error"] = errorMessage
+    }
+
+    let entries = listing["entries"]
+
+    let parentEntry = createTable()
+    parentEntry["name"] = ".."
+    parentEntry["path"] = parentPath(fileExplorer["current_dir"])
+    parentEntry["is_dir"] = true
+    arrayPushBack(allEntries, parentEntry)
+
+    let i = 0
+    loop {
+        if i >= arrayLen(entries) { break }
+        let entry = entries[i]
+        arrayPushBack(allEntries, entry)
+        i = i + 1
+    }
+
+    fileExplorer["all_entries"] = allEntries
+    fileExplorer["selected"] = 0
+    fileExplorerApplyFilter()
+}
+
+fn fileExplorerSetDirectory(path) {
+    fileExplorer["current_dir"] = path
+    fileExplorerRefreshEntries()
+}
+
+fn fileExplorerInputUpdated() {
+    inputUpdated(fileExplorer["id"], fileExplorer, "input", fileExplorerApplyFilter)
+}
+
+fn fileExplorerAddSpace() {
+    inputAddSpace(fileExplorer["id"], fileExplorer, "input", renderFileExplorer)
+}
+
+fn fileExplorerBackspace() {
+    inputBackspace(fileExplorer["id"], fileExplorer, "input", null)
+}
+
+fn fileExplorerClearInput() {
+    inputClear(fileExplorer["id"], fileExplorer, "input", null)
+}
+
+fn fileExplorerMoveSelection(delta) {
+    let entries = fileExplorer["entries"]
+    let selected = listPanelMoveSelection(entries, fileExplorer["selected"], delta)
+    fileExplorer["selected"] = selected
+    renderFileExplorer()
+}
+
+fn fileExplorerNext() {
+    fileExplorerMoveSelection(1)
+}
+
+fn fileExplorerPrevious() {
+    fileExplorerMoveSelection(-1)
+}
+
+fn fileExplorerSelect() {
+    let entries = fileExplorer["entries"]
+    let selected = fileExplorer["selected"]
+    if selected < arrayLen(entries) {
+        let entry = entries[selected]
+        let path = entry["path"]
+        if entry["is_dir"] {
+            fileExplorerClearInput()
+            fileExplorerSetDirectory(path)
+            return null
+        }
+        fileExplorerClearInput()
+        openFile(path)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn fileExplorerEscape() {
+    let previousBufferId = fileExplorer["previous_buffer_id"]
+    if previousBufferId != -1 {
+        fileExplorerClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn fileExplorerCreateFileSubmit(pathInput) {
+    if stringLen(pathInput) == 0 {
+        infoModalOpen("File name cannot be empty.")
+        return null
+    }
+
+    let targetPath = joinPath(fileExplorer["current_dir"], pathInput)
+    let result = createBlankFile(targetPath)
+
+    if result != null {
+        infoModalOpen(toString(result))
+        fileExplorerRefreshEntries()
+        return null
+    }
+
+    fileExplorerRefreshEntries()
+    openFile(targetPath)
+    runAction("quit-insert-mode")
+}
+
+fn fileExplorerCreateFilePrompt() {
+    let prompt = "Create File\n" + fileExplorer["current_dir"] + "\nEnter file name or path:"
+    dialogModalOpen(prompt, fileExplorerCreateFileSubmit)
+}
+
+fn fileExplorerCreateFolderSubmit(pathInput) {
+    if stringLen(pathInput) == 0 {
+        infoModalOpen("Folder name cannot be empty.")
+        return null
+    }
+
+    let targetPath = joinPath(fileExplorer["current_dir"], pathInput)
+    let result = createDirectory(targetPath)
+
+    if result != null {
+        infoModalOpen(toString(result))
+        fileExplorerRefreshEntries()
+        return null
+    }
+
+    fileExplorerSetDirectory(targetPath)
+    runAction("quit-insert-mode")
+}
+
+fn fileExplorerCreateFolderPrompt() {
+    let prompt = "Create Folder\n" + fileExplorer["current_dir"] + "\nEnter folder name or path:"
+    dialogModalOpen(prompt, fileExplorerCreateFolderSubmit)
+}
+
+fn createFileExplorer() {
+    fileExplorer["previous_buffer_id"] = getActiveBuffer()
+
+    if fileExplorer["id"] == -1 {
+        let bufferId = createSpecialBuffer("File Explorer")
+        fileExplorer["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", fileExplorerAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", fileExplorerBackspace)
+        registerBufferKeybind(bufferId, "ins tab", fileExplorerNext)
+        registerBufferKeybind(bufferId, "ins down", fileExplorerNext)
+        registerBufferKeybind(bufferId, "ins up", fileExplorerPrevious)
+        registerBufferKeybind(bufferId, "ins enter", fileExplorerSelect)
+        registerBufferKeybind(bufferId, "ins escape", fileExplorerEscape)
+        registerBufferKeybind(bufferId, "ins c-f", fileExplorerCreateFilePrompt)
+        registerBufferKeybind(bufferId, "ins c-d", fileExplorerCreateFolderPrompt)
+        registerBufferInputHook(bufferId, fileExplorerInputUpdated)
+    }
+
+    fileExplorerClearInput()
+    fileExplorerSetDirectory(getWorkspaceDir())
+    setActiveBuffer(fileExplorer["id"])
+    runAction("enter-insert-mode")
+}
+
+registerGlobalKeybind("nor space s-f", createFileExplorer)

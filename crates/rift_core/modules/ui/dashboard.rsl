@@ -1,0 +1,36 @@
+# Dashboard
+
+let dashboard = createTable()
+dashboard["id"] = -1
+dashboard["text"] = "
+Welcome to rift!
+
+Basic Keybinds:
+
+esc - Quit Insert Mode
+i - Enter Insert Mode
+space q - Quit
+space f - Fuzzy File Picker (with fd & fzf)
+space F - File Explorer
+space b - Switch Buffer
+"
+
+fn renderDashboard() {
+    let dashboardId = dashboard["id"]
+    if dashboardId == -1 { return null }
+    let content = dashboard["text"]
+    state.setViewportBufferContent(dashboardId, content)
+}
+
+fn createDashboardBuffer() {
+    let dashboardId = dashboard["id"]
+    if dashboardId == -1 {
+        let bufferId = createSpecialBuffer("Dashboard")
+        dashboard["id"] = bufferId
+        let activeBuffer = getActiveBuffer()
+        if activeBuffer == null {
+            setActiveBuffer(bufferId)
+        }
+    }
+    renderDashboard()
+}

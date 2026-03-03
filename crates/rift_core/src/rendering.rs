@@ -1,8 +1,6 @@
-use std::collections::HashSet;
-
 use crate::{
     buffer::{
-        instance::{Attribute, Cursor, Range},
+        instance::{Cursor, Range, TextAttributes},
         rope_buffer::VisibleLineParams,
     },
     state::EditorState,
@@ -12,9 +10,10 @@ pub fn update_visible_lines(
     state: &mut EditorState,
     viewport_rows: usize,
     viewport_columns: usize,
+    free_scroll: bool,
 ) -> Cursor {
-    if state.buffer_idx.is_some() {
-        let (buffer, instance) = state.get_buffer_by_id(state.buffer_idx.unwrap());
+    if let Some(buffer_idx) = state.buffer_idx {
+        let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
         let mut extra_segments = vec![];
 
         if let Some(path) = buffer.file_path() {
@@ -38,9 +37,9 @@ pub fn update_visible_lines(
                         extra_segments.push(Range {
                             start: buffer.byte_index_from_cursor(&diagnostic.range.mark),
                             end: buffer.byte_index_from_cursor(&diagnostic.range.cursor),
-                            attributes: HashSet::from([Attribute::DiagnosticSeverity(
-                                diagnostic.severity.clone(),
-                            )]),
+                            attributes: TextAttributes::from_diagnostic_severity(
+                                &diagnostic.severity,
+                            ),
                         });
                     }
                 }
@@ -48,15 +47,20 @@ pub fn update_visible_lines(
             }
         }
 
-        let (buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
+        let (buffer, instance) = state.get_buffer_by_id_mut(buffer_idx);
         let visible_line_params = VisibleLineParams {
             viewport_rows,
             viewport_columns,
             eol_sequence: "\n".into(),
         };
+        let cursor = if free_scroll {
+            None
+        } else {
+            Some(&instance.cursor)
+        };
         let (lines, relative_cursor, gutter_info) = buffer.get_visible_lines(
             &mut instance.scroll,
-            &instance.cursor,
+            cursor,
             &instance.selection,
             &visible_line_params,
             extra_segments,

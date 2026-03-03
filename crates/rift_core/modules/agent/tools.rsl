@@ -1,0 +1,272 @@
+# Code Tools
+
+# Run Shell Command
+
+let agentRunShellCommandDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"run_shell_command\",
+        \"description\": \"Run a shell command and return the output\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"command\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"command\"]
+        }
+    }
+}"
+
+fn agentRunShellCommand(inputs) {
+    let outputs = runShellCommand(inputs["command"], getWorkspaceDir())
+    return "STDOUT:\n" + outputs["stdout"] + "\nSTDERR:\n" + outputs["stderr"]
+}
+
+fn agentRunShellCommandPreview(inputs) {
+    return "Run: `" + inputs["command"] + "`"
+}
+
+fn agentRunShellCommandOutputPreview(output) {
+    return "Ran command"
+}
+
+# Find File
+
+let agentFindFileDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"find_file\",
+        \"description\": \"Find files using a regex pattern and return a structured JSON result with absolute paths.\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"pattern\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"pattern\"]
+        }
+    }
+}"
+
+fn agentFindFile(inputs) {
+    return agentFindFileTool(getWorkspaceDir(), inputs["pattern"])
+}
+
+fn agentFindFilePreview(inputs) {
+    return "Find File: `" + inputs["pattern"] + "`"
+}
+
+fn agentFindFileOutputPreview(output) {
+    let parsed = fromJson(output)
+    if typeOf(parsed) != "table" {
+        return "Find File:\n" + output
+    }
+    let status = "ok"
+    if !parsed["ok"] { status = "error" }
+    let message = parsed["message"]
+    let result = "Find File (" + status + ")"
+    if !isNull(parsed["error_code"]) { result = result + " [" + parsed["error_code"] + "]" }
+    if !isNull(message) and stringLen(message) > 0 { result = result + "\n" + message }
+    return result
+}
+
+# Search Workspace
+
+let agentSearchWorkspaceDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"search_workspace\",
+        \"description\": \"Regex search in the current workspace and return structured JSON matches with absolute paths.\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"pattern\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"pattern\"]
+        }
+    }
+}"
+
+fn agentSearchWorkspace(inputs) {
+    return agentSearchWorkspaceTool(getWorkspaceDir(), inputs["pattern"])
+}
+
+fn agentSearchWorkspacePreview(inputs) {
+    return "Search: `" + inputs["pattern"] + "`"
+}
+
+fn agentSearchWorkspaceOutputPreview(output) {
+    let parsed = fromJson(output)
+    if typeOf(parsed) != "table" {
+        return "Search:\n" + output
+    }
+    let status = "ok"
+    if !parsed["ok"] { status = "error" }
+    let message = parsed["message"]
+    let result = "Search (" + status + ")"
+    if !isNull(parsed["error_code"]) { result = result + " [" + parsed["error_code"] + "]" }
+    if !isNull(message) and stringLen(message) > 0 { result = result + "\n" + message }
+    return result
+}
+
+# Read File
+
+let agentReadFileDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"read_file\",
+        \"description\": \"Get the content of a file with line numbers\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"path\" : { \"type\": \"string\" }
+            },
+            \"required\": [\"path\"]
+        }
+    }
+}"
+
+fn agentReadFile(inputs) {
+    let output = agentReadFileTool(getWorkspaceDir(), inputs["path"])
+    return output
+}
+
+fn agentReadFilePreview(inputs) {
+    return "Read: `" + inputs["path"] + "`"
+}
+
+fn agentReadFileOutputPreview(output) {
+    return "Read"
+}
+
+# Write File
+
+let agentWriteFileDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"write_file\",
+        \"description\": \"Writes content to file overriding the existing content\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"path\" : { \"type\": \"string\" },
+                \"content\": { \"type\": \"string\" }
+            },
+            \"required\": [\"path\", \"content\"]
+        }
+    }
+}"
+
+fn agentWriteFile(inputs) {
+    let output = agentWriteFileTool(getWorkspaceDir(), inputs["path"], inputs["content"])
+    return output
+}
+
+fn agentWriteFilePreview(inputs) {
+    return "Write: `" + inputs["path"] + "`"
+}
+
+fn agentWriteFileOutputPreview(output) {
+    return "Write:\n" + output
+}
+
+# Replace
+
+let agentReplaceDeclaration = "{
+    \"type\": \"function\",
+    \"function\": {
+        \"name\": \"replace\",
+        \"description\": \"Replaces text within a file and returns structured JSON. Defaults to a single replacement unless `max_replacements` is set.\",
+        \"parameters\": {
+            \"type\": \"object\",
+            \"properties\": {
+                \"path\" : { \"type\": \"string\" },
+                \"old_string\": { \"type\": \"string\" },
+                \"new_string\": { \"type\": \"string\" },
+                \"max_replacements\": { \"type\": \"number\", \"description\": \"Optional. 0 means replace all matches. Defaults to 1.\" }
+            },
+            \"required\": [\"path\", \"old_string\", \"new_string\"]
+        }
+    }
+}"
+
+fn agentReplace(inputs) {
+    let maxReplacements = inputs["max_replacements"]
+    if isNull(maxReplacements) {
+        return agentReplaceTool(getWorkspaceDir(), inputs["path"], inputs["old_string"], inputs["new_string"])
+    }
+    return agentReplaceTool(getWorkspaceDir(), inputs["path"], inputs["old_string"], inputs["new_string"], maxReplacements)
+}
+
+fn agentReplacePreview(inputs) {
+    return "Replace: `" + inputs["path"] + "`"
+}
+
+fn agentReplaceOutputPreview(output) {
+    let parsed = fromJson(output)
+    if typeOf(parsed) != "table" {
+        return "Replace:\n" + output
+    }
+    let status = "ok"
+    if !parsed["ok"] { status = "error" }
+    let message = parsed["message"]
+    let result = "Replace (" + status + ")"
+    if !isNull(parsed["error_code"]) { result = result + " [" + parsed["error_code"] + "]" }
+    if !isNull(message) and stringLen(message) > 0 { result = result + "\n" + message }
+    return result
+}
+
+#############
+
+fn getToolDeclarations(tools) {
+    let declarations = createArray()
+    
+    let i = 0
+    loop {
+        if i >= arrayLen(tools) { break }
+        let toolName = tools[i]
+        let declaration = ""
+        if toolName == "run_shell_command" { declaration = agentRunShellCommandDeclaration }
+        if toolName == "find_file" { declaration = agentFindFileDeclaration }
+        if toolName == "search_workspace" { declaration = agentSearchWorkspaceDeclaration }
+        if toolName == "read_file" { declaration = agentReadFileDeclaration }
+        if toolName == "write_file" { declaration = agentWriteFileDeclaration }
+        if toolName == "replace" { declaration = agentReplaceDeclaration }
+        arrayPushBack(declarations, fromJson(declaration))
+        i = i + 1
+    }
+
+    return declarations
+}
+
+fn runTool(toolName, inputs) {
+    let output = "Unknown tool call."
+    if toolName == "run_shell_command" { output = agentRunShellCommand(inputs) }
+    if toolName == "find_file" { output = agentFindFile(inputs) }
+    if toolName == "search_workspace" { output = agentSearchWorkspace(inputs) }
+    if toolName == "read_file" { output = agentReadFile(inputs) }
+    if toolName == "write_file" { output = agentWriteFile(inputs) }
+    if toolName == "replace" { output = agentReplace(inputs) }
+    return output
+}
+
+fn toolPreview(toolName, inputs) {
+    let output = ""
+    if toolName == "run_shell_command" { output = agentRunShellCommandPreview(inputs) }
+    if toolName == "find_file" { output = agentFindFilePreview(inputs) }
+    if toolName == "search_workspace" { output = agentSearchWorkspacePreview(inputs) }
+    if toolName == "read_file" { output = agentReadFilePreview(inputs) }
+    if toolName == "write_file" { output = agentWriteFilePreview(inputs) }
+    if toolName == "replace" { output = agentReplacePreview(inputs) }
+    return output
+}
+
+fn toolOutputPreview(toolName, outputs) {
+    let output = ""
+    if toolName == "run_shell_command" { output = agentRunShellCommandOutputPreview(outputs) }
+    if toolName == "find_file" { output = agentFindFileOutputPreview(outputs) }
+    if toolName == "search_workspace" { output = agentSearchWorkspaceOutputPreview(outputs) }
+    if toolName == "read_file" { output = agentReadFileOutputPreview(outputs) }
+    if toolName == "write_file" { output = agentWriteFileOutputPreview(outputs) }
+    if toolName == "replace" { output = agentReplaceOutputPreview(outputs) }
+    return output
+}

@@ -1,0 +1,158 @@
+# Workspace Diagnostics
+
+let workspaceDiagnostics = createTable()
+workspaceDiagnostics["id"] = -1
+workspaceDiagnostics["input"] = ""
+workspaceDiagnostics["all"] = createArray()
+workspaceDiagnostics["results"] = createArray()
+workspaceDiagnostics["selected"] = 0
+workspaceDiagnostics["previous_buffer_id"] = -1
+
+fn workspaceDiagnosticsDisplay(entry) {
+    let filePath = entry["file_path"]
+    let range = entry["range"]
+    let mark = range["mark"]
+    let row = mark["row"] + 1
+    let column = mark["column"] + 1
+    let severity = entry["severity"]
+    let source = entry["source"]
+    let code = entry["code"]
+    let message = entry["message"]
+
+    if source == "null" { source = "" }
+    if code == "null" { code = "" }
+
+    let location = filePath + ":" + toJson(row) + ":" + toJson(column)
+    let details = source
+    if stringLen(code) > 0 {
+        details = details + " " + code
+    }
+
+    if stringLen(details) > 0 {
+        return "[" + severity + "] " + location + " (" + details + ") " + message
+    }
+
+    return "[" + severity + "] " + location + " " + message
+}
+
+fn renderWorkspaceDiagnostics() {
+    let ctx = createTable()
+    ctx["title"] = "🩺 Diagnostics"
+    ctx["input_header"] = "╭─ Filter ──────────────"
+    ctx["input_value"] = workspaceDiagnostics["input"]
+    ctx["list_header"] = "╰─ Issues ──────────────"
+    ctx["entries"] = workspaceDiagnostics["results"]
+    ctx["selected_index"] = workspaceDiagnostics["selected"]
+    ctx["reserved_lines"] = 5
+    ctx["empty_text"] = "No diagnostics"
+    ctx["buffer_id"] = workspaceDiagnostics["id"]
+    ctx["entry_to_string"] = workspaceDiagnosticsDisplay
+    listPanelRender(ctx)
+}
+
+fn workspaceDiagnosticsFilterResults() {
+    let results = createArray()
+    let query = stringToLower(workspaceDiagnostics["input"])
+    let allEntries = workspaceDiagnostics["all"]
+
+    let i = 0
+    loop {
+        if i >= arrayLen(allEntries) { break }
+        let entry = allEntries[i]
+
+        let message = stringToLower(entry["message"])
+        let filePath = stringToLower(entry["file_path"])
+        let severity = stringToLower(entry["severity"])
+        let source = stringToLower(entry["source"])
+
+        if stringLen(query) == 0 or stringContains(message, query) or stringContains(filePath, query) or stringContains(severity, query) or stringContains(source, query) {
+            arrayPushBack(results, entry)
+        }
+        i = i + 1
+    }
+
+    workspaceDiagnostics["results"] = results
+    workspaceDiagnostics["selected"] = 0
+    renderWorkspaceDiagnostics()
+}
+
+fn workspaceDiagnosticsInputUpdated() {
+    inputUpdated(workspaceDiagnostics["id"], workspaceDiagnostics, "input", workspaceDiagnosticsFilterResults)
+}
+
+fn workspaceDiagnosticsAddSpace() {
+    inputAddSpace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", renderWorkspaceDiagnostics)
+}
+
+fn workspaceDiagnosticsBackspace() {
+    inputBackspace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", null)
+}
+
+fn workspaceDiagnosticsClearInput() {
+    inputClear(workspaceDiagnostics["id"], workspaceDiagnostics, "input", null)
+}
+
+fn workspaceDiagnosticsMoveSelection(delta) {
+    let results = workspaceDiagnostics["results"]
+    let selected = listPanelMoveSelection(results, workspaceDiagnostics["selected"], delta)
+    workspaceDiagnostics["selected"] = selected
+    renderWorkspaceDiagnostics()
+}
+
+fn workspaceDiagnosticsNext() {
+    workspaceDiagnosticsMoveSelection(1)
+}
+
+fn workspaceDiagnosticsPrevious() {
+    workspaceDiagnosticsMoveSelection(-1)
+}
+
+fn workspaceDiagnosticsSelect() {
+    let results = workspaceDiagnostics["results"]
+    let selected = workspaceDiagnostics["selected"]
+    if selected < arrayLen(results) {
+        let entry = results[selected]
+        let path = entry["file_path"]
+        let range = entry["range"]
+
+        workspaceDiagnosticsClearInput()
+        openFile(path)
+        runAction("quit-insert-mode")
+        selectRange(toJson(range))
+    }
+}
+
+fn workspaceDiagnosticsEscape() {
+    let previousBufferId = workspaceDiagnostics["previous_buffer_id"]
+    if previousBufferId != -1 {
+        workspaceDiagnosticsClearInput()
+        setActiveBuffer(previousBufferId)
+        runAction("quit-insert-mode")
+    }
+}
+
+fn workspaceDiagnosticsReload() {
+    let diagnostics = getWorkspaceDiagnostics()
+    workspaceDiagnostics["all"] = fromJson(diagnostics)
+    workspaceDiagnosticsFilterResults()
+}
+
+fn createWorkspaceDiagnostics() {
+    workspaceDiagnostics["previous_buffer_id"] = getActiveBuffer()
+    if workspaceDiagnostics["id"] == -1 {
+        let bufferId = createSpecialBuffer("Workspace Diagnostics")
+        workspaceDiagnostics["id"] = bufferId
+        registerBufferKeybind(bufferId, "ins space", workspaceDiagnosticsAddSpace)
+        registerBufferKeybind(bufferId, "ins backspace", workspaceDiagnosticsBackspace)
+        registerBufferKeybind(bufferId, "ins tab", workspaceDiagnosticsNext)
+        registerBufferKeybind(bufferId, "ins down", workspaceDiagnosticsNext)
+        registerBufferKeybind(bufferId, "ins up", workspaceDiagnosticsPrevious)
+        registerBufferKeybind(bufferId, "ins enter", workspaceDiagnosticsSelect)
+        registerBufferKeybind(bufferId, "ins escape", workspaceDiagnosticsEscape)
+        registerBufferInputHook(bufferId, workspaceDiagnosticsInputUpdated)
+    }
+    workspaceDiagnosticsClearInput()
+    workspaceDiagnosticsReload()
+    setActiveBuffer(workspaceDiagnostics["id"])
+    runAction("enter-insert-mode")
+}
