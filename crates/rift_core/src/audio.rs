@@ -433,7 +433,10 @@ pub fn transcribe_wav_file(path: PathBuf) -> Result<String, AudioError> {
 
     let data = std::fs::read(&path).map_err(|err| AudioError::Io(err.to_string()))?;
 
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(None)
+        .build()
+        .map_err(|err| AudioError::Io(err.to_string()))?;
     let part = reqwest::blocking::multipart::Part::bytes(data)
         .file_name("audio.wav")
         .mime_str("audio/wav")
