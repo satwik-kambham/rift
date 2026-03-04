@@ -52,6 +52,7 @@
           fzf
           ripgrep
           fd
+          ffmpeg
         ];
         devDeps = buildDeps ++ runtimeDeps ++ appDeps;
 

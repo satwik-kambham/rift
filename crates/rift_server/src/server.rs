@@ -12,6 +12,7 @@ use tower_http::services::ServeDir;
 
 use rift_core::{
     actions::{Action, perform_action},
+    audio::{build_temp_path, convert_webm_to_wav, transcribe_wav_file},
     io::file_io::handle_file_event,
     lsp::handle_lsp_messages,
     rendering::update_visible_lines,
@@ -223,8 +224,43 @@ impl Server {
                             }
                         }
                     }
-                    WSMessage::Bytes(_bytes) => {
-                        tracing::info!("Received binary");
+                    WSMessage::Bytes(bytes) => {
+                        let webm_path = build_temp_path("webm");
+
+                        if let Err(e) = std::fs::write(&webm_path, &bytes) {
+                            tracing::error!("Failed to save audio recording: {}", e);
+                            continue;
+                        }
+                        tracing::info!("Saved audio recording to {}", webm_path.display());
+
+                        let wav_path = match convert_webm_to_wav(&webm_path) {
+                            Ok(path) => path,
+                            Err(e) => {
+                                tracing::error!("Failed to convert webm to wav: {}", e);
+                                continue;
+                            }
+                        };
+                        tracing::info!("Converted to wav: {}", wav_path.display());
+
+                        let transcription = match transcribe_wav_file(wav_path.clone()) {
+                            Ok(text) => text,
+                            Err(e) => {
+                                tracing::error!("Failed to transcribe wav: {}", e);
+                                let _ = std::fs::remove_file(wav_path);
+                                continue;
+                            }
+                        };
+                        tracing::info!("Transcription: {}", transcription);
+
+                        let _ = std::fs::remove_file(wav_path);
+
+                        let response = JsonMessage {
+                            method: "transcription".to_string(),
+                            data: Some(to_value(transcription).unwrap()),
+                        };
+                        if let Ok(json) = serde_json::to_string(&response) {
+                            let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                        }
                     }
                 }
                 self.state.update_view = true;

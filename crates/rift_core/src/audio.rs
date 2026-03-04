@@ -1,7 +1,8 @@
 use std::{
     fs::File,
     io::{BufReader, BufWriter, Cursor},
-    path::PathBuf,
+    path::{Path, PathBuf},
+    process::Command,
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -14,6 +15,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 use tokio::sync::mpsc::Sender;
+use which::which;
 
 use crate::{
     concurrent::web_api,
@@ -177,7 +179,7 @@ pub fn start_transcription(
         sample_format: hound::SampleFormat::Int,
     };
 
-    let path = build_temp_path();
+    let path = build_temp_path("wav");
     let file = File::create(&path).map_err(|err| AudioError::Io(err.to_string()))?;
     let writer = hound::WavWriter::new(BufWriter::new(file), wav_spec)
         .map_err(|err| AudioError::Wav(err.to_string()))?;
@@ -290,17 +292,37 @@ fn write_input_data_u16(
     }
 }
 
-fn build_temp_path() -> PathBuf {
+pub fn build_temp_path(extension: &str) -> PathBuf {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis())
         .unwrap_or(0);
-    let filename = format!(
-        "rift_transcription_{}_{}.wav",
-        std::process::id(),
-        timestamp
-    );
+    let filename = format!("rift_{}_{}.{}", std::process::id(), timestamp, extension);
     std::env::temp_dir().join(filename)
+}
+
+pub fn convert_webm_to_wav(webm_path: &Path) -> Result<PathBuf, AudioError> {
+    if which("ffmpeg").is_err() {
+        return Err(AudioError::Io("ffmpeg not found".to_string()));
+    }
+
+    let wav_path = webm_path.with_extension("wav");
+
+    let output = Command::new("ffmpeg")
+        .args(["-y", "-i"])
+        .arg(webm_path)
+        .arg(&wav_path)
+        .output()
+        .map_err(|err| AudioError::Io(err.to_string()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(AudioError::Io(format!("ffmpeg failed: {stderr}")));
+    }
+
+    std::fs::remove_file(webm_path).map_err(|err| AudioError::Io(err.to_string()))?;
+
+    Ok(wav_path)
 }
 
 fn cleanup_temp_file(path: &PathBuf) {
@@ -342,16 +364,6 @@ fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<cpal::D
     Err(AudioError::Device(format!(
         "No input device matches id {device_id}"
     )))
-}
-
-pub fn transcribe_wav_file(
-    path: PathBuf,
-    callback: TranscriptionCallback,
-    rt: &tokio::runtime::Runtime,
-    sender: Sender<AsyncResult>,
-) {
-    let _ = callback;
-    transcribe_wav_file_with_handle(path, rt.handle().clone(), sender);
 }
 
 fn transcribe_wav_file_with_handle(
@@ -414,6 +426,47 @@ fn transcribe_wav_file_with_handle(
 
         send_transcription_result(result, handle_for_result, sender_for_result);
     });
+}
+
+pub fn transcribe_wav_file(path: PathBuf) -> Result<String, AudioError> {
+    const STT_URL: &str = "http://127.0.0.1:8000/stt";
+
+    let data = std::fs::read(&path).map_err(|err| AudioError::Io(err.to_string()))?;
+
+    let client = reqwest::blocking::Client::new();
+    let part = reqwest::blocking::multipart::Part::bytes(data)
+        .file_name("audio.wav")
+        .mime_str("audio/wav")
+        .map_err(|err| AudioError::Io(err.to_string()))?;
+    let form = reqwest::blocking::multipart::Form::new().part("file", part);
+
+    let response = client
+        .post(STT_URL)
+        .multipart(form)
+        .send()
+        .map_err(|err| AudioError::Network(err.to_string()))?;
+
+    let status = response.status();
+    let body = response
+        .text()
+        .map_err(|err| AudioError::Network(err.to_string()))?;
+
+    if !status.is_success() {
+        return Err(AudioError::Network(format!(
+            "POST {STT_URL} failed with status {}: {body}",
+            status.as_u16()
+        )));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct TranscriptionResponse {
+        text: String,
+    }
+
+    let response: TranscriptionResponse = serde_json::from_str(&body)
+        .map_err(|err| AudioError::Network(format!("Failed to parse response: {err}")))?;
+
+    Ok(response.text)
 }
 
 fn send_transcription_result(

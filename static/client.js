@@ -12,6 +12,10 @@ let touchLastY = null;
 let pingStart = null;
 let pingInterval = null;
 let lastLatency = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let startRecordBtn = null;
+let stopRecordBtn = null;
 
 const WHEEL_STEP_PX = 40;
 const WHEEL_LINE_PX = 40;
@@ -217,6 +221,22 @@ document.addEventListener('DOMContentLoaded', () => {
     statusEl.textContent = 'Disconnected';
     document.body.appendChild(statusEl);
 
+    startRecordBtn = document.createElement('button');
+    startRecordBtn.id = 'start-record';
+    startRecordBtn.textContent = 'Start Recording';
+    startRecordBtn.style.cssText = 'position: fixed; top: 10px; left: 10px; padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 4px; font-family: monospace; font-size: 12px; cursor: pointer; z-index: 1000;';
+    document.body.appendChild(startRecordBtn);
+
+    stopRecordBtn = document.createElement('button');
+    stopRecordBtn.id = 'stop-record';
+    stopRecordBtn.textContent = 'Stop Recording';
+    stopRecordBtn.style.cssText = 'position: fixed; top: 10px; left: 120px; padding: 4px 8px; background: #f44336; color: white; border: none; border-radius: 4px; font-family: monospace; font-size: 12px; cursor: pointer; z-index: 1000; display: none;';
+    stopRecordBtn.style.display = 'none';
+    document.body.appendChild(stopRecordBtn);
+
+    startRecordBtn.addEventListener('click', startRecording);
+    stopRecordBtn.addEventListener('click', stopRecording);
+
     window.addEventListener('wheel', onWheelScroll, { passive: false });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -236,6 +256,51 @@ function runAction(actionName) {
         return;
     }
     socket.send(JSON.stringify({ method: 'run_action', data: actionName }));
+}
+
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const arrayBuffer = await audioBlob.arrayBuffer();
+
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(arrayBuffer);
+                console.log('Audio sent to server');
+            } else {
+                console.error('WebSocket not connected');
+            }
+
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        startRecordBtn.style.display = 'none';
+        stopRecordBtn.style.display = 'block';
+        console.log('Recording started');
+    } catch (err) {
+        console.error('Error accessing microphone:', err);
+        alert('Could not access microphone. Please grant permission.');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        startRecordBtn.style.display = 'block';
+        stopRecordBtn.style.display = 'none';
+        console.log('Recording stopped');
+    }
 }
 
 function startPing() {
@@ -295,6 +360,20 @@ socket.addEventListener('message', (event) => {
                 lastLatency = Date.now() - pingStart;
                 updateStatusDisplay(lastLatency);
                 pingStart = null;
+            }
+        } else if (msg.method === 'transcription') {
+            const transcriptionEl = document.getElementById('transcription');
+            if (transcriptionEl) {
+                transcriptionEl.textContent = msg.data;
+            } else {
+                const newTranscriptionEl = document.createElement('div');
+                newTranscriptionEl.id = 'transcription';
+                newTranscriptionEl.style.cssText = 'position: fixed; bottom: 10px; left: 10px; right: 10px; padding: 8px; background: rgba(0, 0, 0, 0.8); color: white; font-family: monospace; font-size: 14px; border-radius: 4px; z-index: 1000;';
+                newTranscriptionEl.textContent = msg.data;
+                document.body.appendChild(newTranscriptionEl);
+                setTimeout(() => {
+                    newTranscriptionEl.remove();
+                }, 5000);
             }
         }
     } catch (e) {
