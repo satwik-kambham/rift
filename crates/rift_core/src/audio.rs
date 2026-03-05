@@ -311,6 +311,7 @@ pub fn convert_webm_to_wav(webm_path: &Path) -> Result<PathBuf, AudioError> {
     let output = Command::new("ffmpeg")
         .args(["-y", "-i"])
         .arg(webm_path)
+        .args(["-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"])
         .arg(&wav_path)
         .output()
         .map_err(|err| AudioError::Io(err.to_string()))?;

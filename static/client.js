@@ -16,6 +16,8 @@ let mediaRecorder = null;
 let audioChunks = [];
 let startRecordBtn = null;
 let stopRecordBtn = null;
+let webmRecordingSupported = false;
+const WEBM_MIME_TYPE = 'audio/webm;codecs=opus';
 
 const WHEEL_STEP_PX = 40;
 const WHEEL_LINE_PX = 40;
@@ -209,6 +211,26 @@ function onTouchEnd() {
     wheelDeltaAccumulator = 0;
 }
 
+function detectWebmRecordingSupport() {
+    return (
+        typeof MediaRecorder !== 'undefined' &&
+        typeof MediaRecorder.isTypeSupported === 'function' &&
+        MediaRecorder.isTypeSupported(WEBM_MIME_TYPE)
+    );
+}
+
+function formatConnectionStatus(latency) {
+    let connectionText = 'Disconnected';
+    if (latency !== null) {
+        connectionText = `Connected (${latency}ms)`;
+    } else if (connectionStatus === 'connected' || connectionStatus === 'initialized') {
+        connectionText = 'Connected';
+    }
+
+    const webmText = webmRecordingSupported ? 'WebM: supported' : 'WebM: unsupported';
+    return `${connectionText} | ${webmText}`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     editorEl = document.getElementById('editor');
     if (!editorEl) {
@@ -218,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusEl = document.createElement('div');
     statusEl.id = 'connection-status';
     statusEl.style.cssText = 'position: fixed; top: 10px; right: 10px; padding: 4px 8px; background: #333; color: #fff; font-family: monospace; font-size: 12px; border-radius: 4px; z-index: 1000;';
-    statusEl.textContent = 'Disconnected';
+    statusEl.textContent = formatConnectionStatus(null);
     document.body.appendChild(statusEl);
 
     startRecordBtn = document.createElement('button');
@@ -242,6 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', onTouchEnd, { passive: true });
     window.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    webmRecordingSupported = detectWebmRecordingSupport();
+    updateStatusDisplay(null);
 });
 
 socket.addEventListener('open', () => {
@@ -259,9 +284,20 @@ function runAction(actionName) {
 }
 
 async function startRecording() {
+    if (!webmRecordingSupported) {
+        alert('WebM recording is not supported in this browser.');
+        return;
+    }
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        console.warn('Recording already in progress');
+        return;
+    }
+
+    let stream = null;
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: WEBM_MIME_TYPE });
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
@@ -289,6 +325,10 @@ async function startRecording() {
         stopRecordBtn.style.display = 'block';
         console.log('Recording started');
     } catch (err) {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        mediaRecorder = null;
         console.error('Error accessing microphone:', err);
         alert('Could not access microphone. Please grant permission.');
     }
@@ -325,13 +365,7 @@ function stopPing() {
 function updateStatusDisplay(latency) {
     const statusEl = document.getElementById('connection-status');
     if (statusEl) {
-        if (latency !== null) {
-            statusEl.textContent = `Connected (${latency}ms)`;
-        } else if (connectionStatus === 'connected' || connectionStatus === 'initialized') {
-            statusEl.textContent = 'Connected';
-        } else {
-            statusEl.textContent = 'Disconnected';
-        }
+        statusEl.textContent = formatConnectionStatus(latency);
     }
 }
 
