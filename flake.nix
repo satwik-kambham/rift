@@ -102,17 +102,19 @@
             '';
           }
         );
+        rift_server_static = pkgs.runCommand "rift-server-static" { } ''
+          mkdir -p $out/static
+          cp -r ${src}/static/* $out/static/
+        '';
         rift_server = craneLib.buildPackage (
           individualCrateArgs
           // {
             pname = "rift_server";
             cargoExtraArgs = "-p rift_server";
             postInstall = ''
-              mkdir -p $out/share/rift_server
-              cp -r ${src}/static $out/share/rift_server/static
               wrapProgram $out/bin/rift_server \
                 --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
-                --chdir $out/share/rift_server
+                --chdir ${rift_server_static}
             '';
           }
         );
