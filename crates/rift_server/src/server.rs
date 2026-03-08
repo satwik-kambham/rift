@@ -41,7 +41,7 @@ async fn start_axum_server(
         )
         .fallback_service(static_files);
     tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
             .await
             .unwrap();
         axum::serve(
