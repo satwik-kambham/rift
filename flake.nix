@@ -102,22 +102,26 @@
             '';
           }
         );
-        # rift_egui = craneLib.buildPackage (
-        #   individualCrateArgs
-        #   // {
-        #     pname = "rift_egui";
-        #     cargoExtraArgs = "-p rift_egui";
-        #     postInstall = ''
-        #       wrapProgram $out/bin/re \
-        #         --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
-        #         --set LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath runtimeDeps}
-        #     '';
-        #   }
-        # );
+        rift_server_static = pkgs.runCommand "rift-server-static" { } ''
+          mkdir -p $out/static
+          cp -r ${src}/static/* $out/static/
+        '';
+        rift_server = craneLib.buildPackage (
+          individualCrateArgs
+          // {
+            pname = "rift_server";
+            cargoExtraArgs = "-p rift_server";
+            postInstall = ''
+              wrapProgram $out/bin/rift_server \
+                --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
+                --chdir ${rift_server_static}
+            '';
+          }
+        );
       in
       {
         checks = {
-          inherit rift_tui;
+          inherit rift_tui rift_server;
 
           rift-clippy = craneLib.cargoClippy (
             commonArgs
@@ -133,13 +137,17 @@
         };
 
         packages = {
-          inherit rift_tui;
+          inherit rift_tui rift_server;
         };
 
         apps = {
           rift_tui = flake-utils.lib.mkApp {
             drv = rift_tui;
             exePath = "/bin/rt";
+          };
+          rift_server = flake-utils.lib.mkApp {
+            drv = rift_server;
+            exePath = "/bin/rift_server";
           };
         };
 
