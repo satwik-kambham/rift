@@ -15,6 +15,25 @@ Prebuilt executables: [Latest release](https://github.com/satwik-kambham/rift/re
     nix run github:satwik-kambham/rift#rift_tui
   ```
 
+### Run with Docker
+
+- Build the image:
+  ```
+    docker build -t rift .
+  ```
+- Run the web server frontend:
+  ```
+    docker run -p 3000:3000 rift
+  ```
+- Run the TUI frontend:
+  ```
+    docker run -it rift rt
+  ```
+- Run without audio:
+  ```
+    docker run -p 3000:3000 rift rift_server --no-audio
+  ```
+
 ## Features
 
 - Modal Editing
