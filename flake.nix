@@ -44,6 +44,8 @@
           pkg-config
 
           alsa-lib
+          alsa-plugins
+          pipewire
 
           clang
           wild
@@ -91,6 +93,11 @@
           inherit (craneLib.crateNameFromCargoToml { inherit src; }) version;
         };
 
+        alsaPluginDir = pkgs.runCommand "alsa-plugins-merged" { } ''
+          mkdir -p $out/lib/alsa-lib
+          ln -s ${pkgs.alsa-plugins}/lib/alsa-lib/* $out/lib/alsa-lib/
+          ln -s ${pkgs.pipewire}/lib/alsa-lib/* $out/lib/alsa-lib/
+        '';
         rift_tui = craneLib.buildPackage (
           individualCrateArgs
           // {
@@ -98,7 +105,8 @@
             cargoExtraArgs = "-p rift_tui";
             postInstall = ''
               wrapProgram $out/bin/rt \
-                --prefix PATH : ${pkgs.lib.makeBinPath appDeps}
+                --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
+                --set ALSA_PLUGIN_DIR ${alsaPluginDir}/lib/alsa-lib
             '';
           }
         );
@@ -114,7 +122,8 @@
             postInstall = ''
               wrapProgram $out/bin/rift_server \
                 --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
-                --chdir ${rift_server_static}
+                --chdir ${rift_server_static} \
+                --set ALSA_PLUGIN_DIR ${alsaPluginDir}/lib/alsa-lib
             '';
           }
         );
@@ -156,6 +165,7 @@
 
           shellHook = ''
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath devDeps}:$LD_LIBRARY_PATH
+            export ALSA_PLUGIN_DIR=${alsaPluginDir}/lib/alsa-lib
           '';
         };
       }
