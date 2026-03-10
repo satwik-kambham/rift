@@ -14,9 +14,13 @@ pub struct CLIArgs {
     pub no_audio: bool,
 }
 
+fn is_headless_environment() -> bool {
+    std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err()
+}
+
 pub fn process_cli_args(cli_args: CLIArgs, state: &mut EditorState) -> Result<()> {
     state.preferences.no_lsp = cli_args.no_lsp;
-    state.preferences.no_audio = cli_args.no_audio;
+    state.preferences.no_audio = cli_args.no_audio || is_headless_environment();
 
     let mut path = cli_args
         .path
