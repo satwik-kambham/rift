@@ -31,7 +31,9 @@ pub fn process_cli_args(cli_args: CLIArgs, state: &mut EditorState) -> Result<()
     });
     match NoteStore::open(&petal_path) {
         Ok(store) => state.note_store = Some(store),
-        Err(err) => tracing::warn!(%err, path = %petal_path.display(), "Failed to open petal note store"),
+        Err(err) => {
+            tracing::warn!(%err, path = %petal_path.display(), "Failed to open petal note store")
+        }
     }
 
     let mut path = cli_args

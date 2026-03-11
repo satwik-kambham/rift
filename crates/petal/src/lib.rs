@@ -172,6 +172,11 @@ impl NoteStore {
         self.root.join("notes")
     }
 
+    /// Returns the path to a note's JSON file on disk.
+    pub fn note_path(&self, id: Uuid) -> PathBuf {
+        self.note_json_path(id)
+    }
+
     fn note_dir(&self, id: Uuid) -> PathBuf {
         self.notes_dir().join(id.to_string())
     }

@@ -6,8 +6,8 @@ use std::{
 
 use clap::Parser;
 use copypasta::ClipboardContext;
-use petal::NoteStore;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
+use petal::NoteStore;
 use rodio::OutputStreamBuilder;
 use tokio::sync::mpsc;
 

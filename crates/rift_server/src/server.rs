@@ -10,6 +10,7 @@ use serde_json::to_value;
 use tokio::sync::{broadcast, mpsc};
 use tower_http::services::ServeDir;
 
+use petal::Block;
 use rift_core::{
     actions::{Action, perform_action},
     audio::{build_temp_path, convert_webm_to_wav, transcribe_wav_file},
@@ -240,6 +241,47 @@ impl Server {
                         };
                         tracing::info!("Converted to wav: {}", wav_path.display());
 
+                        let wav_data = std::fs::read(&wav_path);
+                        let note_id = if let Some(ref store) = self.state.note_store
+                            && let Ok(wav_bytes) = &wav_data
+                        {
+                            match store.create_note() {
+                                Ok(mut note) => {
+                                    let wav_filename = wav_path
+                                        .file_name()
+                                        .unwrap_or_default()
+                                        .to_string_lossy()
+                                        .to_string();
+                                    match store.write_attachment(note.id, &wav_filename, wav_bytes)
+                                    {
+                                        Ok(block) => {
+                                            note.blocks.push(block);
+                                            if let Err(err) = store.save_note(note.clone()) {
+                                                tracing::warn!(
+                                                    %err,
+                                                    "Failed to save note with audio attachment"
+                                                );
+                                            }
+                                        }
+                                        Err(err) => {
+                                            tracing::warn!(
+                                                %err, "Failed to write audio attachment"
+                                            )
+                                        }
+                                    }
+                                    Some(note)
+                                }
+                                Err(err) => {
+                                    tracing::warn!(
+                                        %err, "Failed to create note for transcription"
+                                    );
+                                    None
+                                }
+                            }
+                        } else {
+                            None
+                        };
+
                         let transcription = match transcribe_wav_file(wav_path.clone()) {
                             Ok(text) => text,
                             Err(e) => {
@@ -251,6 +293,23 @@ impl Server {
                         tracing::info!("Transcription: {}", transcription);
 
                         let _ = std::fs::remove_file(wav_path);
+
+                        if let Some(ref store) = self.state.note_store
+                            && let Some(mut note) = note_id
+                        {
+                            let note_id = note.id;
+                            note.blocks.push(Block::Text {
+                                label: Some("transcription".to_string()),
+                                content: transcription.clone(),
+                            });
+                            if let Err(err) = store.save_note(note) {
+                                tracing::warn!(
+                                    %err, "Failed to save transcription to note"
+                                );
+                            }
+                            let note_file = store.note_path(note_id).to_string_lossy().to_string();
+                            perform_action(Action::OpenFile(note_file), &mut self.state);
+                        }
 
                         let response = JsonMessage {
                             method: "transcription".to_string(),

@@ -2513,6 +2513,7 @@ dependencies = [
  "bytes",
  "clap",
  "futures",
+ "petal",
  "rift_core",
  "serde",
  "serde_json",
