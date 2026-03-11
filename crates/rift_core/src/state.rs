@@ -6,6 +6,7 @@ use std::{
 
 use clap::Parser;
 use copypasta::ClipboardContext;
+use petal::NoteStore;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use rodio::OutputStreamBuilder;
 use tokio::sync::mpsc;
@@ -65,6 +66,7 @@ pub struct EditorState {
     pub lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
     pub transcription_handle: Option<audio::TranscriptionHandle>,
     pub tts_output_stream: Option<rodio::OutputStream>,
+    pub note_store: Option<NoteStore>,
 
     // LSP
     pub diagnostics: HashMap<String, types::PublishDiagnostics>,
@@ -170,6 +172,7 @@ impl EditorState {
             transcription_handle: None,
             tts_output_stream: None,
             audio_recording: false,
+            note_store: None,
         }
     }
 

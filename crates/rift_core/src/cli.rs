@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use petal::NoteStore;
 
 use crate::{buffer::rope_buffer::RopeBuffer, io::file_io, state::EditorState};
 
@@ -12,6 +13,8 @@ pub struct CLIArgs {
     pub no_lsp: bool,
     #[arg(long, default_value_t = false, help = "Do not start audio services")]
     pub no_audio: bool,
+    #[arg(long, help = "Path to the petal note store directory")]
+    pub petal_path: Option<PathBuf>,
 }
 
 fn is_headless_environment() -> bool {
@@ -21,6 +24,15 @@ fn is_headless_environment() -> bool {
 pub fn process_cli_args(cli_args: CLIArgs, state: &mut EditorState) -> Result<()> {
     state.preferences.no_lsp = cli_args.no_lsp;
     state.preferences.no_audio = cli_args.no_audio || is_headless_environment();
+
+    let petal_path = cli_args.petal_path.unwrap_or_else(|| {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(home).join("petal")
+    });
+    match NoteStore::open(&petal_path) {
+        Ok(store) => state.note_store = Some(store),
+        Err(err) => tracing::warn!(%err, path = %petal_path.display(), "Failed to open petal note store"),
+    }
 
     let mut path = cli_args
         .path

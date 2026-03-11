@@ -2454,6 +2454,7 @@ dependencies = [
  "hound",
  "include_dir",
  "notify",
+ "petal",
  "reqwest",
  "rift_rpc",
  "rodio",
