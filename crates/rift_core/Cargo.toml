@@ -9,6 +9,7 @@ cc="*"
 [dependencies]
 rsl = { path = "../rsl", features = ["rift_rpc"] }
 rift_rpc = { path = "../rift_rpc" }
+petal = { path = "../petal" }
 
 tarpc = { workspace = true }
 futures = { workspace = true }
