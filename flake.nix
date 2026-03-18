@@ -143,6 +143,28 @@
           rift-fmt = craneLib.cargoFmt {
             inherit src;
           };
+
+          rift-test = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+            }
+          );
+
+          rift-doc = craneLib.cargoDoc (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              RUSTDOCFLAGS = "-D warnings";
+            }
+          );
+
+          rift-doctest = craneLib.cargoDocTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+            }
+          );
         };
 
         packages = {
