@@ -419,7 +419,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             buffer.modified = false;
 
             if let Some(lsp_handle) = lsp_handle
-                && let Err(err) = lsp_handle.lock().unwrap().send_notification_sync(
+                && let Err(err) = lsp_handle.lock().unwrap().send_notification_nonblocking(
                     "textDocument/didSave".to_string(),
                     Some(LSPClientHandle::did_save_text_document(file_path)),
                 )
@@ -433,7 +433,9 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             perform_action(Action::RunSource(source), state);
         }
         Action::RunSource(source) => {
-            state.rsl_sender.blocking_send(source).unwrap();
+            if let Err(err) = state.rsl_sender.try_send(source) {
+                tracing::warn!(%err, "Failed to send RSL source");
+            }
         }
         Action::Select(selection) => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
@@ -563,7 +565,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_sync(
+                    .send_request_nonblocking(
                         "textDocument/formatting".to_string(),
                         Some(LSPClientHandle::formatting_request(
                             buffer.file_path().cloned().unwrap(),
@@ -674,7 +676,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_sync(
+                    .send_request_nonblocking(
                         "textDocument/hover".to_string(),
                         Some(LSPClientHandle::hover_request(
                             buffer.file_path().cloned().unwrap(),
@@ -691,7 +693,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_sync(
+                    .send_request_nonblocking(
                         "textDocument/completion".to_string(),
                         Some(LSPClientHandle::completion_request(
                             buffer.file_path().cloned().unwrap(),
@@ -708,7 +710,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_sync(
+                    .send_request_nonblocking(
                         "textDocument/signatureHelp".to_string(),
                         Some(LSPClientHandle::signature_help_request(
                             buffer.file_path().cloned().unwrap(),
@@ -733,7 +735,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_request_sync(
+                        .send_request_nonblocking(
                             "textDocument/definition".to_string(),
                             Some(LSPClientHandle::go_to_definition_request(
                                 file_path.clone(),
@@ -779,7 +781,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_request_sync(
+                        .send_request_nonblocking(
                             "textDocument/references".to_string(),
                             Some(LSPClientHandle::go_to_references_request(
                                 file_path.clone(),
@@ -888,7 +890,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                             warn!(?err, "Failed to copy selection via wl-copy");
                         }
                     },
-                    &state.rt,
+                    &state.rt_handle,
                     state.async_handle.sender.clone(),
                     state.workspace_folder.clone(),
                 );
@@ -938,7 +940,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                         instance.selection.cursor = instance.cursor;
                         instance.selection.mark = instance.cursor;
                     },
-                    &state.rt,
+                    &state.rt_handle,
                     state.async_handle.sender.clone(),
                     state.workspace_folder.clone(),
                 );
@@ -1115,7 +1117,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             match audio::start_transcription(
                 None,
                 callback,
-                &state.rt,
+                &state.rt_handle,
                 state.async_handle.sender.clone(),
             ) {
                 Ok(handle) => {

@@ -1,12 +1,17 @@
 use crate::{
     actions::{Action, ReferenceEntry, open_info_modal_in_rsl, perform_action},
-    buffer::instance::{Cursor, Selection},
+    buffer::instance::{Cursor, Language, Selection},
     io::file_io,
     state::EditorState,
 };
 
 pub mod client;
 pub mod types;
+
+pub struct LSPIncomingMessage {
+    pub language: Language,
+    pub message: client::IncomingMessage,
+}
 
 pub fn parse_uri(uri: String) -> String {
     let uri = std::path::absolute(uri.strip_prefix("file:").unwrap().trim_start_matches("\\"))
@@ -46,6 +51,22 @@ fn reference_preview(file_path: &str, range: &Selection) -> String {
         .unwrap_or_default()
 }
 
+/// Process a single LSP incoming message (used by the async main loop)
+pub fn handle_lsp_message(msg: LSPIncomingMessage, state: &mut EditorState) {
+    let method = if let client::IncomingMessage::Response(ref response) = msg.message {
+        if let Some(lsp_handle) = state.lsp_handles.get(&msg.language) {
+            let lsp_handle = lsp_handle.lock().unwrap();
+            lsp_handle.id_method.get(&response.id).cloned()
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    process_lsp_message(msg.message, method, state);
+}
+
 pub fn handle_lsp_messages(state: &mut EditorState) {
     if let Some(buffer_idx) = state.buffer_idx
         && let Some(lsp_handle) = state.get_lsp_handle_for_buffer(buffer_idx)
@@ -62,197 +83,200 @@ pub fn handle_lsp_messages(state: &mut EditorState) {
         };
 
         if let Some(message) = message {
-            state.update_view = true;
-            match message {
-                client::IncomingMessage::Response(response) => {
-                    let method_name = method.as_deref().unwrap_or("");
+            process_lsp_message(message, method, state);
+        }
+    }
+}
 
-                    if let Some(error) = response.error.as_ref() {
-                        tracing::error!(
-                            "---Error: Message Id: {}\n\n{:#?}---\n",
-                            response.id,
-                            error
-                        );
-                    } else if method_name == "textDocument/hover" {
-                        if let Some(result) = response.result.as_ref() {
-                            let message = result["contents"]["value"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string();
-                            open_info_modal_in_rsl(state, &message);
-                        }
-                    } else if method_name == "textDocument/completion" {
-                        if let Some(result) = response.result.as_ref() {
-                            let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
-                            let items = if result["items"].is_array() {
-                                result["items"].as_array().unwrap().clone()
-                            } else {
-                                result.as_array().unwrap().clone()
-                            };
-                            let mut completion_items = vec![];
-                            for item in items {
-                                let label = item["label"].as_str().unwrap().to_owned();
-                                if label.contains(&buffer.get_word_under_cursor(&instance.cursor)) {
-                                    if item["textEdit"].is_object() {
-                                        completion_items.push(types::CompletionItem {
-                                            label,
-                                            edit: types::TextEdit {
-                                                text: item["textEdit"]["newText"]
-                                                    .as_str()
-                                                    .unwrap()
-                                                    .to_owned(),
-                                                range: parse_range(&item["textEdit"]["range"]),
-                                            },
-                                        });
-                                    } else if item["insertText"].is_string() {
-                                        completion_items.push(types::CompletionItem {
-                                            label,
-                                            edit: types::TextEdit {
-                                                text: item["insertText"]
-                                                    .as_str()
-                                                    .unwrap()
-                                                    .to_owned(),
-                                                range: buffer
-                                                    .get_word_range_under_cursor(&instance.cursor),
-                                            },
-                                        });
-                                    } else {
-                                        completion_items.push(types::CompletionItem {
-                                            label,
-                                            edit: types::TextEdit {
-                                                text: item["label"].as_str().unwrap().to_owned(),
-                                                range: Selection {
-                                                    cursor: instance.cursor,
-                                                    mark: instance.cursor,
-                                                },
-                                            },
-                                        });
-                                    }
-                                }
-                            }
-                            state.completion_menu.open(completion_items);
-                        }
-                    } else if method_name == "textDocument/formatting" {
-                        if let Some(result) = response.result.as_ref() {
-                            let edits = result.as_array().unwrap().clone();
-                            for edit in edits.iter().rev() {
-                                let text_edit = types::TextEdit {
-                                    text: edit["newText"].as_str().unwrap().to_owned(),
-                                    range: parse_range(&edit["range"]),
-                                };
-                                perform_action(Action::DeleteText(text_edit.range), state);
-                                perform_action(
-                                    Action::InsertText(text_edit.text, text_edit.range.mark),
-                                    state,
-                                );
-                            }
-                        }
-                    } else if method_name == "textDocument/signatureHelp" {
-                        if let Some(result) = response.result.as_ref()
-                            && !result["signatures"].as_array().unwrap().is_empty()
-                        {
-                            let label =
-                                result["signatures"].as_array().unwrap().first().unwrap()["label"]
-                                    .as_str()
-                                    .unwrap()
-                                    .to_string();
-                            state.signature_information.content = label;
-                        }
-                    } else if method_name == "textDocument/definition" {
-                        if let Some(result) = response.result.as_ref() {
-                            let locations = if let Some(array) = result.as_array() {
-                                array.clone()
-                            } else {
-                                vec![result.clone()]
-                            };
+fn process_lsp_message(
+    message: client::IncomingMessage,
+    method: Option<String>,
+    state: &mut EditorState,
+) {
+    let buffer_idx = match state.buffer_idx {
+        Some(idx) => idx,
+        None => return,
+    };
 
-                            let mut definitions = vec![];
-                            for location in locations {
-                                let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
-                                let range = parse_range(&location["range"]);
-                                definitions.push(ReferenceEntry {
-                                    preview: reference_preview(&uri, &range),
-                                    file_path: uri,
-                                    range,
+    state.update_view = true;
+    match message {
+        client::IncomingMessage::Response(response) => {
+            let method_name = method.as_deref().unwrap_or("");
+
+            if let Some(error) = response.error.as_ref() {
+                tracing::error!("---Error: Message Id: {}\n\n{:#?}---\n", response.id, error);
+            } else if method_name == "textDocument/hover" {
+                if let Some(result) = response.result.as_ref() {
+                    let message = result["contents"]["value"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string();
+                    open_info_modal_in_rsl(state, &message);
+                }
+            } else if method_name == "textDocument/completion" {
+                if let Some(result) = response.result.as_ref() {
+                    let (buffer, instance) = state.get_buffer_by_id(buffer_idx);
+                    let items = if result["items"].is_array() {
+                        result["items"].as_array().unwrap().clone()
+                    } else {
+                        result.as_array().unwrap().clone()
+                    };
+                    let mut completion_items = vec![];
+                    for item in items {
+                        let label = item["label"].as_str().unwrap().to_owned();
+                        if label.contains(&buffer.get_word_under_cursor(&instance.cursor)) {
+                            if item["textEdit"].is_object() {
+                                completion_items.push(types::CompletionItem {
+                                    label,
+                                    edit: types::TextEdit {
+                                        text: item["textEdit"]["newText"]
+                                            .as_str()
+                                            .unwrap()
+                                            .to_owned(),
+                                        range: parse_range(&item["textEdit"]["range"]),
+                                    },
+                                });
+                            } else if item["insertText"].is_string() {
+                                completion_items.push(types::CompletionItem {
+                                    label,
+                                    edit: types::TextEdit {
+                                        text: item["insertText"].as_str().unwrap().to_owned(),
+                                        range: buffer.get_word_range_under_cursor(&instance.cursor),
+                                    },
+                                });
+                            } else {
+                                completion_items.push(types::CompletionItem {
+                                    label,
+                                    edit: types::TextEdit {
+                                        text: item["label"].as_str().unwrap().to_owned(),
+                                        range: Selection {
+                                            cursor: instance.cursor,
+                                            mark: instance.cursor,
+                                        },
+                                    },
                                 });
                             }
-
-                            state.definitions = definitions;
-                            state.definitions_version = state.definitions_version.saturating_add(1);
-                            perform_action(
-                                Action::RunSource("createGoToDefinition()".to_string()),
-                                state,
-                            );
                         }
-                    } else if method_name == "textDocument/references" {
-                        if let Some(result) = response.result.as_ref() {
-                            let mut references = vec![];
-                            if let Some(locations) = result.as_array() {
-                                for location in locations {
-                                    let uri =
-                                        parse_uri(location["uri"].as_str().unwrap().to_string());
-                                    let range = parse_range(&location["range"]);
-                                    references.push(ReferenceEntry {
-                                        preview: reference_preview(&uri, &range),
-                                        file_path: uri,
-                                        range,
-                                    });
-                                }
-                            }
-                            state.references = references;
-                            state.references_version = state.references_version.saturating_add(1);
-                            perform_action(
-                                Action::RunSource("createGoToReferences()".to_string()),
-                                state,
-                            );
-                        }
-                    } else {
-                        let message = format!(
-                            "---Response to: {}({})\n\n{:#?}---\n",
-                            method_name, response.id, response.result
+                    }
+                    state.completion_menu.open(completion_items);
+                }
+            } else if method_name == "textDocument/formatting" {
+                if let Some(result) = response.result.as_ref() {
+                    let edits = result.as_array().unwrap().clone();
+                    for edit in edits.iter().rev() {
+                        let text_edit = types::TextEdit {
+                            text: edit["newText"].as_str().unwrap().to_owned(),
+                            range: parse_range(&edit["range"]),
+                        };
+                        perform_action(Action::DeleteText(text_edit.range), state);
+                        perform_action(
+                            Action::InsertText(text_edit.text, text_edit.range.mark),
+                            state,
                         );
-                        tracing::info!("{}", message);
                     }
                 }
-                client::IncomingMessage::Notification(notification) => {
-                    if notification.method == "textDocument/publishDiagnostics"
-                        && let Some(params) = notification.params.as_ref()
-                    {
-                        let uri = parse_uri(params["uri"].as_str().unwrap().to_string());
+            } else if method_name == "textDocument/signatureHelp" {
+                if let Some(result) = response.result.as_ref()
+                    && !result["signatures"].as_array().unwrap().is_empty()
+                {
+                    let label = result["signatures"].as_array().unwrap().first().unwrap()["label"]
+                        .as_str()
+                        .unwrap()
+                        .to_string();
+                    state.signature_information.content = label;
+                }
+            } else if method_name == "textDocument/definition" {
+                if let Some(result) = response.result.as_ref() {
+                    let locations = if let Some(array) = result.as_array() {
+                        array.clone()
+                    } else {
+                        vec![result.clone()]
+                    };
 
-                        let mut diagnostics = types::PublishDiagnostics {
-                            uri,
-                            version: params["version"].as_u64().unwrap_or(0) as usize,
-                            diagnostics: vec![],
-                        };
+                    let mut definitions = vec![];
+                    for location in locations {
+                        let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
+                        let range = parse_range(&location["range"]);
+                        definitions.push(ReferenceEntry {
+                            preview: reference_preview(&uri, &range),
+                            file_path: uri,
+                            range,
+                        });
+                    }
 
-                        for diagnostic in params["diagnostics"].as_array().unwrap() {
-                            diagnostics.diagnostics.push(types::Diagnostic {
-                                range: parse_range(&diagnostic["range"]),
-                                severity: match diagnostic["severity"].as_u64().unwrap_or(1) {
-                                    1 => types::DiagnosticSeverity::Error,
-                                    2 => types::DiagnosticSeverity::Warning,
-                                    3 => types::DiagnosticSeverity::Information,
-                                    4 => types::DiagnosticSeverity::Hint,
-                                    _ => types::DiagnosticSeverity::Error,
-                                },
-                                code: diagnostic["code"].to_string(),
-                                source: diagnostic["source"].to_string(),
-                                message: diagnostic["message"].to_string(),
+                    state.definitions = definitions;
+                    state.definitions_version = state.definitions_version.saturating_add(1);
+                    perform_action(
+                        Action::RunSource("createGoToDefinition()".to_string()),
+                        state,
+                    );
+                }
+            } else if method_name == "textDocument/references" {
+                if let Some(result) = response.result.as_ref() {
+                    let mut references = vec![];
+                    if let Some(locations) = result.as_array() {
+                        for location in locations {
+                            let uri = parse_uri(location["uri"].as_str().unwrap().to_string());
+                            let range = parse_range(&location["range"]);
+                            references.push(ReferenceEntry {
+                                preview: reference_preview(&uri, &range),
+                                file_path: uri,
+                                range,
                             });
                         }
-                        state
-                            .diagnostics
-                            .insert(diagnostics.uri.clone(), diagnostics);
-                    } else {
-                        let message = format!(
-                            "---Notification: {}\n\n{:#?}---\n",
-                            notification.method, notification.params
-                        );
-                        tracing::info!("{}", message);
-                        state.diagnostics_overlay.content = message;
                     }
+                    state.references = references;
+                    state.references_version = state.references_version.saturating_add(1);
+                    perform_action(
+                        Action::RunSource("createGoToReferences()".to_string()),
+                        state,
+                    );
                 }
+            } else {
+                let message = format!(
+                    "---Response to: {}({})\n\n{:#?}---\n",
+                    method_name, response.id, response.result
+                );
+                tracing::info!("{}", message);
+            }
+        }
+        client::IncomingMessage::Notification(notification) => {
+            if notification.method == "textDocument/publishDiagnostics"
+                && let Some(params) = notification.params.as_ref()
+            {
+                let uri = parse_uri(params["uri"].as_str().unwrap().to_string());
+
+                let mut diagnostics = types::PublishDiagnostics {
+                    uri,
+                    version: params["version"].as_u64().unwrap_or(0) as usize,
+                    diagnostics: vec![],
+                };
+
+                for diagnostic in params["diagnostics"].as_array().unwrap() {
+                    diagnostics.diagnostics.push(types::Diagnostic {
+                        range: parse_range(&diagnostic["range"]),
+                        severity: match diagnostic["severity"].as_u64().unwrap_or(1) {
+                            1 => types::DiagnosticSeverity::Error,
+                            2 => types::DiagnosticSeverity::Warning,
+                            3 => types::DiagnosticSeverity::Information,
+                            4 => types::DiagnosticSeverity::Hint,
+                            _ => types::DiagnosticSeverity::Error,
+                        },
+                        code: diagnostic["code"].to_string(),
+                        source: diagnostic["source"].to_string(),
+                        message: diagnostic["message"].to_string(),
+                    });
+                }
+                state
+                    .diagnostics
+                    .insert(diagnostics.uri.clone(), diagnostics);
+            } else {
+                let message = format!(
+                    "---Notification: {}\n\n{:#?}---\n",
+                    notification.method, notification.params
+                );
+                tracing::info!("{}", message);
+                state.diagnostics_overlay.content = message;
             }
         }
     }

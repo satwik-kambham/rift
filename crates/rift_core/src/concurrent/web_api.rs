@@ -7,7 +7,7 @@ use super::{AsyncError, AsyncPayload, AsyncResult};
 pub fn get_request(
     url: String,
     callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {
@@ -56,7 +56,7 @@ pub fn post_request(
     url: String,
     body: String,
     callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {
@@ -108,7 +108,7 @@ pub fn post_request_json_body_with_bearer_auth(
     body: serde_json::Value,
     bearer_auth_token: String,
     callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {
@@ -162,7 +162,7 @@ pub fn post_request_json_body_bytes(
     url: String,
     body: serde_json::Value,
     callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {

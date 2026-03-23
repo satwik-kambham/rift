@@ -44,7 +44,7 @@ pub struct AsyncResult {
 pub fn simple_callback(
     data: String,
     callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) {
     rt.spawn(async move {

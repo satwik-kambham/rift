@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 use axum::{
     extract::ConnectInfo,
@@ -8,6 +8,7 @@ use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
 use serde_json::to_value;
 use tokio::sync::{broadcast, mpsc};
+use tokio::task::LocalSet;
 use tower_http::services::ServeDir;
 
 use petal::Block;
@@ -15,7 +16,7 @@ use rift_core::{
     actions::{Action, perform_action},
     audio::{build_temp_path, convert_webm_to_wav, transcribe_wav_file},
     io::file_io::handle_file_event,
-    lsp::handle_lsp_messages,
+    lsp::handle_lsp_message,
     rendering::update_visible_lines,
     state::EditorState,
 };
@@ -108,23 +109,15 @@ pub(crate) struct Server {
     viewport_columns: usize,
 }
 
-impl Default for Server {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Server {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(rt_handle: tokio::runtime::Handle) -> Self {
         let (sender_to_ws, _) = broadcast::channel::<WSMessage>(32);
         let (sender_from_ws, receiver_from_ws) = mpsc::channel::<WSMessage>(32);
 
-        let mut state = EditorState::new();
+        let mut state = EditorState::new(rt_handle.clone());
         state.post_initialization();
 
-        state
-            .rt
-            .block_on(async { start_axum_server(sender_to_ws.clone(), sender_from_ws).await });
+        rt_handle.block_on(async { start_axum_server(sender_to_ws.clone(), sender_from_ws).await });
 
         Self {
             state,
@@ -140,211 +133,214 @@ impl Server {
         perform_action(action, &mut self.state).unwrap_or_default()
     }
 
-    pub(crate) fn run(&mut self) -> anyhow::Result<()> {
-        while !self.state.quit {
-            // Run async callbacks
-            if let Ok(async_result) = self.state.async_handle.receiver.try_recv() {
-                (async_result.callback)(async_result.result, &mut self.state);
-                self.state.update_view = true;
-            }
+    pub(crate) fn run(&mut self, rt: &tokio::runtime::Runtime) -> anyhow::Result<()> {
+        let local = LocalSet::new();
+        local.block_on(rt, async {
+            loop {
+                if self.state.quit {
+                    break;
+                }
 
-            // Run action requests
-            while let Ok(action_request) = self.state.event_reciever.try_recv() {
-                let result = self.perform_action(action_request.action);
-                action_request.response_tx.send(result).unwrap();
-                self.state.update_view = true;
-                std::thread::sleep(Duration::from_millis(1));
-            }
+                // Update view and send to websocket connection
+                if self.state.update_view {
+                    self.state.relative_cursor = update_visible_lines(
+                        &mut self.state,
+                        self.viewport_rows,
+                        self.viewport_columns,
+                        true,
+                    );
 
-            // Handle file watcher events
-            if let Ok(file_event_result) = self.state.file_event_receiver.try_recv() {
-                handle_file_event(file_event_result, &mut self.state);
-                self.state.update_view = true;
-            }
-
-            // Handle lsp messages
-            handle_lsp_messages(&mut self.state);
-
-            // Handle websocket messages
-            if let Ok(message) = self.receiver_from_ws.try_recv() {
-                match message {
-                    WSMessage::Text(text) => {
-                        if let Ok(msg) = serde_json::from_str::<JsonMessage>(&text) {
-                            match msg.method.as_str() {
-                                "connected" => {
-                                    self.status = ConnectionStatus::Connected;
-                                    let initialize_data = InitializeData {
-                                        editor_font_size: self.state.preferences.editor_font_size,
-                                    };
-                                    let response = JsonMessage {
-                                        method: "initialize".to_string(),
-                                        data: Some(to_value(initialize_data).unwrap()),
-                                    };
-                                    if let Ok(json) = serde_json::to_string(&response) {
-                                        let _ = self.sender_to_ws.send(WSMessage::Text(json));
-                                    }
-                                }
-                                "initialized" => {
-                                    self.status = ConnectionStatus::Initialized;
-                                    if let Some(data) = msg.data {
-                                        if let Some(rows) =
-                                            data.get("viewport_rows").and_then(|v| v.as_u64())
-                                        {
-                                            self.viewport_rows = rows as usize;
-                                        }
-                                        if let Some(cols) =
-                                            data.get("viewport_columns").and_then(|v| v.as_u64())
-                                        {
-                                            self.viewport_columns = cols as usize;
-                                        }
-                                    }
-                                }
-                                "run_action" => {
-                                    if let Some(data) = msg.data
-                                        && let Some(action_name) = data.as_str()
-                                    {
-                                        self.perform_action(Action::RunAction(
-                                            action_name.to_string(),
-                                        ));
-                                    }
-                                }
-                                "ping" => {
-                                    let response = JsonMessage {
-                                        method: "pong".to_string(),
-                                        data: msg.data,
-                                    };
-                                    if let Ok(json) = serde_json::to_string(&response) {
-                                        let _ = self.sender_to_ws.send(WSMessage::Text(json));
-                                    }
-                                }
-                                _ => {
-                                    tracing::info!("Unknown method: {}", msg.method);
-                                }
-                            }
-                        }
-                    }
-                    WSMessage::Bytes(bytes) => {
-                        let webm_path = build_temp_path("webm");
-
-                        if let Err(e) = std::fs::write(&webm_path, &bytes) {
-                            tracing::error!("Failed to save audio recording: {}", e);
-                            continue;
-                        }
-                        tracing::info!("Saved audio recording to {}", webm_path.display());
-
-                        let wav_path = match convert_webm_to_wav(&webm_path) {
-                            Ok(path) => path,
-                            Err(e) => {
-                                tracing::error!("Failed to convert webm to wav: {}", e);
-                                continue;
-                            }
-                        };
-                        tracing::info!("Converted to wav: {}", wav_path.display());
-
-                        let wav_data = std::fs::read(&wav_path);
-                        let note_id = if let Some(ref store) = self.state.note_store
-                            && let Ok(wav_bytes) = &wav_data
-                        {
-                            match store.create_note() {
-                                Ok(mut note) => {
-                                    let wav_filename = wav_path
-                                        .file_name()
-                                        .unwrap_or_default()
-                                        .to_string_lossy()
-                                        .to_string();
-                                    match store.write_attachment(note.id, &wav_filename, wav_bytes)
-                                    {
-                                        Ok(block) => {
-                                            note.blocks.push(block);
-                                            if let Err(err) = store.save_note(note.clone()) {
-                                                tracing::warn!(
-                                                    %err,
-                                                    "Failed to save note with audio attachment"
-                                                );
-                                            }
-                                        }
-                                        Err(err) => {
-                                            tracing::warn!(
-                                                %err, "Failed to write audio attachment"
-                                            )
-                                        }
-                                    }
-                                    Some(note)
-                                }
-                                Err(err) => {
-                                    tracing::warn!(
-                                        %err, "Failed to create note for transcription"
-                                    );
-                                    None
-                                }
-                            }
-                        } else {
-                            None
-                        };
-
-                        let transcription = match transcribe_wav_file(wav_path.clone()) {
-                            Ok(text) => text,
-                            Err(e) => {
-                                tracing::error!("Failed to transcribe wav: {}", e);
-                                let _ = std::fs::remove_file(wav_path);
-                                continue;
-                            }
-                        };
-                        tracing::info!("Transcription: {}", transcription);
-
-                        let _ = std::fs::remove_file(wav_path);
-
-                        if let Some(ref store) = self.state.note_store
-                            && let Some(mut note) = note_id
-                        {
-                            let note_id = note.id;
-                            note.blocks.push(Block::Text {
-                                label: Some("transcription".to_string()),
-                                content: transcription.clone(),
-                            });
-                            if let Err(err) = store.save_note(note) {
-                                tracing::warn!(
-                                    %err, "Failed to save transcription to note"
-                                );
-                            }
-                            let note_file = store.note_path(note_id).to_string_lossy().to_string();
-                            perform_action(Action::OpenFile(note_file), &mut self.state);
-                        }
-
+                    if self.status == ConnectionStatus::Initialized {
                         let response = JsonMessage {
-                            method: "transcription".to_string(),
-                            data: Some(to_value(transcription).unwrap()),
+                            method: "render".to_string(),
+                            data: Some(to_value(&self.state.highlighted_text).unwrap()),
                         };
                         if let Ok(json) = serde_json::to_string(&response) {
                             let _ = self.sender_to_ws.send(WSMessage::Text(json));
                         }
                     }
+
+                    self.state.update_view = false;
                 }
-                self.state.update_view = true;
-            }
 
-            // Update view and send to websocket connection
-            if self.state.update_view {
-                self.state.relative_cursor = update_visible_lines(
-                    &mut self.state,
-                    self.viewport_rows,
-                    self.viewport_columns,
-                    true,
-                );
-
-                if self.status == ConnectionStatus::Initialized {
-                    let response = JsonMessage {
-                        method: "render".to_string(),
-                        data: Some(to_value(&self.state.highlighted_text).unwrap()),
-                    };
-                    if let Ok(json) = serde_json::to_string(&response) {
-                        let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                tokio::select! {
+                    Some(req) = self.state.event_reciever.recv() => {
+                        let result = self.perform_action(req.action);
+                        req.response_tx.send(result).unwrap();
+                        self.state.update_view = true;
+                    }
+                    Some(async_result) = self.state.async_handle.receiver.recv() => {
+                        (async_result.callback)(async_result.result, &mut self.state);
+                        self.state.update_view = true;
+                    }
+                    Some(file_event) = self.state.file_event_receiver.recv() => {
+                        handle_file_event(file_event, &mut self.state);
+                        self.state.update_view = true;
+                    }
+                    Some(lsp_msg) = self.state.lsp_message_receiver.recv() => {
+                        handle_lsp_message(lsp_msg, &mut self.state);
+                        self.state.update_view = true;
+                    }
+                    Some(message) = self.receiver_from_ws.recv() => {
+                        self.handle_ws_message(message);
+                        self.state.update_view = true;
                     }
                 }
+            }
+        });
+        Ok(())
+    }
 
-                self.state.update_view = false;
+    fn handle_ws_message(&mut self, message: WSMessage) {
+        match message {
+            WSMessage::Text(text) => {
+                if let Ok(msg) = serde_json::from_str::<JsonMessage>(&text) {
+                    match msg.method.as_str() {
+                        "connected" => {
+                            self.status = ConnectionStatus::Connected;
+                            let initialize_data = InitializeData {
+                                editor_font_size: self.state.preferences.editor_font_size,
+                            };
+                            let response = JsonMessage {
+                                method: "initialize".to_string(),
+                                data: Some(to_value(initialize_data).unwrap()),
+                            };
+                            if let Ok(json) = serde_json::to_string(&response) {
+                                let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                            }
+                        }
+                        "initialized" => {
+                            self.status = ConnectionStatus::Initialized;
+                            if let Some(data) = msg.data {
+                                if let Some(rows) =
+                                    data.get("viewport_rows").and_then(|v| v.as_u64())
+                                {
+                                    self.viewport_rows = rows as usize;
+                                }
+                                if let Some(cols) =
+                                    data.get("viewport_columns").and_then(|v| v.as_u64())
+                                {
+                                    self.viewport_columns = cols as usize;
+                                }
+                            }
+                        }
+                        "run_action" => {
+                            if let Some(data) = msg.data
+                                && let Some(action_name) = data.as_str()
+                            {
+                                self.perform_action(Action::RunAction(action_name.to_string()));
+                            }
+                        }
+                        "ping" => {
+                            let response = JsonMessage {
+                                method: "pong".to_string(),
+                                data: msg.data,
+                            };
+                            if let Ok(json) = serde_json::to_string(&response) {
+                                let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                            }
+                        }
+                        _ => {
+                            tracing::info!("Unknown method: {}", msg.method);
+                        }
+                    }
+                }
+            }
+            WSMessage::Bytes(bytes) => {
+                let webm_path = build_temp_path("webm");
+
+                if let Err(e) = std::fs::write(&webm_path, &bytes) {
+                    tracing::error!("Failed to save audio recording: {}", e);
+                    return;
+                }
+                tracing::info!("Saved audio recording to {}", webm_path.display());
+
+                let wav_path = match convert_webm_to_wav(&webm_path) {
+                    Ok(path) => path,
+                    Err(e) => {
+                        tracing::error!("Failed to convert webm to wav: {}", e);
+                        return;
+                    }
+                };
+                tracing::info!("Converted to wav: {}", wav_path.display());
+
+                let wav_data = std::fs::read(&wav_path);
+                let note_id = if let Some(ref store) = self.state.note_store
+                    && let Ok(wav_bytes) = &wav_data
+                {
+                    match store.create_note() {
+                        Ok(mut note) => {
+                            let wav_filename = wav_path
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string();
+                            match store.write_attachment(note.id, &wav_filename, wav_bytes) {
+                                Ok(block) => {
+                                    note.blocks.push(block);
+                                    if let Err(err) = store.save_note(note.clone()) {
+                                        tracing::warn!(
+                                            %err,
+                                            "Failed to save note with audio attachment"
+                                        );
+                                    }
+                                }
+                                Err(err) => {
+                                    tracing::warn!(
+                                        %err, "Failed to write audio attachment"
+                                    )
+                                }
+                            }
+                            Some(note)
+                        }
+                        Err(err) => {
+                            tracing::warn!(
+                                %err, "Failed to create note for transcription"
+                            );
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                let transcription = match transcribe_wav_file(wav_path.clone()) {
+                    Ok(text) => text,
+                    Err(e) => {
+                        tracing::error!("Failed to transcribe wav: {}", e);
+                        let _ = std::fs::remove_file(wav_path);
+                        return;
+                    }
+                };
+                tracing::info!("Transcription: {}", transcription);
+
+                let _ = std::fs::remove_file(wav_path);
+
+                if let Some(ref store) = self.state.note_store
+                    && let Some(mut note) = note_id
+                {
+                    let note_id = note.id;
+                    note.blocks.push(Block::Text {
+                        label: Some("transcription".to_string()),
+                        content: transcription.clone(),
+                    });
+                    if let Err(err) = store.save_note(note) {
+                        tracing::warn!(
+                            %err, "Failed to save transcription to note"
+                        );
+                    }
+                    let note_file = store.note_path(note_id).to_string_lossy().to_string();
+                    perform_action(Action::OpenFile(note_file), &mut self.state);
+                }
+
+                let response = JsonMessage {
+                    method: "transcription".to_string(),
+                    data: Some(to_value(transcription).unwrap()),
+                };
+                if let Ok(json) = serde_json::to_string(&response) {
+                    let _ = self.sender_to_ws.send(WSMessage::Text(json));
+                }
             }
         }
-        Ok(())
     }
 }
