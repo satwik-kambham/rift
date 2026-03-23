@@ -303,7 +303,7 @@ impl EditorState {
         None
     }
 
-    pub async fn spawn_lsp_async(&self, language: &Language) -> Option<LSPClientHandle> {
+    pub fn spawn_lsp_with_channel(&self, language: &Language) -> Option<LSPClientHandle> {
         if self.preferences.no_lsp {
             return None;
         }
@@ -322,9 +322,7 @@ impl EditorState {
                     command.1,
                     self.lsp_message_sender.clone(),
                     *language,
-                )
-                .await
-                {
+                ) {
                     Ok(client) => return Some(client),
                     Err(err) => {
                         let command_display = if command.1.is_empty() {
@@ -356,10 +354,7 @@ impl EditorState {
         };
         if let Some(command) = command {
             if which::which(command.0).is_ok() {
-                match self
-                    .rt_handle
-                    .block_on(async { start_lsp(command.0, command.1).await })
-                {
+                match start_lsp(command.0, command.1) {
                     Ok(client) => return Some(client),
                     Err(err) => {
                         let command_display = if command.1.is_empty() {
@@ -379,7 +374,7 @@ impl EditorState {
 
     pub async fn start_lsp_async(&mut self, language: &Language) {
         if !self.lsp_handles.contains_key(language)
-            && let Some(mut lsp_handle) = self.spawn_lsp_async(language).await
+            && let Some(mut lsp_handle) = self.spawn_lsp_with_channel(language)
         {
             if lsp_handle
                 .init_lsp(self.workspace_folder.clone())

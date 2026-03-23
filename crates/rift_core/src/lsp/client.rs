@@ -58,20 +58,20 @@ pub struct LSPClientHandle {
     pub initialize_capabilities: Value,
 }
 
-pub async fn start_lsp_with_channel(
+pub fn start_lsp_with_channel(
     program: &str,
     args: &[&str],
     unified_tx: mpsc::Sender<super::LSPIncomingMessage>,
     language: crate::buffer::instance::Language,
 ) -> Result<LSPClientHandle> {
-    start_lsp_inner(program, args, Some((unified_tx, language))).await
+    start_lsp_inner(program, args, Some((unified_tx, language)))
 }
 
-pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> {
-    start_lsp_inner(program, args, None).await
+pub fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> {
+    start_lsp_inner(program, args, None)
 }
 
-async fn start_lsp_inner(
+fn start_lsp_inner(
     program: &str,
     args: &[&str],
     unified_channel: Option<(
@@ -244,7 +244,7 @@ impl LSPClientHandle {
         let id = next_id();
         self.id_method.insert(id, method.clone());
         self.sender
-            .blocking_send(OutgoingMessage::Request(Request { method, params, id }))?;
+            .try_send(OutgoingMessage::Request(Request { method, params, id }))?;
         Ok(())
     }
 
@@ -279,7 +279,7 @@ impl LSPClientHandle {
         error: Option<types::ResponseError>,
     ) -> Result<()> {
         self.sender
-            .blocking_send(OutgoingMessage::Response(Response { id, result, error }))?;
+            .try_send(OutgoingMessage::Response(Response { id, result, error }))?;
         Ok(())
     }
 
@@ -295,7 +295,7 @@ impl LSPClientHandle {
 
     pub fn send_notification_sync(&self, method: String, params: Option<Value>) -> Result<()> {
         self.sender
-            .blocking_send(OutgoingMessage::Notification(Notification {
+            .try_send(OutgoingMessage::Notification(Notification {
                 method,
                 params,
             }))?;

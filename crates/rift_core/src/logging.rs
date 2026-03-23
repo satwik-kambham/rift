@@ -1,6 +1,5 @@
 pub fn initialize_tracing() {
-    let mut tmp_dir = std::env::temp_dir();
-    tmp_dir.push("rift_logs");
+    let tmp_dir = std::path::PathBuf::from("/tmp/rift_logs");
 
     std::fs::create_dir_all(&tmp_dir).ok();
 
