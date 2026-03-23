@@ -22,7 +22,7 @@ fn next_id() -> usize {
     ID.fetch_add(1, Ordering::SeqCst)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IncomingMessage {
     Response(types::ResponseMessage),
     Notification(types::NotificationMessage),
@@ -197,12 +197,11 @@ fn start_lsp_inner(
                     let _ = unified_tx
                         .send(super::LSPIncomingMessage {
                             language: lang,
-                            message: msg,
+                            message: msg.clone(),
                         })
                         .await;
-                } else {
-                    let _ = itx.send(msg).await;
                 }
+                let _ = itx.send(msg).await;
 
                 header = String::new();
             }

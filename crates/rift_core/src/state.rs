@@ -24,7 +24,7 @@ use crate::{
     keybinds::KeybindHandler,
     lsp::{
         LSPIncomingMessage,
-        client::{LSPClientHandle, start_lsp, start_lsp_with_channel},
+        client::{LSPClientHandle, start_lsp_with_channel},
         types,
     },
     preferences::Preferences,
@@ -354,7 +354,12 @@ impl EditorState {
         };
         if let Some(command) = command {
             if which::which(command.0).is_ok() {
-                match start_lsp(command.0, command.1) {
+                match start_lsp_with_channel(
+                    command.0,
+                    command.1,
+                    self.lsp_message_sender.clone(),
+                    *language,
+                ) {
                     Ok(client) => return Some(client),
                     Err(err) => {
                         let command_display = if command.1.is_empty() {
