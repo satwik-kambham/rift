@@ -27,7 +27,7 @@ impl PartialOrd for Cursor {
 /// Struct representing a selection where mark is the fixed point / start point
 /// of the selection and cursor is the current cursor location which can be
 /// moved to update the selection
-#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Selection {
     pub cursor: Cursor,
     pub mark: Cursor,
