@@ -597,8 +597,39 @@ fn execute_rpc_call(
     identifier: &str,
     parameters: Vec<Primitive>,
     rsl: &mut RSL,
-    _span: Span,
+    span: Span,
 ) -> Result<Primitive, RuntimeError> {
+    match identifier {
+        "log"
+        | "openFile"
+        | "setActiveBuffer"
+        | "getActiveBuffer"
+        | "listBuffers"
+        | "getActions"
+        | "getReferences"
+        | "getDefinitions"
+        | "getWorkspaceDiagnostics"
+        | "getViewportSize"
+        | "selectRange"
+        | "registerGlobalKeybind"
+        | "registerBufferKeybind"
+        | "registerBufferInputHook"
+        | "createSpecialBuffer"
+        | "setBufferContent"
+        | "getBufferInput"
+        | "setBufferInput"
+        | "setSearchQuery"
+        | "getWorkspaceDir"
+        | "runAction"
+        | "tts" => {}
+        _ => {
+            return Err(RuntimeError::new(
+                format!("RPC function '{}' does not exist", identifier),
+                span,
+            ));
+        }
+    }
+
     Ok(rsl.rt_handle.block_on(async {
         let ctx = context::Context::current();
         let client = &rsl.rift_rpc_client;
@@ -748,7 +779,8 @@ fn execute_rpc_call(
                 client.tts(ctx, text).await.unwrap();
                 Primitive::Null
             }
-            _ => panic!("function {} does not exist", identifier),
+            // SAFETY: unreachable because unknown identifiers are rejected above
+            _ => unreachable!(),
         }
     }))
 }
