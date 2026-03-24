@@ -38,6 +38,13 @@ pub struct VisibleLineParams {
     pub eol_sequence: String,
 }
 
+struct ViewportResult {
+    range_start: usize,
+    range_end: usize,
+    relative_cursor: Cursor,
+    segments: Vec<Range>,
+}
+
 impl RopeBuffer {
     /// Create a rope buffer
     pub fn new(
@@ -157,37 +164,39 @@ impl RopeBuffer {
         self.buffer.line_to_char(cursor.row) + cursor.column
     }
 
-    pub fn get_visible_lines(
-        &mut self,
-        scroll: &mut Cursor,
+    fn compute_line_range(
+        scroll: &Cursor,
         cursor: Option<&Cursor>,
-        selection: &Selection,
-        params: &VisibleLineParams,
-        mut extra_segments: Vec<Range>,
-    ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
-        let max_characters = params.viewport_columns.saturating_sub(3).max(1);
-        let mut segments = vec![];
-        segments.append(&mut extra_segments);
-
-        let num_lines = self.get_num_lines();
+        num_lines: usize,
+        viewport_rows: usize,
+        special: bool,
+    ) -> (usize, usize) {
         let mut range_start = scroll.row.min(num_lines.saturating_sub(1));
-        let mut range_end = range_start + params.viewport_rows + 3;
+        let mut range_end = range_start + viewport_rows + 3;
 
-        if !self.special
-            && let Some(cursor) = cursor
-        {
+        if !special && let Some(cursor) = cursor {
             if cursor < scroll {
                 range_start = cursor.row;
-                range_end = range_start + params.viewport_rows;
-            } else if cursor.row >= scroll.row + params.viewport_rows {
+                range_end = range_start + viewport_rows;
+            } else if cursor.row >= scroll.row + viewport_rows {
                 range_end = cursor.row + 1;
-                range_start = range_end.saturating_sub(params.viewport_rows);
+                range_start = range_end.saturating_sub(viewport_rows);
             }
         }
 
+        (range_start, range_end)
+    }
+
+    fn build_gutter_info(
+        &self,
+        range_start_line: usize,
+        range_end_line: usize,
+        max_characters: usize,
+    ) -> Vec<GutterInfo> {
+        let num_lines = self.get_num_lines();
         let mut gutter_info = vec![];
-        let end_line = range_end.min(num_lines);
-        for line_idx in range_start..end_line {
+        let end_line = range_end_line.min(num_lines);
+        for line_idx in range_start_line..end_line {
             let line = self.buffer.line(line_idx);
             let line_length = self.get_line_length(line_idx);
             let mut eol_len = line.len_chars().saturating_sub(line_length);
@@ -230,8 +239,12 @@ impl RopeBuffer {
                 start = end;
             }
         }
+        gutter_info
+    }
 
-        for gutter_line in &gutter_info {
+    fn build_visibility_segments(gutter_info: &[GutterInfo]) -> Vec<Range> {
+        let mut segments = vec![];
+        for gutter_line in gutter_info {
             let visible_end = if gutter_line.end_byte > gutter_line.start_byte {
                 gutter_line.end_byte - 1
             } else {
@@ -243,13 +256,26 @@ impl RopeBuffer {
                 attributes: TextAttributes::VISIBLE,
             });
         }
+        segments
+    }
 
+    fn compute_viewport(
+        &self,
+        gutter_info: &[GutterInfo],
+        scroll: &mut Cursor,
+        cursor: Option<&Cursor>,
+        selection: &Selection,
+        viewport_rows: usize,
+    ) -> ViewportResult {
         let mut relative_cursor = Cursor { row: 0, column: 0 };
+        let mut range_start: usize;
+        let mut range_end: usize;
+        let mut segments = vec![];
 
         if !self.special {
             if let Some(cursor) = cursor {
                 let mut cursor_idx: usize = 0;
-                for line_info in &gutter_info {
+                for line_info in gutter_info {
                     if cursor.row == line_info.start.row
                         && cursor.column >= line_info.start.column
                         && (cursor.column < line_info.end
@@ -263,16 +289,16 @@ impl RopeBuffer {
 
                 if cursor < scroll {
                     range_start = cursor_idx.saturating_sub(1);
-                    range_end = range_start + params.viewport_rows;
-                } else if cursor.row >= scroll.row + params.viewport_rows {
+                    range_end = range_start + viewport_rows;
+                } else if cursor.row >= scroll.row + viewport_rows {
                     range_end = cursor_idx + 1;
-                    range_start = range_end.saturating_sub(params.viewport_rows);
+                    range_start = range_end.saturating_sub(viewport_rows);
                 } else {
                     range_start = 0;
-                    range_end = params.viewport_rows;
-                    if cursor_idx >= params.viewport_rows {
+                    range_end = viewport_rows;
+                    if cursor_idx >= viewport_rows {
                         range_end = cursor_idx + 1;
-                        range_start = range_end.saturating_sub(params.viewport_rows);
+                        range_start = range_end.saturating_sub(viewport_rows);
                     }
                 }
 
@@ -300,7 +326,7 @@ impl RopeBuffer {
                 });
             } else {
                 range_start = 0;
-                range_end = params.viewport_rows;
+                range_end = viewport_rows;
                 range_end = gutter_info.len().min(range_end);
 
                 if !gutter_info.is_empty() {
@@ -308,7 +334,7 @@ impl RopeBuffer {
                     let max_range_start = gutter_len.saturating_sub(1);
                     range_start = range_start.min(max_range_start);
                     if range_start < max_range_start {
-                        range_end = (range_start + params.viewport_rows).min(gutter_len);
+                        range_end = (range_start + viewport_rows).min(gutter_len);
                     }
 
                     scroll.row = gutter_info[range_start].start.row;
@@ -317,7 +343,7 @@ impl RopeBuffer {
             }
         } else {
             range_start = 0;
-            range_end = params.viewport_rows;
+            range_end = viewport_rows;
             range_end = gutter_info.len().min(range_end);
             if !gutter_info.is_empty() {
                 scroll.row = gutter_info[range_start].start.row;
@@ -325,6 +351,16 @@ impl RopeBuffer {
             }
         }
 
+        ViewportResult {
+            range_start,
+            range_end,
+            relative_cursor,
+            segments,
+        }
+    }
+
+    fn compute_highlight_segments(&mut self, gutter_info: &[GutterInfo]) -> Vec<Range> {
+        let mut segments = vec![];
         if let Some(highlight_params) = &self.highlight_params {
             let mut highlight_type = HighlightType::None;
 
@@ -375,7 +411,14 @@ impl RopeBuffer {
                 }
             }
         }
+        segments
+    }
 
+    fn merge_and_extract_text(
+        &self,
+        gutter_info: &[GutterInfo],
+        segments: Vec<Range>,
+    ) -> HighlightedText {
         let mut split_segments = RopeBuffer::split_ranges(segments);
         let mut split_segments_iter = split_segments.iter_mut().peekable();
         let mut lines = vec![];
@@ -388,7 +431,7 @@ impl RopeBuffer {
             {}
         }
 
-        for line_info in &gutter_info {
+        for line_info in gutter_info {
             while let Some(segment) = split_segments_iter.next_if(|s| s.end < line_info.end_byte) {
                 let line_end = self.get_line_length(line_info.start.row);
                 let line_start = self.buffer.line_to_char(line_info.start.row);
@@ -420,17 +463,65 @@ impl RopeBuffer {
             }
         }
 
+        lines
+    }
+
+    fn slice_viewport(
+        lines: HighlightedText,
+        gutter_info: Vec<GutterInfo>,
+        range_start: usize,
+        range_end: usize,
+    ) -> (HighlightedText, Vec<GutterInfo>) {
         (
             lines
                 .get(range_start..range_end)
                 .unwrap_or(&lines[range_start..])
                 .to_vec(),
-            relative_cursor,
             gutter_info
                 .get(range_start..range_end)
                 .unwrap_or(&gutter_info[range_start..])
                 .to_vec(),
         )
+    }
+
+    pub fn get_visible_lines(
+        &mut self,
+        scroll: &mut Cursor,
+        cursor: Option<&Cursor>,
+        selection: &Selection,
+        params: &VisibleLineParams,
+        mut extra_segments: Vec<Range>,
+    ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
+        let max_characters = params.viewport_columns.saturating_sub(3).max(1);
+        let num_lines = self.get_num_lines();
+
+        let (start_line, end_line) = Self::compute_line_range(
+            scroll,
+            cursor,
+            num_lines,
+            params.viewport_rows,
+            self.special,
+        );
+        let gutter_info = self.build_gutter_info(start_line, end_line, max_characters);
+
+        let viewport = self.compute_viewport(
+            &gutter_info,
+            scroll,
+            cursor,
+            selection,
+            params.viewport_rows,
+        );
+        extra_segments.extend(viewport.segments);
+        extra_segments.extend(Self::build_visibility_segments(&gutter_info));
+
+        let highlight_segments = self.compute_highlight_segments(&gutter_info);
+        extra_segments.extend(highlight_segments);
+
+        let lines = self.merge_and_extract_text(&gutter_info, extra_segments);
+        let (lines, gutter_info) =
+            Self::slice_viewport(lines, gutter_info, viewport.range_start, viewport.range_end);
+
+        (lines, viewport.relative_cursor, gutter_info)
     }
 
     /// Get line length
