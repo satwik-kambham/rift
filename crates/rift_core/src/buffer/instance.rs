@@ -295,6 +295,39 @@ impl BufferInstance {
         self.scroll.row = row;
         self.scroll.column = column;
     }
+
+    /// Update cursor position and collapse selection to that cursor.
+    /// Also updates `column_level` to match the new cursor column.
+    pub fn sync_cursor(&mut self, cursor: Cursor) {
+        self.cursor = cursor;
+        self.selection.cursor = cursor;
+        self.selection.mark = cursor;
+        self.column_level = cursor.column;
+    }
+
+    /// Update cursor position and collapse selection, but preserve `column_level`
+    /// (used by vertical movement where the desired column stays fixed).
+    pub fn sync_cursor_vertical(&mut self, cursor: Cursor) {
+        self.cursor = cursor;
+        self.selection.cursor = cursor;
+        self.selection.mark = cursor;
+    }
+
+    /// Update cursor position and move the selection cursor to match,
+    /// but keep the mark where it is (extending the selection).
+    /// Also updates `column_level`.
+    pub fn extend_selection(&mut self, cursor: Cursor) {
+        self.cursor = cursor;
+        self.selection.cursor = cursor;
+        self.column_level = cursor.column;
+    }
+
+    /// Like `extend_selection` but preserves `column_level`
+    /// (used by vertical extend movements).
+    pub fn extend_selection_vertical(&mut self, cursor: Cursor) {
+        self.cursor = cursor;
+        self.selection.cursor = cursor;
+    }
 }
 
 #[cfg(test)]
