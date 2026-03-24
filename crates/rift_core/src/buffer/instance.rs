@@ -65,7 +65,7 @@ pub enum Edit {
 }
 
 /// Gutter Information
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GutterInfo {
     pub start: Cursor,
     pub end: usize,
