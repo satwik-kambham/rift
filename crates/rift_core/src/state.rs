@@ -303,43 +303,6 @@ impl EditorState {
         None
     }
 
-    pub fn spawn_lsp_with_channel(&self, language: &Language) -> Option<LSPClientHandle> {
-        if self.preferences.no_lsp {
-            return None;
-        }
-
-        let command: Option<(&str, &[&str])> = match language {
-            Language::Rust => Some(("rust-analyzer", &[])),
-            Language::Python => Some(("uv", &["run", "pylsp"])),
-            Language::Dart => Some(("dart", &["language-server", "--client-id=rift"])),
-            Language::Zig => Some(("zls", &[])),
-            _ => None,
-        };
-        if let Some(command) = command {
-            if which::which(command.0).is_ok() {
-                match start_lsp_with_channel(
-                    command.0,
-                    command.1,
-                    self.lsp_message_sender.clone(),
-                    *language,
-                ) {
-                    Ok(client) => return Some(client),
-                    Err(err) => {
-                        let command_display = if command.1.is_empty() {
-                            command.0.to_string()
-                        } else {
-                            format!("{} {}", command.0, command.1.join(" "))
-                        };
-                        tracing::error!("Failed to start LSP `{}`: {err}", command_display);
-                    }
-                }
-            } else {
-                return None;
-            }
-        }
-        None
-    }
-
     pub fn spawn_lsp(&self, language: &Language) -> Option<LSPClientHandle> {
         if self.preferences.no_lsp {
             return None;
@@ -379,7 +342,7 @@ impl EditorState {
 
     pub async fn start_lsp_async(&mut self, language: &Language) {
         if !self.lsp_handles.contains_key(language)
-            && let Some(mut lsp_handle) = self.spawn_lsp_with_channel(language)
+            && let Some(mut lsp_handle) = self.spawn_lsp(language)
         {
             if lsp_handle
                 .init_lsp(self.workspace_folder.clone())
@@ -435,7 +398,7 @@ impl EditorState {
                 || lsp_handle.initialize_capabilities["textDocumentSync"]["openClose"]
                     .as_bool()
                     .unwrap_or(false))
-                && let Err(err) = lsp_handle.send_notification_nonblocking(
+                && let Err(err) = lsp_handle.send_notification_sync(
                     "textDocument/didOpen".to_string(),
                     Some(LSPClientHandle::did_open_text_document(
                         path,

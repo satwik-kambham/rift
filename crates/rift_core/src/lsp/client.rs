@@ -67,10 +67,6 @@ pub fn start_lsp_with_channel(
     start_lsp_inner(program, args, Some((unified_tx, language)))
 }
 
-pub fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> {
-    start_lsp_inner(program, args, None)
-}
-
 fn start_lsp_inner(
     program: &str,
     args: &[&str],
@@ -194,14 +190,21 @@ fn start_lsp_inner(
                 };
 
                 if let Some((ref unified_tx, lang)) = unified_channel {
-                    let _ = unified_tx
+                    // try_send to per-client channel (needed during init, non-blocking
+                    // so it won't hang after init when nothing consumes it)
+                    let _ = itx.try_send(msg.clone());
+                    if let Err(err) = unified_tx
                         .send(super::LSPIncomingMessage {
                             language: lang,
-                            message: msg.clone(),
+                            message: msg,
                         })
-                        .await;
+                        .await
+                    {
+                        tracing::warn!("Failed to send LSP message to unified channel: {err}");
+                    }
+                } else {
+                    let _ = itx.send(msg).await;
                 }
-                let _ = itx.send(msg).await;
 
                 header = String::new();
             }
@@ -247,18 +250,6 @@ impl LSPClientHandle {
         Ok(())
     }
 
-    pub fn send_request_nonblocking(
-        &mut self,
-        method: String,
-        params: Option<Value>,
-    ) -> Result<()> {
-        let id = next_id();
-        self.id_method.insert(id, method.clone());
-        self.sender
-            .try_send(OutgoingMessage::Request(Request { method, params, id }))?;
-        Ok(())
-    }
-
     pub async fn send_response(
         &self,
         id: usize,
@@ -293,19 +284,6 @@ impl LSPClientHandle {
     }
 
     pub fn send_notification_sync(&self, method: String, params: Option<Value>) -> Result<()> {
-        self.sender
-            .try_send(OutgoingMessage::Notification(Notification {
-                method,
-                params,
-            }))?;
-        Ok(())
-    }
-
-    pub fn send_notification_nonblocking(
-        &self,
-        method: String,
-        params: Option<Value>,
-    ) -> Result<()> {
         self.sender
             .try_send(OutgoingMessage::Notification(Notification {
                 method,

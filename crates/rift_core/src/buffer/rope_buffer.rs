@@ -595,7 +595,7 @@ impl RopeBuffer {
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_notification_nonblocking(
+                        .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
                                 self.file_path.clone().unwrap(),
@@ -609,7 +609,7 @@ impl RopeBuffer {
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_notification_nonblocking(
+                        .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
                                 self.file_path.clone().unwrap(),
@@ -682,7 +682,7 @@ impl RopeBuffer {
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_notification_nonblocking(
+                        .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
                                 self.file_path.clone().unwrap(),
@@ -696,7 +696,7 @@ impl RopeBuffer {
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_notification_nonblocking(
+                        .send_notification_sync(
                             "textDocument/didChange".to_string(),
                             Some(LSPClientHandle::did_change_text_document(
                                 self.file_path.clone().unwrap(),

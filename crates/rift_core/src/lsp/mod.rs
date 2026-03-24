@@ -67,27 +67,6 @@ pub fn handle_lsp_message(msg: LSPIncomingMessage, state: &mut EditorState) {
     process_lsp_message(msg.message, method, state);
 }
 
-pub fn handle_lsp_messages(state: &mut EditorState) {
-    if let Some(buffer_idx) = state.buffer_idx
-        && let Some(lsp_handle) = state.get_lsp_handle_for_buffer(buffer_idx)
-    {
-        let (message, method) = {
-            let mut lsp_handle = lsp_handle.lock().unwrap();
-            let message = lsp_handle.recv_message_sync();
-            let method = if let Some(client::IncomingMessage::Response(ref response)) = message {
-                lsp_handle.id_method.get(&response.id).cloned()
-            } else {
-                None
-            };
-            (message, method)
-        };
-
-        if let Some(message) = message {
-            process_lsp_message(message, method, state);
-        }
-    }
-}
-
 fn process_lsp_message(
     message: client::IncomingMessage,
     method: Option<String>,

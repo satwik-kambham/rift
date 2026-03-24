@@ -419,7 +419,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             buffer.modified = false;
 
             if let Some(lsp_handle) = lsp_handle
-                && let Err(err) = lsp_handle.lock().unwrap().send_notification_nonblocking(
+                && let Err(err) = lsp_handle.lock().unwrap().send_notification_sync(
                     "textDocument/didSave".to_string(),
                     Some(LSPClientHandle::did_save_text_document(file_path)),
                 )
@@ -565,7 +565,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_nonblocking(
+                    .send_request_sync(
                         "textDocument/formatting".to_string(),
                         Some(LSPClientHandle::formatting_request(
                             buffer.file_path().cloned().unwrap(),
@@ -676,7 +676,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_nonblocking(
+                    .send_request_sync(
                         "textDocument/hover".to_string(),
                         Some(LSPClientHandle::hover_request(
                             buffer.file_path().cloned().unwrap(),
@@ -693,7 +693,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_nonblocking(
+                    .send_request_sync(
                         "textDocument/completion".to_string(),
                         Some(LSPClientHandle::completion_request(
                             buffer.file_path().cloned().unwrap(),
@@ -710,7 +710,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                 lsp_handle
                     .lock()
                     .unwrap()
-                    .send_request_nonblocking(
+                    .send_request_sync(
                         "textDocument/signatureHelp".to_string(),
                         Some(LSPClientHandle::signature_help_request(
                             buffer.file_path().cloned().unwrap(),
@@ -735,7 +735,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_request_nonblocking(
+                        .send_request_sync(
                             "textDocument/definition".to_string(),
                             Some(LSPClientHandle::go_to_definition_request(
                                 file_path.clone(),
@@ -781,7 +781,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                     lsp_handle
                         .lock()
                         .unwrap()
-                        .send_request_nonblocking(
+                        .send_request_sync(
                             "textDocument/references".to_string(),
                             Some(LSPClientHandle::go_to_references_request(
                                 file_path.clone(),
