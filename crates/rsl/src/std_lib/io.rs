@@ -79,7 +79,15 @@ pub fn agent_write_file_tool(arguments: Vec<Primitive>) -> Primitive {
         return Primitive::String("Error: file_path is not in workspace".to_string());
     }
 
-    let parent_dir = Path::new(&file_path).parent().unwrap();
+    let parent_dir = match Path::new(&file_path).parent() {
+        Some(p) => p,
+        None => {
+            return Primitive::String(format!(
+                "Error: cannot determine parent directory for '{}'",
+                file_path
+            ));
+        }
+    };
     if let Err(e) = std::fs::create_dir_all(parent_dir) {
         return Primitive::String(format!(
             "Error creating parent directories for '{}': {}",
@@ -645,8 +653,10 @@ pub fn create_directory(arguments: Vec<Primitive>) -> Primitive {
 #[rsl_native]
 pub fn read_file(arguments: Vec<Primitive>) -> Primitive {
     let path = args!(arguments; path: String);
-    let content = std::fs::read_to_string(path).unwrap();
-    Primitive::String(content)
+    match std::fs::read_to_string(&path) {
+        Ok(content) => Primitive::String(content),
+        Err(e) => Primitive::Error(format!("reading file '{}': {}", path, e)),
+    }
 }
 
 #[rsl_native]

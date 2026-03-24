@@ -633,6 +633,9 @@ fn execute_rpc_call(
     Ok(rsl.rt_handle.block_on(async {
         let ctx = context::Context::current();
         let client = &rsl.rift_rpc_client;
+        let rpc_err = |e: tarpc::client::RpcError| -> Primitive {
+            Primitive::Error(format!("RPC call '{identifier}' failed: {e}"))
+        };
 
         match identifier {
             "log" => {
@@ -641,65 +644,70 @@ fn execute_rpc_call(
                     .map(|arg| format!("{}", arg))
                     .collect::<Vec<_>>()
                     .join(" ");
-                client.rlog(ctx, message).await.unwrap();
+                if let Err(e) = client.rlog(ctx, message).await {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "openFile" => {
                 let path = args!(parameters; path: String);
-                client.open_file(ctx, path).await.unwrap();
+                if let Err(e) = client.open_file(ctx, path).await {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "setActiveBuffer" => {
                 let buffer_id = args!(parameters; buffer_id: Number);
-                client
-                    .set_active_buffer(ctx, buffer_id as u32)
-                    .await
-                    .unwrap();
-                Primitive::Null
-            }
-            "getActiveBuffer" => {
-                let buffer_id = client.get_active_buffer(ctx).await.unwrap();
-                if let Some(buffer_id) = buffer_id {
-                    return Primitive::Number(buffer_id as f32);
+                if let Err(e) = client.set_active_buffer(ctx, buffer_id as u32).await {
+                    return rpc_err(e);
                 }
                 Primitive::Null
             }
-            "listBuffers" => {
-                let buffers = client.list_buffers(ctx).await.unwrap();
-                Primitive::String(buffers)
-            }
-            "getActions" => {
-                let actions = client.get_actions(ctx).await.unwrap();
-                Primitive::String(actions)
-            }
-            "getReferences" => {
-                let references = client.get_references(ctx).await.unwrap();
-                Primitive::String(references)
-            }
-            "getDefinitions" => {
-                let definitions = client.get_definitions(ctx).await.unwrap();
-                Primitive::String(definitions)
-            }
-            "getWorkspaceDiagnostics" => {
-                let diagnostics = client.get_workspace_diagnostics(ctx).await.unwrap();
-                Primitive::String(diagnostics)
-            }
-            "getViewportSize" => {
-                let size = client.get_viewport_size(ctx).await.unwrap();
-                Primitive::String(size)
-            }
+            "getActiveBuffer" => match client.get_active_buffer(ctx).await {
+                Ok(Some(buffer_id)) => Primitive::Number(buffer_id as f32),
+                Ok(None) => Primitive::Null,
+                Err(e) => rpc_err(e),
+            },
+            "listBuffers" => match client.list_buffers(ctx).await {
+                Ok(buffers) => Primitive::String(buffers),
+                Err(e) => rpc_err(e),
+            },
+            "getActions" => match client.get_actions(ctx).await {
+                Ok(actions) => Primitive::String(actions),
+                Err(e) => rpc_err(e),
+            },
+            "getReferences" => match client.get_references(ctx).await {
+                Ok(references) => Primitive::String(references),
+                Err(e) => rpc_err(e),
+            },
+            "getDefinitions" => match client.get_definitions(ctx).await {
+                Ok(definitions) => Primitive::String(definitions),
+                Err(e) => rpc_err(e),
+            },
+            "getWorkspaceDiagnostics" => match client.get_workspace_diagnostics(ctx).await {
+                Ok(diagnostics) => Primitive::String(diagnostics),
+                Err(e) => rpc_err(e),
+            },
+            "getViewportSize" => match client.get_viewport_size(ctx).await {
+                Ok(size) => Primitive::String(size),
+                Err(e) => rpc_err(e),
+            },
             "selectRange" => {
                 let selection = args!(parameters; selection: String);
-                client.select_range(ctx, selection).await.unwrap();
+                if let Err(e) = client.select_range(ctx, selection).await {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "registerGlobalKeybind" => {
                 let (definition, function_id) =
                     args!(parameters; definition: String, function_id: Function);
-                client
+                if let Err(e) = client
                     .register_global_keybind(ctx, definition, function_id)
                     .await
-                    .unwrap();
+                {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "registerBufferKeybind" => {
@@ -709,19 +717,23 @@ fn execute_rpc_call(
                     definition: String,
                     function_id: Function
                 );
-                client
+                if let Err(e) = client
                     .register_buffer_keybind(ctx, buffer_id as u32, definition, function_id)
                     .await
-                    .unwrap();
+                {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "registerBufferInputHook" => {
                 let (buffer_id, function_id) =
                     args!(parameters; buffer_id: Number, function_id: Function);
-                client
+                if let Err(e) = client
                     .register_buffer_input_hook(ctx, buffer_id as u32, function_id)
                     .await
-                    .unwrap();
+                {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "createSpecialBuffer" => {
@@ -730,53 +742,58 @@ fn execute_rpc_call(
                 } else {
                     args!(parameters; display_name: String)
                 };
-                let buffer_id = client
-                    .create_special_buffer(ctx, display_name)
-                    .await
-                    .unwrap();
-                Primitive::Number(buffer_id as f32)
+                match client.create_special_buffer(ctx, display_name).await {
+                    Ok(buffer_id) => Primitive::Number(buffer_id as f32),
+                    Err(e) => rpc_err(e),
+                }
             }
             "setBufferContent" => {
                 let (buffer_id, content) = args!(parameters; buffer_id: Number, content: String);
-                client
+                if let Err(e) = client
                     .set_buffer_content(ctx, buffer_id as u32, content)
                     .await
-                    .unwrap();
+                {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "getBufferInput" => {
                 let buffer_id = args!(parameters; buffer_id: Number);
-                let input = client
-                    .get_buffer_input(ctx, buffer_id as u32)
-                    .await
-                    .unwrap();
-                Primitive::String(input)
+                match client.get_buffer_input(ctx, buffer_id as u32).await {
+                    Ok(input) => Primitive::String(input),
+                    Err(e) => rpc_err(e),
+                }
             }
             "setBufferInput" => {
                 let (buffer_id, input) = args!(parameters; buffer_id: Number, input: String);
-                client
-                    .set_buffer_input(ctx, buffer_id as u32, input)
-                    .await
-                    .unwrap();
+                if let Err(e) = client.set_buffer_input(ctx, buffer_id as u32, input).await {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             "setSearchQuery" => {
                 let query = args!(parameters; query: String);
-                client.set_search_query(ctx, query).await.unwrap();
+                if let Err(e) = client.set_search_query(ctx, query).await {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
-            "getWorkspaceDir" => {
-                let workspace_dir = client.get_workspace_dir(ctx).await.unwrap();
-                Primitive::String(workspace_dir)
-            }
+            "getWorkspaceDir" => match client.get_workspace_dir(ctx).await {
+                Ok(workspace_dir) => Primitive::String(workspace_dir),
+                Err(e) => rpc_err(e),
+            },
             "runAction" => {
                 let action = args!(parameters; action: String);
-                let result = client.run_action(ctx, action).await.unwrap();
-                Primitive::String(result)
+                match client.run_action(ctx, action).await {
+                    Ok(result) => Primitive::String(result),
+                    Err(e) => rpc_err(e),
+                }
             }
             "tts" => {
                 let text = args!(parameters; text: String);
-                client.tts(ctx, text).await.unwrap();
+                if let Err(e) = client.tts(ctx, text).await {
+                    return rpc_err(e);
+                }
                 Primitive::Null
             }
             // SAFETY: unreachable because unknown identifiers are rejected above

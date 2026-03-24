@@ -657,16 +657,22 @@ impl Parser {
     }
 
     fn peek(&self) -> &Token {
-        self.tokens.get(self.current).unwrap()
+        self.tokens
+            .get(self.current)
+            .expect("parser invariant: token stream ends with EOF")
     }
 
     fn peek_n(&self, n: usize) -> &Token {
-        self.tokens.get(self.current + n).unwrap()
+        self.tokens
+            .get(self.current + n)
+            .expect("parser invariant: token stream ends with EOF")
     }
 
     fn consume(&mut self) -> &Token {
         self.current += 1;
-        self.tokens.get(self.current - 1).unwrap()
+        self.tokens
+            .get(self.current - 1)
+            .expect("parser invariant: token stream ends with EOF")
     }
 
     fn is_at_eof(&self) -> bool {

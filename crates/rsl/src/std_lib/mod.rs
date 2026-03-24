@@ -57,8 +57,10 @@ pub fn to_string(arguments: Vec<Primitive>) -> Primitive {
 #[rsl_native]
 pub fn to_json(arguments: Vec<Primitive>) -> Primitive {
     let argument = args!(arguments; argument);
-    let serialized = serde_json::to_string(&argument).unwrap();
-    Primitive::String(serialized)
+    match serde_json::to_string(&argument) {
+        Ok(serialized) => Primitive::String(serialized),
+        Err(e) => Primitive::Error(format!("JSON serialization failed: {e}")),
+    }
 }
 
 #[rsl_native]

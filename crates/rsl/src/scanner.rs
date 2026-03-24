@@ -112,9 +112,19 @@ impl Scanner {
                 let string = self
                     .source
                     .get(self.start + 1..self.current - 1)
-                    .unwrap()
+                    .expect("scanner invariant: string bounds within source")
                     .to_string();
-                let string = unescaper::unescape(&string).unwrap();
+                let string = match unescaper::unescape(&string) {
+                    Ok(s) => s,
+                    Err(_) => {
+                        return Err(ScanError::new(
+                            "Invalid escape sequence in string".into(),
+                            self.start,
+                            self.current,
+                            self.start_line,
+                        ));
+                    }
+                };
                 self.add_token(TokenType::String(string))
             }
             _ => {
@@ -131,7 +141,7 @@ impl Scanner {
                     let number = match self
                         .source
                         .get(self.start..self.current)
-                        .unwrap()
+                        .expect("scanner invariant: number bounds within source")
                         .parse::<f32>()
                     {
                         Ok(n) => n,
@@ -149,7 +159,10 @@ impl Scanner {
                     while self.peek().is_ascii_alphanumeric() {
                         self.advance();
                     }
-                    let identifier = self.source.get(self.start..self.current).unwrap();
+                    let identifier = self
+                        .source
+                        .get(self.start..self.current)
+                        .expect("scanner invariant: identifier bounds within source");
                     let token_type = match identifier {
                         "and" => TokenType::And,
                         "or" => TokenType::Or,
@@ -191,7 +204,7 @@ impl Scanner {
 
     fn advance(&mut self) -> char {
         let mut iter = self.source[self.current..].char_indices();
-        let (_, ch) = iter.next().unwrap();
+        let (_, ch) = iter.next().expect("advance called when not at EOF");
         if ch == '\n' {
             self.line += 1;
         }
@@ -209,7 +222,7 @@ impl Scanner {
         }
 
         let mut iter = self.source[self.current..].char_indices();
-        let (_, ch) = iter.next().unwrap();
+        let (_, ch) = iter.next().expect("match_token guarded by is_at_eof check");
         if ch != expected {
             return false;
         }
@@ -231,7 +244,10 @@ impl Scanner {
         if self.is_at_eof() {
             return '\0';
         }
-        self.source[self.current..].chars().next().unwrap()
+        self.source[self.current..]
+            .chars()
+            .next()
+            .expect("peek guarded by is_at_eof check")
     }
 
     fn peek_n(&self, n: usize) -> char {
