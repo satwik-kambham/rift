@@ -22,7 +22,7 @@ fn next_id() -> usize {
     ID.fetch_add(1, Ordering::SeqCst)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IncomingMessage {
     Response(types::ResponseMessage),
     Notification(types::NotificationMessage),
@@ -58,7 +58,23 @@ pub struct LSPClientHandle {
     pub initialize_capabilities: Value,
 }
 
-pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> {
+pub fn start_lsp_with_channel(
+    program: &str,
+    args: &[&str],
+    unified_tx: mpsc::Sender<super::LSPIncomingMessage>,
+    language: crate::buffer::instance::Language,
+) -> Result<LSPClientHandle> {
+    start_lsp_inner(program, args, Some((unified_tx, language)))
+}
+
+fn start_lsp_inner(
+    program: &str,
+    args: &[&str],
+    unified_channel: Option<(
+        mpsc::Sender<super::LSPIncomingMessage>,
+        crate::buffer::instance::Language,
+    )>,
+) -> Result<LSPClientHandle> {
     let mut command = Command::new(program);
 
     let command_display = if args.is_empty() {
@@ -164,15 +180,30 @@ pub async fn start_lsp(program: &str, args: &[&str]) -> Result<LSPClientHandle> 
                 let body: Value = serde_json::from_str(&body).unwrap();
 
                 // If id is present then it is a response
-                if let Some(_id) = body.get("id") {
+                let msg = if let Some(_id) = body.get("id") {
                     let response: types::ResponseMessage = serde_json::from_value(body).unwrap();
-                    itx.send(IncomingMessage::Response(response)).await.unwrap();
+                    IncomingMessage::Response(response)
                 } else {
                     let notification: types::NotificationMessage =
                         serde_json::from_value(body).unwrap();
-                    itx.send(IncomingMessage::Notification(notification))
+                    IncomingMessage::Notification(notification)
+                };
+
+                if let Some((ref unified_tx, lang)) = unified_channel {
+                    // try_send to per-client channel (needed during init, non-blocking
+                    // so it won't hang after init when nothing consumes it)
+                    let _ = itx.try_send(msg.clone());
+                    if let Err(err) = unified_tx
+                        .send(super::LSPIncomingMessage {
+                            language: lang,
+                            message: msg,
+                        })
                         .await
-                        .unwrap();
+                    {
+                        tracing::warn!("Failed to send LSP message to unified channel: {err}");
+                    }
+                } else {
+                    let _ = itx.send(msg).await;
                 }
 
                 header = String::new();
@@ -215,7 +246,7 @@ impl LSPClientHandle {
         let id = next_id();
         self.id_method.insert(id, method.clone());
         self.sender
-            .blocking_send(OutgoingMessage::Request(Request { method, params, id }))?;
+            .try_send(OutgoingMessage::Request(Request { method, params, id }))?;
         Ok(())
     }
 
@@ -238,7 +269,7 @@ impl LSPClientHandle {
         error: Option<types::ResponseError>,
     ) -> Result<()> {
         self.sender
-            .blocking_send(OutgoingMessage::Response(Response { id, result, error }))?;
+            .try_send(OutgoingMessage::Response(Response { id, result, error }))?;
         Ok(())
     }
 
@@ -254,7 +285,7 @@ impl LSPClientHandle {
 
     pub fn send_notification_sync(&self, method: String, params: Option<Value>) -> Result<()> {
         self.sender
-            .blocking_send(OutgoingMessage::Notification(Notification {
+            .try_send(OutgoingMessage::Notification(Notification {
                 method,
                 params,
             }))?;
@@ -363,6 +394,51 @@ impl LSPClientHandle {
         }
 
         Ok(())
+    }
+
+    /// Send initialize request and wait for response (async version)
+    pub async fn init_lsp(&mut self, workspace_folder: String) -> Result<()> {
+        self.send_request(
+            "initialize".to_string(),
+            Some(self.get_initialization_params(workspace_folder)),
+        )
+        .await?;
+
+        let timeout_duration = Duration::from_secs(5);
+        let timeout = tokio::time::timeout(timeout_duration, async {
+            loop {
+                if let Some(message) = self.receiver.recv().await {
+                    match &message {
+                        IncomingMessage::Response(response) => {
+                            self.pending_requests.insert(response.id, message);
+                        }
+                        IncomingMessage::Notification(_) => {
+                            continue;
+                        }
+                    }
+                    if self.pending_requests.contains_key(&self.pending_id) {
+                        let msg = self.pending_requests.remove(&self.pending_id);
+                        self.pending_id += 1;
+                        if let Some(IncomingMessage::Response(response)) = msg {
+                            self.initialize_capabilities =
+                                response.result.unwrap()["capabilities"].clone();
+                            self.send_notification("initialized".to_string(), Some(json!({})))
+                                .await
+                                .unwrap();
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        });
+
+        match timeout.await {
+            Ok(result) => result,
+            Err(_) => {
+                tracing::warn!("LSP Initialization timed out. Disabling LSP");
+                bail!("LSP Initialization timed out")
+            }
+        }
     }
 
     /// DidOpenTextDocument Notification

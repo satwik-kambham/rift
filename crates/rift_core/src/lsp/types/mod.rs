@@ -12,7 +12,7 @@ pub struct RequestMessage {
     pub params: Option<Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseMessage {
     pub jsonrpc: String,
     pub id: usize,
@@ -21,7 +21,7 @@ pub struct ResponseMessage {
     pub error: Option<ResponseError>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseError {
     pub code: i32,
     pub message: String,
@@ -29,7 +29,7 @@ pub struct ResponseError {
     pub data: Option<Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationMessage {
     pub jsonrpc: String,
     pub method: String,

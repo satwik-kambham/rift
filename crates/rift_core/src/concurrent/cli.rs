@@ -15,7 +15,7 @@ pub struct ProgramArgs {
 pub fn run_command(
     program_args: ProgramArgs,
     callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
     current_dir: String,
 ) {
@@ -100,7 +100,7 @@ pub fn run_command(
 pub fn run_piped_commands(
     program_args: Vec<ProgramArgs>,
     callback: fn(Result<AsyncPayload, AsyncError>, state: &mut EditorState),
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
     current_dir: String,
 ) {

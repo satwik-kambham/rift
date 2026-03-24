@@ -9,6 +9,7 @@ use copypasta::ClipboardContext;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result as NotifyResult, Watcher};
 use petal::NoteStore;
 use rodio::OutputStreamBuilder;
+use tokio::runtime::Handle;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -22,7 +23,8 @@ use crate::{
     concurrent::{AsyncHandle, AsyncResult},
     keybinds::KeybindHandler,
     lsp::{
-        client::{LSPClientHandle, start_lsp},
+        LSPIncomingMessage,
+        client::{LSPClientHandle, start_lsp_with_channel},
         types,
     },
     preferences::Preferences,
@@ -57,13 +59,15 @@ pub struct EditorState {
     pub clipboard_ctx: Option<ClipboardContext>,
 
     // Handles
-    pub rt: tokio::runtime::Runtime,
+    pub rt_handle: Handle,
     pub async_handle: AsyncHandle,
     pub file_event_receiver: mpsc::Receiver<NotifyResult<Event>>,
     pub event_reciever: mpsc::Receiver<RPCRequest>,
     pub rsl_sender: mpsc::Sender<String>,
     pub file_watcher: Option<RecommendedWatcher>,
     pub lsp_handles: HashMap<Language, Arc<Mutex<LSPClientHandle>>>,
+    pub lsp_message_receiver: mpsc::Receiver<LSPIncomingMessage>,
+    lsp_message_sender: mpsc::Sender<LSPIncomingMessage>,
     pub transcription_handle: Option<audio::TranscriptionHandle>,
     pub tts_output_stream: Option<rodio::OutputStream>,
     pub note_store: Option<NoteStore>,
@@ -89,30 +93,20 @@ pub struct EditorState {
     pub audio_recording: bool,
 }
 
-impl Default for EditorState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl EditorState {
-    pub fn new() -> Self {
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
+    pub fn new(rt_handle: Handle) -> Self {
         let (event_sender, event_reciever) = mpsc::channel::<RPCRequest>(32);
 
-        let rpc_client_transport = rt.block_on(start_rpc_server(event_sender));
+        let rpc_client_transport = rt_handle.block_on(start_rpc_server(event_sender));
 
         let (sender, receiver) = mpsc::channel::<AsyncResult>(32);
         let (file_event_sender, file_event_receiver) = mpsc::channel::<NotifyResult<Event>>(32);
+        let (lsp_message_sender, lsp_message_receiver) = mpsc::channel::<LSPIncomingMessage>(32);
 
-        let rt_handle = rt.handle().clone();
+        let rt_handle_watcher = rt_handle.clone();
         let watcher = RecommendedWatcher::new(
             move |res| {
-                rt_handle.block_on(async {
+                rt_handle_watcher.block_on(async {
                     if let Err(err) = file_event_sender.clone().send(res).await {
                         tracing::warn!(%err, "Failed to forward file watcher event");
                     }
@@ -134,12 +128,14 @@ impl EditorState {
 
         Self {
             quit: false,
-            rt,
+            rt_handle,
             async_handle: AsyncHandle { sender, receiver },
             file_event_receiver,
             event_reciever,
             rsl_sender,
             file_watcher: watcher,
+            lsp_message_receiver,
+            lsp_message_sender,
             preferences: Preferences::default(),
             buffers: HashMap::new(),
             next_id: 0,
@@ -317,21 +313,16 @@ impl EditorState {
             Language::Python => Some(("uv", &["run", "pylsp"])),
             Language::Dart => Some(("dart", &["language-server", "--client-id=rift"])),
             Language::Zig => Some(("zls", &[])),
-            // Language::HTML => Some(("vscode-html-language-server", &["--stdio"])),
-            // Language::CSS => Some(("vscode-css-language-server", &["--stdio"])),
-            // Language::JSON => Some(("vscode-json-language-server", &["--stdio"])),
-            // Language::Javascript => Some(("typescript-language-server", &["--stdio"])),
-            // Language::Typescript => Some(("typescript-language-server", &["--stdio"])),
-            // Language::Tsx => Some(("typescript-language-server", &["--stdio"])),
-            // Language::Vue => Some(("vue-language-server", &["--stdio"])),
             _ => None,
         };
         if let Some(command) = command {
             if which::which(command.0).is_ok() {
-                match self
-                    .rt
-                    .block_on(async { start_lsp(command.0, command.1).await })
-                {
+                match start_lsp_with_channel(
+                    command.0,
+                    command.1,
+                    self.lsp_message_sender.clone(),
+                    *language,
+                ) {
                     Ok(client) => return Some(client),
                     Err(err) => {
                         let command_display = if command.1.is_empty() {
@@ -347,6 +338,23 @@ impl EditorState {
             }
         }
         None
+    }
+
+    pub async fn start_lsp_async(&mut self, language: &Language) {
+        if !self.lsp_handles.contains_key(language)
+            && let Some(mut lsp_handle) = self.spawn_lsp(language)
+        {
+            if lsp_handle
+                .init_lsp(self.workspace_folder.clone())
+                .await
+                .is_ok()
+            {
+                self.lsp_handles
+                    .insert(*language, Arc::new(Mutex::new(lsp_handle)));
+            } else {
+                self.preferences.no_lsp = true;
+            }
+        }
     }
 
     pub fn start_lsp(&mut self, language: &Language) {

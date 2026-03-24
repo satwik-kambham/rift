@@ -433,7 +433,9 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             perform_action(Action::RunSource(source), state);
         }
         Action::RunSource(source) => {
-            state.rsl_sender.blocking_send(source).unwrap();
+            if let Err(err) = state.rsl_sender.try_send(source) {
+                tracing::warn!(%err, "Failed to send RSL source");
+            }
         }
         Action::Select(selection) => {
             let (_buffer, instance) = state.get_buffer_by_id_mut(state.buffer_idx.unwrap());
@@ -888,7 +890,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                             warn!(?err, "Failed to copy selection via wl-copy");
                         }
                     },
-                    &state.rt,
+                    &state.rt_handle,
                     state.async_handle.sender.clone(),
                     state.workspace_folder.clone(),
                 );
@@ -938,7 +940,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                         instance.selection.cursor = instance.cursor;
                         instance.selection.mark = instance.cursor;
                     },
-                    &state.rt,
+                    &state.rt_handle,
                     state.async_handle.sender.clone(),
                     state.workspace_folder.clone(),
                 );
@@ -1115,7 +1117,7 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
             match audio::start_transcription(
                 None,
                 callback,
-                &state.rt,
+                &state.rt_handle,
                 state.async_handle.sender.clone(),
             ) {
                 Ok(handle) => {

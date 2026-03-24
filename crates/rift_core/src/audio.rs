@@ -144,7 +144,7 @@ pub fn list_input_devices() -> Result<Vec<InputDeviceInfo>, AudioError> {
 pub fn start_transcription(
     device_id: Option<String>,
     callback: TranscriptionCallback,
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
     sender: Sender<AsyncResult>,
 ) -> Result<TranscriptionHandle, AudioError> {
     let host = cpal::default_host();
@@ -200,7 +200,7 @@ pub fn start_transcription(
         path,
         callback,
         sender,
-        rt_handle: rt.handle().clone(),
+        rt_handle: rt.clone(),
         stopped: AtomicBool::new(false),
     })
 }
@@ -569,7 +569,7 @@ pub fn start_tts(text: String, state: &mut EditorState) {
         "http://127.0.0.1:8000/tts".to_string(),
         body,
         tts_async_callback,
-        &state.rt,
+        &state.rt_handle,
         state.async_handle.sender.clone(),
     );
 }

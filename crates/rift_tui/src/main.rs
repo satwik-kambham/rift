@@ -6,11 +6,15 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!("Rift session starting (tui)");
 
-    let mut app = app::App::new();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+
+    let mut app = app::App::new(rt.handle().clone());
 
     let mut terminal = ratatui::init();
     terminal.clear()?;
-    app.run(terminal)?;
+    app.run(&rt, terminal)?;
     ratatui::restore();
 
     tracing::info!("Rift session exiting (tui)");

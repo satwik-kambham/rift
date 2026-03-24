@@ -6,8 +6,12 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!("Rift session starting (server)");
 
-    let mut server = server::Server::new();
-    server.run()?;
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+
+    let mut server = server::Server::new(rt.handle().clone());
+    server.run(&rt)?;
 
     tracing::info!("Rift session exiting (server)");
 
