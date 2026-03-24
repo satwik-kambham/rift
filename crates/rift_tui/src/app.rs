@@ -59,7 +59,9 @@ impl App {
                 tokio::select! {
                     Some(req) = self.state.event_reciever.recv() => {
                         let result = self.perform_action(req.action);
-                        req.response_tx.send(result).unwrap();
+                        if req.response_tx.send(result).is_err() {
+                        tracing::warn!("RPC response receiver dropped");
+                    }
                         self.state.update_view = true;
                     }
                     Some(async_result) = self.state.async_handle.receiver.recv() => {

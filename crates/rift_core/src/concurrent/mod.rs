@@ -54,6 +54,7 @@ pub fn simple_callback(
                 callback,
             })
             .await
-            .unwrap();
+            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+            .ok();
     });
 }

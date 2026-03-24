@@ -48,7 +48,8 @@ pub fn get_request(
                 callback,
             })
             .await
-            .unwrap();
+            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+            .ok();
     });
 }
 
@@ -99,7 +100,8 @@ pub fn post_request(
                 callback,
             })
             .await
-            .unwrap();
+            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+            .ok();
     });
 }
 
@@ -154,7 +156,8 @@ pub fn post_request_json_body_with_bearer_auth(
                 callback,
             })
             .await
-            .unwrap();
+            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+            .ok();
     });
 }
 
@@ -200,6 +203,10 @@ pub fn post_request_json_body_bytes(
             }
             .await;
 
-        sender.send(AsyncResult { result, callback }).await.unwrap();
+        sender
+            .send(AsyncResult { result, callback })
+            .await
+            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+            .ok();
     });
 }

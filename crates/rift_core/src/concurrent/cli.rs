@@ -43,7 +43,8 @@ pub fn run_command(
                     callback,
                 })
                 .await
-                .unwrap();
+                .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                .ok();
         });
         return;
     }
@@ -93,7 +94,8 @@ pub fn run_command(
                 callback,
             })
             .await
-            .unwrap();
+            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+            .ok();
     });
 }
 
@@ -121,7 +123,8 @@ pub fn run_piped_commands(
                         callback,
                     })
                     .await
-                    .unwrap();
+                    .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                    .ok();
                 return;
             }
         }
@@ -152,7 +155,8 @@ pub fn run_piped_commands(
                                 callback,
                             })
                             .await
-                            .unwrap();
+                            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                            .ok();
                         return;
                     }
                 };
@@ -171,7 +175,8 @@ pub fn run_piped_commands(
                             callback,
                         })
                         .await
-                        .unwrap();
+                        .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                        .ok();
                     return;
                 }
                 let output = match child.wait_with_output().await {
@@ -189,7 +194,8 @@ pub fn run_piped_commands(
                                 callback,
                             })
                             .await
-                            .unwrap();
+                            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                            .ok();
                         return;
                     }
                 };
@@ -208,7 +214,8 @@ pub fn run_piped_commands(
                             callback,
                         })
                         .await
-                        .unwrap();
+                        .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                        .ok();
                     return;
                 }
 
@@ -229,7 +236,8 @@ pub fn run_piped_commands(
                                 callback,
                             })
                             .await
-                            .unwrap();
+                            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                            .ok();
                         return;
                     }
                 };
@@ -248,7 +256,8 @@ pub fn run_piped_commands(
                             callback,
                         })
                         .await
-                        .unwrap();
+                        .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+                        .ok();
                     return;
                 }
 
@@ -280,6 +289,7 @@ pub fn run_piped_commands(
                 callback,
             })
             .await
-            .unwrap();
+            .inspect_err(|_| tracing::warn!("async result receiver dropped"))
+            .ok();
     });
 }

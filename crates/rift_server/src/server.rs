@@ -73,13 +73,20 @@ async fn handle_socket(
         while let Some(Ok(message)) = socket_receiver.next().await {
             match message {
                 Message::Text(text) => {
-                    sender_from_ws
+                    if sender_from_ws
                         .send(WSMessage::Text(text.to_string()))
                         .await
-                        .unwrap();
+                        .is_err()
+                    {
+                        tracing::warn!("WebSocket message receiver dropped");
+                        break;
+                    }
                 }
                 Message::Binary(bytes) => {
-                    sender_from_ws.send(WSMessage::Bytes(bytes)).await.unwrap();
+                    if sender_from_ws.send(WSMessage::Bytes(bytes)).await.is_err() {
+                        tracing::warn!("WebSocket message receiver dropped");
+                        break;
+                    }
                 }
                 Message::Close(_) => {
                     break;
@@ -95,7 +102,9 @@ async fn handle_socket(
                 WSMessage::Bytes(bytes) => Message::Binary(bytes),
                 WSMessage::Text(text) => Message::Text(text.into()),
             };
-            socket_sender.send(message).await.unwrap();
+            if socket_sender.send(message).await.is_err() {
+                break;
+            }
         }
     });
 }
@@ -166,7 +175,9 @@ impl Server {
                 tokio::select! {
                     Some(req) = self.state.event_reciever.recv() => {
                         let result = self.perform_action(req.action);
-                        req.response_tx.send(result).unwrap();
+                        if req.response_tx.send(result).is_err() {
+                            tracing::warn!("RPC response receiver dropped");
+                        }
                         self.state.update_view = true;
                     }
                     Some(async_result) = self.state.async_handle.receiver.recv() => {

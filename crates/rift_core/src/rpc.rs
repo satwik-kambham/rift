@@ -25,14 +25,22 @@ pub struct RPCHandle {
 impl RPCHandle {
     async fn send_action_request(&self, action: Action) -> String {
         let (response_tx, response_rx) = oneshot::channel();
-        self.sender
+        if self
+            .sender
             .send(RPCRequest {
                 action,
                 response_tx,
             })
             .await
-            .unwrap();
-        response_rx.await.unwrap()
+            .is_err()
+        {
+            tracing::warn!("RPC action receiver dropped");
+            return String::new();
+        }
+        response_rx.await.unwrap_or_else(|_| {
+            tracing::warn!("RPC response sender dropped");
+            String::new()
+        })
     }
 }
 
