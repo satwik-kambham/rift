@@ -35,7 +35,6 @@ rodio = "0.21.1"
 include_dir = { workspace = true }
 
 tree-sitter = "0.23.0"
-tree-sitter-highlight = "0.23.0"
 tree-sitter-python = "0.23.2"
 tree-sitter-rust = "0.23.0"
 tree-sitter-zig = "1.1.2"

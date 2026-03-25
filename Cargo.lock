@@ -2536,7 +2536,6 @@ dependencies = [
  "tree-sitter-cpp",
  "tree-sitter-css",
  "tree-sitter-dart",
- "tree-sitter-highlight",
  "tree-sitter-html",
  "tree-sitter-javascript",
  "tree-sitter-json",
@@ -3834,18 +3833,6 @@ version = "0.0.1"
 source = "git+https://github.com/satwik-kambham/tree-sitter-dart.git?branch=master#71f399feae93f69c6084f7e99fdf4ba64f4c4de7"
 dependencies = [
  "cc",
- "tree-sitter",
-]
-
-[[package]]
-name = "tree-sitter-highlight"
-version = "0.23.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "380a7706376fa6c52ba7bf71d1e7a93856ee8ab08a7680631dfa664fdd237d66"
-dependencies = [
- "lazy_static",
- "regex",
- "thiserror 1.0.69",
  "tree-sitter",
 ]
 

@@ -12,8 +12,7 @@ use super::instance::{
 };
 
 use ropey::Rope;
-use tracing::warn;
-use tree_sitter_highlight::{HighlightEvent, Highlighter};
+use tree_sitter::{InputEdit, Point, QueryCursor};
 
 pub struct RopeBuffer {
     file_path: Option<String>,
@@ -25,13 +24,49 @@ pub struct RopeBuffer {
     change_idx: usize,
     pub version: usize,
     pub language: Language,
-    highlighter: Highlighter,
-    highlight_params: Option<TreeSitterParams>,
+    syntax: Option<TreeSitterParams>,
+    tree: Option<tree_sitter::Tree>,
     pub input: String,
     pub input_hook: Option<String>,
 }
 
 pub type HighlightedText = Vec<Vec<(String, TextAttributes)>>;
+
+struct RopeChunks<'a>(ropey::iter::Chunks<'a>);
+
+impl<'a> Iterator for RopeChunks<'a> {
+    type Item = &'a [u8];
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|s| s.as_bytes())
+    }
+}
+
+/// Parse the rope using the given syntax params, optionally with an old tree for incremental parsing.
+fn parse_rope(
+    syntax: &mut Option<TreeSitterParams>,
+    rope: &Rope,
+    old_tree: Option<&tree_sitter::Tree>,
+) -> Option<tree_sitter::Tree> {
+    let syntax = syntax.as_mut()?;
+    let mut callback = |offset: usize, _position: Point| -> &[u8] {
+        if offset >= rope.len_bytes() {
+            return &[];
+        }
+        let (chunk, chunk_byte_start, _, _) = rope.chunk_at_byte(offset);
+        &chunk.as_bytes()[offset - chunk_byte_start..]
+    };
+    syntax.parser.parse_with(&mut callback, old_tree)
+}
+
+fn cursor_to_point(rope: &Rope, cursor: &Cursor) -> Point {
+    let line_byte_start = rope.line_to_byte(cursor.row);
+    let char_start = rope.line_to_char(cursor.row);
+    let byte_offset = rope.char_to_byte(char_start + cursor.column);
+    Point {
+        row: cursor.row,
+        column: byte_offset - line_byte_start,
+    }
+}
 pub struct VisibleLineParams {
     pub viewport_rows: usize,
     pub viewport_columns: usize,
@@ -56,17 +91,16 @@ impl RopeBuffer {
         let buffer = Rope::from_str(&initial_text);
 
         let language = detect_language(&file_path);
-        // Syntax highlighter
-        let highlighter = Highlighter::new();
-        let highlight_params = build_highlight_params(language);
+        let mut syntax = build_highlight_params(language);
+        let tree = parse_rope(&mut syntax, &buffer, None);
 
         let mut buffer = Self {
             file_path: None,
             display_name: None,
             special,
             buffer,
-            highlighter,
-            highlight_params,
+            syntax,
+            tree,
             modified: false,
             changes: VecDeque::new(),
             change_idx: 0,
@@ -84,6 +118,10 @@ impl RopeBuffer {
         self.file_path.as_ref()
     }
 
+    pub fn syntax_tree(&self) -> Option<&tree_sitter::Tree> {
+        self.tree.as_ref()
+    }
+
     pub fn set_file_path(&mut self, file_path: Option<String>, workspace_folder: &str) {
         self.file_path = file_path.clone();
 
@@ -97,7 +135,8 @@ impl RopeBuffer {
         let language = detect_language(&self.file_path);
         if self.language != language {
             self.language = language;
-            self.highlight_params = build_highlight_params(language);
+            self.syntax = build_highlight_params(language);
+            self.tree = parse_rope(&mut self.syntax, &self.buffer, None);
         }
     }
 
@@ -109,6 +148,7 @@ impl RopeBuffer {
 
     pub fn set_content(&mut self, content: String) {
         self.buffer = Rope::from_str(&content);
+        self.tree = parse_rope(&mut self.syntax, &self.buffer, None);
     }
 
     /// Get a portion text buffer content as a string
@@ -359,58 +399,55 @@ impl RopeBuffer {
         }
     }
 
-    fn compute_highlight_segments(&mut self, gutter_info: &[GutterInfo]) -> Vec<Range> {
+    fn compute_highlight_segments(&self, gutter_info: &[GutterInfo]) -> Vec<Range> {
         let mut segments = vec![];
-        if let Some(highlight_params) = &self.highlight_params {
-            let mut highlight_type = HighlightType::None;
+        let (Some(syntax), Some(tree)) = (&self.syntax, &self.tree) else {
+            return segments;
+        };
 
-            if let (Some(first), Some(last)) = (gutter_info.first(), gutter_info.last()) {
-                let start_char = self.buffer.line_to_char(first.start.row);
-                let end_line_idx = (last.start.row + 1).min(self.buffer.len_lines());
-                let end_char = self.buffer.line_to_char(end_line_idx);
-                let content = self.buffer.slice(start_char..end_char).to_string();
+        let (Some(first), Some(last)) = (gutter_info.first(), gutter_info.last()) else {
+            return segments;
+        };
 
-                match self.highlighter.highlight(
-                    &highlight_params.language_config,
-                    content.as_bytes(),
-                    None,
-                    |_| None,
-                ) {
-                    Ok(highlights) => {
-                        for event in highlights {
-                            match event {
-                                Ok(HighlightEvent::Source { start, end }) => {
-                                    let start = content[..start].chars().count() + start_char;
-                                    let end = content[..end].chars().count() + start_char;
-                                    if end >= first.start_byte && start <= last.end_byte {
-                                        segments.push(Range {
-                                            start,
-                                            end: end.saturating_sub(1),
-                                            attributes: TextAttributes::from_highlight(
-                                                highlight_type,
-                                            ),
-                                        });
-                                    }
-                                }
-                                Ok(HighlightEvent::HighlightStart(s)) => {
-                                    highlight_type = highlight_params.highlight_map
-                                        [&highlight_params.highlight_names[s.0]];
-                                }
-                                Ok(HighlightEvent::HighlightEnd) => {
-                                    highlight_type = HighlightType::None;
-                                }
-                                Err(err) => {
-                                    warn!(%err, "Failed to process highlight event");
-                                }
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        warn!(%err, "Failed to compute highlights; skipping");
-                    }
-                }
+        let start_char = self.buffer.line_to_char(first.start.row);
+        let end_line_idx = (last.start.row + 1).min(self.buffer.len_lines());
+        let end_char = self.buffer.line_to_char(end_line_idx);
+
+        let start_byte = self.buffer.char_to_byte(start_char);
+        let end_byte = self.buffer.char_to_byte(end_char);
+
+        let mut cursor = QueryCursor::new();
+        cursor.set_byte_range(start_byte..end_byte);
+
+        let root = tree.root_node();
+        let text_callback = |node: tree_sitter::Node| {
+            let start = node.start_byte();
+            let end = node.end_byte();
+            let start_char = self.buffer.byte_to_char(start);
+            let end_char = self.buffer.byte_to_char(end);
+            RopeChunks(self.buffer.slice(start_char..end_char).chunks())
+        };
+
+        for (m, capture_idx) in cursor.captures(&syntax.highlight_query, root, text_callback) {
+            let capture = m.captures[capture_idx];
+            let highlight_type = syntax.capture_map[capture.index as usize];
+            if matches!(highlight_type, HighlightType::None) {
+                continue;
+            }
+
+            let node = capture.node;
+            let node_start = self.buffer.byte_to_char(node.start_byte());
+            let node_end = self.buffer.byte_to_char(node.end_byte());
+
+            if node_end >= first.start_byte && node_start <= last.end_byte {
+                segments.push(Range {
+                    start: node_start,
+                    end: node_end.saturating_sub(1),
+                    attributes: TextAttributes::from_highlight(highlight_type),
+                });
             }
         }
+
         segments
     }
 
@@ -641,7 +678,24 @@ impl RopeBuffer {
         }
 
         let char_idx = self.buffer.line_to_char(cursor.row) + cursor.column;
+        let start_byte = self.buffer.char_to_byte(char_idx);
+        let start_position = cursor_to_point(&self.buffer, cursor);
+
         self.buffer.insert(char_idx, text);
+
+        if let Some(tree) = &mut self.tree {
+            let new_end_byte = start_byte + text.len();
+            let new_end_position = cursor_to_point(&self.buffer, &updated_cursor);
+            tree.edit(&InputEdit {
+                start_byte,
+                old_end_byte: start_byte,
+                new_end_byte,
+                start_position,
+                old_end_position: start_position,
+                new_end_position,
+            });
+            self.tree = parse_rope(&mut self.syntax, &self.buffer, self.tree.as_ref());
+        }
 
         updated_cursor
     }
@@ -729,8 +783,25 @@ impl RopeBuffer {
         let start_idx = self.buffer.line_to_char(start.row) + start.column;
         let end_idx = self.buffer.line_to_char(end.row) + end.column;
 
+        let start_byte = self.buffer.char_to_byte(start_idx);
+        let old_end_byte = self.buffer.char_to_byte(end_idx);
+        let start_position = cursor_to_point(&self.buffer, start);
+        let old_end_position = cursor_to_point(&self.buffer, end);
+
         let deleted_text = self.buffer.slice(start_idx..end_idx).to_string();
         self.buffer.remove(start_idx..end_idx);
+
+        if let Some(tree) = &mut self.tree {
+            tree.edit(&InputEdit {
+                start_byte,
+                old_end_byte,
+                new_end_byte: start_byte,
+                start_position,
+                old_end_position,
+                new_end_position: start_position,
+            });
+            self.tree = parse_rope(&mut self.syntax, &self.buffer, self.tree.as_ref());
+        }
 
         (deleted_text, *start)
     }
