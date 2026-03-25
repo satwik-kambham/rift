@@ -14,7 +14,7 @@ use rift_core::{
     actions::{Action, perform_action},
     buffer::instance::{HighlightType, TextAttributes},
     io::file_io::handle_file_event,
-    lsp::handle_lsp_message,
+    lsp::{handle_lsp_message, types::DiagnosticSeverity},
     rendering::update_visible_lines,
     state::{CompletionMenu, EditorState, Mode},
 };
@@ -290,9 +290,26 @@ impl App {
                             }
                         }
 
-                        if attributes.contains(TextAttributes::UNDERLINE)
-                            || attributes.has_diagnostic()
-                        {
+                        if attributes.has_diagnostic() {
+                            if attributes.contains(TextAttributes::VIRTUAL) {
+                                style = style.fg(color_from_rgb(
+                                    match attributes.resolve_diagnostic_severity() {
+                                        Some(DiagnosticSeverity::Error) => {
+                                            self.state.preferences.theme.highlight_red
+                                        }
+                                        Some(DiagnosticSeverity::Warning) => {
+                                            self.state.preferences.theme.highlight_yellow
+                                        }
+                                        Some(DiagnosticSeverity::Information) => {
+                                            self.state.preferences.theme.highlight_blue
+                                        }
+                                        _ => self.state.preferences.theme.highlight_gray,
+                                    },
+                                ));
+                            } else {
+                                style = style.add_modifier(Modifier::UNDERLINED);
+                            }
+                        } else if attributes.contains(TextAttributes::UNDERLINE) {
                             style = style.add_modifier(Modifier::UNDERLINED);
                         }
 
@@ -438,19 +455,7 @@ impl App {
                 frame.render_widget(right_status, status_layout[1]);
             }
 
-            // Render diagnostics overlay
-            if self.state.diagnostics_overlay.should_render() {
-                let area = Rect {
-                    x: frame.area().width * 7 / 8 - 4,
-                    y: 2,
-                    width: frame.area().width / 8,
-                    height: frame.area().height - 4,
-                };
-                let diagnostics_info =
-                    widgets::Paragraph::new(self.state.diagnostics_overlay.content.clone())
-                        .wrap(widgets::Wrap { trim: false });
-                frame.render_widget(diagnostics_info, area);
-            }
+            // Diagnostics are now rendered inline via virtual spans
 
             // Render signature information
             if self.state.signature_information.should_render()

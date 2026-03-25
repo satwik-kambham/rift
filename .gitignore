@@ -21,4 +21,4 @@ flamegraph.svg
 perf.data
 perf.data.old
 
-.prompts
+.claude/worktrees/

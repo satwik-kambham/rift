@@ -255,7 +255,7 @@ fn process_lsp_message(
                     notification.method, notification.params
                 );
                 tracing::info!("{}", message);
-                state.diagnostics_overlay.content = message;
+                state.log_messages.push(message);
             }
         }
     }

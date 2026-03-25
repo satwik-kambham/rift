@@ -78,8 +78,6 @@ pub struct EditorState {
     pub references_version: usize,
     pub definitions: Vec<ReferenceEntry>,
     pub definitions_version: usize,
-    pub diagnostics_overlay: DiagnosticsOverlay,
-
     // UI
     viewport_rows: usize,
     viewport_columns: usize,
@@ -156,7 +154,6 @@ impl EditorState {
             references_version: 0,
             definitions: vec![],
             definitions_version: 0,
-            diagnostics_overlay: DiagnosticsOverlay::default(),
             completion_menu: CompletionMenu::new(5),
             signature_information: SignatureInformation::default(),
             keybind_handler: KeybindHandler::default(),
@@ -441,28 +438,6 @@ impl EditorState {
             self.instances.get_mut(&id).unwrap(),
             lsp_handle,
         )
-    }
-}
-
-pub struct DiagnosticsOverlay {
-    pub content: String,
-}
-
-impl DiagnosticsOverlay {
-    pub fn new() -> Self {
-        Self {
-            content: String::new(),
-        }
-    }
-
-    pub fn should_render(&self) -> bool {
-        !self.content.is_empty()
-    }
-}
-
-impl Default for DiagnosticsOverlay {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
