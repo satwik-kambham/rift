@@ -13,7 +13,7 @@ use strum::{EnumIter, EnumMessage, EnumString, VariantNames};
 
 use crate::{
     audio,
-    buffer::instance::{Cursor, Selection},
+    buffer::instance::{Cursor, Selection, TextAttributes, VirtualSpan},
     lsp::types::DiagnosticSeverity,
     state::EditorState,
 };
@@ -163,6 +163,8 @@ pub enum Action {
     StartTranscription(audio::TranscriptionCallback),
     StopTranscription,
     InsertTranscription,
+    AddTestVirtualSpans,
+    ClearVirtualSpans,
 }
 
 pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String> {
@@ -505,6 +507,34 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
         Action::RegisterBufferInputHook(buffer_id, function_id) => {
             let (buffer, _instance) = state.get_buffer_by_id_mut(buffer_id);
             buffer.input_hook = Some(function_id);
+        }
+        Action::AddTestVirtualSpans => {
+            if let Some(buffer_idx) = state.buffer_idx {
+                let (buffer, instance) = state.get_buffer_by_id_mut(buffer_idx);
+                let cursor = instance.cursor;
+                let line_end_col = buffer.get_line_length(cursor.row);
+                instance.set_virtual_spans(vec![
+                    VirtualSpan {
+                        position: cursor,
+                        text: " /* ghost at cursor */".into(),
+                        attributes: TextAttributes::HIGHLIGHT_GRAY | TextAttributes::VIRTUAL,
+                    },
+                    VirtualSpan {
+                        position: Cursor {
+                            row: cursor.row,
+                            column: line_end_col,
+                        },
+                        text: " // end-of-line hint".into(),
+                        attributes: TextAttributes::HIGHLIGHT_GRAY | TextAttributes::VIRTUAL,
+                    },
+                ]);
+            }
+        }
+        Action::ClearVirtualSpans => {
+            if let Some(buffer_idx) = state.buffer_idx {
+                let (_buffer, instance) = state.get_buffer_by_id_mut(buffer_idx);
+                instance.clear_virtual_spans();
+            }
         }
     };
     None

@@ -75,6 +75,18 @@ pub struct GutterInfo {
     pub end_byte: usize,
 }
 
+/// Virtual text displayed inline in the buffer without existing in the RopeBuffer.
+/// Used for ghost text, inline diagnostics, FIM completions, inlay hints, etc.
+#[derive(Debug, Clone)]
+pub struct VirtualSpan {
+    /// Buffer position where virtual text is anchored
+    pub position: Cursor,
+    /// Virtual text content (may contain '\n' for multi-line)
+    pub text: String,
+    /// Styling attributes for the virtual text
+    pub attributes: TextAttributes,
+}
+
 /// File format / language
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Language {
@@ -139,6 +151,8 @@ bitflags! {
         const DIAG_INFORMATION = 1 << 15;
         const DIAG_WARNING = 1 << 16;
         const DIAG_ERROR = 1 << 17;
+
+        const VIRTUAL = 1 << 18;
     }
 }
 
@@ -252,6 +266,7 @@ pub struct BufferInstance {
     pub selection: Selection,
     pub scroll: Cursor,
     pub column_level: usize,
+    pub virtual_spans: Vec<VirtualSpan>,
 }
 
 impl BufferInstance {
@@ -265,6 +280,7 @@ impl BufferInstance {
             },
             scroll: Cursor { row: 0, column: 0 },
             column_level: 0,
+            virtual_spans: vec![],
         }
     }
 
@@ -327,6 +343,14 @@ impl BufferInstance {
     pub fn extend_selection_vertical(&mut self, cursor: Cursor) {
         self.cursor = cursor;
         self.selection.cursor = cursor;
+    }
+
+    pub fn set_virtual_spans(&mut self, spans: Vec<VirtualSpan>) {
+        self.virtual_spans = spans;
+    }
+
+    pub fn clear_virtual_spans(&mut self) {
+        self.virtual_spans.clear();
     }
 }
 

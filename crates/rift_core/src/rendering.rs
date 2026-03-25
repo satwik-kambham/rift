@@ -48,6 +48,7 @@ pub fn update_visible_lines(
         }
 
         let (buffer, instance) = state.get_buffer_by_id_mut(buffer_idx);
+        let virtual_spans = instance.virtual_spans.clone();
         let visible_line_params = VisibleLineParams {
             viewport_rows,
             viewport_columns,
@@ -64,6 +65,7 @@ pub fn update_visible_lines(
             &instance.selection,
             &visible_line_params,
             extra_segments,
+            &virtual_spans,
         );
         state.highlighted_text = lines;
         state.gutter_info = gutter_info;

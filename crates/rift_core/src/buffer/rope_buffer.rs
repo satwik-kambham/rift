@@ -9,6 +9,7 @@ use crate::lsp::client::LSPClientHandle;
 use super::highlight::{TreeSitterParams, build_highlight_params, detect_language};
 use super::instance::{
     Cursor, Edit, GutterInfo, HighlightType, Language, Range, Selection, TextAttributes,
+    VirtualSpan,
 };
 
 use ropey::Rope;
@@ -503,6 +504,317 @@ impl RopeBuffer {
         lines
     }
 
+    /// Inject virtual spans into the already-extracted HighlightedText.
+    /// Returns (extra_rows_before_cursor, extra_columns_on_cursor_line).
+    fn inject_virtual_spans(
+        lines: &mut HighlightedText,
+        gutter_info: &mut Vec<GutterInfo>,
+        virtual_spans: &[VirtualSpan],
+        cursor_row: usize,
+        cursor_col: usize,
+    ) -> (usize, usize) {
+        if virtual_spans.is_empty() {
+            return (0, 0);
+        }
+
+        // Sort by position descending so later insertions don't shift earlier indices
+        let mut sorted: Vec<&VirtualSpan> = virtual_spans.iter().collect();
+        sorted.sort_by(|a, b| {
+            b.position
+                .row
+                .cmp(&a.position.row)
+                .then(b.position.column.cmp(&a.position.column))
+        });
+
+        let mut extra_lines_before_cursor = 0;
+        let mut extra_cols_on_cursor_line = 0;
+
+        for span in &sorted {
+            if span.text.is_empty() {
+                continue;
+            }
+
+            // Find the gutter_info entry matching this span's buffer row
+            let gutter_idx = gutter_info.iter().position(|g| {
+                !g.wrapped
+                    && g.start.row == span.position.row
+                    && span.position.column >= g.start.column
+            });
+
+            let Some(gutter_idx) = gutter_idx else {
+                continue;
+            };
+
+            // For wrapped lines, find the correct segment
+            let mut target_idx = gutter_idx;
+            for (i, g) in gutter_info.iter().enumerate().skip(gutter_idx) {
+                if g.start.row != span.position.row {
+                    break;
+                }
+                if span.position.column >= g.start.column
+                    && span.position.column < g.start.column + (g.end - g.start.column)
+                {
+                    target_idx = i;
+                    break;
+                }
+                target_idx = i;
+            }
+
+            if target_idx >= lines.len() {
+                continue;
+            }
+
+            let line = &lines[target_idx];
+            let relative_col = span
+                .position
+                .column
+                .saturating_sub(gutter_info[target_idx].start.column);
+
+            // Walk tokens to find the split point
+            let mut char_count = 0;
+            let mut split_token_idx = line.len();
+            let mut split_char_offset = 0;
+
+            for (idx, (text, attrs)) in line.iter().enumerate() {
+                // Skip previously-injected virtual tokens when counting
+                if attrs.contains(TextAttributes::VIRTUAL) {
+                    continue;
+                }
+                let token_chars = text.chars().count();
+                if char_count + token_chars > relative_col {
+                    split_token_idx = idx;
+                    split_char_offset = relative_col - char_count;
+                    break;
+                }
+                char_count += token_chars;
+                if char_count >= relative_col {
+                    split_token_idx = idx + 1;
+                    split_char_offset = 0;
+                    break;
+                }
+            }
+
+            // Advance past any consecutive VIRTUAL tokens at the split point
+            // so new virtual text groups after previously-injected virtual text
+            while split_token_idx < line.len()
+                && line[split_token_idx].1.contains(TextAttributes::VIRTUAL)
+            {
+                split_token_idx += 1;
+                split_char_offset = 0;
+            }
+
+            let virtual_fragments: Vec<&str> = span.text.split('\n').collect();
+            let virtual_attrs = span.attributes | TextAttributes::VIRTUAL;
+
+            if virtual_fragments.len() == 1 {
+                // Single-line: splice virtual text inline
+                let mut new_line = Vec::new();
+                for (idx, (text, attrs)) in lines[target_idx].iter().enumerate() {
+                    if idx == split_token_idx && split_char_offset > 0 {
+                        let (before, after) = split_string_at_char(text, split_char_offset);
+                        if !before.is_empty() {
+                            new_line.push((before, *attrs));
+                        }
+                        new_line.push((virtual_fragments[0].to_string(), virtual_attrs));
+                        if !after.is_empty() {
+                            new_line.push((after, *attrs));
+                        }
+                    } else if idx == split_token_idx && split_char_offset == 0 {
+                        // The EOL cursor placeholder is a synthetic " " with CURSOR
+                        // at the end of the line — virtual text goes after it so the
+                        // cursor stays at its buffer position.
+                        let is_eol_cursor = text == " "
+                            && attrs.contains(TextAttributes::CURSOR)
+                            && idx == lines[target_idx].len() - 1;
+                        if is_eol_cursor {
+                            // Drop the synthetic space and instead apply CURSOR
+                            // to the first char of the virtual text so the cursor
+                            // renders on top of the virtual span without shifting it.
+                            let vtext = virtual_fragments[0].to_string();
+                            if let Some(first_ch) = vtext.chars().next() {
+                                new_line.push((
+                                    first_ch.to_string(),
+                                    virtual_attrs | TextAttributes::CURSOR,
+                                ));
+                                let rest: String = vtext.chars().skip(1).collect();
+                                if !rest.is_empty() {
+                                    new_line.push((rest, virtual_attrs));
+                                }
+                            }
+                        } else {
+                            new_line.push((virtual_fragments[0].to_string(), virtual_attrs));
+                            new_line.push((text.clone(), *attrs));
+                        }
+                    } else {
+                        new_line.push((text.clone(), *attrs));
+                    }
+                }
+                // If split point is at/past the end of the line, append
+                if split_token_idx >= lines[target_idx].len() {
+                    new_line.push((virtual_fragments[0].to_string(), virtual_attrs));
+                }
+                // Track extra columns if this span is on the cursor line and
+                // before the cursor column (strictly less than — a span at the
+                // cursor column itself does not push the cursor right)
+                if target_idx == cursor_row && span.position.column < cursor_col {
+                    extra_cols_on_cursor_line += virtual_fragments[0].chars().count();
+                }
+                lines[target_idx] = new_line;
+            } else {
+                // Multi-line: first fragment goes inline, rest become new lines
+                let original_line = lines[target_idx].clone();
+                let (before_tokens, after_tokens) =
+                    split_tokens_at(&original_line, split_token_idx, split_char_offset);
+
+                // First line: before + first fragment
+                let mut first_line = before_tokens;
+                first_line.push((virtual_fragments[0].to_string(), virtual_attrs));
+                lines[target_idx] = first_line;
+
+                // Middle virtual lines
+                let gutter_template = GutterInfo {
+                    start: span.position,
+                    end: 0,
+                    wrapped: true,
+                    wrap_end: true,
+                    start_byte: 0,
+                    end_byte: 0,
+                };
+
+                let mut inserted = 0;
+                for frag in &virtual_fragments[1..virtual_fragments.len() - 1] {
+                    inserted += 1;
+                    let insert_at = target_idx + inserted;
+                    lines.insert(insert_at, vec![(frag.to_string(), virtual_attrs)]);
+                    gutter_info.insert(insert_at, gutter_template);
+                }
+
+                // Last fragment + remaining real tokens
+                inserted += 1;
+                let insert_at = target_idx + inserted;
+                let mut last_line =
+                    vec![(virtual_fragments.last().unwrap().to_string(), virtual_attrs)];
+                last_line.extend(after_tokens);
+                lines.insert(insert_at, last_line);
+                gutter_info.insert(insert_at, gutter_template);
+
+                // Count extra lines inserted before cursor
+                if target_idx < cursor_row {
+                    extra_lines_before_cursor += inserted;
+                } else if target_idx == cursor_row {
+                    // Virtual span is on the cursor line — extra lines push cursor down
+                    extra_lines_before_cursor += inserted;
+                }
+            }
+        }
+
+        (extra_lines_before_cursor, extra_cols_on_cursor_line)
+    }
+
+    /// Wrap any lines exceeding max_characters into continuation lines.
+    /// Returns (total_extra_lines, extra_rows_before_cursor, Option<new_cursor_col>).
+    fn wrap_lines_at_boundary(
+        lines: &mut HighlightedText,
+        gutter_info: &mut Vec<GutterInfo>,
+        max_characters: usize,
+        mut cursor_row: usize,
+        cursor_col: usize,
+    ) -> (usize, usize, Option<usize>) {
+        let mut total_extra = 0usize;
+        let mut extra_before_cursor = 0usize;
+        let mut new_cursor_col: Option<usize> = None;
+        let mut i = 0;
+
+        while i < lines.len() {
+            let width: usize = lines[i].iter().map(|(t, _)| t.chars().count()).sum();
+            if width <= max_characters {
+                i += 1;
+                continue;
+            }
+
+            // Split tokens at the max_characters boundary
+            let mut char_count = 0;
+            let mut split_token = lines[i].len();
+            let mut split_offset = 0;
+
+            for (idx, (text, _)) in lines[i].iter().enumerate() {
+                let token_chars = text.chars().count();
+                if char_count + token_chars > max_characters {
+                    split_token = idx;
+                    split_offset = max_characters - char_count;
+                    break;
+                }
+                char_count += token_chars;
+                if char_count == max_characters {
+                    split_token = idx + 1;
+                    split_offset = 0;
+                    break;
+                }
+            }
+
+            // Build the two halves
+            let mut keep = Vec::new();
+            let mut overflow = Vec::new();
+
+            for (idx, (text, attrs)) in lines[i].iter().enumerate() {
+                if idx < split_token {
+                    keep.push((text.clone(), *attrs));
+                } else if idx == split_token && split_offset > 0 {
+                    let (before, after) = split_string_at_char(text, split_offset);
+                    if !before.is_empty() {
+                        keep.push((before, *attrs));
+                    }
+                    if !after.is_empty() {
+                        overflow.push((after, *attrs));
+                    }
+                } else {
+                    overflow.push((text.clone(), *attrs));
+                }
+            }
+
+            // Update gutter_info
+            let original_wrap_end = gutter_info[i].wrap_end;
+            gutter_info[i].wrap_end = false;
+
+            let continuation_gutter = GutterInfo {
+                start: gutter_info[i].start,
+                end: gutter_info[i].end,
+                wrapped: true,
+                wrap_end: original_wrap_end,
+                start_byte: 0,
+                end_byte: 0,
+            };
+
+            lines[i] = keep;
+            lines.insert(i + 1, overflow);
+            gutter_info.insert(i + 1, continuation_gutter);
+            total_extra += 1;
+
+            // Track cursor adjustments
+            if i < cursor_row {
+                extra_before_cursor += 1;
+                cursor_row += 1;
+            } else if i == cursor_row {
+                // Check if the cursor falls into the overflow portion
+                if cursor_col >= max_characters {
+                    extra_before_cursor += 1;
+                    cursor_row += 1;
+                    // The cursor is now on the next line with adjusted column
+                    let adjusted_col = new_cursor_col.unwrap_or(cursor_col) - max_characters;
+                    new_cursor_col = Some(adjusted_col);
+                }
+            }
+
+            // Do NOT advance i — the overflow line itself may need further splitting
+            // But if we didn't split (shouldn't happen), advance to avoid infinite loop
+            if lines[i].is_empty() {
+                i += 1;
+            }
+        }
+
+        (total_extra, extra_before_cursor, new_cursor_col)
+    }
+
     fn slice_viewport(
         lines: HighlightedText,
         gutter_info: Vec<GutterInfo>,
@@ -528,6 +840,7 @@ impl RopeBuffer {
         selection: &Selection,
         params: &VisibleLineParams,
         mut extra_segments: Vec<Range>,
+        virtual_spans: &[VirtualSpan],
     ) -> (HighlightedText, Cursor, Vec<GutterInfo>) {
         let max_characters = params.viewport_columns.saturating_sub(3).max(1);
         let num_lines = self.get_num_lines();
@@ -539,7 +852,7 @@ impl RopeBuffer {
             params.viewport_rows,
             self.special,
         );
-        let gutter_info = self.build_gutter_info(start_line, end_line, max_characters);
+        let mut gutter_info = self.build_gutter_info(start_line, end_line, max_characters);
 
         let viewport = self.compute_viewport(
             &gutter_info,
@@ -554,11 +867,42 @@ impl RopeBuffer {
         let highlight_segments = self.compute_highlight_segments(&gutter_info);
         extra_segments.extend(highlight_segments);
 
-        let lines = self.merge_and_extract_text(&gutter_info, extra_segments);
-        let (lines, gutter_info) =
-            Self::slice_viewport(lines, gutter_info, viewport.range_start, viewport.range_end);
+        let mut lines = self.merge_and_extract_text(&gutter_info, extra_segments);
 
-        (lines, viewport.relative_cursor, gutter_info)
+        let (extra_rows, extra_cols) = Self::inject_virtual_spans(
+            &mut lines,
+            &mut gutter_info,
+            virtual_spans,
+            viewport.relative_cursor.row + viewport.range_start,
+            viewport.relative_cursor.column,
+        );
+
+        // Wrap any lines that now exceed max_characters due to virtual text
+        let adjusted_cursor_row = viewport.relative_cursor.row + viewport.range_start + extra_rows;
+        let adjusted_cursor_col = viewport.relative_cursor.column + extra_cols;
+        let (wrap_total, wrap_before_cursor, wrap_new_col) = Self::wrap_lines_at_boundary(
+            &mut lines,
+            &mut gutter_info,
+            max_characters,
+            adjusted_cursor_row,
+            adjusted_cursor_col,
+        );
+
+        let (lines, gutter_info) = Self::slice_viewport(
+            lines,
+            gutter_info,
+            viewport.range_start,
+            viewport.range_end + extra_rows + wrap_total,
+        );
+
+        let mut relative_cursor = viewport.relative_cursor;
+        relative_cursor.row += extra_rows + wrap_before_cursor;
+        relative_cursor.column = match wrap_new_col {
+            Some(col) => col,
+            None => viewport.relative_cursor.column + extra_cols,
+        };
+
+        (lines, relative_cursor, gutter_info)
     }
 
     /// Get line length
@@ -1213,6 +1557,46 @@ impl RopeBuffer {
             },
         })
     }
+}
+
+/// Split a string at a character offset, returning (before, after).
+fn split_string_at_char(s: &str, char_offset: usize) -> (String, String) {
+    let byte_offset = s
+        .char_indices()
+        .nth(char_offset)
+        .map(|(i, _)| i)
+        .unwrap_or(s.len());
+    (s[..byte_offset].to_string(), s[byte_offset..].to_string())
+}
+
+type TokenLine = Vec<(String, TextAttributes)>;
+
+/// Split a token list at a specific token index and character offset within that token.
+fn split_tokens_at(
+    tokens: &[(String, TextAttributes)],
+    token_idx: usize,
+    char_offset: usize,
+) -> (TokenLine, TokenLine) {
+    let mut before = Vec::new();
+    let mut after = Vec::new();
+
+    for (idx, (text, attrs)) in tokens.iter().enumerate() {
+        if idx < token_idx {
+            before.push((text.clone(), *attrs));
+        } else if idx == token_idx && char_offset > 0 {
+            let (b, a) = split_string_at_char(text, char_offset);
+            if !b.is_empty() {
+                before.push((b, *attrs));
+            }
+            if !a.is_empty() {
+                after.push((a, *attrs));
+            }
+        } else {
+            after.push((text.clone(), *attrs));
+        }
+    }
+
+    (before, after)
 }
 
 #[cfg(test)]

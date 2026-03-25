@@ -559,7 +559,7 @@ fn visible_lines_single_short_line() {
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
     let (lines, rel_cur, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(lines.len(), 1);
     assert_eq!(gutter.len(), 1);
     assert_eq!(flatten_text(&lines), "hello");
@@ -572,7 +572,7 @@ fn visible_lines_multiple_lines() {
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(lines.len(), 3);
     assert_eq!(gutter.len(), 3);
     assert_eq!(flatten_text(&lines), "aaa\nbbb\nccc");
@@ -584,7 +584,7 @@ fn visible_lines_empty_buffer() {
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
     let (lines, rel_cur, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     // Empty buffer has one line with an empty-string cursor placeholder
     assert_eq!(lines.len(), 1);
     assert_eq!(gutter.len(), 1);
@@ -596,7 +596,8 @@ fn visible_lines_single_char() {
     let mut b = buf("x");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (lines, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(flatten_text(&lines), "x");
 }
 
@@ -607,7 +608,8 @@ fn gutter_info_no_wrapping() {
     let mut b = buf("abc\ndef");
     let mut scroll = cur(0, 0);
     let p = params(10, 20); // 17 effective cols, no wrapping needed
-    let (_, _, gutter) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter.len(), 2);
 
     assert_eq!(gutter[0].start, cur(0, 0));
@@ -626,7 +628,8 @@ fn gutter_info_empty_line() {
     let mut b = buf("abc\n\ndef");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, _, gutter) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter.len(), 3);
 
     // Middle empty line
@@ -642,7 +645,8 @@ fn gutter_info_byte_offsets() {
     let mut b = buf("abc\ndef");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, _, gutter) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter[0].start_byte, 0);
     assert_eq!(gutter[0].end_byte, 4); // includes \n
     assert_eq!(gutter[1].start_byte, 4);
@@ -659,7 +663,7 @@ fn line_wrapping_splits_long_line() {
     let mut scroll = cur(0, 0);
     let p = params(10, 13);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter.len(), 2);
 
     // First wrapped segment
@@ -685,7 +689,8 @@ fn line_wrapping_exact_fit_no_wrap() {
     let mut b = buf("abcdefghij");
     let mut scroll = cur(0, 0);
     let p = params(10, 13);
-    let (_, _, gutter) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter.len(), 1);
     assert!(!gutter[0].wrapped);
     assert!(gutter[0].wrap_end);
@@ -699,7 +704,7 @@ fn line_wrapping_three_segments() {
     let mut scroll = cur(0, 0);
     let p = params(10, 8);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter.len(), 3);
     assert!(!gutter[0].wrapped);
     assert!(!gutter[0].wrap_end);
@@ -717,7 +722,8 @@ fn relative_cursor_at_origin() {
     let mut b = buf("hello\nworld");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, rel_cur, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(rel_cur, cur(0, 0));
 }
 
@@ -726,7 +732,8 @@ fn relative_cursor_mid_buffer() {
     let mut b = buf("aaa\nbbb\nccc");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, rel_cur, _) = b.get_visible_lines(&mut scroll, Some(&cur(1, 2)), &no_sel(), &p, vec![]);
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(1, 2)), &no_sel(), &p, vec![], &[]);
     assert_eq!(rel_cur, cur(1, 2));
 }
 
@@ -735,7 +742,8 @@ fn relative_cursor_on_last_line() {
     let mut b = buf("aaa\nbbb\nccc");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, rel_cur, _) = b.get_visible_lines(&mut scroll, Some(&cur(2, 1)), &no_sel(), &p, vec![]);
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(2, 1)), &no_sel(), &p, vec![], &[]);
     assert_eq!(rel_cur, cur(2, 1));
 }
 
@@ -748,7 +756,7 @@ fn relative_cursor_on_wrapped_line() {
     let mut scroll = cur(0, 0);
     let p = params(10, 13);
     let (_, rel_cur, _) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 12)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 12)), &no_sel(), &p, vec![], &[]);
     assert_eq!(rel_cur, cur(1, 2));
 }
 
@@ -757,7 +765,8 @@ fn cursor_at_end_of_line() {
     let mut b = buf("hello\nworld");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, rel_cur, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 5)), &no_sel(), &p, vec![]);
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 5)), &no_sel(), &p, vec![], &[]);
     assert_eq!(rel_cur, cur(0, 5));
 }
 
@@ -769,7 +778,7 @@ fn scroll_adjusts_when_cursor_below_viewport() {
     let mut scroll = cur(0, 0);
     let p = params(2, 20); // only 2 rows visible
     let (lines, rel_cur, _) =
-        b.get_visible_lines(&mut scroll, Some(&cur(3, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(3, 0)), &no_sel(), &p, vec![], &[]);
     // Scroll should adjust so cursor is visible
     assert!(scroll.row > 0);
     assert_eq!(lines.len(), 2);
@@ -783,7 +792,7 @@ fn scroll_adjusts_when_cursor_above_viewport() {
     let mut scroll = cur(3, 0);
     let p = params(2, 20);
     let (lines, rel_cur, _) =
-        b.get_visible_lines(&mut scroll, Some(&cur(1, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(1, 0)), &no_sel(), &p, vec![], &[]);
     assert!(scroll.row <= 1);
     assert_eq!(lines.len(), 2);
     assert!(rel_cur.row < 2);
@@ -794,7 +803,7 @@ fn scroll_row_updated_to_match_viewport_start() {
     let mut b = buf("aaa\nbbb\nccc\nddd");
     let mut scroll = cur(0, 0);
     let p = params(2, 20);
-    let (_, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(2, 0)), &no_sel(), &p, vec![]);
+    let (_, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(2, 0)), &no_sel(), &p, vec![], &[]);
     // After rendering with cursor on line 2 and viewport of 2, scroll should advance
     assert!(scroll.row <= 2);
 }
@@ -807,7 +816,7 @@ fn viewport_clips_to_row_count() {
     let mut scroll = cur(0, 0);
     let p = params(3, 20);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(lines.len(), 3);
     assert_eq!(gutter.len(), 3);
 }
@@ -818,7 +827,7 @@ fn viewport_larger_than_content() {
     let mut scroll = cur(0, 0);
     let p = params(20, 40);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(lines.len(), 2);
     assert_eq!(gutter.len(), 2);
 }
@@ -828,7 +837,8 @@ fn viewport_of_one_row() {
     let mut b = buf("aaa\nbbb\nccc");
     let mut scroll = cur(0, 0);
     let p = params(1, 20);
-    let (lines, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(lines.len(), 1);
 }
 
@@ -840,7 +850,8 @@ fn selection_marks_selected_text() {
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
     let selection = sel(0, 2, 0, 7);
-    let (lines, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 7)), &selection, &p, vec![]);
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 7)), &selection, &p, vec![], &[]);
     // "llo w" (bytes 2..7) should have SELECT attribute
     assert!(has_attr_on(&lines, "llo", TextAttributes::SELECT));
 }
@@ -851,7 +862,8 @@ fn no_selection_when_mark_equals_cursor() {
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
     let selection = sel(0, 3, 0, 3); // zero-width selection
-    let (lines, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 3)), &selection, &p, vec![]);
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 3)), &selection, &p, vec![], &[]);
     // No span should have SELECT (except possibly merged with CURSOR)
     let any_select = lines.iter().any(|line| {
         line.iter()
@@ -866,7 +878,8 @@ fn selection_across_multiple_lines() {
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
     let selection = sel(0, 1, 2, 1);
-    let (lines, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(2, 1)), &selection, &p, vec![]);
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(2, 1)), &selection, &p, vec![], &[]);
     // Parts of all three lines should have SELECT
     assert!(has_attr_on(&lines, "aa", TextAttributes::SELECT));
     assert!(has_attr_on(&lines, "bbb", TextAttributes::SELECT));
@@ -881,11 +894,11 @@ fn backward_selection_same_as_forward() {
 
     let sel_fwd = sel(0, 2, 0, 7);
     let (lines_fwd, _, _) =
-        b.get_visible_lines(&mut scroll_fwd, Some(&cur(0, 7)), &sel_fwd, &p, vec![]);
+        b.get_visible_lines(&mut scroll_fwd, Some(&cur(0, 7)), &sel_fwd, &p, vec![], &[]);
 
     let sel_bwd = sel(0, 7, 0, 2);
     let (lines_bwd, _, _) =
-        b.get_visible_lines(&mut scroll_bwd, Some(&cur(0, 2)), &sel_bwd, &p, vec![]);
+        b.get_visible_lines(&mut scroll_bwd, Some(&cur(0, 2)), &sel_bwd, &p, vec![], &[]);
 
     // Both should mark columns 2..7 with SELECT (cursor position differs,
     // which may split spans differently, so check per-column)
@@ -910,7 +923,8 @@ fn cursor_attribute_on_correct_position() {
     let mut b = buf("hello");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (lines, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 2)), &no_sel(), &p, vec![]);
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 2)), &no_sel(), &p, vec![], &[]);
     // The character at col 2 ('l') should have CURSOR attribute
     assert!(attr_at(&lines, 0, 2, TextAttributes::CURSOR));
     // Character at col 0 should not have CURSOR
@@ -928,6 +942,7 @@ fn cursor_at_eol_gets_space_placeholder() {
         &no_sel(),
         &p,
         vec![],
+        &[],
     );
     // Should have a space with CURSOR attribute at the end
     let has_cursor_space = lines.iter().any(|line| {
@@ -943,7 +958,7 @@ fn cursor_on_empty_line() {
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
     let (lines, rel_cur, _) =
-        b.get_visible_lines(&mut scroll, Some(&cur(1, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(1, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(rel_cur, cur(1, 0));
     // The empty line should have a space with CURSOR
     let has_cursor_space = lines[1]
@@ -959,7 +974,7 @@ fn no_cursor_returns_zero_relative() {
     let mut b = buf("aaa\nbbb\nccc");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (lines, rel_cur, _) = b.get_visible_lines(&mut scroll, None, &no_sel(), &p, vec![]);
+    let (lines, rel_cur, _) = b.get_visible_lines(&mut scroll, None, &no_sel(), &p, vec![], &[]);
     assert_eq!(rel_cur, cur(0, 0));
     assert_eq!(lines.len(), 3);
 }
@@ -969,7 +984,8 @@ fn special_buffer_ignores_cursor_tracking() {
     let mut b = RopeBuffer::new("aaa\nbbb\nccc".to_string(), None, ".", true);
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, rel_cur, _) = b.get_visible_lines(&mut scroll, Some(&cur(2, 0)), &no_sel(), &p, vec![]);
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(2, 0)), &no_sel(), &p, vec![], &[]);
     // Special buffer should not track cursor for scroll
     assert_eq!(rel_cur, cur(0, 0));
 }
@@ -986,8 +1002,14 @@ fn extra_segments_applied_to_output() {
         end: 10,
         attributes: TextAttributes::DIAG_ERROR,
     }];
-    let (lines, _, _) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, diagnostics);
+    let (lines, _, _) = b.get_visible_lines(
+        &mut scroll,
+        Some(&cur(0, 0)),
+        &no_sel(),
+        &p,
+        diagnostics,
+        &[],
+    );
     assert!(has_attr_on(&lines, "world", TextAttributes::DIAG_ERROR));
     assert!(!has_attr_on(&lines, "hello", TextAttributes::DIAG_ERROR));
 }
@@ -1003,8 +1025,14 @@ fn extra_segments_merge_with_selection() {
         end: 10,
         attributes: TextAttributes::DIAG_WARNING,
     }];
-    let (lines, _, _) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 9)), &selection, &p, diagnostics);
+    let (lines, _, _) = b.get_visible_lines(
+        &mut scroll,
+        Some(&cur(0, 9)),
+        &selection,
+        &p,
+        diagnostics,
+        &[],
+    );
     // "worl" (bytes 6..9) should have both SELECT and DIAG_WARNING
     let has_both = lines.iter().any(|line| {
         line.iter().any(|(_, attrs)| {
@@ -1031,8 +1059,14 @@ fn multiple_diagnostic_segments() {
             attributes: TextAttributes::DIAG_HINT,
         },
     ];
-    let (lines, _, _) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, diagnostics);
+    let (lines, _, _) = b.get_visible_lines(
+        &mut scroll,
+        Some(&cur(0, 0)),
+        &no_sel(),
+        &p,
+        diagnostics,
+        &[],
+    );
     // Check per-column: cols 0-2 should have DIAG_ERROR, cols 8-10 should have DIAG_HINT,
     // col 4 (in "bbb") should have neither
     for col in 0..=2 {
@@ -1060,7 +1094,8 @@ fn all_output_spans_have_visible() {
     let mut b = buf("hello\nworld\nfoo");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (lines, _, _) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     for (row_idx, line) in lines.iter().enumerate() {
         for (text, attrs) in line {
             assert!(
@@ -1080,7 +1115,8 @@ fn trailing_newline_adds_empty_line() {
     let mut b = buf("hello\n");
     let mut scroll = cur(0, 0);
     let p = params(10, 20);
-    let (_, _, gutter) = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     // "hello\n" has 2 lines: "hello" and ""
     assert_eq!(gutter.len(), 2);
     assert_eq!(gutter[1].start, cur(1, 0));
@@ -1098,6 +1134,7 @@ fn last_line_no_trailing_newline() {
         &no_sel(),
         &p,
         vec![],
+        &[],
     );
     let text = flatten_text(&lines);
     assert!(text.contains("def"));
@@ -1114,7 +1151,7 @@ fn wrapping_interleaved_with_short_lines() {
     let mut scroll = cur(0, 0);
     let p = params(10, 8);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter.len(), 3);
     assert_eq!(gutter[0].start, cur(0, 0)); // first wrap segment
     assert_eq!(gutter[1].start, cur(0, 5)); // second wrap segment
@@ -1133,7 +1170,7 @@ fn very_narrow_viewport_has_minimum_one_char() {
     let mut scroll = cur(0, 0);
     let p = params(10, 3);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     // Each character should be on its own wrapped line
     assert_eq!(gutter.len(), 3);
     assert_eq!(lines.len(), 3);
@@ -1146,7 +1183,7 @@ fn viewport_columns_less_than_three() {
     let mut scroll = cur(0, 0);
     let p = params(10, 1);
     let (lines, _, gutter) =
-        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![]);
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &[]);
     assert_eq!(gutter.len(), 2); // "h" and "i" each on their own line
     assert_eq!(lines.len(), 2);
 }
@@ -1158,7 +1195,7 @@ fn scroll_updated_to_reflect_viewport_start_line() {
     let mut b = buf("aaa\nbbb\nccc\nddd\neee");
     let mut scroll = cur(0, 0);
     let p = params(2, 20);
-    b.get_visible_lines(&mut scroll, Some(&cur(3, 0)), &no_sel(), &p, vec![]);
+    b.get_visible_lines(&mut scroll, Some(&cur(3, 0)), &no_sel(), &p, vec![], &[]);
     // With cursor on line 3 and viewport of 2, scroll should be at least line 2
     assert!(scroll.row >= 2);
 }
@@ -1175,12 +1212,315 @@ fn calling_twice_with_same_params_gives_same_result() {
     let selection = no_sel();
 
     let (lines1, rc1, g1) =
-        b.get_visible_lines(&mut scroll1, Some(&cursor), &selection, &p, vec![]);
+        b.get_visible_lines(&mut scroll1, Some(&cursor), &selection, &p, vec![], &[]);
     let (lines2, rc2, g2) =
-        b.get_visible_lines(&mut scroll2, Some(&cursor), &selection, &p, vec![]);
+        b.get_visible_lines(&mut scroll2, Some(&cursor), &selection, &p, vec![], &[]);
 
     assert_eq!(flatten_text(&lines1), flatten_text(&lines2));
     assert_eq!(rc1, rc2);
     assert_eq!(g1, g2);
     assert_eq!(scroll1, scroll2);
+}
+
+// ── 7: Virtual Spans ─────────────────────────────────────────────────────────
+
+use super::instance::VirtualSpan;
+
+fn vspan(row: usize, col: usize, text: &str) -> VirtualSpan {
+    VirtualSpan {
+        position: cur(row, col),
+        text: text.to_string(),
+        attributes: TextAttributes::HIGHLIGHT_GRAY | TextAttributes::VIRTUAL,
+    }
+}
+
+/// Collect all text from highlighted lines, excluding tokens with VIRTUAL attribute.
+fn flatten_real_text(lines: &HighlightedText) -> String {
+    lines
+        .iter()
+        .map(|line| {
+            line.iter()
+                .filter(|(_, attrs)| !attrs.contains(TextAttributes::VIRTUAL))
+                .map(|(text, _)| text.as_str())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Collect only VIRTUAL-attributed text from all lines.
+fn flatten_virtual_text(lines: &HighlightedText) -> String {
+    lines
+        .iter()
+        .flat_map(|line| {
+            line.iter()
+                .filter(|(_, attrs)| attrs.contains(TextAttributes::VIRTUAL))
+                .map(|(text, _)| text.as_str())
+        })
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+#[test]
+fn virtual_span_at_end_of_line() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 5, " // hint")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    assert!(has_attr_on(&lines, "// hint", TextAttributes::VIRTUAL));
+    assert_eq!(flatten_real_text(&lines), "hello");
+}
+
+#[test]
+fn virtual_span_at_start_of_line() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 0, ">>")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    assert!(text.starts_with(">>"));
+    assert!(has_attr_on(&lines, ">>", TextAttributes::VIRTUAL));
+    assert_eq!(flatten_real_text(&lines), "hello");
+}
+
+#[test]
+fn virtual_span_mid_line() {
+    let mut b = buf("helloworld");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 5, "||")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    assert!(text.contains("hello||world"));
+    assert_eq!(flatten_real_text(&lines), "helloworld");
+}
+
+#[test]
+fn virtual_span_does_not_affect_buffer_content() {
+    let mut b = buf("abc\ndef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, " GHOST")];
+    let _ = b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    assert_eq!(b.get_content("\n".to_string()), "abc\ndef");
+}
+
+#[test]
+fn multiple_virtual_spans_same_line() {
+    let mut b = buf("abcdef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 2, "X"), vspan(0, 4, "Y")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    assert!(text.contains("abXcdYef"));
+    assert_eq!(flatten_real_text(&lines), "abcdef");
+}
+
+#[test]
+fn multiple_virtual_spans_same_column() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 5, " A"), vspan(0, 5, " B")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let vtext = flatten_virtual_text(&lines);
+    // Both virtual texts should be present and adjacent
+    assert!(vtext.contains(" A"));
+    assert!(vtext.contains(" B"));
+    assert_eq!(flatten_real_text(&lines), "hello");
+}
+
+#[test]
+fn virtual_span_with_cursor_at_same_position() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, "XX")];
+    // Cursor is at col 3, same as the virtual span
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 3)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    // Virtual text should be before the character at col 3
+    assert!(text.contains("helXXlo"));
+    // The cursor character 'l' should still have CURSOR attribute
+    assert!(has_attr_on(&lines, "l", TextAttributes::CURSOR));
+}
+
+#[test]
+fn virtual_span_eol_cursor_does_not_shift() {
+    let mut b = buf("hi");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 2, " ghost")];
+    // Cursor at EOL (col 2, past last char)
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 2)), &no_sel(), &p, vec![], &spans);
+    // The first char of virtual text should carry CURSOR (replacing EOL placeholder)
+    let has_cursor_on_virtual = lines.iter().any(|line| {
+        line.iter().any(|(_, attrs)| {
+            attrs.contains(TextAttributes::CURSOR) && attrs.contains(TextAttributes::VIRTUAL)
+        })
+    });
+    assert!(has_cursor_on_virtual);
+    assert_eq!(flatten_real_text(&lines), "hi");
+}
+
+#[test]
+fn virtual_span_on_different_lines() {
+    let mut b = buf("aaa\nbbb\nccc");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, " X"), vspan(2, 0, "Y")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    assert!(has_attr_on(&lines, " X", TextAttributes::VIRTUAL));
+    assert!(has_attr_on(&lines, "Y", TextAttributes::VIRTUAL));
+    assert_eq!(flatten_real_text(&lines), "aaa\nbbb\nccc");
+}
+
+#[test]
+fn virtual_span_empty_text_is_noop() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, "")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    assert_eq!(flatten_text(&lines), "hello");
+}
+
+#[test]
+fn virtual_span_gutter_unchanged() {
+    let mut b = buf("aaa\nbbb");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, " hint")];
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    // Gutter should still show 2 lines (virtual span is single-line, no extra gutter entries)
+    assert_eq!(gutter.len(), 2);
+    assert_eq!(gutter[0].start, cur(0, 0));
+    assert_eq!(gutter[1].start, cur(1, 0));
+}
+
+#[test]
+fn virtual_span_relative_cursor_column_adjusted() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    // Virtual span at col 2 (before cursor at col 4)
+    let spans = [vspan(0, 2, "XXX")];
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 4)), &no_sel(), &p, vec![], &spans);
+    // Cursor was at col 4, virtual text of 3 chars inserted before it → visual col 7
+    assert_eq!(rel_cur.column, 7);
+}
+
+#[test]
+fn virtual_span_after_cursor_no_column_adjustment() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    // Virtual span at col 4 (after cursor at col 2)
+    let spans = [vspan(0, 4, "XXX")];
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 2)), &no_sel(), &p, vec![], &spans);
+    // Cursor at col 2 should not be affected by span at col 4
+    assert_eq!(rel_cur.column, 2);
+}
+
+// ── Virtual Span Wrapping Tests ─────────────────────────────────────────────
+
+#[test]
+fn virtual_span_wraps_when_exceeding_max_characters() {
+    // viewport_columns=13 → max_characters = 13-3 = 10
+    let mut b = buf("abcdef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 13);
+    // 6 real chars + 8 virtual chars = 14 > 10 → should wrap
+    let spans = [vspan(0, 6, "GHIJKLMN")];
+    let (lines, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    // Should produce 2 visual lines
+    assert!(lines.len() >= 2);
+    // First line should have 10 chars, second line should have the overflow
+    let first_width: usize = lines[0].iter().map(|(t, _)| t.chars().count()).sum();
+    assert_eq!(first_width, 10);
+    // Second line is a wrapped continuation
+    assert!(gutter[1].wrapped);
+    // Virtual text should be fully present
+    assert_eq!(flatten_virtual_text(&lines), "GHIJKLMN");
+}
+
+#[test]
+fn virtual_span_no_wrap_when_within_bounds() {
+    // viewport_columns=43 → max_characters = 40
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 43);
+    // 5 real + 3 virtual = 8 < 40 → no wrapping
+    let spans = [vspan(0, 5, "XYZ")];
+    let (lines, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    assert_eq!(lines.len(), 1);
+    assert!(!gutter[0].wrapped);
+}
+
+#[test]
+fn virtual_span_wraps_into_multiple_lines() {
+    // viewport_columns=8 → max_characters = 5
+    let mut b = buf("ab");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 8);
+    // 2 real + 14 virtual = 16, max_chars=5 → should wrap into 4 lines (5+5+5+1)
+    let spans = [vspan(0, 2, "CDEFGHIJKLMNOP")];
+    let (lines, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    assert!(lines.len() >= 4);
+    for i in 1..lines.len() {
+        assert!(gutter[i].wrapped);
+    }
+    // Virtual text should be fully present
+    assert_eq!(flatten_virtual_text(&lines), "CDEFGHIJKLMNOP");
+}
+
+#[test]
+fn virtual_span_wrap_cursor_adjustment() {
+    // viewport_columns=13 → max_characters = 10
+    let mut b = buf("abcdefghij");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 13);
+    // Virtual span at col 2 adds 10 chars → total line width = 20 → wraps at 10
+    // Cursor at col 8 → after virtual injection, visual col = 8 + 10 = 18 → on second wrap line
+    let spans = [vspan(0, 2, "0123456789")];
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 8)), &no_sel(), &p, vec![], &spans);
+    // Cursor should be pushed to row 1 with adjusted column
+    assert!(rel_cur.row >= 1);
+}
+
+#[test]
+fn virtual_span_wrap_preserves_gutter_info() {
+    // viewport_columns=13 → max_characters = 10
+    let mut b = buf("abc\ndef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 13);
+    // Virtual span makes first line overflow
+    let spans = [vspan(0, 3, "XYZXYZXYZ")];
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    // First line (unwrapped) + continuation(s) + second line
+    assert!(!gutter[0].wrapped);
+    assert!(gutter[1].wrapped);
+    // Last gutter entry should be the second buffer line
+    let last = &gutter[gutter.len() - 1];
+    assert_eq!(last.start.row, 1);
 }

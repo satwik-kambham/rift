@@ -268,6 +268,8 @@ impl Default for KeybindHandler {
                 "insert-transcription nor t i",
                 "stop-transcription nor t s",
                 "tts-buffer nor t t",
+                "add-test-virtual-spans nor space v",
+                "clear-virtual-spans nor space s-v",
             ],
         )
     }
