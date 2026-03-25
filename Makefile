@@ -1,4 +1,4 @@
-.PHONY: help check fmt clippy build build-release run-tui run-tui-release \
+.PHONY: help check check-all fmt clippy build build-release run-tui run-tui-release \
 	flamegraph-tui flamegraph-tui-debug clean run-tui-minimal test
 
 help:
@@ -14,10 +14,19 @@ help:
 	@echo "  flamegraph-tui   - cargo flamegraph -p rift_tui"
 	@echo "  flamegraph-tui-debug  - CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p rift_tui"
 	@echo "  test             - cargo test --workspace"
+	@echo "  check-all        - cargo check, clippy, fmt check, and test"
 	@echo "  clean            - cargo clean"
 
 check:
 	cargo check; cargo clippy
+
+check-all:
+	cargo check
+	cargo clippy -- -D warnings
+	cargo fmt -- --check
+	cargo test --workspace
+	@echo ""
+	@echo "All checks passed."
 
 fmt:
 	cargo fmt

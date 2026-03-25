@@ -1524,3 +1524,137 @@ fn virtual_span_wrap_preserves_gutter_info() {
     let last = &gutter[gutter.len() - 1];
     assert_eq!(last.start.row, 1);
 }
+
+// ── Multiline Virtual Span Tests ────────────────────────────────────────────
+
+#[test]
+fn multiline_virtual_span_splits_line() {
+    let mut b = buf("abcdef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, "X\nY")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    // First visual line: "abc" + virtual "X"
+    // Second visual line: virtual "Y" + "def"
+    assert_eq!(text, "abcX\nYdef");
+    assert!(has_attr_on(&lines, "X", TextAttributes::VIRTUAL));
+    assert!(has_attr_on(&lines, "Y", TextAttributes::VIRTUAL));
+    assert_eq!(flatten_real_text(&lines), "abc\ndef");
+}
+
+#[test]
+fn multiline_virtual_span_three_lines() {
+    let mut b = buf("abcdef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, "X\nMIDDLE\nY")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    assert_eq!(text, "abcX\nMIDDLE\nYdef");
+    // Middle line is fully virtual
+    assert!(
+        lines[1]
+            .iter()
+            .all(|(_, attrs)| attrs.contains(TextAttributes::VIRTUAL))
+    );
+    assert_eq!(flatten_real_text(&lines), "abc\n\ndef");
+}
+
+#[test]
+fn multiline_virtual_span_at_line_start() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 0, "A\nB")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    assert_eq!(text, "A\nBhello");
+}
+
+#[test]
+fn multiline_virtual_span_at_line_end() {
+    let mut b = buf("hello");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 5, "A\nB")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    let text = flatten_text(&lines);
+    assert_eq!(text, "helloA\nB");
+}
+
+#[test]
+fn multiline_virtual_span_cursor_after_split_point() {
+    let mut b = buf("abcdefgh");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    // Span at col 2 with "X\nY", cursor at col 6 (after split point)
+    let spans = [vspan(0, 2, "X\nY")];
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 6)), &no_sel(), &p, vec![], &spans);
+    // Cursor should shift down 1 row (one line inserted)
+    assert_eq!(rel_cur.row, 1);
+    // New column = len("Y") + (6 - 2) = 1 + 4 = 5
+    assert_eq!(rel_cur.column, 5);
+}
+
+#[test]
+fn multiline_virtual_span_cursor_before_split_point() {
+    let mut b = buf("abcdefgh");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    // Span at col 5 with "X\nY", cursor at col 1 (before split point)
+    let spans = [vspan(0, 5, "X\nY")];
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 1)), &no_sel(), &p, vec![], &spans);
+    // Cursor should stay on row 0, column 1 — span is after cursor
+    assert_eq!(rel_cur.row, 0);
+    assert_eq!(rel_cur.column, 1);
+}
+
+#[test]
+fn multiline_virtual_span_on_earlier_line_shifts_cursor_row() {
+    let mut b = buf("abc\ndef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    // Span on line 0 at col 2 with "X\nY", cursor on line 1
+    let spans = [vspan(0, 2, "X\nY")];
+    let (_, rel_cur, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(1, 1)), &no_sel(), &p, vec![], &spans);
+    // Cursor row should shift down by 1 (one line inserted before it)
+    assert_eq!(rel_cur.row, 2);
+    // Column unchanged
+    assert_eq!(rel_cur.column, 1);
+}
+
+#[test]
+fn multiline_virtual_span_real_text_unchanged() {
+    let mut b = buf("abc\ndef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 1, "X\nY\nZ")];
+    let (lines, _, _) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    // Real text should be the original content split across the new visual lines
+    assert_eq!(flatten_real_text(&lines), "a\n\nbc\ndef");
+    // Buffer itself is untouched
+    assert_eq!(b.get_content("\n".to_string()), "abc\ndef");
+}
+
+#[test]
+fn multiline_virtual_span_gutter_entries_inserted() {
+    let mut b = buf("abcdef");
+    let mut scroll = cur(0, 0);
+    let p = params(10, 40);
+    let spans = [vspan(0, 3, "X\nY")];
+    let (_, _, gutter) =
+        b.get_visible_lines(&mut scroll, Some(&cur(0, 0)), &no_sel(), &p, vec![], &spans);
+    // Original 1 line + 1 inserted = 2 gutter entries
+    assert_eq!(gutter.len(), 2);
+    // The inserted gutter entry should be marked as wrapped
+    assert!(gutter[1].wrapped);
+}

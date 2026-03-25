@@ -164,6 +164,7 @@ pub enum Action {
     StopTranscription,
     InsertTranscription,
     AddTestVirtualSpans,
+    AddTestMultilineVirtualSpan,
     ClearVirtualSpans,
 }
 
@@ -528,6 +529,17 @@ pub fn perform_action(action: Action, state: &mut EditorState) -> Option<String>
                         attributes: TextAttributes::HIGHLIGHT_GRAY | TextAttributes::VIRTUAL,
                     },
                 ]);
+            }
+        }
+        Action::AddTestMultilineVirtualSpan => {
+            if let Some(buffer_idx) = state.buffer_idx {
+                let (_buffer, instance) = state.get_buffer_by_id_mut(buffer_idx);
+                let cursor = instance.cursor;
+                instance.set_virtual_spans(vec![VirtualSpan {
+                    position: cursor,
+                    text: "line one\nline two\nline three".into(),
+                    attributes: TextAttributes::HIGHLIGHT_GRAY | TextAttributes::VIRTUAL,
+                }]);
             }
         }
         Action::ClearVirtualSpans => {

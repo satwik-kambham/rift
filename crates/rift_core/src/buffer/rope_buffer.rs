@@ -505,16 +505,18 @@ impl RopeBuffer {
     }
 
     /// Inject virtual spans into the already-extracted HighlightedText.
-    /// Returns (extra_rows_before_cursor, extra_columns_on_cursor_line).
+    /// Returns (total_extra_lines, extra_rows_before_cursor, Option<new_cursor_col>).
+    /// When new_cursor_col is Some, it replaces the cursor column outright;
+    /// when None, the cursor column is unchanged.
     fn inject_virtual_spans(
         lines: &mut HighlightedText,
         gutter_info: &mut Vec<GutterInfo>,
         virtual_spans: &[VirtualSpan],
         cursor_row: usize,
         cursor_col: usize,
-    ) -> (usize, usize) {
+    ) -> (usize, usize, Option<usize>) {
         if virtual_spans.is_empty() {
-            return (0, 0);
+            return (0, 0, None);
         }
 
         // Sort by position descending so later insertions don't shift earlier indices
@@ -526,8 +528,9 @@ impl RopeBuffer {
                 .then(b.position.column.cmp(&a.position.column))
         });
 
+        let mut total_extra_lines = 0;
         let mut extra_lines_before_cursor = 0;
-        let mut extra_cols_on_cursor_line = 0;
+        let mut new_cursor_col: Option<usize> = None;
 
         for span in &sorted {
             if span.text.is_empty() {
@@ -657,7 +660,8 @@ impl RopeBuffer {
                 // before the cursor column (strictly less than — a span at the
                 // cursor column itself does not push the cursor right)
                 if target_idx == cursor_row && span.position.column < cursor_col {
-                    extra_cols_on_cursor_line += virtual_fragments[0].chars().count();
+                    let extra = virtual_fragments[0].chars().count();
+                    new_cursor_col = Some(new_cursor_col.unwrap_or(cursor_col) + extra);
                 }
                 lines[target_idx] = new_line;
             } else {
@@ -698,17 +702,29 @@ impl RopeBuffer {
                 lines.insert(insert_at, last_line);
                 gutter_info.insert(insert_at, gutter_template);
 
+                total_extra_lines += inserted;
+
                 // Count extra lines inserted before cursor
                 if target_idx < cursor_row {
                     extra_lines_before_cursor += inserted;
-                } else if target_idx == cursor_row {
-                    // Virtual span is on the cursor line — extra lines push cursor down
+                } else if target_idx == cursor_row && relative_col <= cursor_col {
+                    // Multiline span splits the cursor's line at or before the
+                    // cursor column — the real text after the split moves to the
+                    // last inserted line, so the cursor row shifts down.
                     extra_lines_before_cursor += inserted;
+                    // Recompute cursor column: on the last inserted line the
+                    // content is [last_virtual_fragment][after_tokens...] and the
+                    // cursor sits at last_frag_len + (cursor_col - relative_col).
+                    let last_frag_len = virtual_fragments.last().unwrap().chars().count();
+                    let cursor_offset_from_split = cursor_col - relative_col;
+                    new_cursor_col = Some(last_frag_len + cursor_offset_from_split);
                 }
+                // If the span is on the cursor row but after the cursor column,
+                // the inserted lines are visually below/right — cursor stays put.
             }
         }
 
-        (extra_lines_before_cursor, extra_cols_on_cursor_line)
+        (total_extra_lines, extra_lines_before_cursor, new_cursor_col)
     }
 
     /// Wrap any lines exceeding max_characters into continuation lines.
@@ -869,7 +885,7 @@ impl RopeBuffer {
 
         let mut lines = self.merge_and_extract_text(&gutter_info, extra_segments);
 
-        let (extra_rows, extra_cols) = Self::inject_virtual_spans(
+        let (total_vspan_lines, cursor_extra_rows, vspan_cursor_col) = Self::inject_virtual_spans(
             &mut lines,
             &mut gutter_info,
             virtual_spans,
@@ -878,8 +894,9 @@ impl RopeBuffer {
         );
 
         // Wrap any lines that now exceed max_characters due to virtual text
-        let adjusted_cursor_row = viewport.relative_cursor.row + viewport.range_start + extra_rows;
-        let adjusted_cursor_col = viewport.relative_cursor.column + extra_cols;
+        let adjusted_cursor_row =
+            viewport.relative_cursor.row + viewport.range_start + cursor_extra_rows;
+        let adjusted_cursor_col = vspan_cursor_col.unwrap_or(viewport.relative_cursor.column);
         let (wrap_total, wrap_before_cursor, wrap_new_col) = Self::wrap_lines_at_boundary(
             &mut lines,
             &mut gutter_info,
@@ -892,14 +909,14 @@ impl RopeBuffer {
             lines,
             gutter_info,
             viewport.range_start,
-            viewport.range_end + extra_rows + wrap_total,
+            viewport.range_end + total_vspan_lines + wrap_total,
         );
 
         let mut relative_cursor = viewport.relative_cursor;
-        relative_cursor.row += extra_rows + wrap_before_cursor;
+        relative_cursor.row += cursor_extra_rows + wrap_before_cursor;
         relative_cursor.column = match wrap_new_col {
             Some(col) => col,
-            None => viewport.relative_cursor.column + extra_cols,
+            None => adjusted_cursor_col,
         };
 
         (lines, relative_cursor, gutter_info)
