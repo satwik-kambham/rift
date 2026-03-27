@@ -74,6 +74,13 @@ impl Parser {
         Ok(statements)
     }
 
+    fn braced_block(&mut self) -> Result<Vec<Box<dyn statement::Statement>>, ParseError> {
+        expect_token!(self, TokenType::LeftBrace, "{");
+        let body = self.block()?;
+        expect_token!(self, TokenType::RightBrace, "}");
+        Ok(body)
+    }
+
     fn function_declaration(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
         let export_function = consume_token!(self, TokenType::Export);
 
@@ -90,9 +97,7 @@ impl Parser {
             }
         }
         expect_token!(self, TokenType::RightParentheses, ")");
-        expect_token!(self, TokenType::LeftBrace, "{");
-        let body = self.block()?;
-        expect_token!(self, TokenType::RightBrace, "}");
+        let body = self.braced_block()?;
         Ok(Box::new(statement::FunctionDefinitionStatement::new(
             identifier,
             parameters,
@@ -129,73 +134,63 @@ impl Parser {
     }
 
     fn loop_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
-        expect_token!(self, TokenType::LeftBrace, "{");
-        let body = self.block()?;
-        expect_token!(self, TokenType::RightBrace, "}");
+        let body = self.braced_block()?;
         Ok(Box::new(statement::LoopStatement::new(body)))
     }
 
     fn if_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
         let start_span = self.peek().span.clone();
-        let condition_expression = self.expression()?;
-        expect_token!(self, TokenType::LeftBrace, "{");
-        let body = self.block()?;
-        expect_token!(self, TokenType::RightBrace, "}");
+        let condition = self.expression()?;
+        let body = self.braced_block()?;
 
         let else_body = if consume_token!(self, TokenType::Else) {
             if consume_token!(self, TokenType::If) {
-                let first_condition = self.expression()?;
-                expect_token!(self, TokenType::LeftBrace, "{");
-                let first_body = self.block()?;
-                expect_token!(self, TokenType::RightBrace, "}");
-
-                let mut else_if_branches: Vec<ElseIfBranch> = vec![(first_condition, first_body)];
-
-                let mut final_else: Option<Vec<Box<dyn statement::Statement>>> = None;
-
-                while consume_token!(self, TokenType::Else) {
-                    if consume_token!(self, TokenType::If) {
-                        let cond = self.expression()?;
-                        expect_token!(self, TokenType::LeftBrace, "{");
-                        let body = self.block()?;
-                        expect_token!(self, TokenType::RightBrace, "}");
-                        else_if_branches.push((cond, body));
-                    } else {
-                        expect_token!(self, TokenType::LeftBrace, "{");
-                        final_else = Some(self.block()?);
-                        expect_token!(self, TokenType::RightBrace, "}");
-                        break;
-                    }
-                }
-
-                let mut chain_else_body = final_else;
-                for (cond, body) in else_if_branches.into_iter().rev() {
-                    let node = Box::new(statement::IfStatement::new(
-                        cond,
-                        body,
-                        chain_else_body,
-                        start_span.clone(),
-                    ));
-                    chain_else_body = Some(vec![node]);
-                }
-
-                chain_else_body
+                self.else_if_chain(&start_span)?
             } else {
-                expect_token!(self, TokenType::LeftBrace, "{");
-                let else_body = self.block()?;
-                expect_token!(self, TokenType::RightBrace, "}");
-                Some(else_body)
+                Some(self.braced_block()?)
             }
         } else {
             None
         };
 
         Ok(Box::new(statement::IfStatement::new(
-            condition_expression,
-            body,
-            else_body,
-            start_span,
+            condition, body, else_body, start_span,
         )))
+    }
+
+    fn else_if_chain(
+        &mut self,
+        span: &Span,
+    ) -> Result<Option<Vec<Box<dyn statement::Statement>>>, ParseError> {
+        let mut branches: Vec<ElseIfBranch> = Vec::new();
+        let mut final_else: Option<Vec<Box<dyn statement::Statement>>> = None;
+
+        let cond = self.expression()?;
+        let body = self.braced_block()?;
+        branches.push((cond, body));
+
+        while consume_token!(self, TokenType::Else) {
+            if consume_token!(self, TokenType::If) {
+                let cond = self.expression()?;
+                let body = self.braced_block()?;
+                branches.push((cond, body));
+            } else {
+                final_else = Some(self.braced_block()?);
+                break;
+            }
+        }
+
+        let mut else_body = final_else;
+        for (cond, body) in branches.into_iter().rev() {
+            let node = Box::new(statement::IfStatement::new(
+                cond,
+                body,
+                else_body,
+                span.clone(),
+            ));
+            else_body = Some(vec![node]);
+        }
+        Ok(else_body)
     }
 
     fn break_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
