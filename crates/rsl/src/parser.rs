@@ -235,185 +235,93 @@ impl Parser {
         self.or_expression()
     }
 
-    fn or_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+    fn binary_precedence(
+        &mut self,
+        ops: &[(TokenType, operator::Operator)],
+        next: fn(&mut Self) -> Result<Box<dyn expression::Expression>, ParseError>,
+    ) -> Result<Box<dyn expression::Expression>, ParseError> {
         let start_span = self.peek().span.clone();
-        let mut expression = self.and_expression()?;
+        let mut expr = next(self)?;
 
-        while matches!(self.peek().token_type, TokenType::Or) {
-            let operator = match &self.consume().token_type {
-                TokenType::Or => operator::Operator::Or,
-                other => {
-                    return Err(ParseError::new(
-                        format!("expected identifier, found {:?}", other),
-                        self.peek().span.clone(),
-                    ));
-                }
-            };
-
-            let right = self.and_expression()?;
-            expression = Box::new(expression::BinaryExpression::new(
-                expression,
-                operator,
+        while ops.iter().any(|(tt, _)| self.peek().token_type == *tt) {
+            let token_type = self.consume().token_type.clone();
+            // Safety: unwrap is safe because the while condition just matched this token type
+            let op = ops
+                .iter()
+                .find(|(tt, _)| *tt == token_type)
+                .unwrap()
+                .1
+                .clone();
+            let right = next(self)?;
+            expr = Box::new(expression::BinaryExpression::new(
+                expr,
+                op,
                 right,
                 start_span.clone(),
             ));
         }
 
-        Ok(expression)
+        Ok(expr)
+    }
+
+    fn or_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        self.binary_precedence(
+            &[(TokenType::Or, operator::Operator::Or)],
+            Self::and_expression,
+        )
     }
 
     fn and_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
-        let start_span = self.peek().span.clone();
-        let mut expression = self.equality_expression()?;
-
-        while matches!(self.peek().token_type, TokenType::And) {
-            let operator = match &self.consume().token_type {
-                TokenType::And => operator::Operator::And,
-                other => {
-                    return Err(ParseError::new(
-                        format!("expected identifier, found {:?}", other),
-                        self.peek().span.clone(),
-                    ));
-                }
-            };
-
-            let right = self.equality_expression()?;
-            expression = Box::new(expression::BinaryExpression::new(
-                expression,
-                operator,
-                right,
-                start_span.clone(),
-            ));
-        }
-
-        Ok(expression)
+        self.binary_precedence(
+            &[(TokenType::And, operator::Operator::And)],
+            Self::equality_expression,
+        )
     }
 
     fn equality_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
-        let start_span = self.peek().span.clone();
-        let mut expression = self.comparison_expression()?;
-
-        while matches!(
-            self.peek().token_type,
-            TokenType::IsEqual | TokenType::NotEqual
-        ) {
-            let operator = match &self.consume().token_type {
-                TokenType::IsEqual => operator::Operator::IsEqual,
-                TokenType::NotEqual => operator::Operator::NotEqual,
-                other => {
-                    return Err(ParseError::new(
-                        format!("expected identifier, found {:?}", other),
-                        self.peek().span.clone(),
-                    ));
-                }
-            };
-
-            let right = self.comparison_expression()?;
-            expression = Box::new(expression::BinaryExpression::new(
-                expression,
-                operator,
-                right,
-                start_span.clone(),
-            ));
-        }
-
-        Ok(expression)
+        self.binary_precedence(
+            &[
+                (TokenType::IsEqual, operator::Operator::IsEqual),
+                (TokenType::NotEqual, operator::Operator::NotEqual),
+            ],
+            Self::comparison_expression,
+        )
     }
 
     fn comparison_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
-        let start_span = self.peek().span.clone();
-        let mut expression = self.term_expression()?;
-
-        while matches!(
-            self.peek().token_type,
-            TokenType::LessThan
-                | TokenType::LessThanEqual
-                | TokenType::GreaterThan
-                | TokenType::GreaterThanEqual
-        ) {
-            let operator = match &self.consume().token_type {
-                TokenType::LessThan => operator::Operator::LessThan,
-                TokenType::LessThanEqual => operator::Operator::LessThanEqual,
-                TokenType::GreaterThan => operator::Operator::GreaterThan,
-                TokenType::GreaterThanEqual => operator::Operator::GreaterThanEqual,
-                other => {
-                    return Err(ParseError::new(
-                        format!("expected identifier, found {:?}", other),
-                        self.peek().span.clone(),
-                    ));
-                }
-            };
-
-            let right = self.term_expression()?;
-            expression = Box::new(expression::BinaryExpression::new(
-                expression,
-                operator,
-                right,
-                start_span.clone(),
-            ));
-        }
-
-        Ok(expression)
+        self.binary_precedence(
+            &[
+                (TokenType::LessThan, operator::Operator::LessThan),
+                (TokenType::LessThanEqual, operator::Operator::LessThanEqual),
+                (TokenType::GreaterThan, operator::Operator::GreaterThan),
+                (
+                    TokenType::GreaterThanEqual,
+                    operator::Operator::GreaterThanEqual,
+                ),
+            ],
+            Self::term_expression,
+        )
     }
 
     fn term_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
-        let start_span = self.peek().span.clone();
-        let mut expression = self.factor_expression()?;
-
-        while matches!(self.peek().token_type, TokenType::Plus | TokenType::Minus) {
-            let operator = match &self.consume().token_type {
-                TokenType::Plus => operator::Operator::Plus,
-                TokenType::Minus => operator::Operator::Minus,
-                other => {
-                    return Err(ParseError::new(
-                        format!("expected identifier, found {:?}", other),
-                        self.peek().span.clone(),
-                    ));
-                }
-            };
-
-            let right = self.factor_expression()?;
-            expression = Box::new(expression::BinaryExpression::new(
-                expression,
-                operator,
-                right,
-                start_span.clone(),
-            ));
-        }
-
-        Ok(expression)
+        self.binary_precedence(
+            &[
+                (TokenType::Plus, operator::Operator::Plus),
+                (TokenType::Minus, operator::Operator::Minus),
+            ],
+            Self::factor_expression,
+        )
     }
 
     fn factor_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
-        let start_span = self.peek().span.clone();
-        let mut expression = self.unary_expression()?;
-
-        while matches!(
-            self.peek().token_type,
-            TokenType::Asterisk | TokenType::Slash | TokenType::Percent
-        ) {
-            let operator = match &self.consume().token_type {
-                TokenType::Asterisk => operator::Operator::Asterisk,
-                TokenType::Slash => operator::Operator::Slash,
-                TokenType::Percent => operator::Operator::Percent,
-                other => {
-                    return Err(ParseError::new(
-                        format!("expected identifier, found {:?}", other),
-                        self.peek().span.clone(),
-                    ));
-                }
-            };
-
-            let right = self.unary_expression()?;
-            expression = Box::new(expression::BinaryExpression::new(
-                expression,
-                operator,
-                right,
-                start_span.clone(),
-            ));
-        }
-
-        Ok(expression)
+        self.binary_precedence(
+            &[
+                (TokenType::Asterisk, operator::Operator::Asterisk),
+                (TokenType::Slash, operator::Operator::Slash),
+                (TokenType::Percent, operator::Operator::Percent),
+            ],
+            Self::unary_expression,
+        )
     }
 
     fn unary_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
