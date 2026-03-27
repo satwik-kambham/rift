@@ -24,7 +24,8 @@ check-all:
 	cargo check
 	cargo clippy -- -D warnings
 	cargo fmt -- --check
-	cargo test --workspace
+	cargo test -p rsl
+	cargo test --workspace --exclude rsl
 	@echo ""
 	@echo "All checks passed."
 

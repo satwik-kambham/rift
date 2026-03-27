@@ -1,4 +1,11 @@
 // Test script index: tests/scripts/TEST_INDEX.md
+//
+// These tests exercise the standalone RSL interpreter without RPC. Under
+// `cargo test --workspace`, Cargo unifies features and rift_core pulls in
+// rift_rpc, changing the RSL::new signature. The Makefile runs `cargo test
+// -p rsl` separately to avoid feature unification; this gate ensures the
+// file still compiles when built as part of the full workspace.
+#![cfg(not(feature = "rift_rpc"))]
 
 use std::collections::HashMap;
 use std::path::PathBuf;
