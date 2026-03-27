@@ -19,7 +19,7 @@ Scripts run in alphabetical order. A failing `assert()` or
 | `05_operator_precedence.rsl` | Operators | Full precedence chain (unary > multiplicative > additive > comparison > equality > and > or), grouping with parentheses |
 | `06_variables_and_scoping.rsl` | Variables | `let` declaration, reassignment, block scoping in if blocks, variable shadowing across nested scopes |
 | `07_strings.rsl` | Strings | Concatenation, escape sequences, `stringLen`, `stringContains`, `stringSplitLines`, `stringToLower`, `stringWidth`, `stringTruncateWidth`, `toString` |
-| `08_control_flow.rsl` | Control flow | `if`/`else`/`else if` chains, `loop`/`break`, early `return`, nested control flow |
+| `08_control_flow.rsl` | Control flow | `if`/`else`/`else if` chains, `loop`/`break`, `while` loops, early `return`, nested control flow |
 | `09_functions.rsl` | Functions | Parameters, return values, closures, recursion (factorial, fibonacci), first-class functions, higher-order functions, nested calls |
 | `10_arrays.rsl` | Data structures | `createArray`, index access/assignment, `arrayGet`, `arraySet`, `arrayPushBack`, `arrayPopBack`, `arrayInsert`, `arrayRemove`, `arrayLen`, nested arrays, mixed types |
 | `11_tables.rsl` | Data structures | `createTable`, bracket access/assignment, `tableGet`, `tableSet`, `tableKeys`, nested tables, function values, table as accumulator |

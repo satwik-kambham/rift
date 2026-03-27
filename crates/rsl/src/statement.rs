@@ -357,6 +357,64 @@ impl Statement for LoopStatement {
     }
 }
 
+pub struct WhileStatement {
+    condition: Box<dyn expression::Expression>,
+    body: Vec<Box<dyn Statement>>,
+    span: Span,
+}
+
+impl WhileStatement {
+    pub fn new(
+        condition: Box<dyn expression::Expression>,
+        body: Vec<Box<dyn Statement>>,
+        span: Span,
+    ) -> Self {
+        Self {
+            condition,
+            body,
+            span,
+        }
+    }
+}
+
+impl Statement for WhileStatement {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
+        loop {
+            let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+            let condition = self.condition.execute(local_environment.clone(), rsl)?;
+            if let Primitive::Boolean(condition) = condition {
+                if !condition {
+                    break;
+                }
+                for statement in &self.body {
+                    let execution_result = statement.execute(local_environment.clone(), rsl)?;
+
+                    if let StatementResult::Break = execution_result {
+                        return Ok(StatementResult::None);
+                    }
+
+                    if matches!(execution_result, StatementResult::Return(_)) {
+                        return Ok(execution_result);
+                    }
+                }
+            } else {
+                return Err(RuntimeError::new(
+                    format!(
+                        "Expected boolean condition in while statement, got {:?}",
+                        condition
+                    ),
+                    self.span.clone(),
+                ));
+            }
+        }
+        Ok(StatementResult::None)
+    }
+}
+
 pub struct BreakStatement {}
 
 impl Default for BreakStatement {

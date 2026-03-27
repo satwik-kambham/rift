@@ -169,6 +169,7 @@ impl Scanner {
                         "if" => TokenType::If,
                         "else" => TokenType::Else,
                         "loop" => TokenType::Loop,
+                        "while" => TokenType::While,
                         "fn" => TokenType::Fn,
                         "null" => TokenType::Null,
                         "true" => TokenType::True,

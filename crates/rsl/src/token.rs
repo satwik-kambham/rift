@@ -36,6 +36,7 @@ pub enum TokenType {
     If,
     Else,
     Loop,
+    While,
     Fn,
     Break,
     Return,

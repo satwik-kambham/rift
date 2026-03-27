@@ -110,6 +110,9 @@ impl Parser {
         if consume_token!(self, TokenType::Loop) {
             return self.loop_statement();
         }
+        if consume_token!(self, TokenType::While) {
+            return self.while_statement();
+        }
         if consume_token!(self, TokenType::If) {
             return self.if_statement();
         }
@@ -136,6 +139,15 @@ impl Parser {
     fn loop_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
         let body = self.braced_block()?;
         Ok(Box::new(statement::LoopStatement::new(body)))
+    }
+
+    fn while_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
+        let start_span = self.peek().span.clone();
+        let condition = self.expression()?;
+        let body = self.braced_block()?;
+        Ok(Box::new(statement::WhileStatement::new(
+            condition, body, start_span,
+        )))
     }
 
     fn if_statement(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {

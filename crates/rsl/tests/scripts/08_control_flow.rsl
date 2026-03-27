@@ -108,3 +108,61 @@ loop {
     }
 }
 assertEqual(count, 7)
+
+# Basic while loop
+let w = 0
+while w < 5 {
+    w = w + 1
+}
+assertEqual(w, 5)
+
+# While that never executes
+let x = 42
+while false {
+    x = 0
+}
+assertEqual(x, 42)
+
+# While with break
+let y = 0
+while y < 100 {
+    if y == 3 {
+        break
+    }
+    y = y + 1
+}
+assertEqual(y, 3)
+
+# While with return inside function
+fn sumUpTo(limit) {
+    let total = 0
+    let i = 1
+    while i <= limit {
+        total = total + i
+        i = i + 1
+    }
+    return total
+}
+assertEqual(sumUpTo(10), 55)
+assertEqual(sumUpTo(0), 0)
+
+# Nested while
+let a = 0
+let product = 0
+while a < 3 {
+    let b = 0
+    while b < 3 {
+        product = product + 1
+        b = b + 1
+    }
+    a = a + 1
+}
+assertEqual(product, 9)
+
+# While creates a fresh scope each iteration (let-declared vars don't persist)
+let iter = 0
+while iter < 3 {
+    assertEqual(inner, null)
+    let inner = iter
+    iter = iter + 1
+}
