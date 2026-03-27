@@ -53,14 +53,11 @@ fn clampContentToViewport(self, content) {
     let lines = stringSplitLines(content)
     let clamped = ""
 
-    let i = 0
-    loop {
-        if i >= arrayLen(lines) { break }
+    for i in range(0, arrayLen(lines), 1) {
         let line = lines[i]
         let clampedLine = self.clampLineToViewport(line, columns)
         if i > 0 { clamped = clamped + "\n" }
         clamped = clamped + clampedLine
-        i = i + 1
     }
 
     return clamped

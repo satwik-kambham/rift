@@ -27,16 +27,12 @@ fn commandDispatcherFilterResults() {
     let query = stringToLower(commandDispatcher["input"])
     let allActions = commandDispatcher["all"]
 
-    let i = 0
-    loop {
-        if i >= arrayLen(allActions) { break }
-        let action = allActions[i]
+    for action in allActions {
         let actionLower = stringToLower(action)
 
         if stringLen(query) == 0 or stringContains(actionLower, query) {
             arrayPushBack(results, action)
         }
-        i = i + 1
     }
 
     commandDispatcher["results"] = results

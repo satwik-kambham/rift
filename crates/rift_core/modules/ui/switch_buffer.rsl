@@ -54,15 +54,12 @@ fn switchBufferUpdateSelectionFromId(targetId) {
     }
 
     let selectedEntry = 0
-    let i = 0
-    loop {
-        if i >= arrayLen(results) { break }
+    for i in range(0, arrayLen(results), 1) {
         let entry = results[i]
         if entry["id"] == targetId {
             selectedEntry = i
             break
         }
-        i = i + 1
     }
 
     let selectedEntryValue = results[selectedEntry]
@@ -83,15 +80,11 @@ fn switchBufferUpdateResults() {
     let results = createArray()
     let buffers = switchBuffer["buffers"]
 
-    let i = 0
-    loop {
-        if i >= arrayLen(buffers) { break }
-        let entry = buffers[i]
+    for entry in buffers {
         let name = stringToLower(entry["display_name"])
         if stringLen(query) == 0 or stringContains(name, query) {
             arrayPushBack(results, entry)
         }
-        i = i + 1
     }
 
     switchBuffer["results"] = results

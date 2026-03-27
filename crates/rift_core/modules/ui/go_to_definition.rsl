@@ -43,18 +43,13 @@ fn goToDefinitionFilterResults() {
     let query = stringToLower(goToDefinition["input"])
     let allEntries = goToDefinition["all"]
 
-    let i = 0
-    loop {
-        if i >= arrayLen(allEntries) { break }
-        let entry = allEntries[i]
-
+    for entry in allEntries {
         let filePath = stringToLower(entry["file_path"])
         let preview = stringToLower(entry["preview"])
 
         if stringLen(query) == 0 or stringContains(filePath, query) or stringContains(preview, query) {
             arrayPushBack(results, entry)
         }
-        i = i + 1
     }
 
     goToDefinition["results"] = results

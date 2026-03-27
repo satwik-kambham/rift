@@ -85,12 +85,9 @@ nested[0][1] = nested[1][2] * 10
 print("Nested index:", nested, nested[0][1])
 
 fn applyArray(arr, fun) {
-    let i = 0
-    loop {
-        if i >= arrayLen(arr) { break }
+    for i in range(0, arrayLen(arr), 1) {
         let item = arrayGet(arr, i)
         arraySet(arr, i, fun(item))
-        i = i + 1
     }
 }
 

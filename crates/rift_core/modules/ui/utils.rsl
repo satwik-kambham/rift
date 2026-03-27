@@ -24,22 +24,16 @@ fn listPanelRender(ctx) {
 
     let content = ctx["title"]
     if headerLines != null {
-        let i = 0
-        loop {
-            if i >= arrayLen(headerLines) { break }
-            content = content + "\n" + headerLines[i]
-            i = i + 1
+        for headerLine in headerLines {
+            content = content + "\n" + headerLine
         }
     }
 
     content = content + "\n" + inputHeader + "\n" + inputValue + "\n" + listHeader
 
     if extraLines != null {
-        let i = 0
-        loop {
-            if i >= arrayLen(extraLines) { break }
-            content = content + "\n" + extraLines[i]
-            i = i + 1
+        for extraLine in extraLines {
+            content = content + "\n" + extraLine
         }
     }
 
@@ -57,9 +51,7 @@ fn listPanelRender(ctx) {
 
     if start > 0 { content = content + "\n   ⋯" }
 
-    let i = start
-    loop {
-        if i >= end { break }
+    for i in range(start, end, 1) {
         let entry = entries[i]
         let display = entry
         if entryToString != null {
@@ -68,7 +60,6 @@ fn listPanelRender(ctx) {
         let prefix = "•"
         if selectedIndex == i { prefix = "➤" }
         content = content + "\n " + prefix + " " + display
-        i = i + 1
     }
 
     if end < total { content = content + "\n   ⋯" }

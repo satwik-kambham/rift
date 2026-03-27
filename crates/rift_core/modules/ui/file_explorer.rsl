@@ -51,17 +51,12 @@ fn fileExplorerApplyFilter() {
     let entries = createArray()
     let allEntries = fileExplorer["all_entries"]
 
-    let i = 0
-    loop {
-        if i >= arrayLen(allEntries) { break }
-        let entry = allEntries[i]
+    for entry in allEntries {
         let name = stringToLower(entry["name"])
 
         if stringLen(query) == 0 or stringContains(name, query) {
             arrayPushBack(entries, entry)
         }
-
-        i = i + 1
     }
 
     fileExplorer["entries"] = entries
@@ -94,12 +89,8 @@ fn fileExplorerRefreshEntries() {
     parentEntry["is_dir"] = true
     arrayPushBack(allEntries, parentEntry)
 
-    let i = 0
-    loop {
-        if i >= arrayLen(entries) { break }
-        let entry = entries[i]
+    for entry in entries {
         arrayPushBack(allEntries, entry)
-        i = i + 1
     }
 
     fileExplorer["all_entries"] = allEntries

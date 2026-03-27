@@ -55,11 +55,7 @@ fn workspaceDiagnosticsFilterResults() {
     let query = stringToLower(workspaceDiagnostics["input"])
     let allEntries = workspaceDiagnostics["all"]
 
-    let i = 0
-    loop {
-        if i >= arrayLen(allEntries) { break }
-        let entry = allEntries[i]
-
+    for entry in allEntries {
         let message = stringToLower(entry["message"])
         let filePath = stringToLower(entry["file_path"])
         let severity = stringToLower(entry["severity"])
@@ -68,7 +64,6 @@ fn workspaceDiagnosticsFilterResults() {
         if stringLen(query) == 0 or stringContains(message, query) or stringContains(filePath, query) or stringContains(severity, query) or stringContains(source, query) {
             arrayPushBack(results, entry)
         }
-        i = i + 1
     }
 
     workspaceDiagnostics["results"] = results

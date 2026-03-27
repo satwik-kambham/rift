@@ -220,10 +220,7 @@ fn agentReplaceOutputPreview(output) {
 fn getToolDeclarations(tools) {
     let declarations = createArray()
     
-    let i = 0
-    loop {
-        if i >= arrayLen(tools) { break }
-        let toolName = tools[i]
+    for toolName in tools {
         let declaration = ""
         if toolName == "run_shell_command" { declaration = agentRunShellCommandDeclaration }
         if toolName == "find_file" { declaration = agentFindFileDeclaration }
@@ -232,7 +229,6 @@ fn getToolDeclarations(tools) {
         if toolName == "write_file" { declaration = agentWriteFileDeclaration }
         if toolName == "replace" { declaration = agentReplaceDeclaration }
         arrayPushBack(declarations, fromJson(declaration))
-        i = i + 1
     }
 
     return declarations
