@@ -160,6 +160,18 @@ impl Environment {
         );
     }
 
+    pub fn register_anonymous_function(
+        &self,
+        function_definition: FunctionDefinition,
+    ) -> Primitive {
+        let root = self.root();
+        let function_id = Uuid::new_v4().to_string();
+        root.functions
+            .borrow_mut()
+            .insert(function_id.clone(), function_definition);
+        Primitive::Function(function_id)
+    }
+
     pub fn get_function(&self, function_id: &str) -> Option<FunctionDefinition> {
         if let Some(definition) = self.functions.borrow().get(function_id) {
             return Some(definition.clone());

@@ -58,7 +58,13 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Box<dyn statement::Statement>, ParseError> {
-        if consume_token!(self, TokenType::Fn) {
+        if matches!(self.peek().token_type, TokenType::Fn)
+            && matches!(
+                self.peek_n(1).token_type,
+                TokenType::Identifier(_) | TokenType::Export
+            )
+        {
+            self.consume();
             return self.function_declaration();
         }
         self.statement()
@@ -385,6 +391,23 @@ impl Parser {
                 continue;
             }
 
+            if matches!(self.peek().token_type, TokenType::LeftParentheses) {
+                let span = self.peek().span.clone();
+                self.consume();
+                let mut arguments = vec![];
+                if !matches!(self.peek().token_type, TokenType::RightParentheses) {
+                    loop {
+                        arguments.push(self.expression()?);
+                        if !consume_token!(self, TokenType::Comma) {
+                            break;
+                        }
+                    }
+                }
+                expect_token!(self, TokenType::RightParentheses, ")");
+                expression = Box::new(expression::CallExpression::new(expression, arguments, span));
+                continue;
+            }
+
             if matches!(self.peek().token_type, TokenType::Dot) {
                 let span = self.peek().span.clone();
                 self.consume();
@@ -413,6 +436,9 @@ impl Parser {
     }
 
     fn primary_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        if consume_token!(self, TokenType::Fn) {
+            return self.function_expression();
+        }
         if consume_token!(self, TokenType::Null) {
             return Ok(Box::new(expression::LiteralExpression::new(
                 primitive::Primitive::Null,
@@ -476,6 +502,24 @@ impl Parser {
             format!("expected expression, found {:?}", self.peek().token_type),
             self.peek().span.clone(),
         ))
+    }
+
+    fn function_expression(&mut self) -> Result<Box<dyn expression::Expression>, ParseError> {
+        expect_token!(self, TokenType::LeftParentheses, "(");
+        let mut parameters = vec![];
+        if !matches!(self.peek().token_type, TokenType::RightParentheses) {
+            loop {
+                parameters.push(self.expect_identifier()?);
+                if !consume_token!(self, TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        expect_token!(self, TokenType::RightParentheses, ")");
+        let body = self.braced_block()?;
+        Ok(Box::new(expression::FunctionExpression::new(
+            parameters, body,
+        )))
     }
 
     fn looks_like_index_assignment(&self) -> bool {

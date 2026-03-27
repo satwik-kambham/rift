@@ -3,8 +3,8 @@ use std::rc::Rc;
 use crate::RSL;
 use crate::environment::Environment;
 use crate::errors::RuntimeError;
-use crate::primitive::Primitive;
-use crate::statement::StatementResult;
+use crate::primitive::{FunctionDefinition, Primitive};
+use crate::statement::{Statement, StatementResult};
 use crate::token::Span;
 
 use super::Expression;
@@ -267,6 +267,80 @@ impl Expression for IndexExpression {
                 self.span.clone(),
             )),
         }
+    }
+}
+
+pub struct FunctionExpression {
+    parameters: Vec<String>,
+    body: Rc<Vec<Box<dyn Statement>>>,
+}
+
+impl FunctionExpression {
+    pub fn new(parameters: Vec<String>, body: Vec<Box<dyn Statement>>) -> Self {
+        Self {
+            parameters,
+            body: Rc::new(body),
+        }
+    }
+}
+
+impl Expression for FunctionExpression {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        _rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        let definition = FunctionDefinition {
+            parameters: self.parameters.clone(),
+            body: self.body.clone(),
+            closure: environment.clone(),
+        };
+        Ok(environment.register_anonymous_function(definition))
+    }
+}
+
+pub struct CallExpression {
+    callee: Box<dyn Expression>,
+    arguments: Vec<Box<dyn Expression>>,
+    span: Span,
+}
+
+impl CallExpression {
+    pub fn new(
+        callee: Box<dyn Expression>,
+        arguments: Vec<Box<dyn Expression>>,
+        span: Span,
+    ) -> Self {
+        Self {
+            callee,
+            arguments,
+            span,
+        }
+    }
+}
+
+impl Expression for CallExpression {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<Primitive, RuntimeError> {
+        let callee_value = self.callee.execute(environment.clone(), rsl)?;
+        let function_id = match callee_value {
+            Primitive::Function(id) => id,
+            other => {
+                return Err(RuntimeError::new(
+                    format!("Expected function, got {:?}", other),
+                    self.span.clone(),
+                ));
+            }
+        };
+        let parameters: Vec<Primitive> = self
+            .arguments
+            .iter()
+            .map(|arg| arg.execute(environment.clone(), rsl))
+            .collect::<Result<_, _>>()?;
+        run_function_by_id(function_id, parameters, environment, rsl, self.span.clone())
     }
 }
 
