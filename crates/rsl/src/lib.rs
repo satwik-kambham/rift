@@ -148,10 +148,10 @@ impl<'a> RSL<'a> {
                     })?;
                 Ok(primitive::Primitive::Null)
             }
-            Err(err) => {
-                eprintln!("Failed to import package {}: {}", package_name, err);
-                Ok(primitive::Primitive::Null)
-            }
+            Err(err) => Err(errors::RuntimeError::new(
+                format!("Failed to import package {}: {}", package_name, err),
+                span,
+            )),
         }
     }
 
@@ -181,10 +181,10 @@ impl<'a> RSL<'a> {
                 let exported_values = primitive::Primitive::Table(exported_values);
                 Ok(exported_values)
             }
-            Err(err) => {
-                eprintln!("Failed to import package {}: {}", package_name, err);
-                Ok(primitive::Primitive::Null)
-            }
+            Err(err) => Err(errors::RuntimeError::new(
+                format!("Failed to import package {}: {}", package_name, err),
+                span,
+            )),
         }
     }
 }
