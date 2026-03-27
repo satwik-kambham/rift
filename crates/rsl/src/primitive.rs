@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::array::Array;
+use crate::environment::Environment;
 use crate::statement::Statement;
 use crate::table::Table;
 
@@ -37,4 +38,5 @@ impl std::fmt::Display for Primitive {
 pub struct FunctionDefinition {
     pub parameters: Vec<String>,
     pub body: Rc<Vec<Box<dyn Statement>>>,
+    pub closure: Rc<Environment>,
 }

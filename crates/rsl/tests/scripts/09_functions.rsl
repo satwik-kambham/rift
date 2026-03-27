@@ -67,3 +67,44 @@ assertEqual(apply(double, 7), 14)
 # Function as value in variable
 let myFunc = add
 assertEqual(myFunc(3, 4), 7)
+
+# Factory function (true closure)
+fn makeAdder(x) {
+    fn adder(y) {
+        return x + y
+    }
+    return adder
+}
+let add5 = makeAdder(5)
+let add10 = makeAdder(10)
+assertEqual(add5(3), 8)
+assertEqual(add10(3), 13)
+assertEqual(add5(0), 5)
+
+# Mutable closure (counter)
+fn makeCounter(start) {
+    let count = start
+    fn increment(step) {
+        count = count + step
+        return count
+    }
+    return increment
+}
+let counter = makeCounter(0)
+assertEqual(counter(1), 1)
+assertEqual(counter(1), 2)
+assertEqual(counter(5), 7)
+
+# Closure toggle
+fn makeToggle() {
+    let state = false
+    fn toggle() {
+        state = !state
+        return state
+    }
+    return toggle
+}
+let toggle = makeToggle()
+assertEqual(toggle(), true)
+assertEqual(toggle(), false)
+assertEqual(toggle(), true)

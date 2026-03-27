@@ -277,8 +277,9 @@ fn run_function_by_id(
     rsl: &mut RSL,
     span: Span,
 ) -> Result<Primitive, RuntimeError> {
-    let local_environment = Rc::new(Environment::new(Some(environment.clone())));
-    if let Some(function_definition) = local_environment.get_function(&function_id) {
+    if let Some(function_definition) = environment.get_function(&function_id) {
+        let local_environment =
+            Rc::new(Environment::new(Some(function_definition.closure.clone())));
         if parameters.len() != function_definition.parameters.len() {
             return Err(RuntimeError::new(
                 format!(
@@ -307,7 +308,7 @@ fn run_function_by_id(
             }
         }
         return Ok(Primitive::Null);
-    } else if let Some(native_function) = local_environment.get_native_function(&function_id) {
+    } else if let Some(native_function) = environment.get_native_function(&function_id) {
         return Ok(native_function(parameters));
     }
     Err(RuntimeError::new(

@@ -227,6 +227,7 @@ impl Statement for FunctionDefinitionStatement {
             FunctionDefinition {
                 parameters: self.parameters.clone(),
                 body: self.body.clone(),
+                closure: environment.clone(),
             },
             self.export,
         );
