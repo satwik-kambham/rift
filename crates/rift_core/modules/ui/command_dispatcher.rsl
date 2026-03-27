@@ -40,18 +40,6 @@ fn commandDispatcherFilterResults() {
     renderCommandDispatcher()
 }
 
-fn commandDispatcherInputUpdated() {
-    inputUpdated(commandDispatcher["id"], commandDispatcher, "input", commandDispatcherFilterResults)
-}
-
-fn commandDispatcherAddSpace() {
-    inputAddSpace(commandDispatcher["id"], commandDispatcher, "input", renderCommandDispatcher)
-}
-
-fn commandDispatcherBackspace() {
-    inputBackspace(commandDispatcher["id"], commandDispatcher, "input", null)
-}
-
 fn commandDispatcherClearInput() {
     inputClear(commandDispatcher["id"], commandDispatcher, "input", null)
 }
@@ -106,14 +94,20 @@ fn createCommandDispatcher() {
     if commandDispatcher["id"] == -1 {
         let bufferId = createSpecialBuffer("Command Dispatcher")
         commandDispatcher["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", commandDispatcherAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", commandDispatcherBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(commandDispatcher["id"], commandDispatcher, "input", renderCommandDispatcher)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(commandDispatcher["id"], commandDispatcher, "input", null)
+        })
         registerBufferKeybind(bufferId, "ins tab", commandDispatcherNext)
         registerBufferKeybind(bufferId, "ins down", commandDispatcherNext)
         registerBufferKeybind(bufferId, "ins up", commandDispatcherPrevious)
         registerBufferKeybind(bufferId, "ins enter", commandDispatcherSelect)
         registerBufferKeybind(bufferId, "ins escape", commandDispatcherEscape)
-        registerBufferInputHook(bufferId, commandDispatcherInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(commandDispatcher["id"], commandDispatcher, "input", commandDispatcherFilterResults)
+        })
     }
     commandDispatcherClearInput()
     commandDispatcherReload()

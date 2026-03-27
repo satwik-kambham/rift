@@ -93,18 +93,6 @@ fn switchBufferUpdateResults() {
     switchBufferUpdateSelectionFromId(previousSelectionId)
 }
 
-fn switchBufferInputUpdated() {
-    inputUpdated(switchBuffer["id"], switchBuffer, "input", switchBufferUpdateResults)
-}
-
-fn switchBufferAddSpace() {
-    inputAddSpace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
-}
-
-fn switchBufferBackspace() {
-    inputBackspace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
-}
-
 fn switchBufferClearInput() {
     inputClear(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
 }
@@ -161,14 +149,20 @@ fn createSwitchBuffer() {
     if switchBuffer["id"] == -1 {
         let bufferId = createSpecialBuffer("Switch Buffer")
         switchBuffer["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", switchBufferAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", switchBufferBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(switchBuffer["id"], switchBuffer, "input", renderSwitchBuffer)
+        })
         registerBufferKeybind(bufferId, "ins tab", switchBufferNext)
         registerBufferKeybind(bufferId, "ins down", switchBufferNext)
         registerBufferKeybind(bufferId, "ins up", switchBufferPrevious)
         registerBufferKeybind(bufferId, "ins enter", switchBufferSelect)
         registerBufferKeybind(bufferId, "ins escape", switchBufferEscape)
-        registerBufferInputHook(bufferId, switchBufferInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(switchBuffer["id"], switchBuffer, "input", switchBufferUpdateResults)
+        })
     }
 
     switchBufferClearInput()

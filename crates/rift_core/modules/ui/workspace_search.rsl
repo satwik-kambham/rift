@@ -38,10 +38,6 @@ fn workspaceSearchClearInput() {
     inputClear(workspaceSearch["id"], workspaceSearch, "input", null)
 }
 
-fn workspaceSearchBackspace() {
-    inputBackspace(workspaceSearch["id"], workspaceSearch, "input", null)
-}
-
 fn workspaceSearchUpdateResults() {
     workspaceSearch["results"] = createArray()
     if stringLen(workspaceSearch["input"]) <= 1 {
@@ -87,14 +83,6 @@ fn workspaceSearchUpdateResults() {
     workspaceSearch["results"] = entries
     workspaceSearch["selected"] = 0
     renderWorkspaceSearch()
-}
-
-fn workspaceSearchInputUpdated() {
-    inputUpdated(workspaceSearch["id"], workspaceSearch, "input", workspaceSearchUpdateResults)
-}
-
-fn workspaceSearchAddSpace() {
-    inputAddSpace(workspaceSearch["id"], workspaceSearch, "input", renderWorkspaceSearch)
 }
 
 fn workspaceSearchMoveSelection(delta) {
@@ -158,14 +146,20 @@ fn createWorkspaceSearch() {
     if workspaceSearch["id"] == -1 {
         let bufferId = createSpecialBuffer("Workspace Search")
         workspaceSearch["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", workspaceSearchAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", workspaceSearchBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(workspaceSearch["id"], workspaceSearch, "input", renderWorkspaceSearch)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(workspaceSearch["id"], workspaceSearch, "input", null)
+        })
         registerBufferKeybind(bufferId, "ins tab", workspaceSearchNext)
         registerBufferKeybind(bufferId, "ins down", workspaceSearchNext)
         registerBufferKeybind(bufferId, "ins up", workspaceSearchPrevious)
         registerBufferKeybind(bufferId, "ins enter", workspaceSearchSelect)
         registerBufferKeybind(bufferId, "ins escape", workspaceSearchEscape)
-        registerBufferInputHook(bufferId, workspaceSearchInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(workspaceSearch["id"], workspaceSearch, "input", workspaceSearchUpdateResults)
+        })
     }
     workspaceSearchClearInput()
     setActiveBuffer(workspaceSearch["id"])

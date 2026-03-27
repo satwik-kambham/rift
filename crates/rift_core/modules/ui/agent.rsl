@@ -489,18 +489,6 @@ fn sendMessage() {
     }
 }
 
-fn llmChatInputUpdated() {
-    inputUpdated(llmChat["id"], llmChat, "input", renderLLMChat)
-}
-
-fn llmChatAddSpace() {
-    inputAddSpace(llmChat["id"], llmChat, "input", renderLLMChat)
-}
-
-fn llmChatBackspace() {
-    inputBackspace(llmChat["id"], llmChat, "input", renderLLMChat)
-}
-
 fn llmChatClearInput() {
     inputClear(llmChat["id"], llmChat, "input", null)
 }
@@ -515,8 +503,12 @@ fn createLLMChat() {
         registerBufferKeybind(bufferId, "nor pageup", llmChatPageUp)
         registerBufferKeybind(bufferId, "nor pagedown", llmChatPageDown)
         registerBufferKeybind(bufferId, "nor tab", llmChatCycleMode)
-        registerBufferKeybind(bufferId, "ins space", llmChatAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", llmChatBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(llmChat["id"], llmChat, "input", renderLLMChat)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(llmChat["id"], llmChat, "input", renderLLMChat)
+        })
         registerBufferKeybind(bufferId, "ins up", llmChatScrollUp)
         registerBufferKeybind(bufferId, "ins down", llmChatScrollDown)
         registerBufferKeybind(bufferId, "ins pageup", llmChatPageUp)
@@ -524,7 +516,9 @@ fn createLLMChat() {
         registerBufferKeybind(bufferId, "nor y", allowToolCall)
         registerBufferKeybind(bufferId, "nor n", denyToolCall)
         registerBufferKeybind(bufferId, "nor c-r", llmChatReset)
-        registerBufferInputHook(bufferId, llmChatInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(llmChat["id"], llmChat, "input", renderLLMChat)
+        })
         llmChatReset()
     }
     renderLLMChat()

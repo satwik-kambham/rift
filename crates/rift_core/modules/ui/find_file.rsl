@@ -44,14 +44,6 @@ fn fuzzyFileFinderInputUpdated() {
     renderFuzzyFileFinder()
 }
 
-fn fuzzyFileFinderAddSpace() {
-    inputAddSpace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", renderFuzzyFileFinder)
-}
-
-fn fuzzyFileFinderBackspace() {
-    inputBackspace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
-}
-
 fn fuzzyFileFinderClearInput() {
     inputClear(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
 }
@@ -100,8 +92,12 @@ fn createFuzzyFileFinder() {
     if fuzzyFileFinder["id"] == -1 {
         let bufferId = createSpecialBuffer("Fuzzy File Finder")
         fuzzyFileFinder["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", fuzzyFileFinderAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", fuzzyFileFinderBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", renderFuzzyFileFinder)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(fuzzyFileFinder["id"], fuzzyFileFinder, "input", null)
+        })
         registerBufferKeybind(bufferId, "ins tab", fuzzyFileFinderNext)
         registerBufferKeybind(bufferId, "ins down", fuzzyFileFinderNext)
         registerBufferKeybind(bufferId, "ins up", fuzzyFileFinderPrevious)

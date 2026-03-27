@@ -25,8 +25,12 @@ fn dialogModalEnsureBuffer() {
         registerBufferKeybind(bufferId, "ins enter", dialogModalSubmit)
         registerBufferKeybind(bufferId, "ins escape", dialogModalClose)
         registerBufferKeybind(bufferId, "ins backspace", dialogModalBackspace)
-        registerBufferKeybind(bufferId, "ins space", dialogModalInsertSpace)
-        registerBufferInputHook(bufferId, dialogModalInputUpdated)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(dialogModal["id"], dialogModal, "input", dialogModalRender)
+        })
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(dialogModal["id"], dialogModal, "input", dialogModalRender)
+        })
     }
 }
 
@@ -65,14 +69,6 @@ fn dialogModalSubmit() {
     if callback != null {
         callback(value)
     }
-}
-
-fn dialogModalInputUpdated() {
-    inputUpdated(dialogModal["id"], dialogModal, "input", dialogModalRender)
-}
-
-fn dialogModalInsertSpace() {
-    inputAddSpace(dialogModal["id"], dialogModal, "input", dialogModalRender)
 }
 
 fn dialogModalBackspace() {

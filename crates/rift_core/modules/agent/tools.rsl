@@ -217,52 +217,63 @@ fn agentReplaceOutputPreview(output) {
 
 #############
 
+let toolDeclarations = createTable()
+toolDeclarations["run_shell_command"] = agentRunShellCommandDeclaration
+toolDeclarations["find_file"] = agentFindFileDeclaration
+toolDeclarations["search_workspace"] = agentSearchWorkspaceDeclaration
+toolDeclarations["read_file"] = agentReadFileDeclaration
+toolDeclarations["write_file"] = agentWriteFileDeclaration
+toolDeclarations["replace"] = agentReplaceDeclaration
+
+let toolHandlers = createTable()
+toolHandlers["run_shell_command"] = agentRunShellCommand
+toolHandlers["find_file"] = agentFindFile
+toolHandlers["search_workspace"] = agentSearchWorkspace
+toolHandlers["read_file"] = agentReadFile
+toolHandlers["write_file"] = agentWriteFile
+toolHandlers["replace"] = agentReplace
+
+let toolPreviews = createTable()
+toolPreviews["run_shell_command"] = agentRunShellCommandPreview
+toolPreviews["find_file"] = agentFindFilePreview
+toolPreviews["search_workspace"] = agentSearchWorkspacePreview
+toolPreviews["read_file"] = agentReadFilePreview
+toolPreviews["write_file"] = agentWriteFilePreview
+toolPreviews["replace"] = agentReplacePreview
+
+let toolOutputPreviews = createTable()
+toolOutputPreviews["run_shell_command"] = agentRunShellCommandOutputPreview
+toolOutputPreviews["find_file"] = agentFindFileOutputPreview
+toolOutputPreviews["search_workspace"] = agentSearchWorkspaceOutputPreview
+toolOutputPreviews["read_file"] = agentReadFileOutputPreview
+toolOutputPreviews["write_file"] = agentWriteFileOutputPreview
+toolOutputPreviews["replace"] = agentReplaceOutputPreview
+
 fn getToolDeclarations(tools) {
     let declarations = createArray()
-    
     for toolName in tools {
-        let declaration = ""
-        if toolName == "run_shell_command" { declaration = agentRunShellCommandDeclaration }
-        if toolName == "find_file" { declaration = agentFindFileDeclaration }
-        if toolName == "search_workspace" { declaration = agentSearchWorkspaceDeclaration }
-        if toolName == "read_file" { declaration = agentReadFileDeclaration }
-        if toolName == "write_file" { declaration = agentWriteFileDeclaration }
-        if toolName == "replace" { declaration = agentReplaceDeclaration }
-        arrayPushBack(declarations, fromJson(declaration))
+        let declaration = toolDeclarations[toolName]
+        if declaration != null {
+            arrayPushBack(declarations, fromJson(declaration))
+        }
     }
-
     return declarations
 }
 
 fn runTool(toolName, inputs) {
-    let output = "Unknown tool call."
-    if toolName == "run_shell_command" { output = agentRunShellCommand(inputs) }
-    if toolName == "find_file" { output = agentFindFile(inputs) }
-    if toolName == "search_workspace" { output = agentSearchWorkspace(inputs) }
-    if toolName == "read_file" { output = agentReadFile(inputs) }
-    if toolName == "write_file" { output = agentWriteFile(inputs) }
-    if toolName == "replace" { output = agentReplace(inputs) }
-    return output
+    let handler = toolHandlers[toolName]
+    if handler == null { return "Unknown tool call." }
+    return handler(inputs)
 }
 
 fn toolPreview(toolName, inputs) {
-    let output = ""
-    if toolName == "run_shell_command" { output = agentRunShellCommandPreview(inputs) }
-    if toolName == "find_file" { output = agentFindFilePreview(inputs) }
-    if toolName == "search_workspace" { output = agentSearchWorkspacePreview(inputs) }
-    if toolName == "read_file" { output = agentReadFilePreview(inputs) }
-    if toolName == "write_file" { output = agentWriteFilePreview(inputs) }
-    if toolName == "replace" { output = agentReplacePreview(inputs) }
-    return output
+    let handler = toolPreviews[toolName]
+    if handler == null { return "" }
+    return handler(inputs)
 }
 
 fn toolOutputPreview(toolName, outputs) {
-    let output = ""
-    if toolName == "run_shell_command" { output = agentRunShellCommandOutputPreview(outputs) }
-    if toolName == "find_file" { output = agentFindFileOutputPreview(outputs) }
-    if toolName == "search_workspace" { output = agentSearchWorkspaceOutputPreview(outputs) }
-    if toolName == "read_file" { output = agentReadFileOutputPreview(outputs) }
-    if toolName == "write_file" { output = agentWriteFileOutputPreview(outputs) }
-    if toolName == "replace" { output = agentReplaceOutputPreview(outputs) }
-    return output
+    let handler = toolOutputPreviews[toolName]
+    if handler == null { return "" }
+    return handler(outputs)
 }

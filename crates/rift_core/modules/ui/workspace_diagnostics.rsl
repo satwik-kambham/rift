@@ -71,18 +71,6 @@ fn workspaceDiagnosticsFilterResults() {
     renderWorkspaceDiagnostics()
 }
 
-fn workspaceDiagnosticsInputUpdated() {
-    inputUpdated(workspaceDiagnostics["id"], workspaceDiagnostics, "input", workspaceDiagnosticsFilterResults)
-}
-
-fn workspaceDiagnosticsAddSpace() {
-    inputAddSpace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", renderWorkspaceDiagnostics)
-}
-
-fn workspaceDiagnosticsBackspace() {
-    inputBackspace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", null)
-}
-
 fn workspaceDiagnosticsClearInput() {
     inputClear(workspaceDiagnostics["id"], workspaceDiagnostics, "input", null)
 }
@@ -137,14 +125,20 @@ fn createWorkspaceDiagnostics() {
     if workspaceDiagnostics["id"] == -1 {
         let bufferId = createSpecialBuffer("Workspace Diagnostics")
         workspaceDiagnostics["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", workspaceDiagnosticsAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", workspaceDiagnosticsBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", renderWorkspaceDiagnostics)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(workspaceDiagnostics["id"], workspaceDiagnostics, "input", null)
+        })
         registerBufferKeybind(bufferId, "ins tab", workspaceDiagnosticsNext)
         registerBufferKeybind(bufferId, "ins down", workspaceDiagnosticsNext)
         registerBufferKeybind(bufferId, "ins up", workspaceDiagnosticsPrevious)
         registerBufferKeybind(bufferId, "ins enter", workspaceDiagnosticsSelect)
         registerBufferKeybind(bufferId, "ins escape", workspaceDiagnosticsEscape)
-        registerBufferInputHook(bufferId, workspaceDiagnosticsInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(workspaceDiagnostics["id"], workspaceDiagnostics, "input", workspaceDiagnosticsFilterResults)
+        })
     }
     workspaceDiagnosticsClearInput()
     workspaceDiagnosticsReload()

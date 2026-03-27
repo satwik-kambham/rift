@@ -103,18 +103,6 @@ fn fileExplorerSetDirectory(path) {
     fileExplorerRefreshEntries()
 }
 
-fn fileExplorerInputUpdated() {
-    inputUpdated(fileExplorer["id"], fileExplorer, "input", fileExplorerApplyFilter)
-}
-
-fn fileExplorerAddSpace() {
-    inputAddSpace(fileExplorer["id"], fileExplorer, "input", renderFileExplorer)
-}
-
-fn fileExplorerBackspace() {
-    inputBackspace(fileExplorer["id"], fileExplorer, "input", null)
-}
-
 fn fileExplorerClearInput() {
     inputClear(fileExplorer["id"], fileExplorer, "input", null)
 }
@@ -215,8 +203,12 @@ fn createFileExplorer() {
     if fileExplorer["id"] == -1 {
         let bufferId = createSpecialBuffer("File Explorer")
         fileExplorer["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", fileExplorerAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", fileExplorerBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(fileExplorer["id"], fileExplorer, "input", renderFileExplorer)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(fileExplorer["id"], fileExplorer, "input", null)
+        })
         registerBufferKeybind(bufferId, "ins tab", fileExplorerNext)
         registerBufferKeybind(bufferId, "ins down", fileExplorerNext)
         registerBufferKeybind(bufferId, "ins up", fileExplorerPrevious)
@@ -224,7 +216,9 @@ fn createFileExplorer() {
         registerBufferKeybind(bufferId, "ins escape", fileExplorerEscape)
         registerBufferKeybind(bufferId, "ins c-f", fileExplorerCreateFilePrompt)
         registerBufferKeybind(bufferId, "ins c-d", fileExplorerCreateFolderPrompt)
-        registerBufferInputHook(bufferId, fileExplorerInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(fileExplorer["id"], fileExplorer, "input", fileExplorerApplyFilter)
+        })
     }
 
     fileExplorerClearInput()

@@ -57,18 +57,6 @@ fn goToReferencesFilterResults() {
     renderGoToReferences()
 }
 
-fn goToReferencesInputUpdated() {
-    inputUpdated(goToReferences["id"], goToReferences, "input", goToReferencesFilterResults)
-}
-
-fn goToReferencesAddSpace() {
-    inputAddSpace(goToReferences["id"], goToReferences, "input", renderGoToReferences)
-}
-
-fn goToReferencesBackspace() {
-    inputBackspace(goToReferences["id"], goToReferences, "input", null)
-}
-
 fn goToReferencesClearInput() {
     inputClear(goToReferences["id"], goToReferences, "input", null)
 }
@@ -123,14 +111,20 @@ fn createGoToReferences() {
     if goToReferences["id"] == -1 {
         let bufferId = createSpecialBuffer("References")
         goToReferences["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", goToReferencesAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", goToReferencesBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(goToReferences["id"], goToReferences, "input", renderGoToReferences)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(goToReferences["id"], goToReferences, "input", null)
+        })
         registerBufferKeybind(bufferId, "ins tab", goToReferencesNext)
         registerBufferKeybind(bufferId, "ins down", goToReferencesNext)
         registerBufferKeybind(bufferId, "ins up", goToReferencesPrevious)
         registerBufferKeybind(bufferId, "ins enter", goToReferencesSelect)
         registerBufferKeybind(bufferId, "ins escape", goToReferencesEscape)
-        registerBufferInputHook(bufferId, goToReferencesInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(goToReferences["id"], goToReferences, "input", goToReferencesFilterResults)
+        })
     }
     goToReferencesClearInput()
     goToReferencesReload()

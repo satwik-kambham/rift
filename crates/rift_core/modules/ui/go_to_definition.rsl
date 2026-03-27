@@ -57,18 +57,6 @@ fn goToDefinitionFilterResults() {
     renderGoToDefinition()
 }
 
-fn goToDefinitionInputUpdated() {
-    inputUpdated(goToDefinition["id"], goToDefinition, "input", goToDefinitionFilterResults)
-}
-
-fn goToDefinitionAddSpace() {
-    inputAddSpace(goToDefinition["id"], goToDefinition, "input", renderGoToDefinition)
-}
-
-fn goToDefinitionBackspace() {
-    inputBackspace(goToDefinition["id"], goToDefinition, "input", null)
-}
-
 fn goToDefinitionClearInput() {
     inputClear(goToDefinition["id"], goToDefinition, "input", null)
 }
@@ -123,14 +111,20 @@ fn createGoToDefinition() {
     if goToDefinition["id"] == -1 {
         let bufferId = createSpecialBuffer("Definitions")
         goToDefinition["id"] = bufferId
-        registerBufferKeybind(bufferId, "ins space", goToDefinitionAddSpace)
-        registerBufferKeybind(bufferId, "ins backspace", goToDefinitionBackspace)
+        registerBufferKeybind(bufferId, "ins space", fn() {
+            inputAddSpace(goToDefinition["id"], goToDefinition, "input", renderGoToDefinition)
+        })
+        registerBufferKeybind(bufferId, "ins backspace", fn() {
+            inputBackspace(goToDefinition["id"], goToDefinition, "input", null)
+        })
         registerBufferKeybind(bufferId, "ins tab", goToDefinitionNext)
         registerBufferKeybind(bufferId, "ins down", goToDefinitionNext)
         registerBufferKeybind(bufferId, "ins up", goToDefinitionPrevious)
         registerBufferKeybind(bufferId, "ins enter", goToDefinitionSelect)
         registerBufferKeybind(bufferId, "ins escape", goToDefinitionEscape)
-        registerBufferInputHook(bufferId, goToDefinitionInputUpdated)
+        registerBufferInputHook(bufferId, fn() {
+            inputUpdated(goToDefinition["id"], goToDefinition, "input", goToDefinitionFilterResults)
+        })
     }
     goToDefinitionClearInput()
     goToDefinitionReload()
