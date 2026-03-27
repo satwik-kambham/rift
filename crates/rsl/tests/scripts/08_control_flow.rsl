@@ -1,0 +1,110 @@
+# Basic if
+let r = 0
+if true {
+    r = 1
+}
+assertEqual(r, 1)
+
+# If not taken
+let s = 0
+if false {
+    s = 1
+}
+assertEqual(s, 0)
+
+# If-else
+let t = 0
+if false {
+    t = 1
+} else {
+    t = 2
+}
+assertEqual(t, 2)
+
+# Else-if chain
+fn classify(n) {
+    if n < 0 {
+        return "negative"
+    } else if n == 0 {
+        return "zero"
+    } else {
+        return "positive"
+    }
+}
+assertEqual(classify(-5), "negative")
+assertEqual(classify(0), "zero")
+assertEqual(classify(10), "positive")
+
+# Nested if
+let result = "none"
+if true {
+    if true {
+        result = "both"
+    }
+}
+assertEqual(result, "both")
+
+let result2 = "none"
+if true {
+    if false {
+        result2 = "inner"
+    }
+}
+assertEqual(result2, "none")
+
+# Loop with break
+let i = 0
+loop {
+    if i == 5 {
+        break
+    }
+    i = i + 1
+}
+assertEqual(i, 5)
+
+# Loop accumulator (sum 1..10)
+let sum = 0
+let n = 1
+loop {
+    if n > 10 {
+        break
+    }
+    sum = sum + n
+    n = n + 1
+}
+assertEqual(sum, 55)
+
+# Return as early exit
+fn earlyReturn(x) {
+    if x > 0 {
+        return "positive"
+    }
+    return "not positive"
+}
+assertEqual(earlyReturn(5), "positive")
+assertEqual(earlyReturn(-1), "not positive")
+assertEqual(earlyReturn(0), "not positive")
+
+# Return from loop inside function
+fn findFirst(limit) {
+    let i = 0
+    loop {
+        if i * i > limit {
+            return i
+        }
+        i = i + 1
+    }
+}
+assertEqual(findFirst(10), 4)
+assertEqual(findFirst(0), 1)
+
+# Loop with conditional break
+let count = 0
+let target = 7
+loop {
+    count = count + 1
+    if count == target {
+        break
+    }
+}
+assertEqual(count, 7)

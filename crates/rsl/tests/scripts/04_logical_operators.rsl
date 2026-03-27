@@ -1,0 +1,29 @@
+# AND truth table
+assert(true and true)
+assert(!(true and false))
+assert(!(false and true))
+assert(!(false and false))
+
+# OR truth table
+assert(true or true)
+assert(true or false)
+assert(false or true)
+assert(!(false or false))
+
+# NOT
+assert(!false)
+assert(!!true)
+assert(!(!true))
+
+# Combined logical expressions
+assert((true and true) or false)
+assert(false or (true and true))
+assert(!false and true)
+assert(!(false and true))
+assert(!false or false)
+
+# Chained expressions
+assert(true and true and true)
+assert(!(true and true and false))
+assert(false or false or true)
+assert(!(false or false or false))

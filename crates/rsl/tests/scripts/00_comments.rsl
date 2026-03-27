@@ -1,0 +1,17 @@
+# This entire line is a comment
+# Another comment line
+
+# Comment between statements
+assertEqual(1 + 1, 2)
+# Comment after an assertion
+assertEqual(2 + 2, 4)
+
+assertEqual(10, 10) # Inline comment at end of line
+
+# Multiple consecutive comments
+# should not break anything
+# at all
+assert(true)
+
+# String containing # character is not a comment
+assertEqual("a#b", "a#b") # but this part is a comment

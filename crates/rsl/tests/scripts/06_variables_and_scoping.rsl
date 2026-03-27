@@ -1,0 +1,59 @@
+# Basic declaration
+let x = 10
+assertEqual(x, 10)
+
+# Expression in initializer
+let y = x + 5
+assertEqual(y, 15)
+
+# Reassignment
+x = 20
+assertEqual(x, 20)
+
+# Multiple types
+let name = "rift"
+assertEqual(name, "rift")
+
+let flag = true
+assert(flag)
+
+let nothing = null
+assert(isNull(nothing))
+
+let num = 3.14
+assertEqual(num, 3.14)
+
+# Block scoping via if: let inside block creates a new local
+let a = 1
+if true {
+    let a = 99
+    assertEqual(a, 99)
+}
+assertEqual(a, 1) # outer a unchanged
+
+# Reassignment across scopes (no let = modifies outer)
+let counter = 0
+if true {
+    counter = 5
+}
+assertEqual(counter, 5)
+
+# Nested scoping: three levels
+let level = "outer"
+if true {
+    let level = "middle"
+    assertEqual(level, "middle")
+    if true {
+        let level = "inner"
+        assertEqual(level, "inner")
+    }
+    assertEqual(level, "middle")
+}
+assertEqual(level, "outer")
+
+# Variable used in its own reassignment
+let val = 10
+val = val + 5
+assertEqual(val, 15)
+val = val * 2
+assertEqual(val, 30)

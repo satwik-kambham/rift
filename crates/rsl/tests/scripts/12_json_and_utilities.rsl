@@ -1,0 +1,54 @@
+# toJson on primitives (numbers are f32, so 42 serializes as "42.0")
+assertEqual(toJson(42), "42.0")
+assertEqual(toJson(3.5), "3.5")
+assertEqual(toJson(true), "true")
+assertEqual(toJson(false), "false")
+assertEqual(toJson(null), "null")
+assertEqual(toJson("hello"), "\"hello\"")
+
+# Round-trip: number (JSON uses f64, RSL uses f32, so check type and string form)
+assertEqual(typeOf(fromJson(toJson(42))), "number")
+
+# Round-trip: string
+assertEqual(fromJson(toJson("hello")), "hello")
+
+# Round-trip: boolean
+assertEqual(fromJson(toJson(true)), true)
+assertEqual(fromJson(toJson(false)), false)
+
+# Round-trip: null
+assert(isNull(fromJson(toJson(null))))
+
+# fromJson on object string
+let obj = fromJson("{\"a\":1,\"b\":\"hello\"}")
+assertEqual(typeOf(obj), "table")
+assertEqual(tableGet(obj, "b"), "hello")
+
+# fromJson on array string
+let arr = fromJson("[\"x\",\"y\",\"z\"]")
+assertEqual(typeOf(arr), "array")
+assertEqual(arrayLen(arr), 3)
+assertEqual(arr[0], "x")
+assertEqual(arr[1], "y")
+assertEqual(arr[2], "z")
+
+# fromJson on invalid JSON returns error
+let bad = fromJson("not json")
+assertEqual(typeOf(bad), "error")
+
+# fromJson on empty string returns error
+let empty = fromJson("")
+assertEqual(typeOf(empty), "error")
+
+# toString conversions
+assertEqual(toString(0), "0")
+assertEqual(toString(-1), "-1")
+assertEqual(toString(true), "true")
+assertEqual(toString(false), "false")
+assertEqual(toString(null), "null")
+
+# print smoke test (just must not crash)
+print("rsl test output")
+print(42)
+print(true)
+print(null)

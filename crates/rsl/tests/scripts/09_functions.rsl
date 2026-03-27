@@ -1,0 +1,69 @@
+# Basic function
+fn add(a, b) {
+    return a + b
+}
+assertEqual(add(2, 3), 5)
+assertEqual(add(-1, 1), 0)
+
+# Function with string return
+fn greet(name) {
+    return "hello " + name
+}
+assertEqual(greet("world"), "hello world")
+
+# No explicit return (implicit null)
+fn noop() {
+}
+assert(isNull(noop()))
+
+# Single parameter
+fn double(x) {
+    return x * 2
+}
+assertEqual(double(5), 10)
+
+# Closure capturing outer variable
+let base = 100
+fn addToBase(n) {
+    return base + n
+}
+assertEqual(addToBase(10), 110)
+
+# Closure sees updated outer value
+base = 200
+assertEqual(addToBase(10), 210)
+
+# Recursion: factorial
+fn factorial(n) {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+assertEqual(factorial(0), 1)
+assertEqual(factorial(1), 1)
+assertEqual(factorial(5), 120)
+
+# Recursion: fibonacci
+fn fib(n) {
+    if n <= 1 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+assertEqual(fib(0), 0)
+assertEqual(fib(1), 1)
+assertEqual(fib(10), 55)
+
+# Nested function calls
+assertEqual(add(add(1, 2), add(3, 4)), 10)
+
+# First-class functions: pass as argument
+fn apply(f, x) {
+    return f(x)
+}
+assertEqual(apply(double, 7), 14)
+
+# Function as value in variable
+let myFunc = add
+assertEqual(myFunc(3, 4), 7)

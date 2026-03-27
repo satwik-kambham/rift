@@ -1,3 +1,5 @@
+// Test script index: tests/scripts/TEST_INDEX.md
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 

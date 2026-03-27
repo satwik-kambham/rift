@@ -1,0 +1,33 @@
+# Unary over multiplicative: (-2) * 3
+assertEqual(-2 * 3, -6)
+
+# Multiplicative over additive: 2 + (3 * 4)
+assertEqual(2 + 3 * 4, 14)
+assertEqual(10 - 2 * 3, 4)
+
+# Additive over comparison: (1 + 2) > 2
+assert(1 + 2 > 2)
+assert(10 - 5 < 10)
+
+# Comparison over equality: (3 > 2) == true
+assert((3 > 2) == true)
+assert((1 < 0) == false)
+
+# Equality over and: (1 == 1) and (2 == 2)
+assert(1 == 1 and 2 == 2)
+assert(!(1 == 2 and 2 == 2))
+
+# And over or: (false and true) or true => true
+assert(false and true or true)
+# true or (false and false) => true (but also: (true or false) and false would be false)
+assert(true or false and false)
+
+# Parentheses override precedence
+assertEqual((2 + 3) * 4, 20)
+assertEqual(2 * (3 + 4), 14)
+assertEqual((1 + (2 * 3)), 7)
+assertEqual(((2 + 3) * (4 + 5)), 45)
+
+# Modulo precedence (same as multiplication)
+assertEqual(2 + 10 % 3, 3)
+assertEqual((2 + 10) % 3, 0)

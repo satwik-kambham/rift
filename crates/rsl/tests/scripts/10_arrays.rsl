@@ -1,0 +1,91 @@
+# Empty array
+let empty = createArray()
+assertEqual(arrayLen(empty), 0)
+
+# Array with initial values
+let arr = createArray(10, 20, 30)
+assertEqual(arrayLen(arr), 3)
+
+# Index access
+assertEqual(arr[0], 10)
+assertEqual(arr[1], 20)
+assertEqual(arr[2], 30)
+
+# arrayGet
+assertEqual(arrayGet(arr, 0), 10)
+assertEqual(arrayGet(arr, 2), 30)
+
+# Index assignment
+arr[0] = 42
+assertEqual(arr[0], 42)
+
+# arraySet
+arraySet(arr, 1, 99)
+assertEqual(arr[1], 99)
+
+# arrayPushBack
+let list = createArray()
+arrayPushBack(list, "a")
+arrayPushBack(list, "b")
+arrayPushBack(list, "c")
+assertEqual(arrayLen(list), 3)
+assertEqual(list[0], "a")
+assertEqual(list[1], "b")
+assertEqual(list[2], "c")
+
+# arrayPopBack
+let popped = arrayPopBack(list)
+assertEqual(popped, "c")
+assertEqual(arrayLen(list), 2)
+
+# arrayInsert
+let nums = createArray(1, 3, 4)
+arrayInsert(nums, 1, 2)
+assertEqual(arrayLen(nums), 4)
+assertEqual(nums[0], 1)
+assertEqual(nums[1], 2)
+assertEqual(nums[2], 3)
+assertEqual(nums[3], 4)
+
+# arrayRemove
+let removed = arrayRemove(nums, 0)
+assertEqual(removed, 1)
+assertEqual(arrayLen(nums), 3)
+assertEqual(nums[0], 2)
+
+# Mixed types in array
+let mixed = createArray(1, "two", true, null)
+assertEqual(arrayLen(mixed), 4)
+assertEqual(mixed[0], 1)
+assertEqual(mixed[1], "two")
+assertEqual(mixed[2], true)
+assert(isNull(mixed[3]))
+
+# Nested arrays
+let outer = createArray()
+let inner1 = createArray(1, 2)
+let inner2 = createArray(3, 4)
+arrayPushBack(outer, inner1)
+arrayPushBack(outer, inner2)
+assertEqual(arrayLen(outer), 2)
+assertEqual(outer[0][0], 1)
+assertEqual(outer[0][1], 2)
+assertEqual(outer[1][0], 3)
+assertEqual(outer[1][1], 4)
+
+# Array in loop
+let squares = createArray()
+let i = 0
+loop {
+    if i >= 5 {
+        break
+    }
+    arrayPushBack(squares, i * i)
+    i = i + 1
+}
+assertEqual(arrayLen(squares), 5)
+assertEqual(squares[0], 0)
+assertEqual(squares[1], 1)
+assertEqual(squares[2], 4)
+assertEqual(squares[3], 9)
+assertEqual(squares[4], 16)

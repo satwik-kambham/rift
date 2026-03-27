@@ -1,0 +1,41 @@
+# Null
+assertEqual(typeOf(null), "null")
+assert(isNull(null))
+
+# Booleans
+assertEqual(typeOf(true), "bool")
+assertEqual(typeOf(false), "bool")
+assert(!isNull(true))
+assert(!isNull(false))
+
+# Numbers
+assertEqual(typeOf(42), "number")
+assertEqual(typeOf(3.14), "number")
+assertEqual(typeOf(0), "number")
+assertEqual(typeOf(-1), "number")
+assert(!isNull(0))
+
+# Strings
+assertEqual(typeOf("hello"), "string")
+assertEqual(typeOf(""), "string")
+assert(!isNull(""))
+
+# Functions
+fn dummy() {
+    return null
+}
+assertEqual(typeOf(dummy), "function")
+
+# Arrays
+assertEqual(typeOf(createArray()), "array")
+assertEqual(typeOf(createArray(1, 2, 3)), "array")
+
+# Tables
+assertEqual(typeOf(createTable()), "table")
+
+# Only null is null
+assert(!isNull(0))
+assert(!isNull(""))
+assert(!isNull(false))
+assert(!isNull(createArray()))
+assert(!isNull(createTable()))
