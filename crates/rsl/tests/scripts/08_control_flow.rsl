@@ -166,3 +166,107 @@ while iter < 3 {
     let inner = iter
     iter = iter + 1
 }
+
+# Basic for loop
+let total = 0
+let items = createArray(10, 20, 30)
+for x in items {
+    total = total + x
+}
+assertEqual(total, 60)
+
+# For over empty array (no iterations)
+let ran = false
+for x in createArray() {
+    ran = true
+}
+assertEqual(ran, false)
+
+# For loop with break
+let stopped = 0
+for x in createArray(1, 2, 3, 4, 5) {
+    if x == 3 {
+        break
+    }
+    stopped = x
+}
+assertEqual(stopped, 2)
+
+# For loop with return inside function
+fn sumArray(arr) {
+    let total = 0
+    for x in arr {
+        total = total + x
+    }
+    return total
+}
+assertEqual(sumArray(createArray(1, 2, 3, 4)), 10)
+assertEqual(sumArray(createArray()), 0)
+
+# For loop iterates over a copy (mutations don't affect iteration)
+let src = createArray(1, 2, 3)
+let collected = createArray()
+for x in src {
+    arrayPushBack(collected, x)
+    arrayPushBack(src, 99)
+}
+assertEqual(arrayLen(collected), 3)
+assertEqual(collected[0], 1)
+assertEqual(collected[1], 2)
+assertEqual(collected[2], 3)
+
+# For loop scope isolation (loop var fresh each iteration)
+let lastX = 0
+for x in createArray(10, 20, 30) {
+    lastX = x
+}
+assertEqual(lastX, 30)
+
+# Nested for loops
+let pairs = createArray()
+for a in createArray(1, 2) {
+    for b in createArray(10, 20) {
+        arrayPushBack(pairs, a * 100 + b)
+    }
+}
+assertEqual(arrayLen(pairs), 4)
+assertEqual(pairs[0], 110)
+assertEqual(pairs[1], 120)
+assertEqual(pairs[2], 210)
+assertEqual(pairs[3], 220)
+
+# For with range
+let rangeSum = 0
+for i in range(0, 5, 1) {
+    rangeSum = rangeSum + i
+}
+assertEqual(rangeSum, 10)
+
+# Range with step > 1
+let evens = createArray()
+for i in range(0, 10, 2) {
+    arrayPushBack(evens, i)
+}
+assertEqual(arrayLen(evens), 5)
+assertEqual(evens[0], 0)
+assertEqual(evens[4], 8)
+
+# Range with negative step
+let desc = createArray()
+for i in range(5, 0, -1) {
+    arrayPushBack(desc, i)
+}
+assertEqual(arrayLen(desc), 5)
+assertEqual(desc[0], 5)
+assertEqual(desc[4], 1)
+
+# Range that doesn't evenly divide
+let partial = createArray()
+for i in range(0, 10, 3) {
+    arrayPushBack(partial, i)
+}
+assertEqual(arrayLen(partial), 4)
+assertEqual(partial[0], 0)
+assertEqual(partial[1], 3)
+assertEqual(partial[2], 6)
+assertEqual(partial[3], 9)

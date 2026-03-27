@@ -54,3 +54,25 @@ pub fn array_insert(arguments: Vec<Primitive>) -> Primitive {
     let (array, index, value) = args!(arguments; array: Array, index: Number, value);
     array.borrow_mut().insert(index as usize, value)
 }
+
+#[rsl_native]
+pub fn range(arguments: Vec<Primitive>) -> Primitive {
+    let (start, stop, step) = args!(arguments; start: Number, stop: Number, step: Number);
+    if step == 0.0 {
+        return Primitive::Error("range step must not be zero".to_string());
+    }
+    let mut items = Vec::new();
+    let mut current = start;
+    if step > 0.0 {
+        while current < stop {
+            items.push(Primitive::Number(current));
+            current += step;
+        }
+    } else {
+        while current > stop {
+            items.push(Primitive::Number(current));
+            current += step;
+        }
+    }
+    Primitive::Array(Rc::new(RefCell::new(Array::new(items))))
+}

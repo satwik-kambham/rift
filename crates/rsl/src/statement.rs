@@ -415,6 +415,71 @@ impl Statement for WhileStatement {
     }
 }
 
+pub struct ForStatement {
+    identifier: String,
+    iterable: Box<dyn expression::Expression>,
+    body: Vec<Box<dyn Statement>>,
+    span: Span,
+}
+
+impl ForStatement {
+    pub fn new(
+        identifier: String,
+        iterable: Box<dyn expression::Expression>,
+        body: Vec<Box<dyn Statement>>,
+        span: Span,
+    ) -> Self {
+        Self {
+            identifier,
+            iterable,
+            body,
+            span,
+        }
+    }
+}
+
+impl Statement for ForStatement {
+    fn execute(
+        &self,
+        environment: Rc<Environment>,
+        rsl: &mut RSL,
+    ) -> Result<StatementResult, RuntimeError> {
+        let iterable = self.iterable.execute(environment.clone(), rsl)?;
+        let items = match iterable {
+            Primitive::Array(array) => array.borrow().items().to_vec(),
+            other => {
+                return Err(RuntimeError::new(
+                    format!("for loop requires an array, got {:?}", other),
+                    self.span.clone(),
+                ));
+            }
+        };
+
+        for item in items {
+            let local_environment = Rc::new(Environment::new(Some(environment.clone())));
+            local_environment.set_value_local(
+                self.identifier.clone(),
+                item,
+                DeclarationType::Definition,
+            );
+
+            for statement in &self.body {
+                let execution_result = statement.execute(local_environment.clone(), rsl)?;
+
+                if let StatementResult::Break = execution_result {
+                    return Ok(StatementResult::None);
+                }
+
+                if matches!(execution_result, StatementResult::Return(_)) {
+                    return Ok(execution_result);
+                }
+            }
+        }
+
+        Ok(StatementResult::None)
+    }
+}
+
 pub struct BreakStatement {}
 
 impl Default for BreakStatement {

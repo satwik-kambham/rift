@@ -21,6 +21,10 @@ impl Array {
         self.items.is_empty()
     }
 
+    pub fn items(&self) -> &[Primitive] {
+        &self.items
+    }
+
     pub fn get(&self, index: usize) -> Primitive {
         self.items
             .get(index)
