@@ -92,3 +92,21 @@ pub fn is_null(arguments: Vec<Primitive>) -> Primitive {
     let argument = args!(arguments; argument);
     Primitive::Boolean(matches!(argument, Primitive::Null))
 }
+
+#[rsl_native]
+pub fn assert(arguments: Vec<Primitive>) -> Primitive {
+    let value = args!(arguments; value: Boolean);
+    if !value {
+        panic!("assertion failed");
+    }
+    Primitive::Null
+}
+
+#[rsl_native]
+pub fn assert_equal(arguments: Vec<Primitive>) -> Primitive {
+    let (actual, expected) = args!(arguments; actual, expected);
+    if actual != expected {
+        panic!("assertion failed: expected `{expected}`, got `{actual}`");
+    }
+    Primitive::Null
+}

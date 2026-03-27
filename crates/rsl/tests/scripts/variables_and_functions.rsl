@@ -1,0 +1,41 @@
+# Variable declaration and assignment
+let x = 10
+assertEqual(x, 10)
+
+let y = x + 5
+assertEqual(y, 15)
+
+# Reassignment
+x = 20
+assertEqual(x, 20)
+
+# Multiple types
+let name = "rift"
+assertEqual(name, "rift")
+
+let flag = true
+assert(flag)
+
+let nothing = null
+assert(isNull(nothing))
+
+# Function definition and calls
+fn add(a, b) {
+    return a + b
+}
+assertEqual(add(2, 3), 5)
+
+fn greet(name) {
+    return "hello " + name
+}
+assertEqual(greet("world"), "hello world")
+
+# Closures / captured variables
+let base = 100
+fn addToBase(n) {
+    return base + n
+}
+assertEqual(addToBase(10), 110)
+
+# Nested function calls
+assertEqual(add(add(1, 2), add(3, 4)), 10)

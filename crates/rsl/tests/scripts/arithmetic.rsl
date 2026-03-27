@@ -1,0 +1,30 @@
+# Basic arithmetic operations
+assertEqual(1 + 2, 3)
+assertEqual(10 - 4, 6)
+assertEqual(3 * 5, 15)
+assertEqual(10 / 2, 5)
+
+# Operator precedence
+assertEqual(2 + 3 * 4, 14)
+assertEqual((2 + 3) * 4, 20)
+
+# Negative numbers
+assertEqual(-5 + 10, 5)
+assertEqual(-3 * -2, 6)
+
+# Floating point
+assertEqual(1.5 + 2.5, 4)
+assertEqual(7 / 2, 3.5)
+
+# Boolean logic
+assert(true)
+assert(!false)
+assert(1 + 1 == 2)
+assert(1 != 2)
+assert(3 > 2)
+assert(2 < 3)
+assert(3 >= 3)
+assert(2 <= 2)
+
+# String concatenation
+assertEqual("hello" + " " + "world", "hello world")
