@@ -1,6 +1,4 @@
-export state = createTable()
-state["viewportRows"] = 0
-state["viewportColumns"] = 0
+export state = {"viewportRows": 0, "viewportColumns": 0}
 
 fn setViewportSize(self, rows, columns) {
     self["viewportRows"] = rows
@@ -70,12 +68,10 @@ fn setViewportBufferContent(self, bufferId, content) {
 state["setViewportBufferContent"] = setViewportBufferContent
 
 fn viewportWindow(self, selectedIndex, totalItems, reservedLines) {
-    let window = createTable()
     if totalItems <= 0 {
-        window["start"] = 0
-        window["end"] = 0
-        return window
+        return {"start": 0, "end": 0}
     }
+    let window = {}
 
     let visible = self.viewportVisibleRows(reservedLines)
     if visible > totalItems { visible = totalItems }

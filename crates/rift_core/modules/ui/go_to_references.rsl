@@ -1,12 +1,6 @@
 # Go To References
 
-let goToReferences = createTable()
-goToReferences["id"] = -1
-goToReferences["input"] = ""
-goToReferences["all"] = createArray()
-goToReferences["results"] = createArray()
-goToReferences["selected"] = 0
-goToReferences["previous_buffer_id"] = -1
+let goToReferences = {"id": -1, "input": "", "all": [], "results": [], "selected": 0, "previous_buffer_id": -1}
 
 fn goToReferencesDisplay(entry) {
     let filePath = entry["file_path"]
@@ -24,22 +18,22 @@ fn goToReferencesDisplay(entry) {
 }
 
 fn renderGoToReferences() {
-    let ctx = createTable()
-    ctx["title"] = "🔗 References"
-    ctx["input_header"] = "╭─ Filter ──────────────"
-    ctx["input_value"] = goToReferences["input"]
-    ctx["list_header"] = "╰─ Locations ───────────"
-    ctx["entries"] = goToReferences["results"]
-    ctx["selected_index"] = goToReferences["selected"]
-    ctx["reserved_lines"] = 5
-    ctx["empty_text"] = "No references"
-    ctx["buffer_id"] = goToReferences["id"]
-    ctx["entry_to_string"] = goToReferencesDisplay
-    listPanelRender(ctx)
+    listPanelRender({
+        "title": "🔗 References",
+        "input_header": "╭─ Filter ──────────────",
+        "input_value": goToReferences["input"],
+        "list_header": "╰─ Locations ───────────",
+        "entries": goToReferences["results"],
+        "selected_index": goToReferences["selected"],
+        "reserved_lines": 5,
+        "empty_text": "No references",
+        "buffer_id": goToReferences["id"],
+        "entry_to_string": goToReferencesDisplay
+    })
 }
 
 fn goToReferencesFilterResults() {
-    let results = createArray()
+    let results = []
     let query = stringToLower(goToReferences["input"])
     let allEntries = goToReferences["all"]
 

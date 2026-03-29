@@ -1,5 +1,5 @@
 # Empty table
-let t = createTable()
+let t = {}
 assertEqual(arrayLen(tableKeys(t)), 0)
 
 # tableSet and tableGet
@@ -32,36 +32,27 @@ t["y"] = 200
 assertEqual(t["y"], 200)
 
 # Multiple value types
-let multi = createTable()
-tableSet(multi, "num", 42)
-tableSet(multi, "str", "hello")
-tableSet(multi, "bool", true)
-tableSet(multi, "nil", null)
+let multi = {"num": 42, "str": "hello", "bool": true, "nil": null}
 assertEqual(multi["num"], 42)
 assertEqual(multi["str"], "hello")
 assertEqual(multi["bool"], true)
 assert(isNull(multi["nil"]))
 
 # Nested tables
-let outer = createTable()
-let inner = createTable()
-tableSet(inner, "value", 99)
-tableSet(outer, "inner", inner)
+let outer = {"inner": {"value": 99}}
 assertEqual(tableGet(tableGet(outer, "inner"), "value"), 99)
 
 # Table with function value
 fn greetName(self) {
     return "hello " + tableGet(self, "name")
 }
-let obj = createTable()
-tableSet(obj, "name", "rift")
-tableSet(obj, "greet", greetName)
+let obj = {"name": "rift", "greet": greetName}
 let greetFn = tableGet(obj, "greet")
 assertEqual(greetFn(obj), "hello rift")
 
 # Table used as accumulator
-let counts = createTable()
-let words = createArray("a", "b", "a", "c", "b", "a")
+let counts = {}
+let words = ["a", "b", "a", "c", "b", "a"]
 let i = 0
 loop {
     if i >= arrayLen(words) {

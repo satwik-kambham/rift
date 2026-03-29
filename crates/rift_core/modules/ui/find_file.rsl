@@ -8,25 +8,20 @@ fn fuzzyFileFinderDependenciesError() {
     infoModalOpen("Fuzzy File Finder requires `fd` and `fzf` to be installed and available in PATH.")
 }
 
-let fuzzyFileFinder = createTable()
-fuzzyFileFinder["id"] = -1
-fuzzyFileFinder["input"] = ""
-fuzzyFileFinder["results"] = createArray()
-fuzzyFileFinder["selected"] = 0
-fuzzyFileFinder["previous_buffer_id"] = -1
+let fuzzyFileFinder = {"id": -1, "input": "", "results": [], "selected": 0, "previous_buffer_id": -1}
 
 fn renderFuzzyFileFinder() {
-    let ctx = createTable()
-    ctx["title"] = "🔎 Fuzzy File Finder"
-    ctx["input_header"] = "╭─ Query ─────────────────"
-    ctx["input_value"] = fuzzyFileFinder["input"]
-    ctx["list_header"] = "╰─ Matches ───────────────"
-    ctx["entries"] = fuzzyFileFinder["results"]
-    ctx["selected_index"] = fuzzyFileFinder["selected"]
-    ctx["reserved_lines"] = 5
-    ctx["empty_text"] = "No files found"
-    ctx["buffer_id"] = fuzzyFileFinder["id"]
-    listPanelRender(ctx)
+    listPanelRender({
+        "title": "🔎 Fuzzy File Finder",
+        "input_header": "╭─ Query ─────────────────",
+        "input_value": fuzzyFileFinder["input"],
+        "list_header": "╰─ Matches ───────────────",
+        "entries": fuzzyFileFinder["results"],
+        "selected_index": fuzzyFileFinder["selected"],
+        "reserved_lines": 5,
+        "empty_text": "No files found",
+        "buffer_id": fuzzyFileFinder["id"]
+    })
 }
 
 fn fuzzyFileFinderWorkspaceEntries() {

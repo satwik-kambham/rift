@@ -8,30 +8,25 @@ fn workspaceSearchDependenciesError() {
     infoModalOpen("Workspace Search requires `rg` (ripgrep) to be installed and available in PATH.")
 }
 
-let workspaceSearch = createTable()
-workspaceSearch["id"] = -1
-workspaceSearch["input"] = ""
-workspaceSearch["results"] = createArray()
-workspaceSearch["selected"] = 0
-workspaceSearch["previous_buffer_id"] = -1
+let workspaceSearch = {"id": -1, "input": "", "results": [], "selected": 0, "previous_buffer_id": -1}
 
 fn workspaceSearchDisplay(entry) {
     return entry["display"]
 }
 
 fn renderWorkspaceSearch() {
-    let ctx = createTable()
-    ctx["title"] = "🔍 Workspace Search"
-    ctx["input_header"] = "╭─ Query ───────────────"
-    ctx["input_value"] = workspaceSearch["input"]
-    ctx["list_header"] = "╰─ Matches ─────────────"
-    ctx["entries"] = workspaceSearch["results"]
-    ctx["selected_index"] = workspaceSearch["selected"]
-    ctx["reserved_lines"] = 5
-    ctx["empty_text"] = "No matches"
-    ctx["buffer_id"] = workspaceSearch["id"]
-    ctx["entry_to_string"] = workspaceSearchDisplay
-    listPanelRender(ctx)
+    listPanelRender({
+        "title": "🔍 Workspace Search",
+        "input_header": "╭─ Query ───────────────",
+        "input_value": workspaceSearch["input"],
+        "list_header": "╰─ Matches ─────────────",
+        "entries": workspaceSearch["results"],
+        "selected_index": workspaceSearch["selected"],
+        "reserved_lines": 5,
+        "empty_text": "No matches",
+        "buffer_id": workspaceSearch["id"],
+        "entry_to_string": workspaceSearchDisplay
+    })
 }
 
 fn workspaceSearchClearInput() {
@@ -39,7 +34,7 @@ fn workspaceSearchClearInput() {
 }
 
 fn workspaceSearchUpdateResults() {
-    workspaceSearch["results"] = createArray()
+    workspaceSearch["results"] = []
     if stringLen(workspaceSearch["input"]) <= 1 {
         workspaceSearch["selected"] = 0
         renderWorkspaceSearch()
@@ -48,7 +43,7 @@ fn workspaceSearchUpdateResults() {
 
     let results = runShellCommand("rg --json --color=never --smart-case --max-count 100 \"" + workspaceSearch["input"] + "\"", getWorkspaceDir())
     let lines = stringSplitLines(results["stdout"])
-    let entries = createArray()
+    let entries = []
 
     for line in lines {
         if line != "" {
@@ -69,12 +64,7 @@ fn workspaceSearchUpdateResults() {
 
                     let display = filePath + ":" + toJson(row) + ":" + toJson(start) + " " + lineText
 
-                    let entry = createTable()
-                    entry["file_path"] = filePath
-                    entry["row"] = row
-                    entry["start"] = start
-                    entry["end"] = end
-                    entry["display"] = display
+                    let entry = {"file_path": filePath, "row": row, "start": start, "end": end, "display": display}
                     arrayPushBack(entries, entry)
                 }
             }
@@ -110,16 +100,10 @@ fn workspaceSearchSelect() {
         let start = selection["start"]
         let end = selection["end"]
 
-        let range = createTable()
-        let cursor = createTable()
-        let mark = createTable()
-
-        mark["row"] = row
-        mark["column"] = start
-        cursor["row"] = row
-        cursor["column"] = end
-        range["cursor"] = cursor
-        range["mark"] = mark
+        let range = {
+            "cursor": {"row": row, "column": end},
+            "mark": {"row": row, "column": start}
+        }
 
         workspaceSearchClearInput()
         openFile(path)

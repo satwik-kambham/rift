@@ -217,40 +217,44 @@ fn agentReplaceOutputPreview(output) {
 
 #############
 
-let toolDeclarations = createTable()
-toolDeclarations["run_shell_command"] = agentRunShellCommandDeclaration
-toolDeclarations["find_file"] = agentFindFileDeclaration
-toolDeclarations["search_workspace"] = agentSearchWorkspaceDeclaration
-toolDeclarations["read_file"] = agentReadFileDeclaration
-toolDeclarations["write_file"] = agentWriteFileDeclaration
-toolDeclarations["replace"] = agentReplaceDeclaration
+let toolDeclarations = {
+    "run_shell_command": agentRunShellCommandDeclaration,
+    "find_file": agentFindFileDeclaration,
+    "search_workspace": agentSearchWorkspaceDeclaration,
+    "read_file": agentReadFileDeclaration,
+    "write_file": agentWriteFileDeclaration,
+    "replace": agentReplaceDeclaration
+}
 
-let toolHandlers = createTable()
-toolHandlers["run_shell_command"] = agentRunShellCommand
-toolHandlers["find_file"] = agentFindFile
-toolHandlers["search_workspace"] = agentSearchWorkspace
-toolHandlers["read_file"] = agentReadFile
-toolHandlers["write_file"] = agentWriteFile
-toolHandlers["replace"] = agentReplace
+let toolHandlers = {
+    "run_shell_command": agentRunShellCommand,
+    "find_file": agentFindFile,
+    "search_workspace": agentSearchWorkspace,
+    "read_file": agentReadFile,
+    "write_file": agentWriteFile,
+    "replace": agentReplace
+}
 
-let toolPreviews = createTable()
-toolPreviews["run_shell_command"] = agentRunShellCommandPreview
-toolPreviews["find_file"] = agentFindFilePreview
-toolPreviews["search_workspace"] = agentSearchWorkspacePreview
-toolPreviews["read_file"] = agentReadFilePreview
-toolPreviews["write_file"] = agentWriteFilePreview
-toolPreviews["replace"] = agentReplacePreview
+let toolPreviews = {
+    "run_shell_command": agentRunShellCommandPreview,
+    "find_file": agentFindFilePreview,
+    "search_workspace": agentSearchWorkspacePreview,
+    "read_file": agentReadFilePreview,
+    "write_file": agentWriteFilePreview,
+    "replace": agentReplacePreview
+}
 
-let toolOutputPreviews = createTable()
-toolOutputPreviews["run_shell_command"] = agentRunShellCommandOutputPreview
-toolOutputPreviews["find_file"] = agentFindFileOutputPreview
-toolOutputPreviews["search_workspace"] = agentSearchWorkspaceOutputPreview
-toolOutputPreviews["read_file"] = agentReadFileOutputPreview
-toolOutputPreviews["write_file"] = agentWriteFileOutputPreview
-toolOutputPreviews["replace"] = agentReplaceOutputPreview
+let toolOutputPreviews = {
+    "run_shell_command": agentRunShellCommandOutputPreview,
+    "find_file": agentFindFileOutputPreview,
+    "search_workspace": agentSearchWorkspaceOutputPreview,
+    "read_file": agentReadFileOutputPreview,
+    "write_file": agentWriteFileOutputPreview,
+    "replace": agentReplaceOutputPreview
+}
 
 fn getToolDeclarations(tools) {
-    let declarations = createArray()
+    let declarations = []
     for toolName in tools {
         let declaration = toolDeclarations[toolName]
         if declaration != null {

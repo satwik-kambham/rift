@@ -27,15 +27,15 @@ fn dummy() {
 assertEqual(typeOf(dummy), "function")
 
 # Arrays
-assertEqual(typeOf(createArray()), "array")
-assertEqual(typeOf(createArray(1, 2, 3)), "array")
+assertEqual(typeOf([]), "array")
+assertEqual(typeOf([1, 2, 3]), "array")
 
 # Tables
-assertEqual(typeOf(createTable()), "table")
+assertEqual(typeOf({}), "table")
 
 # Only null is null
 assert(!isNull(0))
 assert(!isNull(""))
 assert(!isNull(false))
-assert(!isNull(createArray()))
-assert(!isNull(createTable()))
+assert(!isNull([]))
+assert(!isNull({}))

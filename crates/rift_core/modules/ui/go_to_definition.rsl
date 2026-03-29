@@ -1,12 +1,6 @@
 # Go To Definition
 
-let goToDefinition = createTable()
-goToDefinition["id"] = -1
-goToDefinition["input"] = ""
-goToDefinition["all"] = createArray()
-goToDefinition["results"] = createArray()
-goToDefinition["selected"] = 0
-goToDefinition["previous_buffer_id"] = -1
+let goToDefinition = {"id": -1, "input": "", "all": [], "results": [], "selected": 0, "previous_buffer_id": -1}
 
 fn goToDefinitionDisplay(entry) {
     let filePath = entry["file_path"]
@@ -24,22 +18,22 @@ fn goToDefinitionDisplay(entry) {
 }
 
 fn renderGoToDefinition() {
-    let ctx = createTable()
-    ctx["title"] = "📌 Definitions"
-    ctx["input_header"] = "╭─ Filter ──────────────"
-    ctx["input_value"] = goToDefinition["input"]
-    ctx["list_header"] = "╰─ Locations ───────────"
-    ctx["entries"] = goToDefinition["results"]
-    ctx["selected_index"] = goToDefinition["selected"]
-    ctx["reserved_lines"] = 5
-    ctx["empty_text"] = "No definitions"
-    ctx["buffer_id"] = goToDefinition["id"]
-    ctx["entry_to_string"] = goToDefinitionDisplay
-    listPanelRender(ctx)
+    listPanelRender({
+        "title": "📌 Definitions",
+        "input_header": "╭─ Filter ──────────────",
+        "input_value": goToDefinition["input"],
+        "list_header": "╰─ Locations ───────────",
+        "entries": goToDefinition["results"],
+        "selected_index": goToDefinition["selected"],
+        "reserved_lines": 5,
+        "empty_text": "No definitions",
+        "buffer_id": goToDefinition["id"],
+        "entry_to_string": goToDefinitionDisplay
+    })
 }
 
 fn goToDefinitionFilterResults() {
-    let results = createArray()
+    let results = []
     let query = stringToLower(goToDefinition["input"])
     let allEntries = goToDefinition["all"]
 

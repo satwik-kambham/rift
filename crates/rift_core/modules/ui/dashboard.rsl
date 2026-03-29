@@ -1,8 +1,6 @@
 # Dashboard
 
-let dashboard = createTable()
-dashboard["id"] = -1
-dashboard["text"] = "
+let dashboard = {"id": -1, "text": "
 Welcome to rift!
 
 Basic Keybinds:
@@ -13,7 +11,7 @@ space q - Quit
 space f - Fuzzy File Picker (with fd & fzf)
 space F - File Explorer
 space b - Switch Buffer
-"
+"}
 
 fn renderDashboard() {
     let dashboardId = dashboard["id"]

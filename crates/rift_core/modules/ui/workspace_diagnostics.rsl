@@ -1,12 +1,6 @@
 # Workspace Diagnostics
 
-let workspaceDiagnostics = createTable()
-workspaceDiagnostics["id"] = -1
-workspaceDiagnostics["input"] = ""
-workspaceDiagnostics["all"] = createArray()
-workspaceDiagnostics["results"] = createArray()
-workspaceDiagnostics["selected"] = 0
-workspaceDiagnostics["previous_buffer_id"] = -1
+let workspaceDiagnostics = {"id": -1, "input": "", "all": [], "results": [], "selected": 0, "previous_buffer_id": -1}
 
 fn workspaceDiagnosticsDisplay(entry) {
     let filePath = entry["file_path"]
@@ -36,22 +30,22 @@ fn workspaceDiagnosticsDisplay(entry) {
 }
 
 fn renderWorkspaceDiagnostics() {
-    let ctx = createTable()
-    ctx["title"] = "🩺 Diagnostics"
-    ctx["input_header"] = "╭─ Filter ──────────────"
-    ctx["input_value"] = workspaceDiagnostics["input"]
-    ctx["list_header"] = "╰─ Issues ──────────────"
-    ctx["entries"] = workspaceDiagnostics["results"]
-    ctx["selected_index"] = workspaceDiagnostics["selected"]
-    ctx["reserved_lines"] = 5
-    ctx["empty_text"] = "No diagnostics"
-    ctx["buffer_id"] = workspaceDiagnostics["id"]
-    ctx["entry_to_string"] = workspaceDiagnosticsDisplay
-    listPanelRender(ctx)
+    listPanelRender({
+        "title": "🩺 Diagnostics",
+        "input_header": "╭─ Filter ──────────────",
+        "input_value": workspaceDiagnostics["input"],
+        "list_header": "╰─ Issues ──────────────",
+        "entries": workspaceDiagnostics["results"],
+        "selected_index": workspaceDiagnostics["selected"],
+        "reserved_lines": 5,
+        "empty_text": "No diagnostics",
+        "buffer_id": workspaceDiagnostics["id"],
+        "entry_to_string": workspaceDiagnosticsDisplay
+    })
 }
 
 fn workspaceDiagnosticsFilterResults() {
-    let results = createArray()
+    let results = []
     let query = stringToLower(workspaceDiagnostics["input"])
     let allEntries = workspaceDiagnostics["all"]
 

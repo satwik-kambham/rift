@@ -1,14 +1,6 @@
 # File Explorer
 
-let fileExplorer = createTable()
-fileExplorer["id"] = -1
-fileExplorer["input"] = ""
-fileExplorer["entries"] = createArray()
-fileExplorer["all_entries"] = createArray()
-fileExplorer["selected"] = 0
-fileExplorer["current_dir"] = ""
-fileExplorer["previous_buffer_id"] = -1
-fileExplorer["error"] = ""
+let fileExplorer = {"id": -1, "input": "", "entries": [], "all_entries": [], "selected": 0, "current_dir": "", "previous_buffer_id": -1, "error": ""}
 
 fn fileExplorerEntryDisplay(entry) {
     let name = entry["name"]
@@ -19,36 +11,33 @@ fn fileExplorerEntryDisplay(entry) {
 }
 
 fn renderFileExplorer() {
-    let headerLines = createArray()
-    arrayPushBack(headerLines, fileExplorer["current_dir"])
-    arrayPushBack(headerLines, "(ctrl-f: new file, ctrl-d: new folder)")
+    let headerLines = [fileExplorer["current_dir"], "(ctrl-f: new file, ctrl-d: new folder)"]
 
     let extraLines = null
     let errorMessage = fileExplorer["error"]
     if errorMessage != "" {
-        extraLines = createArray()
-        arrayPushBack(extraLines, "   Error: " + errorMessage)
+        extraLines = ["   Error: " + errorMessage]
     }
 
-    let ctx = createTable()
-    ctx["title"] = "📂 File Explorer"
-    ctx["header_lines"] = headerLines
-    ctx["input_header"] = "╭─ Filter ───────────────"
-    ctx["input_value"] = fileExplorer["input"]
-    ctx["list_header"] = "╰─ Entries ──────────────"
-    ctx["entries"] = fileExplorer["entries"]
-    ctx["selected_index"] = fileExplorer["selected"]
-    ctx["reserved_lines"] = 6
-    ctx["empty_text"] = "No entries"
-    ctx["buffer_id"] = fileExplorer["id"]
-    ctx["entry_to_string"] = fileExplorerEntryDisplay
-    ctx["extra_lines"] = extraLines
-    listPanelRender(ctx)
+    listPanelRender({
+        "title": "📂 File Explorer",
+        "header_lines": headerLines,
+        "input_header": "╭─ Filter ───────────────",
+        "input_value": fileExplorer["input"],
+        "list_header": "╰─ Entries ──────────────",
+        "entries": fileExplorer["entries"],
+        "selected_index": fileExplorer["selected"],
+        "reserved_lines": 6,
+        "empty_text": "No entries",
+        "buffer_id": fileExplorer["id"],
+        "entry_to_string": fileExplorerEntryDisplay,
+        "extra_lines": extraLines
+    })
 }
 
 fn fileExplorerApplyFilter() {
     let query = stringToLower(fileExplorer["input"])
-    let entries = createArray()
+    let entries = []
     let allEntries = fileExplorer["all_entries"]
 
     for entry in allEntries {
@@ -73,7 +62,7 @@ fn fileExplorerApplyFilter() {
 
 fn fileExplorerRefreshEntries() {
     let listing = listDir(fileExplorer["current_dir"])
-    let allEntries = createArray()
+    let allEntries = []
     fileExplorer["error"] = ""
 
     let errorMessage = listing["error"]
@@ -83,10 +72,7 @@ fn fileExplorerRefreshEntries() {
 
     let entries = listing["entries"]
 
-    let parentEntry = createTable()
-    parentEntry["name"] = ".."
-    parentEntry["path"] = parentPath(fileExplorer["current_dir"])
-    parentEntry["is_dir"] = true
+    let parentEntry = {"name": "..", "path": parentPath(fileExplorer["current_dir"]), "is_dir": true}
     arrayPushBack(allEntries, parentEntry)
 
     for entry in entries {

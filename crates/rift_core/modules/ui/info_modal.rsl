@@ -1,12 +1,6 @@
 # Info Modal
 
-let infoModal = createTable()
-infoModal["id"] = -1
-infoModal["previous_buffer_id"] = -1
-infoModal["content"] = ""
-infoModal["scroll"] = 0
-infoModal["active"] = false
-infoModal["page_size"] = 48
+let infoModal = {"id": -1, "previous_buffer_id": -1, "content": "", "scroll": 0, "active": false, "page_size": 48}
 
 fn infoModalClampScroll(totalLines, pageSize) {
     let maxScroll = totalLines - pageSize

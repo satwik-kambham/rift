@@ -1,12 +1,6 @@
 # Dialog Modal
 
-let dialogModal = createTable()
-dialogModal["id"] = -1
-dialogModal["previous_buffer_id"] = -1
-dialogModal["active"] = false
-dialogModal["input"] = ""
-dialogModal["prompt"] = ""
-dialogModal["callback"] = null
+let dialogModal = {"id": -1, "previous_buffer_id": -1, "active": false, "input": "", "prompt": "", "callback": null}
 
 fn setSearchQueryFromDialog(query) {
     setSearchQuery(query)

@@ -3,38 +3,35 @@
 # Providers
 
 fn openRouterProvider() {
-    let provider = createTable()
-    provider["url"] = "https://openrouter.ai/api/v1/chat/completions"
-    provider["api_key"] = getEnvVar("OPENROUTER_KEY")
-    # provider["model"] = "mistralai/devstral-small"
-    provider["model"] = "minimax/minimax-m2.5"
-    # provider["model"] = "z-ai/glm-5"
-    # provider["model"] = "moonshotai/kimi-k2.5"
-    return provider
+    return {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "api_key": getEnvVar("OPENROUTER_KEY"),
+        # "model": "mistralai/devstral-small"
+        "model": "minimax/minimax-m2.5"
+        # "model": "z-ai/glm-5"
+        # "model": "moonshotai/kimi-k2.5"
+    }
 }
 
 fn llamaCppProvider() {
-    let provider = createTable()
-    provider["url"] = "http://127.0.0.1:8080/v1/chat/completions"
-    provider["api_key"] = null
-    provider["model"] = ""
-    return provider
+    return {"url": "http://127.0.0.1:8080/v1/chat/completions", "api_key": null, "model": ""}
 }
 
 runScript("agent/tools.rsl")
 
 let modes = import("agent/modes.rsl")
 
-let llmChat = createTable()
-llmChat["id"] = -1
-llmChat["provider"] = openRouterProvider()
-llmChat["mode_index"] = 0
-llmChat["mode"] = modes["all"][llmChat["mode_index"]]
-llmChat["history"] = createArray()
-llmChat["history_scroll"] = 0
-llmChat["history_page_size"] = 1
-llmChat["input"] = ""
-llmChat["pending_tool_calls"] = createArray()
+let llmChat = {
+    "id": -1,
+    "provider": openRouterProvider(),
+    "mode_index": 0,
+    "mode": modes["all"][0],
+    "history": [],
+    "history_scroll": 0,
+    "history_page_size": 1,
+    "input": "",
+    "pending_tool_calls": []
+}
 
 fn llmChatBuildSystemMessageContent() {
     let systemPrompt = llmChat["mode"]["systemPrompt"]
@@ -48,9 +45,7 @@ fn llmChatBuildSystemMessageContent() {
 fn llmChatRewriteSystemMessageInHistory() {
     let chatHistory = llmChat["history"]
     let systemMessageContent = llmChatBuildSystemMessageContent()
-    let message = createTable()
-    message["role"] = "system"
-    message["content"] = systemMessageContent
+    let message = {"role": "system", "content": systemMessageContent}
 
     let historyLen = arrayLen(chatHistory)
     if historyLen == 0 {
@@ -79,13 +74,13 @@ fn llmChatRewriteSystemMessageInHistory() {
 }
 
 fn llmChatReset() {
-    llmChat["history"] = createArray()
+    llmChat["history"] = []
     llmChatRewriteSystemMessageInHistory()
-    
+
     llmChat["history_scroll"] = 0
     llmChat["history_page_size"] = 1
-    
-    llmChat["pending_tool_calls"] = createArray()
+
+    llmChat["pending_tool_calls"] = []
     
     llmChatClearInput()
     
@@ -117,45 +112,34 @@ fn llmChatToolCallName(toolCall) {
 }
 
 fn llmChatToolErrorOutput(toolName, errorCode, message, hint) {
-    let output = createTable()
-    output["ok"] = false
-    output["tool"] = toolName
-    output["error_code"] = errorCode
-    output["message"] = message
-    let hints = createArray()
+    let hints = []
     if hint != null and stringLen(hint) > 0 {
         arrayPushBack(hints, hint)
     }
-    output["hints"] = hints
-    output["data"] = fromJson("{}")
-    return toJson(output)
+    return toJson({
+        "ok": false,
+        "tool": toolName,
+        "error_code": errorCode,
+        "message": message,
+        "hints": hints,
+        "data": fromJson("{}")
+    })
 }
 
 fn llmChatParseToolArgs(toolCall) {
-    let result = createTable()
-    result["ok"] = false
-    result["args"] = null
-    result["error"] = ""
-
     let fnData = toolCall["function"]
     if typeOf(fnData) != "table" {
-        result["error"] = "Tool call is missing a valid function object."
-        return result
+        return {"ok": false, "args": null, "error": "Tool call is missing a valid function object."}
     }
     let rawArgs = fnData["arguments"]
     if typeOf(rawArgs) != "string" {
-        result["error"] = "Tool call arguments are missing or malformed."
-        return result
+        return {"ok": false, "args": null, "error": "Tool call arguments are missing or malformed."}
     }
     let parsed = fromJson(rawArgs)
     if typeOf(parsed) != "table" {
-        result["error"] = "Tool call arguments could not be parsed into a valid parameter object."
-        return result
+        return {"ok": false, "args": null, "error": "Tool call arguments could not be parsed into a valid parameter object."}
     }
-
-    result["ok"] = true
-    result["args"] = parsed
-    return result
+    return {"ok": true, "args": parsed, "error": ""}
 }
 
 fn llmChatLinesToString(lines) {
@@ -181,11 +165,10 @@ fn llmChatRenderInputBlock(chatInput, columns) {
     let wrappedInput = stringRenderViewport(inputText, wrapColumns, 100000, 0)
     let wrappedLines = stringSplitLines(wrappedInput)
     if arrayLen(wrappedLines) == 0 {
-        wrappedLines = createArray()
-        arrayPushBack(wrappedLines, "")
+        wrappedLines = [""]
     }
 
-    let renderedLines = createArray()
+    let renderedLines = []
     for i in range(0, arrayLen(wrappedLines), 1) {
         let line = wrappedLines[i]
         let prefix = continuationPrefix
@@ -193,10 +176,7 @@ fn llmChatRenderInputBlock(chatInput, columns) {
         arrayPushBack(renderedLines, prefix + line)
     }
 
-    let result = createTable()
-    result["content"] = llmChatLinesToString(renderedLines)
-    result["line_count"] = arrayLen(renderedLines)
-    return result
+    return {"content": llmChatLinesToString(renderedLines), "line_count": arrayLen(renderedLines)}
 }
 
 fn llmChatScrollUp() {
@@ -241,7 +221,7 @@ fn llmChatCycleMode() {
 
 fn renderLLMChat() {
     let chatHistory = llmChat["history"]
-    let historyLines = createArray()
+    let historyLines = []
     let totalMessages = arrayLen(chatHistory)
     for i in range(0, totalMessages, 1) {
         let message = chatHistory[i]
@@ -306,7 +286,7 @@ fn renderLLMChat() {
     }
 
     let pendingToolCalls = llmChat["pending_tool_calls"]
-    let pendingLines = createArray()
+    let pendingLines = []
     if arrayLen(pendingToolCalls) == 0 {
         arrayPushBack(pendingLines, "   None")
     }
@@ -382,13 +362,12 @@ fn requestChatCompletion() {
     let apiKey = provider["api_key"]
     let url = provider["url"]
 
-    let request = createTable()
-    request["model"] = provider["model"]
-    request["messages"] = llmChat["history"]
-    request["tools"] = getToolDeclarations(tableKeys(llmChat["mode"]["tools"]))
-    request["stream"] = false
-    # request["temperature"] = 0.3
-    # request["seed"] = 42
+    let request = {
+        "model": provider["model"],
+        "messages": llmChat["history"],
+        "tools": getToolDeclarations(tableKeys(llmChat["mode"]["tools"])),
+        "stream": false
+    }
 
     let body = toJson(request)
     let hasApiKey = apiKey != null and stringLen(apiKey) != 0
@@ -444,11 +423,7 @@ fn runToolCall(toolCall, allowed) {
         }
     }
 
-    let message = createTable()
-    message["role"] = "tool"
-    message["content"] = result
-    message["name"] = toolName
-    message["tool_call_id"] = toolCallId
+    let message = {"role": "tool", "content": result, "name": toolName, "tool_call_id": toolCallId}
     arrayPushBack(llmChat["history"], message)
 
     renderLLMChat()
@@ -475,9 +450,7 @@ fn denyToolCall() { getToolCallResult(false) }
 fn sendMessage() {
     let pendingToolCalls = llmChat["pending_tool_calls"]
     if arrayLen(pendingToolCalls) == 0 {
-        let message = createTable()
-        message["role"] = "user"
-        message["content"] = llmChat["input"]
+        let message = {"role": "user", "content": llmChat["input"]}
         arrayPushBack(llmChat["history"], message)
 
         llmChatClearInput()

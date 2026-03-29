@@ -68,7 +68,7 @@ let sqr = square
 print(sqr, sqr(5))
 
 # Array
-let arr = createArray(9, 8, 7)
+let arr = [9, 8, 7]
 print(arr, arrayLen(arr))
 print(arrayGet(arr, 1), arrayGet(arr, 3))
 
@@ -77,10 +77,7 @@ let i = 0
 arr[i] = arr[i + 1] * 5
 print("Indexed arr:", arr, arr[i])
 
-let nested = createArray(
-    createArray(1, 2, 3),
-    createArray(4, 5, 6)
-)
+let nested = [[1, 2, 3], [4, 5, 6]]
 nested[0][1] = nested[1][2] * 10
 print("Nested index:", nested, nested[0][1])
 
@@ -94,23 +91,20 @@ fn applyArray(arr, fun) {
 applyArray(arr, sqr)
 print(arr)
 
-let multiDimArr = createArray(
-    createArray(1, 2, 3),
-    createArray(4, 5, 6),
-    createArray(7, 8, 9),
-    createArray(0),
+let multiDimArr = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+    [0],
     null,
     "Hello"
-)
+]
 
 print(multiDimArr)
 
 # Tables
 
-let table = createTable()
-tableSet(table, "name", "Satwik")
-tableSet(table, "age", -56)
-tableSet(table, "isStudent", false)
+let table = {"name": "Satwik", "age": -56, "isStudent": false}
 
 # Get values
 let name = tableGet(table, "name")
@@ -135,16 +129,11 @@ fn addBase(self, x) {
     return self["base"] + x
 }
 
-let methodTable = createTable()
-methodTable["base"] = 10
-methodTable["fun"] = addBase
+let methodTable = {"base": 10, "fun": addBase}
 print("Method call:", methodTable.fun(5))
 
-let innerTable = createTable()
-innerTable["base"] = 7
-innerTable["fun"] = addBase
-let outerTable = createTable()
-outerTable["inner"] = innerTable
+let innerTable = {"base": 7, "fun": addBase}
+let outerTable = {"inner": innerTable}
 print("Nested method call:", outerTable["inner"].fun(5))
 
 let testLib = import("lib.rsl")

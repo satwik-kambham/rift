@@ -1,29 +1,23 @@
 # Command Dispatcher
 
-let commandDispatcher = createTable()
-commandDispatcher["id"] = -1
-commandDispatcher["input"] = ""
-commandDispatcher["all"] = createArray()
-commandDispatcher["results"] = createArray()
-commandDispatcher["selected"] = 0
-commandDispatcher["previous_buffer_id"] = -1
+let commandDispatcher = {"id": -1, "input": "", "all": [], "results": [], "selected": 0, "previous_buffer_id": -1}
 
 fn renderCommandDispatcher() {
-    let ctx = createTable()
-    ctx["title"] = "⚡ Command Palette"
-    ctx["input_header"] = "╭─ Filter ──────────────"
-    ctx["input_value"] = commandDispatcher["input"]
-    ctx["list_header"] = "╰─ Commands ────────────"
-    ctx["entries"] = commandDispatcher["results"]
-    ctx["selected_index"] = commandDispatcher["selected"]
-    ctx["reserved_lines"] = 5
-    ctx["empty_text"] = "No commands"
-    ctx["buffer_id"] = commandDispatcher["id"]
-    listPanelRender(ctx)
+    listPanelRender({
+        "title": "⚡ Command Palette",
+        "input_header": "╭─ Filter ──────────────",
+        "input_value": commandDispatcher["input"],
+        "list_header": "╰─ Commands ────────────",
+        "entries": commandDispatcher["results"],
+        "selected_index": commandDispatcher["selected"],
+        "reserved_lines": 5,
+        "empty_text": "No commands",
+        "buffer_id": commandDispatcher["id"]
+    })
 }
 
 fn commandDispatcherFilterResults() {
-    let results = createArray()
+    let results = []
     let query = stringToLower(commandDispatcher["input"])
     let allActions = commandDispatcher["all"]
 
