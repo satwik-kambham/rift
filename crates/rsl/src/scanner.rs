@@ -48,6 +48,7 @@ impl Scanner {
             '%' => self.add_token(TokenType::Percent),
             ';' => self.add_token(TokenType::Semicolon),
             ',' => self.add_token(TokenType::Comma),
+            ':' => self.add_token(TokenType::Colon),
             '.' => self.add_token(TokenType::Dot),
             '(' => self.add_token(TokenType::LeftParentheses),
             ')' => self.add_token(TokenType::RightParentheses),

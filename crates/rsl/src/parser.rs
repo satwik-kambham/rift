@@ -498,6 +498,45 @@ impl Parser {
             return Ok(Box::new(expression::GroupingExpression::new(expression)));
         }
 
+        if matches!(self.peek().token_type, TokenType::LeftSquareBracket) {
+            let span = self.peek().span.clone();
+            self.consume();
+            let mut elements = vec![];
+            if !matches!(self.peek().token_type, TokenType::RightSquareBracket) {
+                loop {
+                    elements.push(self.expression()?);
+                    if !consume_token!(self, TokenType::Comma) {
+                        break;
+                    }
+                }
+            }
+            expect_token!(self, TokenType::RightSquareBracket, "]");
+            return Ok(Box::new(expression::ArrayLiteralExpression::new(
+                elements, span,
+            )));
+        }
+
+        if matches!(self.peek().token_type, TokenType::LeftBrace) {
+            let span = self.peek().span.clone();
+            self.consume();
+            let mut entries = vec![];
+            if !matches!(self.peek().token_type, TokenType::RightBrace) {
+                loop {
+                    let key = self.expression()?;
+                    expect_token!(self, TokenType::Colon, ":");
+                    let value = self.expression()?;
+                    entries.push((key, value));
+                    if !consume_token!(self, TokenType::Comma) {
+                        break;
+                    }
+                }
+            }
+            expect_token!(self, TokenType::RightBrace, "}");
+            return Ok(Box::new(expression::TableLiteralExpression::new(
+                entries, span,
+            )));
+        }
+
         Err(ParseError::new(
             format!("expected expression, found {:?}", self.peek().token_type),
             self.peek().span.clone(),

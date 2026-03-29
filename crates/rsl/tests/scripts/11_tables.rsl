@@ -79,3 +79,34 @@ loop {
 assertEqual(counts["a"], 3)
 assertEqual(counts["b"], 2)
 assertEqual(counts["c"], 1)
+
+# Table literals
+let litEmpty = {}
+assertEqual(arrayLen(tableKeys(litEmpty)), 0)
+
+let litT = {"x": 10, "y": 20}
+assertEqual(litT["x"], 10)
+assertEqual(litT["y"], 20)
+assertEqual(arrayLen(tableKeys(litT)), 2)
+
+# Table literal with expression values
+let litExpr = {"sum": 1 + 2, "prod": 3 * 4}
+assertEqual(litExpr["sum"], 3)
+assertEqual(litExpr["prod"], 12)
+
+# Nested table literals
+let litNested = {"inner": {"val": 99}}
+assertEqual(tableGet(litNested["inner"], "val"), 99)
+
+# Table literal with mixed value types
+let litMixed = {"num": 42, "str": "hello", "bool": true, "nil": null}
+assertEqual(litMixed["num"], 42)
+assertEqual(litMixed["str"], "hello")
+assertEqual(litMixed["bool"], true)
+assert(isNull(litMixed["nil"]))
+
+# Table literal works with existing table functions
+let litMut = {"a": 1}
+tableSet(litMut, "b", 2)
+assertEqual(litMut["a"], 1)
+assertEqual(litMut["b"], 2)

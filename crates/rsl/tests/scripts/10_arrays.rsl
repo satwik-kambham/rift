@@ -89,3 +89,39 @@ assertEqual(squares[1], 1)
 assertEqual(squares[2], 4)
 assertEqual(squares[3], 9)
 assertEqual(squares[4], 16)
+
+# Array literals
+let litEmpty = []
+assertEqual(arrayLen(litEmpty), 0)
+
+let litArr = [10, 20, 30]
+assertEqual(arrayLen(litArr), 3)
+assertEqual(litArr[0], 10)
+assertEqual(litArr[1], 20)
+assertEqual(litArr[2], 30)
+
+# Array literal with expressions
+let litExpr = [1 + 1, 2 * 3, 4 - 1]
+assertEqual(litExpr[0], 2)
+assertEqual(litExpr[1], 6)
+assertEqual(litExpr[2], 3)
+
+# Nested array literals
+let litNested = [[1, 2], [3, 4]]
+assertEqual(litNested[0][0], 1)
+assertEqual(litNested[0][1], 2)
+assertEqual(litNested[1][0], 3)
+assertEqual(litNested[1][1], 4)
+
+# Mixed types in array literal
+let litMixed = [1, "two", true, null]
+assertEqual(litMixed[0], 1)
+assertEqual(litMixed[1], "two")
+assertEqual(litMixed[2], true)
+assert(isNull(litMixed[3]))
+
+# Array literal works with existing array functions
+let litPush = [1, 2]
+arrayPushBack(litPush, 3)
+assertEqual(arrayLen(litPush), 3)
+assertEqual(litPush[2], 3)
