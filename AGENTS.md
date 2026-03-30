@@ -38,6 +38,10 @@ A `Makefile` wraps common workflows — run `make help` to list all targets.
 | Flamegraph | `make flamegraph-tui` / `make flamegraph-tui-debug` |
 | Clean | `make clean` |
 
+## Validating Changes
+
+After making changes, run `make check-all` to validate. This single command runs the full CI suite (compile check, clippy with `-D warnings`, format check, and all tests). Prefer this over running `make check`, `make clippy`, `make fmt`, or `make test` individually, unless you need to isolate a specific failure.
+
 ## Coding Style
 
 ### Rust
