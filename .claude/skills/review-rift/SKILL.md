@@ -6,6 +6,8 @@ description: >
   "review my changes", "review this PR", "check my code", "run review", "review the diff",
   or any request to evaluate code quality of recent work. Also trigger when the user asks to
   "check before committing" or "is this ready to merge".
+context: fork
+agent: Explore
 ---
 
 # Rift Code Review Pipeline
