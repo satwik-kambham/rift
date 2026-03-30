@@ -15,7 +15,7 @@ Rust workspace rooted at this repo; crates live under `crates/`.
 | `rsl_macros` | Proc macros for registering native RSL functions |
 
 Other paths:
-- `docs/` — documentation (`architecture.md`, `rsl-quickstart.md`).
+- `docs/` — documentation (`rsl-quickstart.md`).
 - `assets/` — screenshots and static assets; `target/` — build artifacts.
 - `flake.nix` + `.envrc` — Nix devshell; `direnv allow` auto-loads it.
 
