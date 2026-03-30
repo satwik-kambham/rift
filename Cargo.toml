@@ -9,8 +9,6 @@ members = [
   "crates/rift_rpc",
   "crates/rift_server",
   "crates/rift_ipc",
-  "crates/petal",
-  "crates/petal_mcp",
 ]
 
 [workspace.package]

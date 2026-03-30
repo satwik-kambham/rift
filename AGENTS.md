@@ -13,11 +13,9 @@ Rust workspace rooted at this repo; crates live under `crates/`.
 | `rift_ipc` | IPC protocol types (key input, client/server messages) |
 | `rsl` | Rift scripting language implementation |
 | `rsl_macros` | Proc macros for registering native RSL functions |
-| `petal` | Note store library |
-| `petal_mcp` | MCP server exposing the petal note store |
 
 Other paths:
-- `docs/` — documentation (`architecture.md`, `petal.md`, `rsl-quickstart.md`).
+- `docs/` — documentation (`architecture.md`, `rsl-quickstart.md`).
 - `assets/` — screenshots and static assets; `target/` — build artifacts.
 - `flake.nix` + `.envrc` — Nix devshell; `direnv allow` auto-loads it.
 
