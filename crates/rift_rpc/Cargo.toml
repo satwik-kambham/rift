@@ -1,9 +1,0 @@
-[package]
-name = "rift_rpc"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-tarpc = { workspace = true }
-tokio = { workspace = true }
-futures = { workspace = true }

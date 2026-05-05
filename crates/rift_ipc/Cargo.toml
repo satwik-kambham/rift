@@ -1,7 +1,0 @@
-[package]
-name = "rift_ipc"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-bincode = { workspace = true }
