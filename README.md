@@ -1,0 +1,3 @@
+# Rift
+
+Extensible code editor

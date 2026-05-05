@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+
+members = [
+  "crates/rift_core",
+  "crates/rift_io",
+  "crates/rift_highlight",
+  "crates/rift_tui",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/satwik-kambham/rift"
+authors = ["Satwik Kambham"]
+publish = false
+
+[workspace.dependencies]
+anyhow = "1.0"
+thiserror = "2"
+
+[workspace.metadata.crane]
+name = "rift-workspace"

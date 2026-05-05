@@ -1,0 +1,195 @@
+{
+  description = "Rift Editor";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    crane.url = "github:ipetkov/crane";
+  };
+
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      rust-overlay,
+      crane,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) ];
+        };
+
+        toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+        buildDeps = with pkgs; [
+          toolchain
+          rust-analyzer
+          nixfmt
+          cargo-flamegraph
+          perf
+        ];
+        runtimeDeps = with pkgs; [
+          makeWrapper
+          # misc. libraries
+          openssl
+          pkg-config
+
+          alsa-lib
+          alsa-plugins
+          pipewire
+
+          clang
+          wild
+        ];
+        appDeps = with pkgs; [
+          fzf
+          ripgrep
+          fd
+          ffmpeg
+        ];
+        devDeps = buildDeps ++ runtimeDeps ++ appDeps;
+
+        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+
+        unfilteredRoot = ./.;
+        src = pkgs.lib.fileset.toSource {
+          root = unfilteredRoot;
+          fileset = pkgs.lib.fileset.unions [
+            # Default files from crane (Rust and cargo files)
+            (craneLib.fileset.commonCargoSources unfilteredRoot)
+            (pkgs.lib.fileset.fileFilter (
+              file:
+              pkgs.lib.any file.hasExt [
+                "rsl"
+                "html"
+                "css"
+                "js"
+              ]
+            ) unfilteredRoot)
+            # folder for images, icons, etc
+            (pkgs.lib.fileset.maybeMissing ./assets)
+          ];
+        };
+
+        commonArgs = {
+          inherit src;
+          strictDeps = true;
+
+          buildInputs = runtimeDeps;
+          nativeBuildInputs = runtimeDeps;
+        };
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        individualCrateArgs = commonArgs // {
+          inherit cargoArtifacts;
+          inherit (craneLib.crateNameFromCargoToml { inherit src; }) version;
+        };
+
+        alsaPluginDir = pkgs.runCommand "alsa-plugins-merged" { } ''
+          mkdir -p $out/lib/alsa-lib
+          ln -s ${pkgs.alsa-plugins}/lib/alsa-lib/* $out/lib/alsa-lib/
+          ln -s ${pkgs.pipewire}/lib/alsa-lib/* $out/lib/alsa-lib/
+        '';
+        rift_tui = craneLib.buildPackage (
+          individualCrateArgs
+          // {
+            pname = "rift_tui";
+            cargoExtraArgs = "-p rift_tui";
+            postInstall = ''
+              wrapProgram $out/bin/rt \
+                --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
+                --set ALSA_PLUGIN_DIR ${alsaPluginDir}/lib/alsa-lib
+            '';
+          }
+        );
+        rift_server_static = pkgs.runCommand "rift-server-static" { } ''
+          mkdir -p $out/static
+          cp -r ${src}/static/* $out/static/
+        '';
+        rift_server = craneLib.buildPackage (
+          individualCrateArgs
+          // {
+            pname = "rift_server";
+            cargoExtraArgs = "-p rift_server";
+            postInstall = ''
+              wrapProgram $out/bin/rift_server \
+                --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
+                --chdir ${rift_server_static} \
+                --set ALSA_PLUGIN_DIR ${alsaPluginDir}/lib/alsa-lib
+            '';
+          }
+        );
+      in
+      {
+        checks = {
+          inherit rift_tui rift_server;
+
+          rift-clippy = craneLib.cargoClippy (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+            }
+          );
+
+          rift-fmt = craneLib.cargoFmt {
+            inherit src;
+          };
+
+          rift-test = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+            }
+          );
+
+          rift-doc = craneLib.cargoDoc (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              RUSTDOCFLAGS = "-D warnings";
+            }
+          );
+
+          rift-doctest = craneLib.cargoDocTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+            }
+          );
+        };
+
+        packages = {
+          inherit rift_tui rift_server;
+        };
+
+        apps = {
+          rift_tui = flake-utils.lib.mkApp {
+            drv = rift_tui;
+            exePath = "/bin/rt";
+          };
+          rift_server = flake-utils.lib.mkApp {
+            drv = rift_server;
+            exePath = "/bin/rift_server";
+          };
+        };
+
+        devShells.default = craneLib.devShell {
+          packages = devDeps;
+
+          shellHook = ''
+            export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath devDeps}:$LD_LIBRARY_PATH
+            export ALSA_PLUGIN_DIR=${alsaPluginDir}/lib/alsa-lib
+          '';
+        };
+      }
+    );
+}

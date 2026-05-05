@@ -1,0 +1,8 @@
+[package]
+name = "rift_core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rift_io = { path = "../rift_io" }
+rift_highlight = { path = "../rift_highlight" }

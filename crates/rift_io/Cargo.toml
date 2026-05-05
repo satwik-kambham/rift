@@ -1,0 +1,6 @@
+[package]
+name = "rift_io"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
