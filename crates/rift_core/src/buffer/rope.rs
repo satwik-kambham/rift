@@ -6,10 +6,13 @@ impl RopeBufferInstance {
     }
 }
 
-pub struct RopeBuffer {}
+pub struct RopeBuffer {
+    buffer: ropey::Rope,
+}
 
 impl RopeBuffer {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(initial_text: &str) -> Self {
+        let buffer = ropey::Rope::from_str(initial_text);
+        Self { buffer }
     }
 }
