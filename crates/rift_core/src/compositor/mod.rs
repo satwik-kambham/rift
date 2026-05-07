@@ -1,3 +1,5 @@
+use crate::buffer::{grid::GridBufferInstance, rope::RopeBufferInstance};
+
 pub mod grid;
 
 pub struct Compositor {
@@ -18,4 +20,6 @@ impl Compositor {
 
 pub enum CompositorNode {
     Empty,
+    RopeBufferInstance(RopeBufferInstance),
+    GridBufferInstance(GridBufferInstance),
 }

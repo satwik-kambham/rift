@@ -45,4 +45,34 @@ impl CompositorGridBuffer {
             grid: vec![Default::default(); 16 * 16],
         }
     }
+
+    pub fn slice(
+        &mut self,
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+    ) -> CompositorGridSlice<'_> {
+        assert!(x + width <= self.columns);
+        assert!(y + height <= self.rows);
+
+        CompositorGridSlice {
+            buffer: self,
+            top_left_x: x,
+            top_left_y: y,
+            width,
+            height,
+        }
+    }
 }
+
+pub struct CompositorGridSlice<'a> {
+    buffer: &'a mut CompositorGridBuffer,
+
+    top_left_x: usize,
+    top_left_y: usize,
+    width: usize,
+    height: usize,
+}
+
+impl<'a> CompositorGridSlice<'a> {}
