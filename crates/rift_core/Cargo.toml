@@ -7,6 +7,8 @@ edition.workspace = true
 rift_io = { path = "../rift_io" }
 rift_highlight = { path = "../rift_highlight" }
 
+tracing = { workspace = true }
+
 bitflags = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }

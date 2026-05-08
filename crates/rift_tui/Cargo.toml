@@ -9,5 +9,10 @@ path = "src/main.rs"
 
 [dependencies]
 rift_core = { path = "../rift_core" }
+rift_io = { path = "../rift_io" }
+
+tracing = { workspace = true }
 
 anyhow = { workspace = true }
+
+crossterm = "0.29.0"
