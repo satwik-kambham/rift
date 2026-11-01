@@ -15,7 +15,23 @@ Rust workspace rooted at this repo; crates live under `crates/`.
 Other paths:
 - `docs/` — documentation (`rsl-quickstart.md`).
 - `assets/` — screenshots and static assets; `target/` — build artifacts.
-- `flake.nix` + `.envrc` — Nix devshell; `direnv allow` auto-loads it.
+- `flake.nix` + `.envrc` — Nix devshell for Linux; `direnv allow` auto-loads it.
+
+## Development Environment
+
+Setup depends on the platform you are on:
+
+- **Linux:** use the Nix devshell. Run `nix develop` (or `direnv allow`) before any
+  `cargo` or `make` command. The flake supplies the Rust toolchain, clang, the `wild`
+  linker, ALSA/PipeWire, OpenSSL, and the runtime tools (`fzf`, `ripgrep`, `fd`, `ffmpeg`).
+  Do not install these yourself.
+- **macOS and Windows:** do not use Nix and do not try to install anything. Assume all
+  dependencies (Rust toolchain, compilers, system libraries, runtime tools) are already
+  installed and on `PATH`, provided by the user. If something is missing, report it
+  instead of installing it.
+
+If a command fails because a tool or library is unavailable on macOS or Windows, say so
+and stop — do not attempt to fetch it with Homebrew, Chocolatey, or similar.
 
 ## Build & Development Commands
 
@@ -23,7 +39,7 @@ A `Makefile` wraps common workflows — run `make help` to list all targets.
 
 | Task | Command |
 |------|---------|
-| Enter dev env | `nix develop` (or `direnv allow`) |
+| Enter dev env (Linux only) | `nix develop` (or `direnv allow`) |
 | Quick compile check | `make check` (`cargo check` + `cargo clippy`) |
 | Full CI check | `make check-all` (check, clippy `-D warnings`, fmt `--check`, tests) |
 | Format | `make fmt` |
