@@ -7,8 +7,6 @@ members = [
   "crates/rsl",
   "crates/rsl_macros",
   "crates/rift_rpc",
-  "crates/rift_server",
-  "crates/rift_ipc",
 ]
 
 [workspace.package]

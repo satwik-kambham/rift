@@ -120,7 +120,7 @@ This is the most important stage. Read the changed code *and its surrounding con
   leaks. Think about what happens with empty inputs, very large inputs, or unexpected types.
 
 - **Security**: Check for command injection, path traversal, or unsafe handling of user input.
-  This matters most in `rift_server` (web-facing) and any file I/O code.
+  This matters most in any file I/O code.
 
 - **Performance**: Only flag obvious issues — unnecessary clones of large data, O(n^2) loops
   where linear is possible, allocations in hot paths. Don't micro-optimize.

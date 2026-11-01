@@ -8,9 +8,7 @@ Rust workspace rooted at this repo; crates live under `crates/`.
 |-------|---------|
 | `rift_core` | Editor primitives, buffer/state, and shared utilities |
 | `rift_tui` | Terminal frontend (ratatui) |
-| `rift_server` | Web frontend (axum + js) |
 | `rift_rpc` | RPC bridge between `rift_core` and RSL |
-| `rift_ipc` | IPC protocol types (key input, client/server messages) |
 | `rsl` | Rift scripting language implementation |
 | `rsl_macros` | Proc macros for registering native RSL functions |
 
@@ -33,7 +31,6 @@ A `Makefile` wraps common workflows — run `make help` to list all targets.
 | Tests | `make test` (`cargo test --workspace`) |
 | Run TUI | `make run-tui` (release) |
 | Run TUI (minimal) | `make run-tui-minimal` (`--no-lsp --no-audio`) |
-| Run server | `make run-server` (`--no-audio`) |
 | Release build | `make build-release` |
 | Flamegraph | `make flamegraph-tui` / `make flamegraph-tui-debug` |
 | Clean | `make clean` |

@@ -66,15 +66,7 @@
           fileset = pkgs.lib.fileset.unions [
             # Default files from crane (Rust and cargo files)
             (craneLib.fileset.commonCargoSources unfilteredRoot)
-            (pkgs.lib.fileset.fileFilter (
-              file:
-              pkgs.lib.any file.hasExt [
-                "rsl"
-                "html"
-                "css"
-                "js"
-              ]
-            ) unfilteredRoot)
+            (pkgs.lib.fileset.fileFilter (file: pkgs.lib.any file.hasExt [ "rsl" ]) unfilteredRoot)
             # folder for images, icons, etc
             (pkgs.lib.fileset.maybeMissing ./assets)
           ];
@@ -110,27 +102,10 @@
             '';
           }
         );
-        rift_server_static = pkgs.runCommand "rift-server-static" { } ''
-          mkdir -p $out/static
-          cp -r ${src}/static/* $out/static/
-        '';
-        rift_server = craneLib.buildPackage (
-          individualCrateArgs
-          // {
-            pname = "rift_server";
-            cargoExtraArgs = "-p rift_server";
-            postInstall = ''
-              wrapProgram $out/bin/rift_server \
-                --prefix PATH : ${pkgs.lib.makeBinPath appDeps} \
-                --chdir ${rift_server_static} \
-                --set ALSA_PLUGIN_DIR ${alsaPluginDir}/lib/alsa-lib
-            '';
-          }
-        );
       in
       {
         checks = {
-          inherit rift_tui rift_server;
+          inherit rift_tui;
 
           rift-clippy = craneLib.cargoClippy (
             commonArgs
@@ -168,17 +143,13 @@
         };
 
         packages = {
-          inherit rift_tui rift_server;
+          inherit rift_tui;
         };
 
         apps = {
           rift_tui = flake-utils.lib.mkApp {
             drv = rift_tui;
             exePath = "/bin/rt";
-          };
-          rift_server = flake-utils.lib.mkApp {
-            drv = rift_server;
-            exePath = "/bin/rift_server";
           };
         };
 

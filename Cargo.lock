@@ -2467,37 +2467,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "rift_ipc"
-version = "1.0.23"
-dependencies = [
- "bincode 2.0.1",
-]
-
-[[package]]
 name = "rift_rpc"
 version = "1.0.23"
 dependencies = [
  "futures",
  "tarpc",
  "tokio",
-]
-
-[[package]]
-name = "rift_server"
-version = "1.0.23"
-dependencies = [
- "anyhow",
- "axum",
- "bincode 2.0.1",
- "bytes",
- "clap",
- "futures",
- "rift_core",
- "serde",
- "serde_json",
- "tokio",
- "tower-http",
- "tracing",
 ]
 
 [[package]]
