@@ -22,7 +22,7 @@ Other paths:
 Setup depends on the platform you are on:
 
 - **Linux:** use the Nix devshell. Run `nix develop` (or `direnv allow`) before any
-  `cargo` or `make` command. The flake supplies the Rust toolchain, clang, the `wild`
+  `cargo` or `just` command. The flake supplies the Rust toolchain, clang, the `wild`
   linker, ALSA/PipeWire, OpenSSL, and the runtime tools (`fzf`, `ripgrep`, `fd`, `ffmpeg`).
   Do not install these yourself.
 - **macOS and Windows:** do not use Nix and do not try to install anything. Assume all
@@ -35,30 +35,30 @@ and stop — do not attempt to fetch it with Homebrew, Chocolatey, or similar.
 
 ## Build & Development Commands
 
-A `Makefile` wraps common workflows — run `make help` to list all targets.
+A `justfile` wraps common workflows — run `just` or `just --list` to list all recipes.
 
 | Task | Command |
 |------|---------|
 | Enter dev env (Linux only) | `nix develop` (or `direnv allow`) |
-| Quick compile check | `make check` (`cargo check` + `cargo clippy`) |
-| Full CI check | `make check-all` (check, clippy `-D warnings`, fmt `--check`, tests) |
-| Format | `make fmt` |
-| Lint | `make clippy` (`cargo clippy -- -D warnings`) |
-| Tests | `make test` (`cargo test --workspace`) |
-| Run TUI | `make run-tui` (release) |
-| Run TUI (minimal) | `make run-tui-minimal` (`--no-lsp --no-audio`) |
-| Release build | `make build-release` |
-| Flamegraph | `make flamegraph-tui` / `make flamegraph-tui-debug` |
-| Clean | `make clean` |
+| Quick compile check | `just check` (`cargo check` + `cargo clippy`) |
+| Full CI check | `just check-all` (check, clippy `-D warnings`, fmt `--check`, tests) |
+| Format | `just fmt` |
+| Lint | `just clippy` (`cargo clippy -- -D warnings`) |
+| Tests | `just test` (`cargo test --workspace`) |
+| Run TUI | `just run-tui` (release) |
+| Run TUI (minimal) | `just run-tui-minimal` (`--no-lsp --no-audio`) |
+| Release build | `just build-release` |
+| Flamegraph | `just flamegraph-tui` / `just flamegraph-tui-debug` |
+| Clean | `just clean` |
 
 ## Validating Changes
 
-After making changes, run `make check-all` to validate. This single command runs the full CI suite (compile check, clippy with `-D warnings`, format check, and all tests). Prefer this over running `make check`, `make clippy`, `make fmt`, or `make test` individually, unless you need to isolate a specific failure.
+After making changes, run `just check-all` to validate. This single command runs the full CI suite (compile check, clippy with `-D warnings`, format check, and all tests). Prefer this over running `just check`, `just clippy`, `just fmt`, or `just test` individually, unless you need to isolate a specific failure.
 
 ## Coding Style
 
 ### Rust
-- Use Rustfmt defaults (4-space indent, 100-line wraps); always run `make fmt`.
+- Use Rustfmt defaults (4-space indent, 100-line wraps); always run `just fmt`.
 - Naming: `snake_case` for functions/vars/modules, `CamelCase` for types/traits, `SCREAMING_SNAKE_CASE` for consts.
 - Mirror existing patterns in `rift_core` (commands/state) and frontends (UI wiring).
 - Prefer `tracing` diagnostics over `println!`.

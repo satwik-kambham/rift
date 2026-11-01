@@ -50,7 +50,7 @@ full context. If clippy suggests a fix, include the suggestion in your report.
 
 ### 3. Tests
 
-Run `cargo test --workspace` (using the Makefile's split approach: `cargo test -p rsl` separately
+Run `cargo test --workspace` (using the justfile's split approach: `cargo test -p rsl` separately
 from `cargo test --workspace --exclude rsl`).
 
 Report:

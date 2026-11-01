@@ -34,6 +34,7 @@
           toolchain
           rust-analyzer
           nixfmt
+          just
           cargo-flamegraph
           perf
         ];
